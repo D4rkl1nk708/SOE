@@ -59,7 +59,7 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends wine64 wine32
+          sudo apt-get install -y wine wine64 wine32
 
       - name: Build Android APK
         if: env.TAG_EXISTS == 'false'
