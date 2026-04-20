@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1765300095130,
+      "tag": "0000_blue_xavin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1765300213884,
+      "tag": "0001_oval_typhoid_mary",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1765300421024,
+      "tag": "0002_dashing_eternity",
+      "breakpoints": true
+    }
+  ]
+}

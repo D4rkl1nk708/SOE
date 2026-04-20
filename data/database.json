@@ -1,0 +1,16 @@
+{
+  "users": [],
+  "disciplines": [],
+  "topics": [],
+  "revisions": [],
+  "mockExams": [],
+  "notes": [],
+  "counters": {
+    "users": 0,
+    "disciplines": 0,
+    "topics": 0,
+    "revisions": 0,
+    "mockExams": 0,
+    "notes": 0
+  }
+}

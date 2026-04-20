@@ -1,0 +1,296 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ══════════════════════════════════════════════════════════════════════
+   APPLE DESIGN SYSTEM — SF Pro Typography & Binary Color Palette
+   ══════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   LIGHT MODE — Apple Binary: Pure White Background with Light Gray Sections
+   ══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Apple Color Palette */
+  --apple-black: #000000;
+  --apple-white: #ffffff;
+  --apple-light-gray: #f5f5f7;
+  --apple-near-black: #1d1d1f;
+  --apple-blue: #0071e3;
+  --apple-link-blue: #0066cc;
+  --apple-bright-blue: #2997ff;
+
+  /* Primary — Apple Blue for interactive elements */
+  --primary: #0071e3;
+  --primary-foreground: #ffffff;
+
+  /* Sidebar active — Apple subtle highlight */
+  --sidebar-active-bg: rgba(0, 113, 227, 0.08);
+  --sidebar-active-fg: #0071e3;
+  --sidebar-active-border: rgba(0, 113, 227, 0.16);
+
+  /* Gold alias — removed, using Apple Blue instead */
+  --gold: #0071e3;
+  --gold-light: #0071e3;
+  --gold-dark: #0066cc;
+
+  /* Semantic accents — Apple focused */
+  --accent-green: #34c759;
+  --accent-blue: #0071e3;
+  --accent-amber: #ff9500;
+  --accent-red: #ff3b30;
+  --accent-violet: #af52de;
+
+  /* ── LIGHT surfaces — Apple clean and minimal ── */
+  --app-bg: #ffffff;
+  --app-fg: #1d1d1f;
+  --sidebar-bg: #f5f5f7;
+  --sidebar-fg: #1d1d1f;
+  --sidebar-border-color: #e5e5ea;
+  --header-bg: rgba(255, 255, 255, 0.8);
+  --header-border: #e5e5ea;
+  --card-bg: #ffffff;
+  --card-border: #e5e5ea;
+  --stat-bg: #f5f5f7;
+  --stat-border: #e5e5ea;
+  --muted-text: rgba(0, 0, 0, 0.48);
+  --input-bg: #ffffff;
+
+  /* shadcn — Apple palette */
+  --radius: 8px;
+  --background: #ffffff;
+  --foreground: #1d1d1f;
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: rgba(0, 0, 0, 0.48);
+  --accent: #0071e3;
+  --accent-foreground: #ffffff;
+  --destructive: #ff3b30;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5ea;
+  --input: #e5e5ea;
+  --ring: #0071e3;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #0071e3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(0, 113, 227, 0.06);
+  --sidebar-accent-foreground: #0071e3;
+  --sidebar-border: #e5e5ea;
+  --sidebar-ring: #0071e3;
+  --chart-1: #0071e3;
+  --chart-2: #34c759;
+  --chart-3: #ff9500;
+  --chart-4: #ff3b30;
+  --chart-5: #af52de;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DARK MODE — Apple Binary: Pure Black with Dark Surfaces
+   ══════════════════════════════════════════════════════════════════════ */
+.dark {
+  /* Apple Dark Palette */
+  --accent-green: #30b0c0;
+  --accent-blue: #0a84ff;
+  --accent-amber: #ff9500;
+  --accent-red: #ff453a;
+  --accent-violet: #bf5af0;
+
+  --app-bg: #000000;
+  --app-fg: #ffffff;
+  --sidebar-bg: #1a1a1a;
+  --sidebar-fg: #ffffff;
+  --sidebar-border-color: rgba(255, 255, 255, 0.1);
+  --header-bg: rgba(0, 0, 0, 0.8);
+  --header-border: rgba(255, 255, 255, 0.1);
+  --card-bg: #1a1a1a;
+  --card-border: #424245;
+  --stat-bg: #272729;
+  --stat-border: #424245;
+  --muted-text: rgba(255, 255, 255, 0.6);
+  --input-bg: #1a1a1a;
+
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #1a1a1a;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1a;
+  --popover-foreground: #ffffff;
+  --secondary: #272729;
+  --secondary-foreground: #ffffff;
+  --muted: #272729;
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: #0a84ff;
+  --accent-foreground: #000000;
+  --destructive: #ff453a;
+  --destructive-foreground: #000000;
+  --border: #424245;
+  --input: #424245;
+  --sidebar: #1a1a1a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-color: var(--app-bg) !important;
+    color: var(--app-fg) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.374px;
+  }
+
+  /* Apple Typography Scale */
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 600;
+    line-height: 1.07;
+    letter-spacing: -0.28px;
+  }
+
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: normal;
+  }
+
+  h3 {
+    font-size: 1.75rem;
+    font-weight: 400;
+    line-height: 1.14;
+    letter-spacing: 0.196px;
+  }
+
+  h4 {
+    font-size: 1.31rem;
+    font-weight: 600;
+    line-height: 1.19;
+    letter-spacing: 0.231px;
+  }
+
+  h5 {
+    font-size: 1.06rem;
+    font-weight: 600;
+    line-height: 1.24;
+    letter-spacing: -0.374px;
+  }
+
+  p {
+    font-size: 1.06rem;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+  }
+
+  small {
+    font-size: 0.88rem;
+    line-height: 1.43;
+    letter-spacing: -0.224px;
+  }
+}
+
+@layer components {
+  /* Apple Button Styles */
+  .btn-apple-primary {
+    @apply bg-blue-600 text-white px-4 py-2 rounded-lg border border-transparent font-medium transition-colors hover:bg-blue-700 active:bg-blue-800;
+  }
+
+  .btn-apple-pill {
+    @apply bg-transparent text-blue-600 px-4 py-2 rounded-full border border-blue-600 font-medium transition-all hover:underline;
+  }
+
+  .dark .btn-apple-pill {
+    @apply text-blue-400 border-blue-400;
+  }
+
+  /* Apple Card Styles */
+  .card-apple {
+    @apply bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-4 transition-shadow hover:shadow-md dark:hover:shadow-lg;
+  }
+
+  /* Apple Section Alternation */
+  .section-apple-dark {
+    @apply bg-black text-white;
+  }
+
+  .section-apple-light {
+    @apply bg-gray-100 text-gray-900;
+  }
+
+  /* Utility Classes */
+  .soe-card {
+    @apply bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-4;
+  }
+
+  .soe-stat-card {
+    @apply bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-4;
+  }
+
+  .soe-gold-text {
+    @apply text-blue-600 dark:text-blue-400;
+  }
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+* { -webkit-tap-highlight-color: transparent; }
+
+/* ── Scrollbar global invisível ─────────────────────────────────── */
+* {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none;                /* Chrome/Safari/Opera */
+}
+
+/* ── Font scale — controlada por JS via data-font no <html> ─────── */
+html[data-font="sm"]   { font-size: 13px; }
+html[data-font="md"]   { font-size: 15px; }
+html[data-font="lg"]   { font-size: 17px; }
+html[data-font="xl"]   { font-size: 19px; }

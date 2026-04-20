@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "SOE — Sync TEC Concursos",
+  "version": "1.0.0",
+  "description": "Sincroniza automaticamente seu desempenho no TEC Concursos com o SOE (Sistema de Organização de Estudos).",
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "permissions": [
+    "storage",
+    "webRequest",
+    "declarativeNetRequest",
+    "notifications",
+    "alarms"
+  ],
+
+  "host_permissions": [
+    "https://www.tecconcursos.com.br/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*"
+  ],
+
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.tecconcursos.com.br/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.tecconcursos.com.br/*"],
+      "js": ["src/relay.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png"
+    },
+    "default_title": "SOE Sync"
+  }
+}

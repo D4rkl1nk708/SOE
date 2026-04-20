@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOE Sync</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 320px;
+      background: #0f172a;
+      color: #f1f5f9;
+      font-size: 14px;
+    }
+    .header {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-icon { font-size: 24px; }
+    .header h1 { font-size: 16px; font-weight: 700; }
+    .header p  { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+    .body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+    input {
+      width: 100%; padding: 8px 10px; border-radius: 8px;
+      background: #1e293b; border: 1px solid #334155;
+      color: #f1f5f9; font-size: 13px; outline: none;
+    }
+    input:focus { border-color: #6366f1; }
+    .row { display: flex; gap: 8px; }
+    .btn {
+      flex: 1; padding: 9px 12px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-secondary { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .status {
+      padding: 10px 12px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5;
+    }
+    .status.ok   { background: #14532d; color: #86efac; border: 1px solid #166534; }
+    .status.err  { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
+    .status.info { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .divider { border: none; border-top: 1px solid #1e293b; }
+    .help { font-size: 11px; color: #64748b; line-height: 1.6; }
+    .help a { color: #818cf8; text-decoration: none; }
+    .help a:hover { text-decoration: underline; }
+    .saved-chip {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      background: #14532d; color: #86efac; font-size: 10px; font-weight: 700;
+      margin-left: 6px; vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">📚</div>
+    <div>
+      <h1>SOE — Sync TEC</h1>
+      <p>Sincronização automática de desempenho</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div>
+      <label>URL do SOE <span id="url-saved" class="saved-chip" style="display:none">salvo</span></label>
+      <input id="soe-url" type="url" placeholder="http://localhost:3000" />
+    </div>
+    <div>
+      <label>Token de Acesso <span id="token-saved" class="saved-chip" style="display:none">salvo</span></label>
+      <input id="soe-token" type="password" placeholder="Cole o token gerado no SOE" />
+    </div>
+
+    <div class="row">
+      <button class="btn btn-primary"   id="btn-save">Salvar</button>
+      <button class="btn btn-secondary" id="btn-test">Testar conexão</button>
+    </div>
+
+    <div id="status" class="status info">
+      Configure a URL do SOE e cole o token gerado em<br/>
+      <strong>Mentor → Sync TEC → Gerar Token</strong>.
+    </div>
+
+    <hr class="divider" />
+
+    <div class="help">
+      <strong>Como funciona:</strong><br/>
+      Ao abrir qualquer caderno no TEC Concursos, a extensão captura
+      automaticamente os dados de desempenho e envia para o SOE em
+      background. Você não precisa fazer nada — só estudar. 🎯<br/><br/>
+      O ícone da extensão mostrará ✓ após cada sincronização.
+    </div>
+  </div>
+
+  <script src="src/popup.js"></script>
+</body>
+</html>
