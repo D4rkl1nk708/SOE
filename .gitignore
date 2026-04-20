@@ -9,6 +9,7 @@ build/
 release/
 bin/
 obj/
+android/
 
 # Logs e arquivos de sistema
 npm-debug.log*

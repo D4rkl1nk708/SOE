@@ -1,0 +1,96 @@
+name: Auto Release Build
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java (For Android Build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Get Version
+        id: get_version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Check if Tag Exists
+        id: check_tag
+        run: |
+          if git ls-remote --tags origin refs/tags/v${{ env.VERSION }} | grep -q "refs/tags/v${{ env.VERSION }}"; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create Git Tag
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ env.VERSION }}
+          git push origin v${{ env.VERSION }}
+
+      - name: Install Wine for Windows Build
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends wine64 wine32
+
+      - name: Build Android APK
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          npm run android:apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk SOE-Android-v${{ env.VERSION }}.apk
+
+      - name: Build Linux AppImage
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          npm run desktop:build:linux
+          cp release/*.AppImage SOE-Linux-v${{ env.VERSION }}.AppImage
+
+      - name: Build Windows Executable
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          npm run desktop:build:win
+          cp release/*.exe SOE-Windows-v${{ env.VERSION }}.exe
+
+      - name: Publish GitHub Release
+        if: env.TAG_EXISTS == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: SOE v${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            SOE-Android-v*.apk
+            SOE-Linux-v*.AppImage
+            SOE-Windows-v*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

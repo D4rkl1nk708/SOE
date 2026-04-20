@@ -31,11 +31,13 @@ import MentorTab from "@/pages/MentorTab";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
+import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 
 function Router() {
   useSmartNotifications();
   useNotifications();
   useDiarioOficial();
+  useAutoUpdate();
 
   // Auto-backup on app start (PC only — not Capacitor Android)
   useEffect(() => {

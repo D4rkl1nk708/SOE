@@ -6,6 +6,8 @@ import path from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { VitePWA } from "vite-plugin-pwa";
+import packageJson from "./package.json";
+
 
 
 const plugins = [
@@ -44,6 +46,9 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   server: {
     host: true,
