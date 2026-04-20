@@ -7,7 +7,8 @@
  */
 
 import { trpc } from "@/lib/trpc";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Clock, Brain, Zap, TrendingDown, TrendingUp,
   AlertCircle, BarChart2, Shuffle, ChevronRight,
@@ -276,132 +277,7 @@ function SH({ icon: Icon, title, sub, color }: {
         <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{sub}</p>
       </div>
 
-      {/* ── Nota Projetada ── */}
-      {gradeProj.projectedGrade > 0 && (
-        <div className="soe-card p-5">
-          <SH icon={Target} color="var(--gold)"
-            title={`Nota Projetada: ${gradeProj.projectedGrade}%`}
-            sub={gradeProj.hasRealIncidencia
-              ? `Baseado em incidência real do TEC (${gradeProj.topicsWithIncidencia} temas com dados) — se a prova fosse hoje.`
-              : `Baseado no peso das disciplinas — conecte o TEC para usar incidência real.`} />
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative w-20 h-20 flex-shrink-0">
-              <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--stat-bg)" strokeWidth="3.8" />
-                <circle cx="18" cy="18" r="15.9" fill="none"
-                  stroke={gradeProj.projectedGrade >= 70 ? "var(--accent-green)" : gradeProj.projectedGrade >= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)"}
-                  strokeWidth="3.8"
-                  strokeDasharray={`${gradeProj.projectedGrade} ${100 - gradeProj.projectedGrade}`}
-                  strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-black" style={{ color: "var(--app-fg)" }}>{gradeProj.projectedGrade}%</span>
-              </div>
-            </div>
-            <div className="flex-1 space-y-1.5">
-              {gradeProj.breakdown.map((d, i) => (
-                <div key={i}>
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="text-[10px] font-semibold truncate" style={{ color: "var(--muted-text)", maxWidth: "70%" }}>{d.disciplineName}</span>
-                    <span className="text-[10px] font-bold" style={{ color: "var(--app-fg)" }}>{d.contribution}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--stat-bg)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${d.contribution}%`, background: d.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          {!gradeProj.hasRealIncidencia && (
-            <div className="p-3 rounded-xl text-xs" style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", color: "var(--muted-text)" }}>
-              💡 <strong style={{ color: "var(--gold)" }}>Ative o TEC integrado</strong> e resolva questões para que o SOE aprenda a incidência real dos assuntos na sua banca — a projeção ficará muito mais precisa.
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ── Ranking de Risco de Reprovação ── */}
-      {riskScores.length > 0 && (
-        <div className="soe-card p-5">
-          <SH icon={Trophy} color="var(--accent-red, #dc2626)"
-            title="Ranking de Risco de Reprovação"
-            sub="Score calculado por: peso no edital × (1 − acerto) × fator de esquecimento × incidência. Quanto maior, mais pontos você vai perder." />
-          <div className="space-y-2">
-            {riskScores.map((t, i) => (
-              <Card key={t.id} urgent={i < 2}>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0"
-                    style={{
-                      background: i === 0 ? "rgba(220,38,38,0.15)" : i === 1 ? "rgba(245,158,11,0.15)" : "var(--stat-bg)",
-                      color: i === 0 ? "#dc2626" : i === 1 ? "var(--accent-amber)" : "var(--muted-text)",
-                    }}>
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate" style={{ color: "var(--app-fg)" }}>{t.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[10px]" style={{ color: "var(--muted-text)" }}>{t.disciplineName}</span>
-                      {t.incidencia > 0.05 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                          style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                          {Math.round(t.incidencia * 100)}% incidência
-                        </span>
-                      )}
-                      {t.daysStale > 30 && (
-                        <span className="text-[10px]" style={{ color: "var(--accent-amber)" }}>
-                          {t.daysStale}d parado
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <Acc acc={t.accuracy} />
-                    {t.projectedPointsLost > 0.5 && (
-                      <p className="text-[10px] mt-0.5 font-bold" style={{ color: "var(--accent-red, #dc2626)" }}>
-                        −{t.projectedPointsLost} pts
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Afinidade de Banca ── */}
-      {bancaAffinity.length > 0 && (
-        <div className="soe-card p-5">
-          <SH icon={Percent} color="var(--accent-blue)"
-            title="Seu Desempenho por Banca"
-            sub="Baseado nas questões resolvidas no TEC. Revelam seu ponto cego por organizadora — diferente do seu desempenho geral." />
-          <div className="space-y-2">
-            {bancaAffinity.map((b, i) => (
-              <Card key={i}>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: b.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: "var(--app-fg)" }}>{b.banca}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--stat-bg)" }}>
-                        <div className="h-full rounded-full" style={{ width: `${b.accuracy}%`, background: accColor(b.accuracy) }} />
-                      </div>
-                      <span className="text-[10px] font-bold flex-shrink-0" style={{ color: accColor(b.accuracy) }}>{b.accuracy}%</span>
-                    </div>
-                    <p className="text-[10px] mt-0.5" style={{ color: "var(--muted-text)" }}>{b.total} questões resolvidas</p>
-                  </div>
-                  {b.accuracy < 55 && (
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
-                      style={{ background: "rgba(220,38,38,0.1)", color: "#dc2626" }}>
-                      PONTO FRACO
-                    </span>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

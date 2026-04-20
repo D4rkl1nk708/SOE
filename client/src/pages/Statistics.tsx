@@ -3,7 +3,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import {
   TrendingUp, BookOpen, CheckCircle2, Target, Award,
-  Clock, Zap, Share2, ArrowUp, ArrowDown, Calendar, PenTool, BarChart2, Brain,
+  Clock, Zap, Share2, ArrowUp, ArrowDown, Calendar, PenTool, BarChart2, Brain, AlertCircle,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -21,6 +21,17 @@ export default function Statistics() {
   const [showShare, setShowShare] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiDiscipline, setAiDiscipline] = useState<{ id: number; name: string } | null>(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const utils = trpc.useUtils();
+  const resetAllStats = trpc.topic.resetAllStats.useMutation({
+    onSuccess: () => {
+      import("sonner").then(({ toast }) => toast.success("Estatísticas zeradas com sucesso."));
+      utils.dashboard.getStats.invalidate();
+      utils.topic.list.invalidate();
+      setResetConfirm(false);
+    },
+    onError: () => import("sonner").then(({ toast }) => toast.error("Erro ao zerar estatísticas.")),
+  });
 
   if (isLoading) return (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -106,6 +117,27 @@ export default function Statistics() {
             style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
             <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Compartilhar</span>
           </button>
+          {!resetConfirm ? (
+            <button onClick={() => setResetConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{ background: "color-mix(in srgb, #dc2626 12%, transparent)", color: "#dc2626" }}
+              title="Zerar estatísticas de questões">
+              <AlertCircle className="w-4 h-4" /><span className="hidden sm:inline">Zerar Dados</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setResetConfirm(false)}
+                className="px-3 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ background: "var(--stat-bg)", color: "var(--muted-text)" }}>
+                Cancelar
+              </button>
+              <button onClick={() => resetAllStats.mutate()} disabled={resetAllStats.isPending}
+                className="px-3 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ background: "#dc2626", color: "#fff" }}>
+                {resetAllStats.isPending ? "..." : "Confirmar"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

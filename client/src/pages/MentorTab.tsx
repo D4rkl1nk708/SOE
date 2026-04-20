@@ -140,7 +140,7 @@ export default function MentorTab() {
           </div>
           <div>
             <h2 className="font-black text-base" style={{ color: "var(--app-fg)" }}>
-              Mentor SOE
+              IA
               {hasRegressions && (
                 <span style={{
                   marginLeft: 8, fontSize: 10, fontWeight: 700,

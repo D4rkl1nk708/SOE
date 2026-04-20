@@ -289,7 +289,7 @@ export default function MentorSession() {
           <Brain size={16} color="#1a1a1a" />
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Mentor SOE</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>IA</div>
           <div style={{ fontSize: 11, opacity: 0.55 }}>Aprendizado adaptativo personalizado</div>
         </div>
         {history.length > 0 && (

@@ -10,6 +10,8 @@ import { StudyTimer } from "./StudyTimer";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
 
+declare const __APP_VERSION__: string;
+
 // ── Navigation groups ────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
@@ -27,7 +29,7 @@ const NAV_GROUPS = [
       { path: "/disciplines",      label: "Disciplinas",  icon: BarChart3 },
       { path: "/statistics",       label: "Estatísticas", icon: TrendingUp },
       { path: "/flashcards",       label: "Flashcards",   icon: Brain },
-      { path: "/notes",            label: "Documentos",   icon: StickyNote },
+      { path: "/notes",            label: "Anotações",    icon: StickyNote },
     ],
   },
   {
@@ -109,42 +111,6 @@ function NavItem({
 
 // ── Desktop Sidebar ───────────────────────────────────────────────────────────
 function Sidebar({ collapsed, onToggle, location }: { collapsed: boolean; onToggle: () => void; location: string }) {
-  const handleDownloadExtension = () => {
-    const confirmed = window.confirm("Atenção: O processo de instalação da extensão irá acontecer após você baixar e executar este script. \nEle criará atalhos no seu Desktop para o Chrome ou Edge já configurados. \n\nDeseja continuar?");
-    if (!confirmed) return;
-
-    const batContent = `@echo off
-chcp 65001 >nul
-echo =======================================================
-echo AVISO: Instalando extensao SOE para Chrome/Edge
-echo =======================================================
-set "EXT_DIR=%LOCALAPPDATA%\\SOE_Extension"
-if not exist "%EXT_DIR%" mkdir "%EXT_DIR%"
-echo Baixando arquivos da extensao...
-powershell -Command "Invoke-WebRequest -Uri '${window.location.origin}/soe-extension.zip' -OutFile '%EXT_DIR%\\ext.zip'"
-echo Extraindo arquivos...
-powershell -Command "Expand-Archive -Path '%EXT_DIR%\\ext.zip' -DestinationPath '%EXT_DIR%' -Force"
-del "%EXT_DIR%\\ext.zip"
-echo Criando atalhos no seu Desktop...
-powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\\Desktop\\Estudar SOE (Chrome).lnk'); $Shortcut.TargetPath = 'chrome.exe'; $Shortcut.Arguments = '--load-extension=\"%EXT_DIR%\\chrome-extension\"'; $Shortcut.Save()"
-powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\\Desktop\\Estudar SOE (Edge).lnk'); $Shortcut.TargetPath = 'msedge.exe'; $Shortcut.Arguments = '--load-extension=\"%EXT_DIR%\\chrome-extension\"'; $Shortcut.Save()"
-echo.
-echo =======================================================
-echo PRONTO! Use o atalho na sua Area de Trabalho
-echo chamado "Estudar SOE (Chrome)" para estudar.
-echo =======================================================
-pause
-`;
-    const blob = new Blob([batContent], { type: "application/bat" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Instalar_Extensao_SOE.bat";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <aside
@@ -223,19 +189,6 @@ pause
 
       {/* Bottom: Configurações + version */}
       <div className="p-2" style={{ borderTop: "1px solid var(--sidebar-border-color, var(--card-border))" }}>
-        <button
-          onClick={handleDownloadExtension}
-          title={collapsed ? "Instalar Extensão" : undefined}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 mb-1.5 rounded-xl transition-all \${collapsed ? "justify-center" : ""}`}
-          style={{ color: "var(--sidebar-fg)", border: "1px solid transparent", opacity: 0.9, background: "rgba(59, 130, 246, 0.1)" }}
-        >
-          <Download className="w-[15px] h-[15px] flex-shrink-0 text-blue-500" />
-          {!collapsed && (
-            <span className="font-semibold text-blue-500" style={{ fontSize: "0.875rem", letterSpacing: "-0.25px" }}>
-              Instalar Extensão
-            </span>
-          )}
-        </button>
         <Link href="/profile">
           <a
             title={collapsed ? "Configurações" : undefined}
@@ -256,7 +209,9 @@ pause
         </Link>
         {!collapsed && (
           <div className="px-2.5 pt-2">
-            <span className="text-[10px] font-mono opacity-25" style={{ color: "var(--sidebar-fg)" }}>v4.0.0</span>
+            <span className="text-[10px] font-mono opacity-25" style={{ color: "var(--sidebar-fg)" }}>
+              {typeof __APP_VERSION__ !== "undefined" ? "v" + __APP_VERSION__ : ""}
+            </span>
           </div>
         )}
       </div>

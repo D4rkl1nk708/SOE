@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { History as HistoryIcon, Palette, User, LogOut, FileText, Search, Bell, ExternalLink, CheckCircle2, Loader2, AlertCircle, Sun, Moon, Check, Minimize2, XCircle } from "lucide-react";
+import { History as HistoryIcon, Palette, Settings, User, LogOut, FileText, Search, Bell, ExternalLink, CheckCircle2, Loader2, AlertCircle, Sun, Moon, Check, Minimize2, XCircle } from "lucide-react";
 import History from "./History";
 import { useTheme, COLOR_THEMES, ColorTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { douGetConfig, douSaveConfig, douCheckNow, DEFAULT_INTERVAL_MINUTES, MIN_INTERVAL_MINUTES, MAX_INTERVAL_MINUTES } from "@/hooks/useDiarioOficial";
 import { toast } from "sonner";
 
-type Tab = "history" | "appearance" | "dou";
+type Tab = "history" | "settings" | "dou";
 
 function SettingsTab() {
   const { theme, toggleTheme, colorTheme, setColorTheme } = useTheme();
@@ -419,26 +419,14 @@ function DiarioOficialTab() {
 export default function Profile() {
   const [, navigate] = useLocation();
   const hash = window.location.hash.replace("#", "") as Tab;
-  const [tab, setTab] = useState<Tab>(["history", "appearance", "dou"].includes(hash) ? hash as Tab : "history");
+  const [tab, setTab] = useState<Tab>(["dou", "settings", "history"].includes(hash) ? hash as Tab : "dou");
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { logout } = useAuth();
-  const [resetConfirm, setResetConfirm] = useState(false);
-  const utils = trpc.useUtils();
-
-  const resetAllStats = trpc.topic.resetAllStats.useMutation({
-    onSuccess: () => {
-      toast.success("Estatísticas zeradas com sucesso.");
-      utils.dashboard.getStats.invalidate();
-      utils.topic.list.invalidate();
-      setResetConfirm(false);
-    },
-    onError: () => toast.error("Erro ao zerar estatísticas."),
-  });
 
   const TABS = [
-    { id: "history" as Tab,    label: "Histórico",      icon: HistoryIcon },
-    { id: "appearance" as Tab, label: "Aparência",      icon: Palette },
     { id: "dou" as Tab,        label: "Diário Oficial", icon: FileText },
+    { id: "settings" as Tab,   label: "Configurações",  icon: Settings },
+    { id: "history" as Tab,    label: "Histórico",      icon: HistoryIcon },
   ];
 
   return (
@@ -485,43 +473,10 @@ export default function Profile() {
       </div>
 
       {/* Tab content */}
-      {tab === "history" && <History />}
-      {tab === "appearance" && <AppearanceTab />}
       {tab === "dou" && <DiarioOficialTab />}
+      {tab === "settings" && <SettingsTab />}
+      {tab === "history" && <History />}
 
-      {/* ── Zona de Perigo ── */}
-      <div className="max-w-xl rounded-2xl p-5 space-y-3" style={{ border: "1px solid color-mix(in srgb, #dc2626 30%, transparent)", background: "color-mix(in srgb, #dc2626 4%, transparent)" }}>
-        <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: "#dc2626" }}>
-          <AlertCircle className="w-4 h-4" /> Zona de Perigo
-        </h3>
-        <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-          Zera todos os contadores de questões, acertos, erros e origens de erro de todos os temas. O tempo de estudo e as revisões <strong>não são afetados</strong>.
-        </p>
-        {!resetConfirm ? (
-          <button onClick={() => setResetConfirm(true)}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{ background: "color-mix(in srgb, #dc2626 12%, transparent)", color: "#dc2626", border: "1px solid color-mix(in srgb, #dc2626 30%, transparent)" }}>
-            Zerar todas as estatísticas de questões
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm font-bold" style={{ color: "#dc2626" }}>Tem certeza? Esta ação não pode ser desfeita.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setResetConfirm(false)}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
-                Cancelar
-              </button>
-              <button onClick={() => resetAllStats.mutate()}
-                disabled={resetAllStats.isPending}
-                className="flex-1 py-2 rounded-xl text-sm font-bold text-white"
-                style={{ background: "#dc2626", opacity: resetAllStats.isPending ? 0.6 : 1 }}>
-                {resetAllStats.isPending ? "Zerando..." : "Sim, zerar tudo"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
 
     </div>
   );

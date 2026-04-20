@@ -85,7 +85,7 @@ export function MentorBriefing() {
           >
             <Brain size={15} color="#1a1a1a" />
           </div>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Mentor SOE</span>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>IA</span>
           {isTodaysCached && (
             <span
               style={{

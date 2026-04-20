@@ -37,6 +37,8 @@ import {
 
 // ─── widget IDs ─────────────────────────────────────────────────────────────
 const EXTRA_WIDGETS = [
+  { id: "mentorBriefing", label: "Briefing da IA" },
+  { id: "heatmap",        label: "Histórico de Estudos" },
   { id: "dailyGoal",      label: "Meta Diária" },
   { id: "todayRevisions", label: "Revisar Hoje" },
   { id: "quickActions",   label: "Ações Rápidas" },
@@ -104,8 +106,8 @@ export default function Dashboard() {
       {/* F05 - Alerta de estudo em massa */}
       <MassStudyAlert />
 
-      {/* Mentor SOE — briefing diário */}
-      <MentorBriefing />
+      {/* IA — briefing diário */}
+      {widgets.showExtra("mentorBriefing") && <MentorBriefing />}
 
       {/* Header */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
@@ -206,9 +208,11 @@ export default function Dashboard() {
       </div>
 
       {/* ── Heatmap (slightly smaller) ── */}
-      <div style={{ transform: "scale(1)", transformOrigin: "top left" }}>
-        <StudyHeatmap compact showStreakCard />
-      </div>
+      {widgets.showExtra("heatmap") && (
+        <div style={{ transform: "scale(1)", transformOrigin: "top left" }}>
+          <StudyHeatmap compact showStreakCard />
+        </div>
+      )}
 
       {/* ── Extra widgets (user-controlled) ── */}
       {widgets.showExtra("dailyGoal") && (

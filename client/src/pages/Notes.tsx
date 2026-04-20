@@ -359,7 +359,7 @@ function RichEditor({
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           className="w-full h-full min-h-[300px] px-8 py-6 text-sm outline-none leading-7"
-          style={{ color: "var(--app-fg)", background: "var(--app-bg)", fontFamily: "'Georgia', serif" }}
+          style={{ color: "var(--app-fg)", background: "var(--app-bg)", fontFamily: "var(--font-sans, 'Inter', sans-serif)" }}
           data-placeholder={placeholder}
         />
         <style>{`
@@ -423,7 +423,7 @@ export default function Notes() {
     onSuccess: () => { utils.note.list.invalidate(); },
   });
   const deleteNote = trpc.note.delete.useMutation({
-    onSuccess: () => { utils.note.list.invalidate(); toast.success("Documento excluído."); setActiveNoteId(null); },
+    onSuccess: () => { utils.note.list.invalidate(); toast.success("Anotação excluída."); setActiveNoteId(null); },
   });
 
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
@@ -501,7 +501,7 @@ export default function Notes() {
     await utils.note.list.invalidate();
     setIsCreating(false); setNewTitle(""); setNewDisciplineId(""); setNewTopicId("");
     setImportedContent(""); setImportMode(null); setGdocsUrl("");
-    toast.success(importedContent ? "Documento importado com sucesso!" : "Documento criado!");
+    toast.success(importedContent ? "Anotação importada com sucesso!" : "Anotação criada!");
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -587,7 +587,7 @@ export default function Notes() {
         {/* Header */}
         <div className="px-3 pt-3 pb-2 shrink-0 space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>Documentos</h2>
+            <h2 className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>Anotações</h2>
             <button onClick={() => setIsCreating(true)}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white hover:opacity-85 active:scale-95 transition-all"
               style={{ background: "var(--primary)" }}>
@@ -628,7 +628,7 @@ export default function Notes() {
             <div className="flex flex-col items-center justify-center h-40 gap-3 px-4">
               <PenLine className="h-8 w-8" style={{ color: "var(--muted-text)", opacity: 0.25 }} />
               <p className="text-xs text-center" style={{ color: "var(--muted-text)" }}>
-                {search ? "Nenhum resultado" : "Sem documentos. Crie um!"}
+                {search ? "Nenhum resultado" : "Sem anotações. Crie uma!"}
               </p>
             </div>
           ) : filteredNotes.map((note: any) => {
@@ -636,11 +636,11 @@ export default function Notes() {
             const isActive = activeNoteId === note.id;
             return (
               <div key={note.id} onClick={() => openNote(note.id)}
-                className="px-3 py-2.5 cursor-pointer transition-all group"
+                className="px-4 py-3 mx-3 mb-2 cursor-pointer transition-all group rounded-2xl"
                 style={{
-                  borderBottom: "1px solid var(--card-border)",
-                  background: isActive ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
-                  borderLeft: isActive ? `3px solid var(--primary)` : "3px solid transparent",
+                  border: `1px solid ${isActive ? "transparent" : "var(--card-border)"}`,
+                  background: isActive ? "linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, transparent) 0%, color-mix(in srgb, var(--primary) 5%, transparent) 100%)" : "var(--app-bg)",
+                  boxShadow: isActive ? "0 4px 12px rgba(0,0,0,0.05)" : "none",
                 }}>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   {disc?.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: disc.color }} />}
@@ -683,7 +683,7 @@ export default function Notes() {
                 style={{ color: "var(--app-fg)" }}
                 value={(activeNote as any).title}
                 onChange={e => handleRenameTitle(activeNote, e.target.value)}
-                placeholder="Título do documento"
+                placeholder="Título da anotação"
               />
               <div className="flex items-center gap-2 shrink-0">
                 {activeDiscipline && (
@@ -722,24 +722,24 @@ export default function Notes() {
           </>
         ) : (
           /* Empty state */
-          <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 text-center">
-            <div className="p-5 rounded-2xl" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-              <PenLine className="h-10 w-10 mx-auto" style={{ color: "var(--primary)", opacity: 0.5 }} />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 text-center bg-[var(--app-bg)]">
+            <div className="p-6 rounded-full" style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)", boxShadow: "0 8px 32px color-mix(in srgb, var(--primary) 10%, transparent)" }}>
+              <BookOpen className="h-10 w-10 mx-auto" style={{ color: "var(--primary)" }} />
             </div>
             <div>
-              <p className="text-base font-bold" style={{ color: "var(--app-fg)" }}>Selecione ou crie um documento</p>
-              <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>Escreva resumos, anotações e resumos de lei por disciplina</p>
+              <p className="text-xl font-bold" style={{ color: "var(--app-fg)" }}>Suas Anotações</p>
+              <p className="text-sm mt-2 max-w-sm mx-auto leading-relaxed" style={{ color: "var(--muted-text)" }}>Crie resumos ricos com formatações e imagens para organizar seus estudos da melhor forma.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-3 mt-4">
               <button onClick={() => setIsCreating(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-85 active:scale-95 transition-all"
-                style={{ background: "var(--primary)" }}>
-                <Plus className="h-4 w-4" /> Novo documento
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold text-white shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-95"
+                style={{ background: "linear-gradient(135deg, var(--accent-blue) 0%, #7c3aed 100%)" }}>
+                <Plus className="h-4 w-4" /> Criar Anotação
               </button>
               <button onClick={() => { setIsCreating(true); setImportMode("file"); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium hover:opacity-80 transition-all"
-                style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)", background: "var(--stat-bg)" }}>
-                <Upload className="h-4 w-4" /> Importar arquivo
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold hover:opacity-80 transition-all active:scale-95"
+                style={{ border: "1px solid var(--card-border)", color: "var(--app-fg)", background: "var(--stat-bg)" }}>
+                <Upload className="h-4 w-4" style={{ color: "var(--muted-text)" }} /> Importar
               </button>
             </div>
           </div>
@@ -759,7 +759,7 @@ export default function Notes() {
             {/* Header */}
             <div className="px-5 pt-5 pb-4 flex items-start justify-between">
               <div>
-                <h3 className="font-black text-base" style={{ color: "var(--app-fg)" }}>Novo Documento</h3>
+                <h3 className="font-black text-base" style={{ color: "var(--app-fg)" }}>Nova Anotação</h3>
                 <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>Crie do zero ou importe um arquivo</p>
               </div>
               <button onClick={() => { setIsCreating(false); setImportedContent(""); setImportMode(null); }}
