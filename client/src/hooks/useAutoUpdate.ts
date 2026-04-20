@@ -25,7 +25,6 @@ export function useAutoUpdate() {
       try {
         const response = await fetch(GITHUB_REPO_API, {
           headers: {
-            "User-Agent": "SOE-Auto-Update-Client",
             "Accept": "application/vnd.github.v3+json"
           }
         });
