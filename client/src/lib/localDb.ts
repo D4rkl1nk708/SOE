@@ -1200,3 +1200,45 @@ Responda em JSON exato (sem markdown):
   }
 }
 
+export async function localProcessText(input: { text: string; action: string; apiKey: string; provider: AiProvider }): Promise<{ result: string }> {
+  const prompts: Record<string, string> = {
+    summarize: "Resuma o seguinte texto de estudo de forma concisa e estruturada:",
+    improve: "Melhore a escrita e clareza técnica deste resumo de estudos, mantendo o tom profissional:",
+    explain: "Explique de forma didática e simples o seguinte conceito:",
+    autocomplete: "Continue o raciocínio deste texto de forma lógica e informativa:",
+  };
+  const prompt = `${prompts[input.action] || "Analise o texto:"}\n\n${input.text}`;
+  const result = await callAiProvider(input.provider, input.apiKey, prompt);
+  return { result };
+}
+
+export async function localGenerateFlashcardsFromText(input: {
+  text: string;
+  disciplineId: number;
+  topicId?: number;
+  noteId?: number;
+  apiKey: string;
+  provider: AiProvider;
+}): Promise<{ success: boolean; count: number }> {
+  const prompt = `Gere flashcards (frente e verso) para o Anki baseado no texto de estudos abaixo.
+Foque em conceitos-chave, definições e mnemônicos.
+Responda APENAS em JSON no formato: [{"front": "...", "back": "..."}]
+
+TEXTO:
+${input.text}`;
+
+  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1500);
+  const cards = extractJSON(reply);
+  if (!Array.isArray(cards)) throw new Error("IA não gerou uma lista de cards.");
+
+  for (const c of cards) {
+    await localFlashcardCreate({
+      disciplineId: input.disciplineId,
+      topicId: input.topicId,
+      noteId: input.noteId,
+      front: c.front,
+      back: c.back,
+    });
+  }
+  return { success: true, count: cards.length };
+}

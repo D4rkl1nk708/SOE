@@ -64,8 +64,10 @@ jobs:
       - name: Build Android APK
         if: env.TAG_EXISTS == 'false'
         run: |
-          npm run android:build
-          cp android/app/build/outputs/apk/debug/app-debug.apk Android-SOE-v${{ env.VERSION }}.apk
+          npm run build:clean
+          npx cap sync android
+          cd android && ./gradlew assembleRelease
+          cp android/app/build/outputs/apk/release/app-release.apk Android-SOE-v${{ env.VERSION }}.apk || cp android/app/build/outputs/apk/release/app-release-unsigned.apk Android-SOE-v${{ env.VERSION }}.apk
 
       - name: Build Linux AppImage
         if: env.TAG_EXISTS == 'false'

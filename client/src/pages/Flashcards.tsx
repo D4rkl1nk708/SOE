@@ -158,7 +158,7 @@ function ReviewSession({
             dragElastic={0.8}
             onDragEnd={handleDragEnd}
             onClick={() => { if (!flipped) setFlipped(true); }}
-            className="flex-1 h-full min-h-[400px] flex flex-col items-center justify-center rounded-[2.5rem] cursor-pointer shadow-2xl relative overflow-hidden group p-10 text-center"
+            className="flex-1 h-full min-h-[380px] md:min-h-[400px] flex flex-col items-center justify-center rounded-[2rem] md:rounded-[2.5rem] cursor-pointer shadow-2xl relative overflow-hidden group p-6 md:p-10 text-center"
             initial={{ rotateY: flipped ? -90 : 90, opacity: 0, scale: 0.9 }}
             animate={{ rotateY: 0, opacity: 1, scale: 1 }}
             exit={{ rotateY: flipped ? 90 : -90, opacity: 0, scale: 0.9 }}
@@ -417,35 +417,35 @@ export default function Flashcards() {
   return (
     <div className="space-y-8 pb-12">
       {/* Immersive Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
             <GraduationCap className="w-6 h-6 text-[var(--primary)]" />
           </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Flashcards</h1>
-            <p className="text-sm opacity-60">Repetição espaçada via algoritmo SM-2.</p>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Cards</h1>
+            <p className="text-sm opacity-60">Repetição espaçada.</p>
           </div>
         </div>
         <button onClick={() => setMode("create")}
-            className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
-            <Plus className="h-4 w-4" /> Novo Flashcard
+            className="w-full sm:w-auto px-6 h-12 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+            <Plus className="h-4 w-4 mr-2" /> Novo
         </button>
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
         {[
-          { label: "Acervo Total", value: cards.length, color: "var(--primary)", icon: Layers },
-          { label: "Pendente Hoje", value: dueCards.length, color: dueCards.length > 0 ? "var(--accent-amber)" : "var(--accent-green)", icon: History },
-          { label: "Nível de Maestria", value: `${Math.round((cards.filter((c: any) => c.interval >= 21).length / (cards.length || 1)) * 100)}%`, color: "var(--accent-green)", icon: TrendingUp },
-        ].map(s => (
-          <div key={s.label} className="soe-card p-6 flex items-center justify-between group overflow-hidden relative">
+          { label: "Acervo", value: cards.length, color: "var(--primary)", icon: Layers },
+          { label: "Pendente", value: dueCards.length, color: dueCards.length > 0 ? "var(--accent-amber)" : "var(--accent-green)", icon: History },
+          { label: "Maestria", value: `${Math.round((cards.filter((c: any) => c.interval >= 21).length / (cards.length || 1)) * 100)}%`, color: "var(--accent-green)", icon: TrendingUp },
+        ].map((s, idx) => (
+          <div key={s.label} className={`soe-card p-4 md:p-6 flex items-center justify-between group overflow-hidden relative ${idx === 2 ? 'col-span-2 md:col-span-1' : ''}`}>
             <div className="relative z-10">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{s.label}</p>
-                <p className="text-3xl font-black" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-2xl md:text-3xl font-black" style={{ color: s.color }}>{s.value}</p>
             </div>
-            <s.icon size={40} className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.08] group-hover:-rotate-12 transition-all" style={{ color: s.color }} />
+            <s.icon size={32} className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.08] group-hover:-rotate-12 transition-all" style={{ color: s.color }} />
           </div>
         ))}
       </div>
@@ -456,27 +456,27 @@ export default function Flashcards() {
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden p-1 rounded-[2.5rem] bg-gradient-to-br from-[var(--primary-border)] to-transparent shadow-2xl">
-            <div className="bg-[var(--card-bg,var(--app-bg))] rounded-[2.4rem] p-8 md:p-10 flex flex-col md:flex-row items-center gap-8">
-                <div className="w-20 h-20 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)] shrink-0">
-                    <Brain className="w-10 h-10 text-[var(--primary)] animate-pulse" />
+            className="relative overflow-hidden p-0.5 rounded-[2rem] md:rounded-[2.5rem] bg-gradient-to-br from-[var(--primary-border)] to-transparent shadow-2xl">
+            <div className="bg-[var(--card-bg,var(--app-bg))] rounded-[1.9rem] md:rounded-[2.4rem] p-6 md:p-10 flex flex-col md:flex-row items-center gap-6 md:gap-8">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)] shrink-0">
+                    <Brain className="w-8 h-8 md:w-10 md:h-10 text-[var(--primary)] animate-pulse" />
                 </div>
-                <div className="flex-1 text-center md:text-left space-y-2">
-                    <h3 className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>
-                        {dueCards.length} Cards aguardam sua evocação
+                <div className="flex-1 text-center md:text-left space-y-1 md:space-y-2">
+                    <h3 className="text-xl md:text-2xl font-black leading-tight" style={{ color: "var(--app-fg)" }}>
+                        {dueCards.length} Cards pendentes
                     </h3>
-                    <p className="text-sm opacity-50 max-w-lg">
-                        Sua curva de esquecimento está em ação. Revise agora para consolidar o conhecimento na memória de longo prazo.
+                    <p className="text-xs md:text-sm opacity-50 max-w-lg">
+                        Sua curva de esquecimento está em ação. Revise agora para consolidar o conhecimento.
                     </p>
                 </div>
                 <div className="flex flex-col gap-3 w-full md:w-auto">
                     <button onClick={() => { setReviewFilter("due"); setMode("review"); }}
-                        className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        className="px-8 h-12 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
                         <Zap size={14} /> Começar Sessão
                     </button>
                     <button onClick={() => setHardMode(!hardMode)}
-                        className={`px-8 py-3 rounded-2xl border font-black text-[10px] uppercase tracking-widest transition-all ${hardMode ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] text-[var(--primary)]' : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'}`}>
-                        🧠 {hardMode ? "Hard Mode Ativo" : "Ativar Modo Difícil"}
+                        className={`px-8 h-10 rounded-2xl border font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all ${hardMode ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] text-[var(--primary)]' : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'}`}>
+                        🧠 {hardMode ? "Modo Difícil Ativo" : "Ativar Modo Difícil"}
                     </button>
                 </div>
             </div>

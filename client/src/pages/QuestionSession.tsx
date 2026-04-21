@@ -277,15 +277,15 @@ export default function QuestionSession() {
   }
 
   const TabNav = () => (
-    <div className="flex gap-1 p-1.5 rounded-2xl bg-white/5 border border-white/10 w-full md:w-fit overflow-x-auto">
+    <div className="flex gap-1 p-1.5 rounded-2xl bg-white/5 border border-white/10 w-full overflow-x-auto no-scrollbar">
       {[
         { id: "session", label: "Questões", icon: ListChecks },
-        { id: "browser", label: "TEC Browser", icon: Globe },
+        { id: "browser", label: "Browser", icon: Globe },
         { id: "errors", label: "Erros", icon: ClipboardX },
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
       ].map(t => (
         <button key={t.id} onClick={() => setActiveTab(t.id as any)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]' : 'opacity-40 hover:opacity-70'}`} style={{ color: activeTab === t.id ? undefined : "var(--app-fg)" }}>
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]' : 'opacity-40 hover:opacity-70'}`} style={{ color: activeTab === t.id ? undefined : "var(--app-fg)" }}>
           <t.icon className="h-4 w-4" /> {t.label}
         </button>
       ))}
@@ -297,14 +297,14 @@ export default function QuestionSession() {
     return (
       <div className="max-w-5xl mx-auto space-y-8 pb-20">
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)]">
+            <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
               <Zap className="w-6 h-6 text-[var(--primary)]" />
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight">Questões</h1>
-              <p className="text-sm opacity-60">Treinamento intensivo e diagnóstico de performance.</p>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Treino</h1>
+              <p className="text-sm opacity-60">Questões e performance.</p>
             </div>
           </div>
           <TabNav />
@@ -404,10 +404,10 @@ export default function QuestionSession() {
                   </div>
                 </div>
 
-                <button className="w-full py-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-sm shadow-lg shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
+                <button className="w-full h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
                   disabled={!selectedDisc || !selectedTopic}
                   onClick={() => { setStartTime(Date.now()); setPhase("session"); setCurrentIndex(0); setResults([]); setAwaitingOrigin(false); setElapsed(0); sessionStorage.removeItem("qs_prefill"); }}>
-                  <Play className="w-5 h-5 fill-[var(--primary-foreground)]" /> INICIAR TREINAMENTO
+                  <Play className="w-5 h-5 fill-[var(--primary-foreground)]" /> INICIAR
                 </button>
               </div>
             </div>
@@ -489,13 +489,13 @@ export default function QuestionSession() {
               <p className="text-sm opacity-50">Selecione para avançar no treinamento.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
+            <div className="grid grid-cols-2 gap-4 w-full">
               <button onClick={() => handleAnswer(true)}
-                className="py-6 rounded-3xl bg-emerald-500 text-white font-black text-xl flex flex-col items-center gap-3 shadow-xl shadow-emerald-500/20 active:scale-[0.95] transition-all group">
+                className="py-6 md:py-8 rounded-[2rem] bg-emerald-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-emerald-500/20 active:scale-[0.95] transition-all group">
                 <CheckCircle2 className="w-10 h-10 group-hover:scale-110 transition-transform" /> ACERTEI
               </button>
               <button onClick={() => handleAnswer(false)}
-                className="py-6 rounded-3xl bg-rose-500 text-white font-black text-xl flex flex-col items-center gap-3 shadow-xl shadow-rose-500/20 active:scale-[0.95] transition-all group">
+                className="py-6 md:py-8 rounded-[2rem] bg-rose-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-rose-500/20 active:scale-[0.95] transition-all group">
                 <XCircle className="w-10 h-10 group-hover:scale-110 transition-transform" /> ERREI
               </button>
             </div>

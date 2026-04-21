@@ -57,6 +57,8 @@ import {
   localGetWeakProfile,
   localGetDailyBriefing,
   localDiagnoseError,
+  localProcessText,
+  localGenerateFlashcardsFromText,
 } from "./localDb";
 
 const PROCEDURES: Record<
@@ -119,6 +121,8 @@ const PROCEDURES: Record<
   "mentor.getWeakProfile": () => localGetWeakProfile(),
   "mentor.getDailyBriefing": () => localGetDailyBriefing(),
   "mentor.diagnoseError": (i) => localDiagnoseError(i as any),
+  "ai.processText": (i) => localProcessText(i as any),
+  "ai.generateFlashcardsFromText": (i) => localGenerateFlashcardsFromText(i as any),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {

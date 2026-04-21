@@ -233,6 +233,23 @@
     line-height: 1.43;
     letter-spacing: -0.224px;
   }
+
+  /* ── Mobile Layout Fixes ── */
+  @media (max-width: 640px) {
+    h1 { font-size: 2.25rem; }
+    h2 { font-size: 1.75rem; }
+    h3 { font-size: 1.25rem; }
+    
+    .soe-card {
+      padding: 1rem !important;
+      border-radius: 1.5rem !important;
+    }
+    
+    .btn-apple-primary {
+      height: 3rem !important;
+      font-size: 0.875rem !important;
+    }
+  }
 }
 
 @layer components {
@@ -277,8 +294,36 @@
   }
 }
 
-html { -webkit-tap-highlight-color: transparent; }
-* { -webkit-tap-highlight-color: transparent; }
+html { 
+  -webkit-tap-highlight-color: transparent; 
+  overflow-x: hidden;
+  width: 100%;
+}
+* { 
+  -webkit-tap-highlight-color: transparent; 
+  box-sizing: border-box;
+}
+
+/* ── Mobile Utility Classes ── */
+.mobile-stack {
+  @apply flex flex-col gap-4 sm:flex-row sm:items-center;
+}
+
+.mobile-grid-1 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.touch-target {
+  @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+}
+
+.glass-morphism {
+  @apply backdrop-blur-xl bg-white/10 border border-white/20;
+}
+
+.dark .glass-morphism {
+  @apply bg-black/40 border-white/10;
+}
 
 /* ── Scrollbar global invisível ─────────────────────────────────── */
 * {

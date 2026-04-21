@@ -192,100 +192,94 @@ export default function History() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <HistoryIcon className="h-7 w-7 text-primary" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2.5" style={{ color: "var(--app-fg)" }}>
+            <HistoryIcon className="h-7 w-7 text-[var(--primary)]" />
             Histórico
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Visualize e gerencie todas as suas atividades de estudo
-          </p>
+          <p className="text-sm opacity-60">Linha do tempo de todas as suas atividades.</p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest">
             <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
+            CSV
           </Button>
-          <Button variant="outline" onClick={handleExportPrintable}>
+          <Button variant="outline" onClick={handleExportPrintable} className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest">
             <FileText className="h-4 w-4 mr-2" />
-            Imprimir
+            PDF
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar temas..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-9"
-              />
-            </div>
-            
-            <Select
-              value={filters.disciplineId ? String(filters.disciplineId) : "all"}
-              onValueChange={(value) => setFilters({ ...filters, disciplineId: value === "all" ? undefined : Number(value) })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Disciplina" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as disciplinas</SelectItem>
-                {disciplines?.map((d) => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                      {d.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filters.type || "all"}
-              onValueChange={(value) => setFilters({ ...filters, type: value === "all" ? undefined : value as "revision" | "test" })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                <SelectItem value="revision">Revisões</SelectItem>
-                <SelectItem value="test">Testes</SelectItem>
-              </SelectContent>
-            </Select>
-
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+        <div className="col-span-2 lg:col-span-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-30" />
             <Input
-              type="date"
-              placeholder="Data inicial"
-              value={filters.startDate}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              placeholder="Buscar..."
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="pl-11 h-11 rounded-2xl bg-white/5 border-white/5"
             />
+        </div>
+        
+        <Select
+          value={filters.disciplineId ? String(filters.disciplineId) : "all"}
+          onValueChange={(value) => setFilters({ ...filters, disciplineId: value === "all" ? undefined : Number(value) })}
+        >
+          <SelectTrigger className="h-11 rounded-2xl bg-white/5 border-white/5">
+            <SelectValue placeholder="Matéria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {disciplines?.map((d) => (
+              <SelectItem key={d.id} value={String(d.id)}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  {d.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                placeholder="Data final"
-                value={filters.endDate}
-                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              />
-              {hasFilters && (
-                <Button variant="ghost" size="icon" onClick={clearFilters}>
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <Select
+          value={filters.type || "all"}
+          onValueChange={(value) => setFilters({ ...filters, type: value === "all" ? undefined : value as "revision" | "test" })}
+        >
+          <SelectTrigger className="h-11 rounded-2xl bg-white/5 border-white/5">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="revision">Revisões</SelectItem>
+            <SelectItem value="test">Testes</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Input
+          type="date"
+          value={filters.startDate}
+          onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+          className="h-11 rounded-2xl bg-white/5 border-white/5 text-[10px]"
+        />
+
+        <div className="flex gap-2">
+          <Input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            className="flex-1 h-11 rounded-2xl bg-white/5 border-white/5 text-[10px]"
+          />
+          {hasFilters && (
+            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-11 w-11 rounded-2xl bg-white/5 border border-white/5">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>

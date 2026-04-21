@@ -3,13 +3,13 @@ import { Link, useLocation } from "wouter";
 import {
   BarChart3, CheckCircle2, TrendingUp, Sun, Moon,
   LayoutDashboard, StickyNote, Brain, Wifi, UserCircle2, CalendarDays,
-  ListChecks, Sparkles, Sheet, Settings, ChevronLeft, ChevronRight, Download
+  ListChecks, Sparkles, Sheet, Settings, ChevronLeft, ChevronRight, Download,
+  MoreHorizontal, Globe, ClipboardX, PenLine, Zap
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
 
 declare const __APP_VERSION__: string;
 
@@ -123,7 +123,7 @@ function Sidebar({ collapsed, onToggle, location }: { collapsed: boolean; onTogg
 
   return (
     <aside
-      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 \${collapsed ? "w-[58px]" : "w-[200px]"}`}
+      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ${collapsed ? "w-[58px]" : "w-[200px]"}`}
       style={{ background: "var(--sidebar-bg)", borderRight: "1px solid var(--sidebar-border-color, var(--card-border))" }}
     >
       {/* Logo row */}
@@ -259,19 +259,19 @@ export function Layout({ children }: { children: ReactNode }) {
             <SoeLogo size={28} />
             <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "var(--primary)" }}>SOE</span>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2.5">
             <SearchButton />
-            <button onClick={toggleTheme} className="p-2 rounded-xl hover:opacity-70" style={{ color: "var(--muted-text)" }}>
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            <button onClick={toggleTheme} className="p-3 rounded-xl hover:bg-white/5 active:scale-95 transition-all" style={{ color: "var(--muted-text)" }}>
+              {theme === "light" ? <Moon className="w-[22px] h-[22px]" /> : <Sun className="w-[22px] h-[22px]" />}
             </button>
             <Link href="/sync">
-              <a className="p-2 rounded-xl" style={{ color: isActivePath(location, "/sync") ? "var(--primary)" : "var(--muted-text)" }}>
-                <Wifi className="w-[18px] h-[18px]" />
+              <a className="p-3 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/sync") ? "var(--primary)" : "var(--muted-text)" }}>
+                <Wifi className="w-[22px] h-[22px]" />
               </a>
             </Link>
             <Link href="/profile">
-              <a className="p-2 rounded-xl" style={{ color: isActivePath(location, "/profile") ? "var(--primary)" : "var(--muted-text)" }}>
-                <UserCircle2 className="w-[18px] h-[18px]" />
+              <a className="p-3 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/profile") ? "var(--primary)" : "var(--muted-text)" }}>
+                <UserCircle2 className="w-[22px] h-[22px]" />
               </a>
             </Link>
           </div>
@@ -308,7 +308,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto w-full" style={{ background: "var(--app-bg)" }}>
+        <main className="flex-1 overflow-x-hidden overflow-y-auto w-full" style={{ background: "var(--app-bg)" }}>
           <div className="w-full p-3 md:p-6">{children}</div>
         </main>
       </div>

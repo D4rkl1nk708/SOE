@@ -224,17 +224,27 @@ export default function Revisions() {
       <SleepWarning />
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-black soe-gold-text flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6" /> Revisões
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2.5" style={{ color: "var(--app-fg)" }}>
+            <CheckCircle2 className="h-7 w-7 text-[var(--primary)]" />
+            Revisões
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted-text)" }}>
-            {groups.overdue.length > 0 ? <><AlertCircle className="w-4 h-4 inline mr-1" style={{color:"var(--accent-red, #dc2626)"}}/>{groups.overdue.length} revisão(ões) atrasada(s)</> : "Tudo em dia!"}
-            {" · "}{groups.scheduled.length} programada(s)
-          </p>
+          <div className="flex items-center gap-2 text-sm">
+            {groups.overdue.length > 0 ? (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-black uppercase tracking-widest text-[10px]">
+                    <AlertCircle className="w-3 h-3" />
+                    {groups.overdue.length} Atrasadas
+                </span>
+            ) : (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-black uppercase tracking-widest text-[10px]">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Em dia
+                </span>
+            )}
+            <span className="opacity-40 font-bold">{groups.scheduled.length} Atividades</span>
+          </div>
         </div>
-
       </div>
 
       {/* Summary cards */}
@@ -259,26 +269,22 @@ export default function Revisions() {
       </div>
 
       <Tabs defaultValue="scheduled" className="w-full" onValueChange={() => setPages({ scheduled: PAGE_SIZE, overdue: PAGE_SIZE, ignored: PAGE_SIZE, completed: PAGE_SIZE })}>
-        <TabsList className="grid w-full grid-cols-4 h-auto">
-          <TabsTrigger value="scheduled" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 text-xs sm:text-sm">
-            <Clock className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Programadas</span>
-            <span className="font-bold">({groups.scheduled.length})</span>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 rounded-2xl bg-white/[0.02] border border-white/5">
+          <TabsTrigger value="scheduled" className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-[var(--primary)] data-[state=active]:text-[var(--primary-foreground)]">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">({groups.scheduled.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="overdue" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 text-xs sm:text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Atrasadas</span>
-            <span className="font-bold">({groups.overdue.length})</span>
+          <TabsTrigger value="overdue" className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-rose-500 data-[state=active]:text-white">
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">({groups.overdue.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="ignored" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 text-xs sm:text-sm">
-            <EyeOff className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Ignoradas</span>
-            <span className="font-bold">({groups.ignored.length})</span>
+          <TabsTrigger value="ignored" className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-white/10">
+            <EyeOff className="h-3.5 w-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">({groups.ignored.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 text-xs sm:text-sm">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Concluídas</span>
-            <span className="font-bold">({groups.completed.length})</span>
+          <TabsTrigger value="completed" className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">({groups.completed.length})</span>
           </TabsTrigger>
         </TabsList>
 

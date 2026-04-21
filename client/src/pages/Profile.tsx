@@ -293,11 +293,11 @@ function DiarioOficialTab() {
 
           <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Nome Completo para Busca</label>
-              <div className="flex gap-3">
+              <div className="flex flex-col xs:flex-row gap-3">
                   <input type="text" value={inputValue} onChange={e => setInputValue(e.target.value)}
                          placeholder="Ex: João Da Silva Pereira"
-                         className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary-border)] transition-all" />
-                  <button onClick={handleSave} className="px-8 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+                         className="flex-1 px-5 h-14 md:h-12 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary-border)] transition-all" />
+                  <button onClick={handleSave} className="px-8 h-14 md:h-12 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
                       Salvar
                   </button>
               </div>
@@ -376,38 +376,39 @@ export default function Profile() {
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10 pb-12">
       {/* Premium Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8">
+        <div className="flex items-center gap-4 sm:gap-6">
           <div className="relative group">
               <div className="absolute inset-0 bg-[var(--primary)] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-              <div className="relative w-20 h-20 rounded-[2.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-black text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-black text-2xl sm:text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
                 {(stats as any)?.userName?.[0]?.toUpperCase() ?? <User className="w-8 h-8" />}
               </div>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--accent-green)] border-4 border-[var(--app-bg)] flex items-center justify-center text-white">
-                  <ShieldCheck size={12} />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[var(--accent-green)] border-4 border-[var(--app-bg)] flex items-center justify-center text-white">
+                  <ShieldCheck size={10} className="sm:w-3 sm:h-3" />
               </div>
           </div>
           <div>
-            <h1 className="text-4xl font-black tracking-tighter" style={{ color: "var(--app-fg)" }}>Perfil</h1>
-            <p className="text-sm font-medium opacity-50 uppercase tracking-[0.2em] mt-1">Configurações de Identidade & Sistema</p>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter" style={{ color: "var(--app-fg)" }}>Perfil</h1>
+            <p className="text-[10px] sm:text-sm font-medium opacity-50 uppercase tracking-[0.1em] sm:tracking-[0.2em] mt-0.5 sm:mt-1">Configurações do Sistema</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-             <button onClick={logout} className="p-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 transition-all active:scale-95">
-                <LogOut size={20} />
+             <button onClick={logout} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 h-12 rounded-2xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest">
+                <LogOut size={16} />
+                <span>Sair da Conta</span>
              </button>
         </div>
       </div>
 
       {/* Modern Navigation */}
-      <div className="flex flex-wrap items-center gap-2 p-2 rounded-[2rem] bg-white/[0.02] border border-white/5 w-fit">
+      <div className="flex gap-1 p-1 rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
         {TABS.map(t => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.1em] transition-all ${active ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${active ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <Icon size={14} />
               <span>{t.label}</span>
             </button>

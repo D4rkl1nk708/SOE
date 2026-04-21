@@ -5,7 +5,7 @@ import {
   Brain, Lock, Send, User, Bot, Loader2, ChevronDown, 
   ChevronUp, TrendingDown, Activity, Trash2, Plus, 
   Sparkles, History, MessageSquare, ShieldAlert, Zap,
-  Search, Wand2, Info, ChevronRight, GraduationCap
+  Search, Wand2, Info, ChevronRight, GraduationCap, X, Menu
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +33,7 @@ function RenderText({ text }: { text: string }) {
 
 export default function MentorTab() {
   const [, navigate] = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const apiKey = (stats?.settings as any)?.aiApiKey ?? "";
   const provider = (stats?.settings as any)?.aiProvider ?? "gemini";
@@ -84,6 +85,7 @@ export default function MentorTab() {
     const newSession = { id: newId, title: "Nova Conversa", messages: [{ role: "assistant", content: "Olá! Como posso ajudar nesta nova conversa?" }], createdAt: Date.now() };
     setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(newId);
+    setIsSidebarOpen(false);
   };
 
   const deleteSession = (id: string, e: React.MouseEvent) => {
@@ -110,56 +112,85 @@ export default function MentorTab() {
     chatMut.mutate({ message: userMsg, history: newHistory.filter(m => m.role === "user" || m.role === "assistant"), apiKey, provider });
   };
 
-  return (
-    <div className="flex h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-[var(--app-bg)]">
-      {/* Sidebar - Modern Glass List */}
-      <div className="hidden md:flex flex-col w-72 shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl">
-        <div className="p-6 space-y-6">
-            <button onClick={createNewSession} className="group relative w-full overflow-hidden p-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                <div className="relative flex items-center justify-center gap-3">
-                    <Plus size={18} />
-                    <span className="text-xs font-black uppercase tracking-widest">Nova Sessão</span>
-                </div>
-            </button>
-            
-            <div className="space-y-4">
-                <div className="flex items-center gap-2 px-2 opacity-30">
-                    <History size={12} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Histórico de Sessões</span>
-                </div>
-                
-                <div className="space-y-1.5 custom-scrollbar max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
-                    {sessions.map(s => (
-                        <div key={s.id} onClick={() => setActiveSessionId(s.id)}
-                            className={`group relative p-4 rounded-2xl cursor-pointer transition-all border ${activeSessionId === s.id ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)]' : 'border-transparent hover:bg-white/5'}`}>
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <MessageSquare size={14} className={activeSessionId === s.id ? 'text-[var(--primary)]' : 'opacity-20'} />
-                                    <span className={`text-[11px] font-bold truncate ${activeSessionId === s.id ? 'text-[var(--primary)]' : 'text-white/60'}`}>{s.title}</span>
-                                </div>
-                                <button onClick={(e) => deleteSession(s.id, e)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all">
-                                    <Trash2 size={12} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        <div className="mt-auto p-6 border-t border-white/5">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2">
-                <div className="flex items-center gap-2">
-                    <Activity size={14} className="text-[var(--primary)]" />
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Motor Ativo</span>
-                </div>
-                <p className="text-[11px] font-bold truncate opacity-80" style={{ color: "var(--app-fg)" }}>
-                    {provider.toUpperCase()} AI Engine
-                </p>
-            </div>
-        </div>
+  const SidebarContent = (
+    <div className="flex flex-col h-full">
+      <div className="p-6 space-y-6">
+          <button onClick={createNewSession} className="group relative w-full overflow-hidden p-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+              <div className="relative flex items-center justify-center gap-3">
+                  <Plus size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">Nova Sessão</span>
+              </div>
+          </button>
+          
+          <div className="space-y-4">
+              <div className="flex items-center gap-2 px-2 opacity-30">
+                  <History size={12} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Histórico</span>
+              </div>
+              
+              <div className="space-y-1.5 custom-scrollbar max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
+                  {sessions.map(s => (
+                      <div key={s.id} onClick={() => { setActiveSessionId(s.id); setIsSidebarOpen(false); }}
+                          className={`group relative p-4 rounded-2xl cursor-pointer transition-all border ${activeSessionId === s.id ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)]' : 'border-transparent hover:bg-white/5'}`}>
+                          <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                  <MessageSquare size={14} className={activeSessionId === s.id ? 'text-[var(--primary)]' : 'opacity-20'} />
+                                  <span className={`text-[11px] font-bold truncate ${activeSessionId === s.id ? 'text-[var(--primary)]' : 'text-white/60'}`}>{s.title}</span>
+                              </div>
+                              <button onClick={(e) => deleteSession(s.id, e)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all">
+                                  <Trash2 size={12} />
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
       </div>
+
+      <div className="mt-auto p-6 border-t border-white/5">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+              <div className="flex items-center gap-2">
+                  <Activity size={14} className="text-[var(--primary)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Motor Ativo</span>
+              </div>
+              <p className="text-[11px] font-bold truncate opacity-80" style={{ color: "var(--app-fg)" }}>
+                  {provider.toUpperCase()} AI Engine
+              </p>
+          </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-[var(--app-bg)]">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex flex-col w-72 shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl">
+        {SidebarContent}
+      </div>
+
+      {/* Mobile Drawer Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm" />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Sidebar */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="md:hidden fixed top-0 left-0 bottom-0 w-[80vw] max-w-[300px] z-[101] bg-[var(--app-bg)] border-r border-white/10 shadow-2xl">
+            <div className="flex flex-col h-full">
+              <div className="p-4 flex justify-end">
+                <button onClick={() => setIsSidebarOpen(false)} className="p-2 rounded-xl bg-white/5"><X size={20} /></button>
+              </div>
+              {SidebarContent}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -170,30 +201,31 @@ export default function MentorTab() {
         </div>
 
         {/* Header */}
-        <div className="relative px-8 py-4 border-b border-white/5 backdrop-blur-md bg-white/[0.01] flex items-center justify-between z-10">
-            <div className="flex items-center gap-4">
+        <div className="relative px-4 md:px-8 py-3 md:py-4 border-b border-white/5 backdrop-blur-md bg-white/[0.01] flex items-center justify-between z-10">
+            <div className="flex items-center gap-3 md:gap-4">
+                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 rounded-xl bg-white/5 text-[var(--primary)]"><Menu size={18} /></button>
                 <div className="relative">
                     <div className="absolute inset-0 bg-[var(--primary)] blur-xl opacity-20" />
-                    <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]">
-                        <Brain size={20} />
+                    <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]">
+                        <Brain size={18} className="md:w-5 md:h-5" />
                     </div>
                 </div>
                 <div>
-                    <h2 className="text-sm font-black uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>SOE Inteligência Central</h2>
-                    <p className="text-[10px] font-bold opacity-40">{activeSession.title}</p>
+                    <h2 className="text-[11px] md:text-sm font-black uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>Mentor IA</h2>
+                    <p className="text-[9px] md:text-[10px] font-bold opacity-40 truncate max-w-[120px] md:max-w-none">{activeSession.title}</p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
                 {hasRegressions && (
-                    <button onClick={() => setShowRegressions(!showRegressions)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
-                        <ShieldAlert size={12} /> {regressions.length} Alertas
+                    <button onClick={() => setShowRegressions(!showRegressions)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-widest animate-pulse">
+                        <ShieldAlert size={10} /> <span className="hidden xs:inline">{regressions.length} Alertas</span><span className="xs:hidden">{regressions.length}</span>
                     </button>
                 )}
                 <div className="h-4 w-px bg-white/10" />
                 <button onClick={() => setMessages(() => [{ role: "assistant", content: "Como posso ajudar agora?" }])}
-                    className="p-2.5 rounded-xl hover:bg-white/5 text-white/20 hover:text-white transition-all" title="Limpar conversa">
-                    <Trash2 size={16} />
+                    className="p-2 rounded-xl hover:bg-white/5 text-white/20 hover:text-white transition-all" title="Limpar conversa">
+                    <Trash2 size={14} />
                 </button>
             </div>
         </div>
@@ -222,36 +254,36 @@ export default function MentorTab() {
         </AnimatePresence>
 
         {/* Chat Canvas */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 z-10">
-            <div className="max-w-3xl mx-auto space-y-10">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 z-10 pb-32 md:pb-32">
+            <div className="max-w-3xl mx-auto space-y-6 md:space-y-10">
                 {!apiKey ? (
-                    <div className="h-full flex flex-col items-center justify-center py-20 text-center gap-8">
+                    <div className="h-full flex flex-col items-center justify-center py-10 md:py-20 text-center gap-6 md:gap-8">
                         <div className="relative">
                             <div className="absolute inset-0 bg-rose-500 blur-3xl opacity-10" />
-                            <div className="relative p-10 rounded-[3rem] bg-white/[0.02] border border-white/5">
-                                <Lock size={48} className="text-rose-500/40" />
+                            <div className="relative p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] bg-white/[0.02] border border-white/5">
+                                <Lock size={32} className="text-rose-500/40 md:w-12 md:h-12" />
                             </div>
                         </div>
-                        <div className="space-y-3">
-                            <h3 className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>Acesso Restrito</h3>
-                            <p className="text-sm opacity-40 max-w-xs mx-auto leading-relaxed">
-                                Configure suas chaves de API no perfil para liberar o potencial do seu Mentor Socrático.
+                        <div className="space-y-2 md:space-y-3">
+                            <h3 className="text-xl md:text-2xl font-black" style={{ color: "var(--app-fg)" }}>Acesso Restrito</h3>
+                            <p className="text-xs md:text-sm opacity-40 max-w-[240px] md:max-w-xs mx-auto leading-relaxed">
+                                Configure suas chaves de API no perfil para liberar o potencial do seu Mentor.
                             </p>
                         </div>
                         <button onClick={() => navigate("/profile#settings")}
-                            className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
-                            Ir para Configurações
+                            className="px-6 md:px-8 h-12 md:h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
+                            Ir para Perfil
                         </button>
                     </div>
                 ) : (
                     <>
                         {messages.map((m, i) => (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={i}
-                                className={`flex gap-6 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                                <div className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg transition-all ${m.role === "user" ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[var(--primary-shadow)]' : 'bg-white/5 text-[var(--primary)]'}`}>
-                                    {m.role === "user" ? <User size={18} /> : <GraduationCap size={18} />}
+                                className={`flex gap-3 md:gap-6 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                                <div className={`shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg transition-all ${m.role === "user" ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[var(--primary-shadow)]' : 'bg-white/5 text-[var(--primary)]'}`}>
+                                    {m.role === "user" ? <User size={14} className="md:w-[18px] md:h-[18px]" /> : <GraduationCap size={14} className="md:w-[18px] md:h-[18px]" />}
                                 </div>
-                                <div className={`relative p-6 rounded-[2rem] max-w-[85%] border ${m.role === "user" ? 'bg-white/5 border-white/10 text-[var(--app-fg)]' : 'bg-transparent border-transparent text-[var(--app-fg)]'}`}>
+                                <div className={`relative p-4 md:p-6 rounded-2xl md:rounded-[2rem] max-w-[88%] md:max-w-[85%] border ${m.role === "user" ? 'bg-white/5 border-white/10 text-[var(--app-fg)]' : 'bg-transparent border-transparent text-[var(--app-fg)]'}`}>
                                     {m.role === "assistant" ? <RenderText text={m.content} /> : <p className="text-sm leading-relaxed opacity-90">{m.content}</p>}
                                 </div>
                             </motion.div>
@@ -276,27 +308,24 @@ export default function MentorTab() {
 
         {/* Floating Input Dock */}
         {apiKey && (
-            <div className="absolute bottom-8 left-0 right-0 px-8 z-20">
+            <div className="absolute bottom-4 md:bottom-8 left-0 right-0 px-4 md:px-8 z-20">
                 <div className="max-w-3xl mx-auto relative group">
                     <div className="absolute inset-0 bg-black/40 blur-2xl opacity-50 group-focus-within:opacity-80 transition-opacity" />
-                    <div className="relative p-2 rounded-[2rem] bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-2xl flex items-center gap-2">
-                        <div className="pl-4 text-[var(--primary)] opacity-40">
-                            <Sparkles size={18} />
+                    <div className="relative p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2rem] bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-2xl flex items-center gap-1 md:gap-2">
+                        <div className="pl-3 md:pl-4 text-[var(--primary)] opacity-40">
+                            <Sparkles size={16} />
                         </div>
                         <textarea value={input} onChange={e => setInput(e.target.value)}
                             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                            placeholder="Como posso otimizar seus estudos hoje?..."
+                            placeholder="Mensagem..."
                             disabled={chatMut.isPending}
-                            rows={1} className="flex-1 bg-transparent border-none outline-none py-4 text-sm font-medium placeholder:opacity-20 resize-none min-h-[56px] max-h-32 custom-scrollbar"
+                            rows={1} className="flex-1 bg-transparent border-none outline-none py-3 md:py-4 text-sm font-medium placeholder:opacity-20 resize-none min-h-[48px] md:min-h-[56px] max-h-32 custom-scrollbar"
                             style={{ color: "var(--app-fg)" }} />
                         <button onClick={handleSend} disabled={!input.trim() || chatMut.isPending}
-                            className="p-4 rounded-[1.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100">
-                            {chatMut.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                            className="p-3 md:p-4 rounded-xl md:rounded-[1.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100">
+                            {chatMut.isPending ? <Loader2 size={16} className="animate-spin md:w-[18px] md:h-[18px]" /> : <Send size={16} className="md:w-[18px] md:h-[18px]" />}
                         </button>
                     </div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-center mt-4 opacity-20">
-                        Integração Total: Estatísticas, Revisões, Flashcards e Anotações em tempo real
-                    </p>
                 </div>
             </div>
         )}

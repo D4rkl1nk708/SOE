@@ -141,52 +141,48 @@ export default function QuestionErrors() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Area */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Questões Erradas</h2>
-          <p className="text-sm opacity-50 font-medium">Diagnóstico individualizado com suporte de Inteligência Central.</p>
+          <h2 className="text-3xl font-black tracking-tight flex items-center gap-2.5" style={{ color: "var(--app-fg)" }}>
+            Erros
+          </h2>
+          <p className="text-sm opacity-60">Diagnóstico individualizado com IA.</p>
         </div>
         
-        <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--stat-bg)] border border-[var(--card-border)]">
-            <div className={`p-2 rounded-lg ${savedKey ? 'bg-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-[var(--card-border)] text-[var(--muted-text)] opacity-40'}`}>
+        <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5 w-full sm:w-auto">
+            <div className={`p-2 rounded-lg ${savedKey ? 'bg-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-white/5 text-white/20'}`}>
                 <Zap size={16} />
             </div>
             <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40" style={{ color: "var(--muted-text)" }}>Motor IA</p>
-                <p className="text-xs font-black uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>{savedKey ? savedProvider : "Desconectado"}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Motor IA</p>
+                <p className="text-xs font-black uppercase tracking-widest">{savedKey ? savedProvider : "Off"}</p>
             </div>
         </div>
       </div>
 
       {/* Modern Filter Dock */}
-      <div className="soe-card p-6 flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex items-center gap-3 shrink-0 opacity-40 mr-2">
-            <Filter size={16} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Filtros</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-            <select value={filterDisc} onChange={e => { setFilterDisc(e.target.value ? Number(e.target.value) : ""); setFilterTopic(""); }} 
-                className="bg-[var(--stat-bg)] border border-[var(--card-border)] text-[var(--app-fg)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all">
-                <option value="">Todas as disciplinas</option>
-                {(disciplines as any[])?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <select value={filterTopic} onChange={e => setFilterTopic(e.target.value ? Number(e.target.value) : "")} disabled={!filterDisc}
-                className="bg-[var(--stat-bg)] border border-[var(--card-border)] text-[var(--app-fg)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all disabled:opacity-20">
-                <option value="">Todos os temas</option>
-                {topics.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-            <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)}
-                className="bg-[var(--stat-bg)] border border-[var(--card-border)] text-[var(--app-fg)] rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all">
-                <option value="">Todas as origens</option>
-                {Object.entries(ORIGIN_LABELS).map(([id, info]) => <option key={id} value={id}>{info.label}</option>)}
-            </select>
-        </div>
-        {(filterDisc || filterTopic || filterOrigin) && (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <select value={filterDisc} onChange={e => { setFilterDisc(e.target.value ? Number(e.target.value) : ""); setFilterTopic(""); }} 
+            className="col-span-2 md:col-span-1 bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all">
+            <option value="">Matéria</option>
+            {(disciplines as any[])?.map((d: any) => <option key={d.id} value={d.id} className="bg-slate-900">{d.name}</option>)}
+        </select>
+        <select value={filterTopic} onChange={e => setFilterTopic(e.target.value ? Number(e.target.value) : "")} disabled={!filterDisc}
+            className="col-span-2 md:col-span-1 bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all disabled:opacity-20">
+            <option value="">Assunto</option>
+            {topics.map((t: any) => <option key={t.id} value={t.id} className="bg-slate-900">{t.name}</option>)}
+        </select>
+        <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)}
+            className="bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all">
+            <option value="">Origem</option>
+            {Object.entries(ORIGIN_LABELS).map(([id, info]) => <option key={id} value={id} className="bg-slate-900">{info.label}</option>)}
+        </select>
+        <div className="flex gap-2">
             <button onClick={() => { setFilterDisc(""); setFilterTopic(""); setFilterOrigin(""); }}
-                className="p-2.5 rounded-xl hover:bg-rose-500/10 text-rose-500 transition-all">
-                <X size={18} />
+                className="flex-1 bg-white/5 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 transition-all">
+                Limpar
             </button>
-        )}
+        </div>
       </div>
 
       {/* Stats Counter */}
@@ -268,15 +264,15 @@ export default function QuestionErrors() {
                                 </div>
                             </div>
 
-                            <div className="mt-6 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
-                                <div className="flex flex-wrap gap-2">
-                                    <AIActionButton label="Diagnóstico" doneLabel="Re-analisar" icon={Brain} color="#7c3aed"
+                            <div className="mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="grid grid-cols-2 xs:grid-cols-4 gap-2 w-full sm:w-auto">
+                                    <AIActionButton label="Analisar" doneLabel="Re-analisar" icon={Brain} color="#7c3aed"
                                         loading={isLoading2(e.id,"analyze")} done={hasAnalysis} onClick={() => callAI(e.id,"analyze")} />
-                                    <AIActionButton label="Dica de Revisão" doneLabel="Nova Dica" icon={Lightbulb} color="#f59e0b"
+                                    <AIActionButton label="Dica" doneLabel="Nova Dica" icon={Lightbulb} color="#f59e0b"
                                         loading={isLoading2(e.id,"revisionTip")} done={hasTip} onClick={() => callAI(e.id,"revisionTip")} />
-                                    <AIActionButton label="Similares" doneLabel="Ver Mais" icon={Search} color="#3b82f6"
+                                    <AIActionButton label="Similar" doneLabel="Ver Mais" icon={Search} color="#3b82f6"
                                         loading={isLoading2(e.id,"similarQuestions")} done={hasSimilar} onClick={() => callAI(e.id,"similarQuestions")} />
-                                    <AIActionButton label="Gerar Card" doneLabel="Criado ✓" icon={CreditCard} color="#10b981"
+                                    <AIActionButton label="Card" doneLabel="✓" icon={CreditCard} color="#10b981"
                                         loading={isLoading2(e.id,"generateFlashcard")} done={hasFlashcard} onClick={() => !hasFlashcard && callAI(e.id,"generateFlashcard")} />
                                 </div>
 
