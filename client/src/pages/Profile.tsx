@@ -7,8 +7,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { douGetConfig, douSaveConfig, douCheckNow, DEFAULT_INTERVAL_MINUTES, MIN_INTERVAL_MINUTES, MAX_INTERVAL_MINUTES } from "@/hooks/useDiarioOficial";
 import { toast } from "sonner";
+import Revisions from "./Revisions";
 
-type Tab = "history" | "settings" | "dou";
+type Tab = "history" | "settings" | "dou" | "revisions";
 
 function SettingsTab() {
   const { theme, toggleTheme, colorTheme, setColorTheme } = useTheme();
@@ -428,6 +429,7 @@ export default function Profile() {
     { id: "dou" as Tab,        label: "Diário Oficial", icon: FileText },
     { id: "settings" as Tab,   label: "Configurações",  icon: Settings },
     { id: "history" as Tab,    label: "Histórico",      icon: HistoryIcon },
+    { id: "revisions" as Tab,  label: "Revisões",       icon: CheckCircle2 },
   ];
 
   return (
@@ -477,6 +479,7 @@ export default function Profile() {
       {tab === "dou" && <DiarioOficialTab />}
       {tab === "settings" && <SettingsTab />}
       {tab === "history" && <History />}
+      {tab === "revisions" && <Revisions />}
 
 
     </div>

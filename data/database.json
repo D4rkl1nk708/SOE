@@ -22,11 +22,13 @@
         "pushToken": "s1ocpq68bcgl4firfk0x8mo7sluw4lo2c9w9uzep",
         "dashboardConfig": {
           "extraWidgets": []
-        }
+        },
+        "aiApiKey": "",
+        "aiProvider": "gemini"
       },
       "createdAt": "2026-04-20T22:47:06.510Z",
-      "updatedAt": "2026-04-21T00:45:24.300Z",
-      "lastSignedIn": "2026-04-21T00:45:24.300Z"
+      "updatedAt": "2026-04-21T01:46:52.991Z",
+      "lastSignedIn": "2026-04-21T01:46:52.991Z"
     }
   ],
   "disciplines": [],

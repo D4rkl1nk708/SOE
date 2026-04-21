@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, CalendarDays, EyeOff,
   ExternalLink, Link as LinkIcon, PlayCircle, Check, X as XIcon, Calendar as CalendarIcon,
-  Camera,
+  Camera, Settings2
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
@@ -15,6 +15,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { useLocation } from "wouter";
 import SubjectiveEssayModal from "@/components/SubjectiveEssayModal";
+import { useScheduleSettings } from "@/hooks/useDashboard";
 
 const LS_LINKS = "soe_tec_links";
 function getLinks(): Record<number, string> {
@@ -38,14 +39,17 @@ export default function Calendar() {
   const [essayActivity, setEssayActivity] = useState<typeof activities[0] | null>(null);
   const [, navigate] = useLocation();
 
+  const schedule = useScheduleSettings(() => { utils.calendar.getData.invalidate(); utils.dashboard.getStats.invalidate(); });
+
   const utils = trpc.useUtils();
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: icalData } = trpc.auth.getICalUrl.useQuery(undefined, { enabled: icalDialogOpen });
+  const { data: icalData } = (trpc as any).auth.getICalUrl.useQuery(undefined, { enabled: icalDialogOpen });
 
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: calendarData } = trpc.calendar.getData.useQuery({
     startDate: format(calStart, "yyyy-MM-dd"),
     endDate: format(calEnd, "yyyy-MM-dd"),
@@ -139,6 +143,19 @@ export default function Calendar() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const settings = stats?.settings as any;
+              schedule.setTestIntervalInput(String(settings?.testIntervalDays ?? 3));
+              schedule.setRevisionIntervalInput(String(settings?.revisionIntervalDays ?? 25));
+              schedule.setRevisionSecondPhaseInput(String(settings?.revisionSecondPhaseDays ?? 50));
+              schedule.setScheduleDialogOpen(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 hidden sm:flex"
+            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}>
+            <Settings2 className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} />
+            Configurar Revisões
+          </button>
           <button onClick={() => setIcalDialogOpen(true)}
             className="px-3 py-2 rounded-xl text-sm font-semibold hover:opacity-70 transition-opacity flex items-center gap-1.5"
             style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)", background: "var(--card-bg)" }}
@@ -554,6 +571,28 @@ export default function Calendar() {
             <p className="text-xs" style={{ color: "var(--muted-text)" }}>
               ⚠️ Mantenha a URL em segredo — ela dá acesso de leitura ao seu cronograma.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Config Dialog */}
+      <Dialog open={schedule.scheduleDialogOpen} onOpenChange={schedule.setScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" style={{ color: "var(--primary)" }} />
+              Configurar Revisões e Testes
+            </DialogTitle>
+            <DialogDescription>Defina os intervalos para geração automática de revisões.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><label className="text-sm font-medium leading-none">Testes a cada (dias)</label><input className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" type="number" min={1} max={30} placeholder="3" value={schedule.testIntervalInput} onChange={e => schedule.setTestIntervalInput(e.target.value)} /></div>
+            <div className="space-y-2"><label className="text-sm font-medium leading-none">Revisões - fase 1 (dias)</label><input className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" type="number" min={0} max={365} placeholder="25" value={schedule.revisionIntervalInput} onChange={e => schedule.setRevisionIntervalInput(e.target.value)} /><p className="text-xs" style={{ color: "var(--muted-text)" }}>0 = desativar revisões</p></div>
+            <div className="space-y-2"><label className="text-sm font-medium leading-none">Revisões - fase 2 (dias)</label><input className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" type="number" min={1} max={365} placeholder="50" value={schedule.revisionSecondPhaseInput} onChange={e => schedule.setRevisionSecondPhaseInput(e.target.value)} /></div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button className="px-4 py-2 bg-transparent text-sm font-medium hover:opacity-70" onClick={() => schedule.setScheduleDialogOpen(false)}>Cancelar</button>
+            <button className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-primary" onClick={schedule.handleSaveSchedule} disabled={schedule.isSaving}>{schedule.isSaving ? "Salvando..." : "Salvar"}</button>
           </div>
         </DialogContent>
       </Dialog>

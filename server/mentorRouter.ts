@@ -823,4 +823,50 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
         throw new Error(`Falha na correção IA: ${err.message}`);
       }
     }),
+
+  chat: protectedProcedure
+    .input(
+      z.object({
+        message: z.string(),
+        history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // gather basic stats to feed as context
+      const [stats, weak] = await Promise.all([
+        storage.getDashboardStats(ctx.user.id),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65)
+      ]);
+      
+      const totalResolved = ((stats as any).disciplineStats ?? []).reduce((sum: number, d: any) => sum + (d.performance?.questionsResolved ?? 0), 0);
+      
+      const weakStr = weak.length > 0 
+        ? weak.slice(0, 5).map(t => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`).join(", ")
+        : "Nenhum tópico crítico identificado.";
+
+      const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
+      
+      const prompt = `Você é o Mentor SOE — um professor particular de concursos e mentor de estudos focado em resultado.
+DADOS DO ALUNO HOJE:
+- Questões resolvidas no SOE: ${totalResolved}
+- Pontos fracos críticos: ${weakStr}
+
+Você deve responder a nova mensagem do aluno com base no histórico da conversa e no contexto acima. 
+Responda de forma direta, motivadora e sem formalidades excessivas. Se o aluno pedir questões, gere-as. Se pedir dicas, seja objetivo. Use markdown para negritos.
+
+HISTÓRICO DA CONVERSA:
+${transcript}
+
+Aluno: ${input.message}
+Mentor:`;
+
+      try {
+        const reply = await callAI(input.provider, input.apiKey, prompt, 1500);
+        return { reply: reply.trim() };
+      } catch (err: unknown) {
+        throw new Error(`Falha no chat: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }),
 });

@@ -39,23 +39,11 @@ export default function Revisions() {
   const { data: stats } = trpc.dashboard.getStats.useQuery();
 
   const [pages, setPages] = useState({ scheduled: PAGE_SIZE, overdue: PAGE_SIZE, ignored: PAGE_SIZE, completed: PAGE_SIZE });
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   // F01/F04 - Recall rating dialog
   const [recallDialog, setRecallDialog] = useState<{ open: boolean; revisionId: number; topicName: string } | null>(null);
   // F11 - Teach yourself mode
   const [teachDialog, setTeachDialog] = useState<{ open: boolean; topicName: string; disciplineName?: string } | null>(null);
-  const [testIntervalInput, setTestIntervalInput] = useState("");
-  const [revisionIntervalInput, setRevisionIntervalInput] = useState("");
-  const [revisionSecondPhaseInput, setRevisionSecondPhaseInput] = useState("");
 
-  const updateSettings = trpc.auth.updateSettings.useMutation({
-    onSuccess: () => {
-      toast.success("Configurações salvas!");
-      utils.dashboard.getStats.invalidate();
-      setScheduleDialogOpen(false);
-    },
-    onError: (err) => toast.error(err.message),
-  });
 
   const markCompleted = trpc.revision.markCompleted.useMutation({
     onSuccess: (_, vars) => {
@@ -246,18 +234,7 @@ export default function Revisions() {
             {" · "}{groups.scheduled.length} programada(s)
           </p>
         </div>
-        <button
-          onClick={() => {
-            setTestIntervalInput(String(stats?.settings?.testIntervalDays ?? 3));
-            setRevisionIntervalInput(String(stats?.settings?.revisionIntervalDays ?? 25));
-            setRevisionSecondPhaseInput(String(stats?.settings?.revisionSecondPhaseDays ?? 50));
-            setScheduleDialogOpen(true);
-          }}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80"
-          style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}>
-          <Settings2 className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} />
-          Configurar Revisões
-        </button>
+
       </div>
 
       {/* Summary cards */}
@@ -319,33 +296,7 @@ export default function Revisions() {
         </TabsContent>
       </Tabs>
 
-      {/* Config Dialog */}
-      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" style={{ color: "var(--primary)" }} />
-              Configurar Revisões e Testes
-            </DialogTitle>
-            <DialogDescription>Defina os intervalos para geração automática de revisões.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Testes a cada (dias)</Label><Input type="number" min={1} max={30} placeholder="3" value={testIntervalInput} onChange={e => setTestIntervalInput(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Revisões - fase 1 (dias)</Label><Input type="number" min={0} max={365} placeholder="25" value={revisionIntervalInput} onChange={e => setRevisionIntervalInput(e.target.value)} /><p className="text-xs" style={{ color: "var(--muted-text)" }}>0 = desativar revisões</p></div>
-            <div className="space-y-2"><Label>Revisões - fase 2 (dias)</Label><Input type="number" min={1} max={365} placeholder="50" value={revisionSecondPhaseInput} onChange={e => setRevisionSecondPhaseInput(e.target.value)} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => {
-              const td = parseInt(testIntervalInput, 10), rd = parseInt(revisionIntervalInput, 10), r2d = parseInt(revisionSecondPhaseInput, 10);
-              if (isNaN(td) || td < 1 || td > 30) { toast.error("Testes: 1-30 dias."); return; }
-              if (isNaN(rd) || rd < 0 || rd > 365) { toast.error("Revisões fase 1: 0-365."); return; }
-              if (rd > 0 && (isNaN(r2d) || r2d < 1 || r2d > 365)) { toast.error("Revisões fase 2: 1-365."); return; }
-              updateSettings.mutate({ testIntervalDays: td, revisionIntervalDays: rd, revisionSecondPhaseDays: r2d });
-            }} disabled={updateSettings.isPending}>{updateSettings.isPending ? "Salvando..." : "Salvar"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

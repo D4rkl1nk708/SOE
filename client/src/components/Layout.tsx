@@ -19,7 +19,6 @@ const NAV_GROUPS = [
     items: [
       { path: "/",                 label: "Início",       icon: LayoutDashboard },
       { path: "/question-session", label: "Questões",     icon: ListChecks },
-      { path: "/revisions",        label: "Revisões",     icon: CheckCircle2 },
       { path: "/mentor",           label: "IA",    icon: Sparkles },
     ],
   },
