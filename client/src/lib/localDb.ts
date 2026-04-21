@@ -3,8 +3,8 @@
  * Replica a lógica do backend jsonStorage.
  */
 import Dexie, { type Table } from "dexie";
-
 import { buildSchedule, formatDateForDb, getScheduleParams } from "@shared/scheduling";
+import { callAiProvider, extractJSON, AiProvider } from "./aiHelpers";
 
 const now = () => new Date().toISOString();
 
@@ -95,6 +95,54 @@ interface Counters {
   questionErrors: number;
 }
 
+interface Flashcard {
+  id: number;
+  userId: number;
+  disciplineId: number;
+  topicId?: number;
+  noteId?: number;
+  front: string;
+  back: string;
+  interval: number;
+  easeFactor: number;
+  repetitions: number;
+  nextReviewDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TecTopicSnapshot {
+  topicName: string;
+  disciplineName: string;
+  questionsResolved: number;
+  correctCount: number;
+  errorCount: number;
+  accuracy: number;
+}
+
+interface TecSnapshot {
+  id: number;
+  userId: number;
+  importedAt: string;
+  totalQuestions: number;
+  totalCorrect: number;
+  totalErrors: number;
+  overallAccuracy: number;
+  topics: TecTopicSnapshot[];
+}
+
+interface Counters {
+  users: number;
+  disciplines: number;
+  topics: number;
+  revisions: number;
+  mockExams: number;
+  notes: number;
+  questionErrors: number;
+  flashcards: number;
+  tecSnapshots: number;
+}
+
 interface QuestionError {
   id: number;
   userId: number;
@@ -135,6 +183,8 @@ class LocalDb extends Dexie {
   mockExams!: Table<MockExam & { id: number }>;
   notes!: Table<Note & { id: number }>;
   questionErrors!: Table<QuestionError & { id: number }>;
+  flashcards!: Table<Flashcard & { id: number }>;
+  tecSnapshots!: Table<TecSnapshot & { id: number }>;
   extraCollections!: Table<{ key: string; data: unknown }>;
   counters!: Table<{ key: string; value: number }>;
   subjectiveAnswers!: Table<SubjectiveAnswer & { id: number }>;
@@ -183,6 +233,20 @@ class LocalDb extends Dexie {
       counters: "key",
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
     });
+    this.version(5).stores({
+      users: "id, openId",
+      disciplines: "id, userId",
+      topics: "id, userId, disciplineId, [userId+disciplineId]",
+      revisions: "id, userId, topicId, scheduledDate",
+      mockExams: "id, userId",
+      notes: "id, userId, disciplineId",
+      questionErrors: "id, userId, topicId, disciplineId",
+      flashcards: "id, userId, disciplineId, topicId",
+      tecSnapshots: "id, userId, importedAt",
+      extraCollections: "key",
+      counters: "key",
+      subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+    });
   }
 }
 
@@ -200,6 +264,8 @@ async function getCounters(): Promise<Counters> {
     mockExams: m.mockExams ?? 0,
     notes: m.notes ?? 0,
     questionErrors: m.questionErrors ?? 0,
+    flashcards: m.flashcards ?? 0,
+    tecSnapshots: m.tecSnapshots ?? 0,
   };
 }
 
@@ -782,8 +848,8 @@ export async function localSaveSubjectiveAnswer(input: {
     userId: LOCAL_USER_ID,
     createdAt: now(),
   };
-  // Dexie requires cast because id is auto-generated (not in SubjectiveAnswer type)
-  const id = await db.subjectiveAnswers.add(record as SubjectiveAnswer & { id?: number });
+  // Dexie requires cast because id is auto-generated
+  const id = await db.subjectiveAnswers.add(record as any);
   return { ...record, id: id as number };
 }
 
@@ -798,3 +864,339 @@ export async function localGetSubjectiveAnswers(opts?: { topicId?: number; banca
 export async function localDeleteSubjectiveAnswer(id: number): Promise<void> {
   await db.subjectiveAnswers.delete(id);
 }
+
+// ============ FLASHCARDS ============
+export async function localFlashcardList(): Promise<Flashcard[]> {
+  return db.flashcards.where("userId").equals(LOCAL_USER_ID).toArray();
+}
+
+export async function localFlashcardCreate(input: {
+  disciplineId: number;
+  topicId?: number;
+  noteId?: number;
+  front: string;
+  back: string;
+}): Promise<Flashcard> {
+  const id = await incCounter("flashcards");
+  const card: Flashcard = {
+    id,
+    userId: LOCAL_USER_ID,
+    ...input,
+    interval: 0,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: formatDateForDb(new Date()),
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.flashcards.add(card);
+  return card;
+}
+
+export async function localFlashcardUpdate(input: {
+  id: number;
+  front?: string;
+  back?: string;
+}): Promise<{ success: boolean }> {
+  const card = await db.flashcards.get(input.id);
+  if (!card || card.userId !== LOCAL_USER_ID) return { success: false };
+  await db.flashcards.update(input.id, { ...input, updatedAt: now() });
+  return { success: true };
+}
+
+export async function localFlashcardDelete(input: { id: number }): Promise<{ success: boolean }> {
+  const card = await db.flashcards.get(input.id);
+  if (!card || card.userId !== LOCAL_USER_ID) return { success: false };
+  await db.flashcards.delete(input.id);
+  return { success: true };
+}
+
+export async function localFlashcardReview(input: { id: number; quality: number }): Promise<Flashcard> {
+  const card = await db.flashcards.get(input.id);
+  if (!card || card.userId !== LOCAL_USER_ID) throw new Error("Flashcard not found");
+  
+  // Simple SM-2 implementation
+  let { interval, easeFactor, repetitions } = card;
+  if (input.quality >= 3) {
+    if (repetitions === 0) interval = 1;
+    else if (repetitions === 1) interval = 6;
+    else interval = Math.round(interval * easeFactor);
+    repetitions++;
+  } else {
+    repetitions = 0;
+    interval = 1;
+  }
+  easeFactor = Math.max(1.3, easeFactor + (0.1 - (5 - input.quality) * (0.08 + (5 - input.quality) * 0.02)));
+  
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + interval);
+  const nextReviewDate = formatDateForDb(nextDate);
+  
+  const updated = { ...card, interval, easeFactor, repetitions, nextReviewDate, updatedAt: now() };
+  await db.flashcards.update(input.id, updated);
+  return updated;
+}
+
+// ============ MENTOR / AI ============
+export async function localGetTecRegressions(input: { thresholdPp: number }): Promise<{
+  regressions: any[];
+  weakTopics: any[];
+  latestSnapshot: any;
+  previousSnapshot: any;
+  deltaAccuracy: number | null;
+  deltaQuestions: number | null;
+}> {
+  const snaps = await db.tecSnapshots.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("importedAt");
+  const latest = snaps[0] || null;
+  const previous = snaps[1] || null;
+  
+  const regressions: any[] = [];
+  if (latest && previous) {
+    for (const t of latest.topics) {
+      const prevT = previous.topics.find(p => p.topicName === t.topicName && p.disciplineName === t.disciplineName);
+      if (prevT && prevT.accuracy - t.accuracy >= (input.thresholdPp || 5)) {
+        regressions.push({
+          topicName: t.topicName,
+          disciplineName: t.disciplineName,
+          previousAccuracy: prevT.accuracy,
+          currentAccuracy: t.accuracy,
+          delta: t.accuracy - prevT.accuracy
+        });
+      }
+    }
+  }
+
+  const weakTopics = latest ? latest.topics.filter(t => t.accuracy < 65 && t.questionsResolved >= 5) : [];
+
+  return {
+    regressions,
+    weakTopics,
+    latestSnapshot: latest ? { importedAt: latest.importedAt, totalQuestions: latest.totalQuestions, overallAccuracy: latest.overallAccuracy } : null,
+    previousSnapshot: previous ? { importedAt: previous.importedAt, totalQuestions: previous.totalQuestions, overallAccuracy: previous.overallAccuracy } : null,
+    deltaAccuracy: latest && previous ? latest.overallAccuracy - previous.overallAccuracy : null,
+    deltaQuestions: latest && previous ? latest.totalQuestions - previous.totalQuestions : null,
+  };
+}
+
+export async function localMentorChat(input: {
+  message: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  apiKey: string;
+  provider: AiProvider;
+}): Promise<{ reply: string }> {
+  const [stats, snaps, errors, disciplines, revisions, notes, flashcards, { topics }] = await Promise.all([
+    localDashboardGetStats(),
+    db.tecSnapshots.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("importedAt"),
+    localGetQuestionErrors({ limit: 10 }),
+    localDisciplineList(),
+    localRevisionList(),
+    localNoteList(),
+    localFlashcardList(),
+    localTopicList()
+  ]);
+
+  const latestSnap = snaps[0];
+  const weak = latestSnap ? latestSnap.topics.filter(t => t.accuracy < 65 && t.questionsResolved >= 5) : [];
+  
+  const totalResolved = (stats.disciplineStats as any[] ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
+  const weakStr = weak.length > 0 ? weak.slice(0, 5).map(t => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`).join(", ") : "Nenhum tópico crítico.";
+  const errorsStr = errors.items.slice(0, 10).map(e => {
+    const d = disciplines.find(d => d.id === e.disciplineId);
+    return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 100)}..." | Erro: ${e.errorOrigin ?? "desconhecido"}`;
+  }).join("\n");
+  
+  const revisionsStr = revisions.filter(r => !r.completed && !r.ignored).slice(0, 10).map(r => {
+    const t = topics.find(t => t.id === r.topicId);
+    return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
+  }).join("\n");
+
+  const notesStr = notes.slice(0, 5).map(n => `- ${n.title}: ${n.content.replace(/<[^>]+>/g, "").substring(0, 80)}...`).join("\n");
+  const topicsStr = topics.slice(0, 10).map(t => `ID: ${t.id} | ${t.name}`).join("\n");
+
+  const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
+
+  const prompt = `Você é o Mentor SOE — professor particular de concursos. Responda ao aluno baseado no contexto:
+DADOS:
+- Resolvidas: ${totalResolved}
+- Pontos fracos: ${weakStr}
+- Últimos erros:
+${errorsStr}
+- Calendário:
+${revisionsStr || "Vazio"}
+- Anotações:
+${notesStr || "Vazio"}
+- Editais:
+${topicsStr || "Vazio"}
+
+Poderes:
+[FLASHCARD]{"front": "...", "back": "...", "disciplineId": 123}[/FLASHCARD]
+[RESCHEDULE]{"topicId": 123, "newDate": "YYYY-MM-DD"}[/RESCHEDULE]
+
+Histórico:
+${transcript}
+
+Aluno: ${input.message}
+Mentor:`;
+
+  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1500);
+  let finalReply = reply.trim();
+
+  // Process Flashcards
+  const flashRegex = /\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g;
+  let match;
+  let createdCount = 0;
+  while ((match = flashRegex.exec(finalReply)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      if (data.front && data.back && data.disciplineId) {
+        await localFlashcardCreate({
+          disciplineId: Number(data.disciplineId),
+          topicId: data.topicId ? Number(data.topicId) : undefined,
+          front: data.front,
+          back: data.back
+        });
+        createdCount++;
+      }
+    } catch {}
+  }
+
+  // Process Reschedules
+  const reschedRegex = /\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g;
+  while ((match = reschedRegex.exec(finalReply)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      if (data.topicId && data.newDate) {
+        const rev = revisions.find(r => r.topicId === Number(data.topicId) && !r.completed && !r.ignored);
+        if (rev) await db.revisions.update(rev.id, { scheduledDate: data.newDate });
+      }
+    } catch {}
+  }
+
+  finalReply = finalReply.replace(/\[FLASHCARD\][\s\S]*?\[\/FLASHCARD\]/g, "").replace(/\[RESCHEDULE\][\s\S]*?\[\/RESCHEDULE\]/g, "").trim();
+  if (createdCount > 0) finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} para você!)*`;
+
+  return { reply: finalReply };
+}
+
+export async function localGetWeakProfile(): Promise<{ weakTopics: any[]; weakDisciplines: any[] }> {
+  const [disciplines, topics, revisions, errors] = await Promise.all([
+    localDisciplineList(),
+    db.topics.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.revisions.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.questionErrors.where("userId").equals(LOCAL_USER_ID).toArray(),
+  ]);
+
+  const completedRevisions = revisions.filter(r => r.completed);
+
+  const weakTopics = topics.map(t => {
+    const perf = t.performance;
+    const topicRevs = completedRevisions.filter(r => r.topicId === t.id);
+    const accuracy = perf && perf.questionsResolved > 0 ? perf.correctCount / perf.questionsResolved : null;
+    const topicErrors = errors.filter(e => e.topicId === t.id);
+    
+    let score = 0;
+    if (accuracy !== null) score += (1 - accuracy) * 50;
+    score += Math.min(topicErrors.length * 5, 50);
+
+    const disc = disciplines.find(d => d.id === t.disciplineId);
+    return {
+      topicId: t.id,
+      topicName: t.name,
+      disciplineId: t.disciplineId,
+      disciplineName: disc?.name ?? "—",
+      disciplineColor: disc?.color ?? "#888",
+      accuracy: accuracy !== null ? Math.round(accuracy * 100) : null,
+      questionsResolved: perf?.questionsResolved ?? 0,
+      errorCount: topicErrors.length,
+      vulnerabilityScore: Math.round(score),
+    };
+  }).filter(t => t.questionsResolved > 0 || t.errorCount > 0)
+    .sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
+
+  const weakDisciplines = disciplines.map(d => {
+    const dTopics = weakTopics.filter(t => t.disciplineId === d.id);
+    const avgScore = dTopics.length > 0 ? dTopics.reduce((s, t) => s + t.vulnerabilityScore, 0) / dTopics.length : 0;
+    return {
+      disciplineId: d.id,
+      name: d.name,
+      color: d.color,
+      avgVulnerabilityScore: Math.round(avgScore),
+      topicCount: dTopics.length,
+      topWorstTopics: dTopics.slice(0, 3),
+    };
+  }).sort((a, b) => b.avgVulnerabilityScore - a.avgVulnerabilityScore);
+
+  return { weakTopics: weakTopics.slice(0, 20), weakDisciplines };
+}
+
+export async function localGetDailyBriefing(): Promise<{ briefing: string }> {
+  const today = formatDateForDb(new Date());
+  const [revisions, topics, stats, settings] = await Promise.all([
+    db.revisions.where("scheduledDate").equals(today).toArray(),
+    localTopicList(),
+    localDashboardGetStats(),
+    localAuthMe().then(u => u?.settings as any)
+  ]);
+
+  const pending = revisions.filter(r => !r.completed && !r.ignored);
+  if (pending.length === 0) return { briefing: "Nenhuma revisão agendada para hoje. Aproveite para avançar na teoria ou resolver questões!" };
+
+  const prompt = `Você é o Mentor SOE. Gere um briefing curto (máximo 4 parágrafos) e motivador para o aluno baseado nas revisões de hoje (${today}):
+- Total de revisões: ${pending.length}
+- Tópicos: ${pending.map(p => topics.topics.find(t => t.id === p.topicId)?.name).slice(0, 5).join(", ")}
+- Performance geral: ${stats.overallAccuracy}%
+Fale sobre a importância de manter a consistência e dê uma dica prática de estudo.`;
+
+  const provider = settings?.aiProvider || "gemini";
+  const apiKey = settings?.aiApiKey || "";
+  
+  if (!apiKey) return { briefing: "Configure sua API Key no Perfil para receber briefings personalizados via IA!" };
+
+  const reply = await callAiProvider(provider as any, apiKey, prompt, 800);
+  return { briefing: reply.trim() };
+}
+
+export async function localDiagnoseError(input: {
+  statement: string;
+  alternatives: { letter: string; text: string }[];
+  userAnswer: string;
+  correctAnswer: string;
+  errorOrigin?: string;
+  disciplineName: string;
+  topicName: string;
+  apiKey: string;
+  provider: AiProvider;
+}): Promise<any> {
+  const chosenText = input.alternatives.find(a => a.letter === input.userAnswer)?.text ?? "";
+  const correctText = input.alternatives.find(a => a.letter === input.correctAnswer)?.text ?? "";
+
+  const prompt = `Você é o Mentor SOE. O aluno acabou de errar uma questão. Dê um diagnóstico CIRÚRGICO.
+Disciplina: ${input.disciplineName} | Tópico: ${input.topicName}
+Questão: ${input.statement}
+${input.alternatives.map(a => `${a.letter}) ${a.text}`).join("\n")}
+Aluno marcou: ${input.userAnswer}) ${chosenText}
+Gabarito: ${input.correctAnswer}) ${correctText}
+Tipo de erro: ${input.errorOrigin ?? "não classificado"}
+
+Responda em JSON exato (sem markdown):
+{
+  "diagnosis": "2-3 linhas explicativas",
+  "concept": "Conceito-chave em 1 linha",
+  "rule": "Regra ou macete",
+  "fixationQuestions": [
+    {
+      "statement": "pergunta 1",
+      "alternatives": [{"letter": "A", "text": "..."}, {"letter": "B", "text": "..."}, {"letter": "C", "text": "..."}, {"letter": "D", "text": "..."}],
+      "correctAnswer": "letra"
+    }
+  ]
+}`;
+
+  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1200);
+  try {
+    return extractJSON(reply);
+  } catch {
+    return { diagnosis: reply, concept: "", rule: "", fixationQuestions: [] };
+  }
+}
+

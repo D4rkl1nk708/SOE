@@ -9,6 +9,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { StudyTimer } from "./StudyTimer";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 
 declare const __APP_VERSION__: string;
 
@@ -41,14 +43,23 @@ const NAV_GROUPS = [
   },
 ];
 
-// Flat list for mobile bottom bar — only the most-used 5 items
+// Flat list for mobile bottom bar — only the most-used 4 items + "More"
 const MOBILE_PRIMARY = [
-  { path: "/",                 label: "Início",   icon: LayoutDashboard },
-  { path: "/disciplines",      label: "Disciplinas", icon: BarChart3 },
-  { path: "/question-session", label: "Questões", icon: ListChecks },
-  { path: "/calendar",         label: "Calendário", icon: CalendarDays },
-  { path: "/statistics",       label: "Estatísticas", icon: TrendingUp },
-  { path: "/mentor",           label: "IA",   icon: Sparkles },
+  { path: "/",                 label: "Início",    icon: LayoutDashboard },
+  { path: "/question-session", label: "Questões",  icon: ListChecks },
+  { path: "/mentor",           label: "Mentor IA", icon: Sparkles },
+  { path: "/calendar",         label: "Calendário",icon: CalendarDays },
+];
+
+const MOBILE_SECONDARY = [
+  { path: "/disciplines",      label: "Disciplinas", icon: BarChart3, color: "#3b82f6" },
+  { path: "/statistics",       label: "Estatísticas",icon: TrendingUp, color: "#10b981" },
+  { path: "/flashcards",       label: "Flashcards",  icon: Brain,      color: "#f59e0b" },
+  { path: "/notes",            label: "Anotações",   icon: StickyNote, color: "#8b5cf6" },
+  { path: "/edital",           label: "Editais",     icon: Sheet,      color: "#ec4899" },
+  { path: "/mock-exams",       label: "Simulados",   icon: ListChecks, color: "#6366f1" },
+  { path: "/sync",             label: "Sincronizar", icon: Wifi,       color: "#06b6d4" },
+  { path: "/profile",          label: "Perfil",      icon: UserCircle2,color: "#64748b" },
 ];
 
 function isActivePath(location: string, path: string) {
@@ -303,13 +314,14 @@ export function Layout({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* Mobile bottom nav — 5 primary items, full-width, no dropdown */}
+      {/* Mobile bottom nav — 4 primary items + 1 More menu */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
           background: "var(--sidebar-bg)",
           borderTop: "1px solid var(--sidebar-border-color, var(--card-border))",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          boxShadow: "0 -4px 12px rgba(0,0,0,0.05)",
         }}
       >
         <div className="flex justify-around items-center px-1 py-1">
@@ -319,19 +331,72 @@ export function Layout({ children }: { children: ReactNode }) {
             return (
               <Link key={item.path} href={item.path}>
                 <a
-                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[48px]"
-                  style={{ color: active ? "var(--sidebar-active-fg)" : "var(--sidebar-fg)" }}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[64px] transition-all"
+                  style={{ color: active ? "var(--primary)" : "var(--sidebar-fg)" }}
                 >
-                  <div className="p-1.5 rounded-lg" style={{ background: active ? "var(--sidebar-active-bg)" : "transparent" }}>
-                    <Icon className="w-[18px] h-[18px]" style={{ opacity: active ? 1 : 0.45 }} />
+                  <div className="p-1.5 rounded-lg" style={{ background: active ? "rgba(0,113,227,0.08)" : "transparent" }}>
+                    <Icon className="w-[20px] h-[20px]" style={{ opacity: active ? 1 : 0.45 }} />
                   </div>
-                  <span className="text-[9px] leading-none tracking-tight font-medium" style={{ opacity: active ? 1 : 0.55 }}>
+                  <span className="text-[9px] leading-none tracking-tight font-bold" style={{ opacity: active ? 1 : 0.55 }}>
                     {item.label}
                   </span>
                 </a>
               </Link>
             );
           })}
+
+          {/* More Menu */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[64px] outline-none" style={{ color: "var(--sidebar-fg)" }}>
+                <div className="p-1.5 rounded-lg">
+                  <MoreHorizontal className="w-[20px] h-[20px]" style={{ opacity: 0.45 }} />
+                </div>
+                <span className="text-[9px] leading-none tracking-tight font-bold" style={{ opacity: 0.55 }}>Mais</span>
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                side="top"
+                align="end"
+                sideOffset={12}
+                className="z-[100] w-[92vw] max-w-[400px] rounded-3xl p-4 animate-in slide-in-from-bottom-4 duration-200"
+                style={{ 
+                  background: "var(--card-bg)", 
+                  border: "1px solid var(--card-border)",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+                  backdropFilter: "blur(20px)",
+                }}
+              >
+                <div className="grid grid-cols-4 gap-4">
+                  {MOBILE_SECONDARY.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActivePath(location, item.path);
+                    return (
+                      <DropdownMenu.Item key={item.path} asChild>
+                        <Link href={item.path}>
+                          <a className="flex flex-col items-center gap-2 p-2 rounded-2xl transition-all active:scale-95 outline-none">
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" 
+                              style={{ 
+                                background: `rgba(${item.color === "#3b82f6" ? "59,130,246" : item.color === "#10b981" ? "16,185,129" : "128,128,128"}, 0.1)`,
+                                color: item.color 
+                              }}>
+                              <Icon className="w-6 h-6" />
+                            </div>
+                            <span className="text-[10px] font-bold text-center leading-tight" style={{ color: "var(--app-fg)" }}>
+                              {item.label}
+                            </span>
+                          </a>
+                        </Link>
+                      </DropdownMenu.Item>
+                    );
+                  })}
+                </div>
+                <DropdownMenu.Arrow className="fill-current" style={{ color: "var(--card-border)" }} />
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </nav>
 

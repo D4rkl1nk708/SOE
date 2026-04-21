@@ -6,7 +6,7 @@ import { observable } from "@trpc/server/observable";
 import { transformResult } from "@trpc/server/unstable-core-do-not-import";
 import { TRPCClientError } from "@trpc/client";
 import superjson from "superjson";
-import type { TRPCLink } from "@trpc/client/links/types";
+import type { TRPCLink } from "@trpc/client";
 import type { AppRouter } from "../../../server/routers";
 import {
   localAuthMe,
@@ -44,6 +44,19 @@ import {
   localSaveQuestionError,
   localGetQuestionErrors,
   localDeleteQuestionError,
+  localFlashcardList,
+  localFlashcardCreate,
+  localFlashcardUpdate,
+  localFlashcardDelete,
+  localFlashcardReview,
+  localGetTecRegressions,
+  localMentorChat,
+  localSaveSubjectiveAnswer,
+  localGetSubjectiveAnswers,
+  localDeleteSubjectiveAnswer,
+  localGetWeakProfile,
+  localGetDailyBriefing,
+  localDiagnoseError,
 } from "./localDb";
 
 const PROCEDURES: Record<
@@ -92,6 +105,20 @@ const PROCEDURES: Record<
   "questionError.save": (i) => localSaveQuestionError(i as Parameters<typeof localSaveQuestionError>[0]),
   "questionError.list": (i) => localGetQuestionErrors(i as { topicId?: number; disciplineId?: number; limit?: number } | undefined),
   "questionError.delete": (i) => localDeleteQuestionError(i as { id: number }),
+  // Mentor / Flashcards (v10 Standalone)
+  "mentor.chat": (i) => localMentorChat(i as any),
+  "mentor.getTecRegressions": (i) => localGetTecRegressions(i as any),
+  "flashcard.list": () => localFlashcardList(),
+  "flashcard.create": (i) => localFlashcardCreate(i as any),
+  "flashcard.update": (i) => localFlashcardUpdate(i as any),
+  "flashcard.delete": (i) => localFlashcardDelete(i as any),
+  "flashcard.review": (i) => localFlashcardReview(i as any),
+  "subjectiveAnswer.save": (i) => localSaveSubjectiveAnswer(i as any),
+  "subjectiveAnswer.list": (i) => localGetSubjectiveAnswers(i as any),
+  "subjectiveAnswer.delete": (i) => localDeleteSubjectiveAnswer(i as any),
+  "mentor.getWeakProfile": () => localGetWeakProfile(),
+  "mentor.getDailyBriefing": () => localGetDailyBriefing(),
+  "mentor.diagnoseError": (i) => localDiagnoseError(i as any),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {
