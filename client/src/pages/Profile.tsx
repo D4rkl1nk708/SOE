@@ -35,20 +35,21 @@ function SettingsTab() {
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupDir, setAutoBackupDir] = useState("");
 
-  const { data: currentUser } = trpc.user.profile.useQuery();
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
   const updateSettings = trpc.v10.updateV10Settings.useMutation({
     onSuccess: () => toast.success("Configuração salva com sucesso."),
     onError: (e) => toast.error("Falha ao salvar configuração: " + e.message)
   });
 
   useEffect(() => {
-    if (currentUser?.settings) {
-      setApiKey(currentUser.settings.aiApiKey || "");
-      setProvider(currentUser.settings.aiProvider || "gemini");
-      setAutoBackupEnabled(currentUser.settings.autoBackupEnabled || false);
-      setAutoBackupDir(currentUser.settings.autoBackupDir || "");
+    if (stats?.settings) {
+      const s = stats.settings as any;
+      setApiKey(s.aiApiKey || "");
+      setProvider(s.aiProvider || "gemini");
+      setAutoBackupEnabled(s.autoBackupEnabled || false);
+      setAutoBackupDir(s.autoBackupDir || "");
     }
-  }, [currentUser]);
+  }, [stats?.settings]);
 
   const handleSaveAI = () => {
     updateSettings.mutate({ aiApiKey: apiKey, aiProvider: provider });

@@ -843,6 +843,70 @@ Responda em português, de forma direta e técnica como um professor de cursinho
           throw new Error(`Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`);
         }
       }),
+
+    processText: protectedProcedure
+      .input(z.object({
+        text: z.string(),
+        action: z.enum(["summarize", "improve", "explain", "autocomplete"]),
+        apiKey: z.string().min(1),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }))
+      .mutation(async ({ input }) => {
+        let prompt = "";
+        if (input.action === "summarize") prompt = `Resuma o seguinte texto de forma concisa e em português:\n\n${input.text}`;
+        if (input.action === "improve") prompt = `Melhore a escrita do seguinte texto, corrigindo erros, tornando-o mais claro, coeso e em português:\n\n${input.text}`;
+        if (input.action === "explain") prompt = `Explique o seguinte texto de forma muito simples, como se fosse para um iniciante, em português:\n\n${input.text}`;
+        if (input.action === "autocomplete") prompt = `Continue o raciocínio do texto abaixo de forma natural, coerente e em português:\n\n${input.text}`;
+
+        try {
+          const result = await callAiProvider(input.provider, input.apiKey, prompt, 2048);
+          return { result };
+        } catch (err: unknown) {
+          throw new Error(`Falha ao processar texto com IA: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }),
+
+    generateFlashcardsFromText: protectedProcedure
+      .input(z.object({
+        text: z.string(),
+        disciplineId: z.number(),
+        topicId: z.number().optional(),
+        noteId: z.number().optional(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const prompt = `Você é um professor especialista. Leia o seguinte texto (resumo de estudos) e crie flashcards para os conceitos mais importantes.
+Retorne APENAS um JSON contendo uma lista (array) de objetos. Cada objeto deve ter os campos "front" (pergunta direta, máx 2 linhas) e "back" (resposta clara, máx 3 linhas).
+NÃO use markdown, NÃO escreva mais nada além do JSON válido. Exemplo: [{"front": "O que é X?", "back": "É Y."}]
+
+Texto:
+${input.text.substring(0, 8000)}`;
+
+        try {
+          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4096);
+          const parsed = extractJSON(raw) as { front: string; back: string }[];
+          if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Nenhum flashcard gerado.");
+          
+          let createdCount = 0;
+          for (const card of parsed) {
+            if (card.front && card.back) {
+              await storage.createFlashcard({
+                userId: ctx.user.id,
+                disciplineId: input.disciplineId,
+                topicId: input.topicId,
+                noteId: input.noteId,
+                front: card.front,
+                back: card.back,
+              });
+              createdCount++;
+            }
+          }
+          return { createdCount };
+        } catch (err: unknown) {
+          throw new Error(`Falha ao gerar flashcards: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }),
   }),
 
   // ============ V10 NEW FEATURE ROUTES ============
@@ -960,6 +1024,8 @@ Responda em português, de forma direta e técnica como um professor de cursinho
         preExamDays: z.number().min(1).max(60).optional(),
         aiApiKey: z.string().optional(),
         aiProvider: z.enum(["gemini", "openai", "claude"]).optional(),
+        autoBackupEnabled: z.boolean().optional(),
+        autoBackupDir: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input as Partial<import("./jsonStorage").UserSettings>);

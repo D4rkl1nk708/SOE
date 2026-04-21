@@ -56,7 +56,7 @@ export default function Dashboard() {
   const tec = useTecImport();
   const questions = useQuestionsDialog();
   const drag = useDragReorder((stats?.disciplineStats ?? []) as DisciplineStat[]);
-  const widgets = useDashboardWidgets(stats?.settings as Record<string, unknown> | null);
+  const widgets = useDashboardWidgets(stats?.settings as unknown as Record<string, unknown> | null);
   const timeEdit = useTimeEdit();
 
   const [expandedDiscipline, setExpandedDiscipline] = useState<number | null>(null);
@@ -131,7 +131,7 @@ export default function Dashboard() {
         {/* Próxima Prova */}
         <div className="soe-stat-card flex flex-col gap-2 cursor-pointer hover:opacity-90 transition-all col-span-2 md:col-span-1"
           style={{ border: "1px solid var(--stat-border)" }}
-          onClick={() => { exams.setExamDateInput(""); exams.setExamNameInput(""); setEditingExamId(null); exams.setDialogOpen(true); }}>
+          onClick={() => { exams.openCreate(); }}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1 mb-1.5">
@@ -286,7 +286,7 @@ export default function Dashboard() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                           <div className="col-span-2 min-w-0">
                             <p className="font-medium truncate text-xs">{t.name}</p>
-                            <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>{format(parseISO(t.studyDate), "dd/MM/yy")}</p>
+                            <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>{t.studyDate ? format(parseISO(t.studyDate), "dd/MM/yy") : "—"}</p>
                           </div>
                           <div className="text-center">
                             {t.performance ? (
@@ -302,7 +302,7 @@ export default function Dashboard() {
                               className="underline decoration-dotted hover:opacity-70 transition-opacity"
                               title="Clique para editar o tempo de estudo"
                               style={{ color: "var(--muted-text)", background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "inherit" }}>
-                              {formatStudyTime(t.studyTimeSeconds)}
+                              {formatStudyTime(t.studyTimeSeconds || 0)}
                             </button>
                           </div>
                         </div>
@@ -695,7 +695,7 @@ export default function Dashboard() {
                     <div key={exam.id} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ border: "1px solid var(--card-border)" }}>
                       <div><p className="text-sm font-medium">{exam.name}</p><p className="text-xs" style={{ color: "var(--muted-text)" }}>{format(parseISO(exam.date), "dd/MM/yyyy", { locale: ptBR })}</p></div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingExamId(exam.id); exams.setExamNameInput(exam.name); exams.setExamDateInput(exam.date); }}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => exams.openEdit(exam)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => exams.handleRemove(exam.id)} disabled={false}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </div>
@@ -710,8 +710,8 @@ export default function Dashboard() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => exams.setDialogOpen(false)}>Cancelar</Button>
-            <Button variant="outline" onClick={() => { setEditingExamId(null); exams.setExamNameInput(""); exams.setExamDateInput(""); }}>Novo</Button>
-            <Button onClick={() => { if (!exams.examNameInput.trim()||!exams.examDateInput) { toast.error("Preencha nome e data."); return; } exams.handleSave(); }} disabled={exams.isSaving}>{exams.isSaving ? "Salvando..." : exams.editingId ? "Atualizar" : "Adicionar"}</Button>
+            <Button variant="outline" onClick={() => exams.openCreate()}>Novo</Button>
+            <Button onClick={() => { if (!exams.examNameInput.trim()||!exams.examDateInput) { toast.error("Preencha nome e data."); return; } exams.handleSave(); }} disabled={exams.isSaving || !exams.examNameInput.trim() || !exams.examDateInput}>{exams.isSaving ? "Salvando..." : exams.editingId ? "Atualizar" : "Adicionar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

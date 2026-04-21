@@ -28,24 +28,20 @@ function RenderText({ text }: { text: string }) {
   );
 }
 
-const API_KEY_KEY      = "soe_mentor_api_key";
-const API_PROVIDER_KEY = "soe_mentor_provider";
-const CACHE_KEY        = "soe_mentor_briefing_cache";
+
+
+const CACHE_KEY = "soe_mentor_briefing_cache";
 
 export default function MentorTab() {
   const [, navigate] = useLocation();
-  const [apiKey, setApiKey]     = useState(() => localStorage.getItem(API_KEY_KEY) ?? "");
-  const [provider, setProvider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_KEY) as any) ?? "claude"
-  );
-  const [showConfig, setShowConfig]             = useState(false);
+  const { data: stats }     = trpc.dashboard.getStats.useQuery();
+  const apiKey = (stats?.settings as any)?.aiApiKey ?? "";
+  const provider = (stats?.settings as any)?.aiProvider ?? "gemini";
+
   const [showStats, setShowStats]               = useState(false);
   const [showRegressions, setShowRegressions]   = useState(false);
   const [showScrape, setShowScrape]             = useState(false);
-  const [showCadernos, setShowCadernos]         = useState(false);
   const [scrapeUrl, setScrapeUrl]               = useState("");
-  const [generatedToken, setGeneratedToken]     = useState<string | null>(null);
-  const [tokenCopied, setTokenCopied]           = useState(false);
   const [briefingMeta, setBriefingMeta]         = useState<{
     hasTecData?: boolean; regressionCount?: number; weakTopicCount?: number;
   }>({});
@@ -53,13 +49,10 @@ export default function MentorTab() {
     try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch { return null; }
   });
 
-  const { data: stats }     = trpc.dashboard.getStats.useQuery();
   const { data: weakData }  = trpc.mentor.getWeakProfile.useQuery();
   const { data: revisions } = trpc.revision.list.useQuery({ completed: false, ignored: false });
   const { data: regressionData, refetch: refetchRegressions } =
     trpc.mentor.getTecRegressions.useQuery({ thresholdPp: 5 });
-  const { data: cadernos, refetch: refetchCadernos } = trpc.import.listCadernos.useQuery();
-  const { data: tokenData } = trpc.import.getPushToken.useQuery();
 
   const generate = trpc.mentor.getDailyBriefing.useMutation({
     onSuccess: (data: any) => {
@@ -82,15 +75,7 @@ export default function MentorTab() {
     },
   });
 
-  const genToken = trpc.import.generatePushToken.useMutation({
-    onSuccess: ({ token }) => {
-      setGeneratedToken(token);
-    },
-  });
 
-  const delCaderno = trpc.import.deleteCaderno.useMutation({
-    onSuccess: () => refetchCadernos(),
-  });
 
   const today          = new Date().toLocaleDateString("pt-BR");
   const isTodaysCached = briefingCache?.date === today;
@@ -108,14 +93,10 @@ export default function MentorTab() {
   const hasRegressions = regressions.length > 0;
   const noApiKey       = !apiKey;
 
-  const saveConfig = () => {
-    localStorage.setItem(API_KEY_KEY, apiKey);
-    localStorage.setItem(API_PROVIDER_KEY, provider);
-    setShowConfig(false);
-  };
+
 
   const handleGenerate = () => {
-    if (!apiKey) { setShowConfig(true); return; }
+    if (!apiKey) { navigate("/profile#settings"); return; }
     generate.mutate({ apiKey, provider });
   };
 
@@ -159,28 +140,11 @@ export default function MentorTab() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowCadernos(v => !v)}
-            className="p-2 rounded-xl hover:opacity-70"
-            style={{ color: showCadernos ? "var(--primary)" : "var(--muted-text)", position: "relative" }}
-            title="Cadernos TEC em Tempo Real">
-            <Wifi size={15} />
-            {(cadernos ?? []).length > 0 && (
-              <span style={{
-                position: "absolute", top: 4, right: 4, width: 6, height: 6,
-                borderRadius: "50%", background: "var(--accent-green)",
-              }} />
-            )}
-          </button>
           <button onClick={() => setShowScrape(v => !v)}
             className="p-2 rounded-xl hover:opacity-70"
             style={{ color: showScrape ? "var(--primary)" : "var(--muted-text)" }}
             title="Importar TEC via URL">
             <Link size={15} />
-          </button>
-          <button onClick={() => setShowConfig(v => !v)}
-            className="p-2 rounded-xl hover:opacity-70"
-            style={{ color: "var(--muted-text)" }} title="Configurar IA">
-            <Lock size={15} />
           </button>
           <button onClick={handleGenerate} disabled={generate.isPending}
             className="p-2 rounded-xl hover:opacity-70"
@@ -190,146 +154,7 @@ export default function MentorTab() {
         </div>
       </div>
 
-      {/* ── Cadernos TEC em Tempo Real (Extensão Chrome) ──────────────────── */}
-      {showCadernos && (
-        <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
 
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wifi size={14} style={{ color: "var(--primary)" }} />
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>
-                Cadernos TEC — Tempo Real
-              </p>
-            </div>
-            {(cadernos ?? []).length > 0 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(34,197,94,0.12)", color: "var(--accent-green)" }}>
-                {cadernos!.length} caderno{cadernos!.length > 1 ? "s" : ""} ativo{cadernos!.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-
-          {/* Lista de cadernos sincronizados */}
-          {(cadernos ?? []).length > 0 ? (
-            <div className="space-y-2">
-              {cadernos!.map(c => {
-                const syncDate  = new Date(c.lastSync);
-                const diffMs    = Date.now() - syncDate.getTime();
-                const diffMin   = Math.floor(diffMs / 60000);
-                const diffH     = Math.floor(diffMin / 60);
-                const syncLabel = diffMin < 2   ? "agora mesmo"
-                                : diffMin < 60  ? `${diffMin}min atrás`
-                                : diffH < 24    ? `${diffH}h atrás`
-                                : syncDate.toLocaleDateString("pt-BR");
-                return (
-                  <div key={c.cadernoId} className="flex items-center justify-between p-3 rounded-xl"
-                    style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold truncate" style={{ color: "var(--app-fg)" }}>
-                        {c.disciplina}
-                      </p>
-                      <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>
-                        {c.topicsCount} assuntos · {syncLabel}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <a href={c.cadernoUrl} target="_blank" rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg hover:opacity-70"
-                        style={{ color: "var(--primary)" }}
-                        title="Abrir caderno no TEC">
-                        <Link size={12} />
-                      </a>
-                      <button
-                        onClick={() => delCaderno.mutate({ cadernoId: c.cadernoId })}
-                        className="p-1.5 rounded-lg hover:opacity-70"
-                        style={{ color: "var(--muted-text)" }}
-                        title="Remover caderno">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-xl p-3 text-center" style={{ background: "var(--stat-bg)" }}>
-              <p className="text-xs" style={{ color: "var(--muted-text)" }}>Nenhum caderno sincronizado ainda.</p>
-              <p className="text-[10px] mt-1" style={{ color: "var(--muted-text)" }}>Instale a extensão Chrome e configure abaixo.</p>
-            </div>
-          )}
-
-          {/* Como funciona — extensão Chrome */}
-          <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
-            <p className="text-xs font-bold" style={{ color: "var(--primary)" }}>
-              🧩 Extensão Chrome — sincronização automática
-            </p>
-            <p className="text-[11px] leading-relaxed" style={{ color: "var(--muted-text)" }}>
-              A extensão roda silenciosamente no Chrome. Ao abrir qualquer caderno no TEC, ela captura os dados de desempenho e envia pro SOE em background. Você não precisa clicar em nada.
-            </p>
-            <ol className="text-[11px] space-y-1.5 leading-relaxed list-none" style={{ color: "var(--muted-text)" }}>
-              <li>
-                <span className="font-bold" style={{ color: "var(--app-fg)" }}>1.</span>{" "}
-                Abra <code className="px-1 rounded" style={{ background: "var(--stat-bg)" }}>chrome://extensions</code> e ative o <strong style={{ color: "var(--app-fg)" }}>Modo do desenvolvedor</strong>
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "var(--app-fg)" }}>2.</span>{" "}
-                Clique em <strong style={{ color: "var(--app-fg)" }}>Carregar sem compactação</strong> e selecione a pasta <code className="px-1 rounded" style={{ background: "var(--stat-bg)" }}>chrome-extension/</code> que vem junto com o SOE
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "var(--app-fg)" }}>3.</span>{" "}
-                Gere um token abaixo, copie e cole no popup da extensão junto com a URL do SOE
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "var(--app-fg)" }}>4.</span>{" "}
-                Clique <strong style={{ color: "var(--app-fg)" }}>Testar conexão</strong> no popup da extensão — se mostrar ✅ está pronto
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "var(--app-fg)" }}>5.</span>{" "}
-                Abra qualquer caderno no TEC Concursos — a extensão sincroniza automaticamente e mostra <strong style={{ color: "var(--accent-green)" }}>✓</strong> no ícone 🎉
-              </li>
-            </ol>
-          </div>
-
-          {/* Token de acesso */}
-          <div className="space-y-2">
-            {(generatedToken || tokenData?.token) && (
-              <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent-green)" }}>
-                  Token de Acesso (cole no popup da extensão)
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-[11px] break-all p-2 rounded-lg select-all"
-                    style={{ background: "var(--stat-bg)", color: "var(--primary)", fontFamily: "monospace" }}>
-                    {generatedToken ?? tokenData?.token}
-                  </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedToken ?? tokenData?.token ?? "");
-                      setTokenCopied(true);
-                      setTimeout(() => setTokenCopied(false), 2000);
-                    }}
-                    className="p-2 rounded-lg flex-shrink-0"
-                    style={{ background: "var(--primary)", color: "white" }}>
-                    {tokenCopied ? <Check size={13} /> : <Copy size={13} />}
-                  </button>
-                </div>
-                <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>
-                  ⚠️ Não compartilhe este token. Ele autentica a extensão com o SOE.
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={() => genToken.mutate()}
-              disabled={genToken.isPending}
-              className="w-full py-2.5 rounded-xl text-xs font-bold"
-              style={{ background: "var(--primary)", color: "white", opacity: genToken.isPending ? 0.6 : 1 }}>
-              {genToken.isPending ? "Gerando..." : generatedToken || tokenData?.token ? "🔄 Gerar Novo Token" : "🔑 Gerar Token de Acesso"}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Scraping TEC via URL */}
       {showScrape && (
@@ -383,28 +208,7 @@ export default function MentorTab() {
         </div>
       )}
 
-      {/* Config */}
-      {showConfig && (
-        <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>Configurar IA</p>
-          <select value={provider} onChange={e => setProvider(e.target.value as any)}
-            className="w-full text-sm px-3 py-2 rounded-xl"
-            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}>
-            <option value="claude">Claude (Anthropic) — recomendado</option>
-            <option value="gemini">Gemini (Google)</option>
-            <option value="openai">GPT-4o mini (OpenAI)</option>
-          </select>
-          <input type="password" placeholder="Cole sua API Key aqui..."
-            value={apiKey} onChange={e => setApiKey(e.target.value)}
-            className="w-full text-sm px-3 py-2 rounded-xl"
-            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }} />
-          <button onClick={saveConfig}
-            className="w-full py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: "var(--primary)", color: "white" }}>
-            Salvar
-          </button>
-        </div>
-      )}
+
 
       {/* Status TEC snapshot */}
       {latestSnap && (
@@ -565,16 +369,15 @@ export default function MentorTab() {
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <Lock size={36} style={{ opacity: 0.2, color: "var(--app-fg)" }} />
             <div className="space-y-1">
-              <p className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>Configure sua API Key</p>
+              <p className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>Configure sua API Key da IA</p>
               <p className="text-xs" style={{ color: "var(--muted-text)" }}>
-                O Mentor usa IA para analisar seus dados e te dizer exatamente o que fazer.
-                <br />Clique no cadeado acima para configurar.
+                A IA não está configurada. Vá até o seu Perfil e adicione a chave na aba de configurações.
               </p>
             </div>
-            <button onClick={() => setShowConfig(true)}
+            <button onClick={() => navigate("/profile#settings")}
               className="px-5 py-2.5 rounded-xl text-sm font-bold"
               style={{ background: "var(--primary)", color: "white" }}>
-              Configurar agora
+              Ir para Perfil
             </button>
           </div>
         )}

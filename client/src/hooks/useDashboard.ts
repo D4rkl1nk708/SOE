@@ -21,6 +21,9 @@ export interface TopicForQ {
     questionsResolved: number;
     accuracy: number;
   };
+  studyDate?: string;
+  completedRevisions?: number;
+  studyTimeSeconds?: number;
 }
 
 export interface DisciplineStat {

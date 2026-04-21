@@ -5,7 +5,7 @@ import {
   Bold, Italic, Underline, List, ListOrdered, Highlighter,
   AlignLeft, AlignCenter, AlignRight, Minus, BookOpen, Tag,
   Save, Clock, FolderOpen, X, PenLine, ImagePlus, Upload, FileUp,
-  Link as LinkIcon,
+  Link as LinkIcon, Wand2,
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNotes, useNoteFilters, useNoteCreation, useFileImport, type Note, type Discipline, type Topic } from "@/hooks/useNotes";
@@ -212,13 +212,38 @@ async function importPdfFile(file: File): Promise<string> {
 
 
 function RichEditor({
-  value, onChange, placeholder = "Comece a escrever...",
+  value, onChange, placeholder = "Comece a escrever...", onAiAction
 }: {
   value: string; onChange: (html: string) => void; placeholder?: string;
+  onAiAction?: (action: "summarize" | "improve" | "explain" | "autocomplete", text: string) => Promise<string>;
 }) {
+  const [showAiMenu, setShowAiMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const lastHtml = useRef(value);
   const imgInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAiAction = async (action: "summarize" | "improve" | "explain" | "autocomplete") => {
+    setShowAiMenu(false);
+    const selection = window.getSelection();
+    const text = selection?.toString();
+    if (!text?.trim()) {
+      toast.error("Selecione um texto primeiro para usar a IA.");
+      return;
+    }
+    if (onAiAction) {
+      const loadingId = toast.loading("A IA está processando...");
+      try {
+        const result = await onAiAction(action, text);
+        document.execCommand("insertText", false, result);
+        handleInput();
+        toast.dismiss(loadingId);
+        toast.success("Texto atualizado com IA!");
+      } catch (err: any) {
+        toast.dismiss(loadingId);
+        toast.error(err.message || "Erro na IA");
+      }
+    }
+  };
 
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== value) {
@@ -347,6 +372,37 @@ function RichEditor({
             <ImagePlus className="h-3.5 w-3.5" />
           </button>
         </div>
+
+        {/* Magic AI Button */}
+        <div className="relative flex items-center gap-0.5">
+          <div className="w-px h-4 mx-1.5" style={{ background: "var(--card-border)" }} />
+          <button
+            title="Ações de IA"
+            onMouseDown={(e) => { e.preventDefault(); setShowAiMenu(!showAiMenu); }}
+            className="p-1.5 rounded-md transition-all hover:opacity-60 active:scale-95 min-w-[28px] flex items-center justify-center relative"
+            style={{ color: "var(--primary)" }}
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+          </button>
+          
+          {showAiMenu && (
+            <div className="absolute top-full left-0 mt-1 p-1 rounded-xl shadow-lg z-50 flex flex-col gap-1 w-40"
+              style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+              {[
+                { id: "summarize", label: "Resumir" },
+                { id: "improve", label: "Melhorar escrita" },
+                { id: "explain", label: "Explicar simples" },
+                { id: "autocomplete", label: "Auto-completar" },
+              ].map(a => (
+                <button key={a.id} onMouseDown={(e) => { e.preventDefault(); handleAiAction(a.id as any); }}
+                  className="text-left px-3 py-1.5 text-xs rounded-lg hover:opacity-80 transition-all"
+                  style={{ background: "var(--stat-bg)", color: "var(--app-fg)" }}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div className="relative flex-1 overflow-auto">
         <div
@@ -444,6 +500,44 @@ export default function Notes() {
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const aiApiKey = (stats?.settings as any)?.aiApiKey ?? "";
+  const aiProvider = (stats?.settings as any)?.aiProvider ?? "gemini";
+
+  const processTextMut = trpc.ai.processText.useMutation();
+  const handleAiAction = async (action: "summarize" | "improve" | "explain" | "autocomplete", text: string) => {
+    if (!aiApiKey) throw new Error("Configure sua API Key da IA no perfil.");
+    const res = await processTextMut.mutateAsync({ text, action, apiKey: aiApiKey, provider: aiProvider as any });
+    return res.result;
+  };
+
+  const generateFlashcardsMut = trpc.ai.generateFlashcardsFromText.useMutation();
+  const handleGenerateFlashcards = async () => {
+    if (!aiApiKey) { toast.error("Configure sua API Key da IA no perfil."); return; }
+    if (!activeNote || !editorContent.trim()) { toast.error("Nenhum texto para gerar."); return; }
+    
+    // strip html
+    const text = editorContent.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (text.length < 50) { toast.error("Texto muito curto para gerar flashcards."); return; }
+
+    const loadingId = toast.loading("Lendo seu resumo e gerando flashcards...");
+    try {
+      const res = await generateFlashcardsMut.mutateAsync({
+        text,
+        disciplineId: (activeNote as any).disciplineId,
+        topicId: (activeNote as any).topicId ?? undefined,
+        noteId: (activeNote as any).id,
+        apiKey: aiApiKey,
+        provider: aiProvider as any
+      });
+      toast.dismiss(loadingId);
+      toast.success(`✨ Mágica! ${res.createdCount} flashcards criados direto na sua aba de Revisão.`);
+    } catch (e: any) {
+      toast.dismiss(loadingId);
+      toast.error(e.message || "Erro ao gerar flashcards.");
+    }
+  };
 
   const activeNote = useMemo(() => notes.find((n: any) => n.id === activeNoteId), [notes, activeNoteId]);
 
@@ -704,6 +798,14 @@ export default function Notes() {
                     : <><Save className="h-3 w-3" style={{ color: "var(--accent-green)" }} /> {lastSaved ? `Salvo ${format(lastSaved, "HH:mm")}` : "Salvo"}</>}
                 </span>
                 <button
+                  onClick={handleGenerateFlashcards}
+                  disabled={generateFlashcardsMut.isPending}
+                  title="Gerar Flashcards com IA"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, var(--accent-blue) 0%, #7c3aed 100%)", color: "white" }}>
+                  <Wand2 className="h-3 w-3" /> Gerar Flashcards
+                </button>
+                <button
                   onClick={() => { if (confirm(`Excluir "${(activeNote as any).title}"?`)) deleteNote.mutate({ id: (activeNote as any).id }); }}
                   className="p-1.5 rounded-lg transition-all hover:opacity-70"
                   style={{ color: "var(--accent-red, #dc2626)" }}>
@@ -717,6 +819,7 @@ export default function Notes() {
                 value={editorContent}
                 onChange={handleEditorChange}
                 placeholder="Comece a escrever... Use a barra acima para formatar texto, inserir listas e imagens."
+                onAiAction={handleAiAction}
               />
             </div>
           </>
