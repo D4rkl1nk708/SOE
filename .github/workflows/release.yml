@@ -66,8 +66,9 @@ jobs:
         run: |
           npm run build:clean
           npx cap sync android
-          cd android && ./gradlew assembleRelease
-          cp android/app/build/outputs/apk/release/app-release.apk Android-SOE-v${{ env.VERSION }}.apk || cp android/app/build/outputs/apk/release/app-release-unsigned.apk Android-SOE-v${{ env.VERSION }}.apk
+          chmod +x android/gradlew
+          ./android/gradlew -p android assembleRelease
+          cp android/app/build/outputs/apk/release/*.apk Android-SOE-v${{ env.VERSION }}.apk
 
       - name: Build Linux AppImage
         if: env.TAG_EXISTS == 'false'
