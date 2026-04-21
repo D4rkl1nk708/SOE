@@ -90,7 +90,7 @@ async function callGemini(apiKey: string, prompt: string, maxTokens = 1200, imag
       }
 
       return (d.candidates?.[0]?.content?.parts?.[0]?.text as string) || "";
-    } catch (err: unknown) {
+    } catch (err: any) {
       // Só propaga se não for erro de cota
       if (!err.message?.toLowerCase().includes("quota") && !err.message?.toLowerCase().includes("exceeded")) {
         throw err;
@@ -427,7 +427,7 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
           regressionCount: regressions.length,
           weakTopicCount: weakFromSnap.length,
         };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha ao gerar briefing: ${err.message}`);
       }
     }),
@@ -527,10 +527,10 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
 
       try {
         const raw = await callAI(input.provider, input.apiKey, prompt, 900);
-        let parsed;
+        let parsed: any;
         try {
           parsed = extractJSON(raw);
-        } catch (parseErr: unknown) {
+        } catch (parseErr: any) {
           console.error("JSON parsing failed:", parseErr.message);
           console.error("Raw AI response:", raw);
           throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
@@ -547,7 +547,7 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
           disciplineName: disc?.name ?? "",
           hint: parsed.hint ?? null,
         };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha ao gerar questão: ${err.message}`);
       }
     }),
@@ -618,10 +618,10 @@ Responda em JSON exato (sem markdown):
 
       try {
         const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
-        let parsed;
+        let parsed: any;
         try {
           parsed = extractJSON(raw);
-        } catch (parseErr: unknown) {
+        } catch (parseErr: any) {
           console.error("JSON parsing failed:", parseErr.message);
           console.error("Raw AI response:", raw);
           throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
@@ -632,7 +632,7 @@ Responda em JSON exato (sem markdown):
           rule: parsed.rule ?? "",
           fixationQuestions: parsed.fixationQuestions ?? [],
         };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha no diagnóstico: ${err.message}`);
       }
     }),
@@ -761,7 +761,7 @@ Responda apenas com o mnemônico e uma breve explicação de 2 linhas.`;
         await storage.updateTopicNotes(topic.id, ctx.user.id, mantras);
 
         return { mnemonic };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha ao gerar mnemônico: ${err.message}`);
       }
     }),
@@ -793,7 +793,7 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
       try {
         const transcription = await callAI(input.provider, input.apiKey, prompt, 1500, input.imageBase64);
         return { transcription: transcription.trim() };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha na transcrição IA: ${err.message}`);
       }
     }),
@@ -810,16 +810,16 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
     .mutation(async ({ input }) => {
       try {
         const raw = await callAI(input.provider, input.apiKey, input.prompt, 2000, input.imageBase64);
-        let parsed;
+        let parsed: any;
         try {
           parsed = extractJSON(raw);
-        } catch (parseErr: unknown) {
+        } catch (parseErr: any) {
           console.error("JSON parsing failed:", parseErr.message);
           console.error("Raw AI response:", raw);
           throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
         }
         return parsed;
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha na correção IA: ${err.message}`);
       }
     }),
@@ -835,9 +835,15 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
     )
     .mutation(async ({ ctx, input }) => {
       // gather basic stats to feed as context
-      const [stats, weak] = await Promise.all([
+      const [stats, weak, errors, disciplines, revisions, notes, flashcards, topics] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
-        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65)
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65),
+        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 10 }).then(r => r.items),
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getRevisionsByUser(ctx.user.id),
+        storage.getNotesByUser(ctx.user.id),
+        storage.getFlashcardsByUser(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id)
       ]);
       
       const totalResolved = ((stats as any).disciplineStats ?? []).reduce((sum: number, d: any) => sum + (d.performance?.questionsResolved ?? 0), 0);
@@ -846,15 +852,45 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
         ? weak.slice(0, 5).map(t => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`).join(", ")
         : "Nenhum tópico crítico identificado.";
 
+      const errorsStr = errors.length > 0
+        ? errors.map(e => {
+            const d = disciplines.find(d => d.id === e.disciplineId);
+            return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 150)}..." | Errou por: ${e.errorOrigin ?? "desconhecido"}`;
+          }).join("\n")
+        : "Nenhum erro registrado recentemente.";
+
+      const revisionsStr = revisions.filter(r => !r.completed && !r.ignored).slice(0, 10).map(r => {
+         const t = topics.find(t => t.id === r.topicId);
+         return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
+      }).join("\n");
+
+      const notesStr = notes.slice(0, 5).map(n => `- Título: ${n.title} | Resumo: ${n.content.replace(/<[^>]+>/g, '').substring(0, 100)}...`).join("\n");
+      const flashcardsCount = flashcards.length;
+      
+      const topicsStr = topics.sort((a, b) => b.studyDate.localeCompare(a.studyDate))
+                              .slice(0, 10)
+                              .map(t => t.name).join(", ");
+
       const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
       
       const prompt = `Você é o Mentor SOE — um professor particular de concursos e mentor de estudos focado em resultado.
-DADOS DO ALUNO HOJE:
-- Questões resolvidas no SOE: ${totalResolved}
-- Pontos fracos críticos: ${weakStr}
+Você tem acesso completo e irrestrito ao sistema (SOE) do aluno, incluindo Calendário, Editais, Anotações, Flashcards, Estatísticas, Disciplinas e Questões.
 
-Você deve responder a nova mensagem do aluno com base no histórico da conversa e no contexto acima. 
-Responda de forma direta, motivadora e sem formalidades excessivas. Se o aluno pedir questões, gere-as. Se pedir dicas, seja objetivo. Use markdown para negritos.
+DADOS COMPLETOS DO ALUNO HOJE:
+- Estatísticas: ${totalResolved} questões resolvidas no total.
+- Pontos fracos críticos: ${weakStr}
+- Últimas questões erradas:
+${errorsStr}
+- Calendário (Próximas revisões pendentes):
+${revisionsStr || "Nenhuma revisão pendente."}
+- Anotações Recentes:
+${notesStr || "Nenhuma anotação."}
+- Flashcards: ${flashcardsCount} flashcards salvos.
+- Editais/Disciplinas (Tópicos em andamento):
+${topicsStr || "Nenhum tópico em andamento."}
+
+Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, ou usar as questões erradas para testá-lo.
+Se o aluno pedir questões, gere-as focadas nos pontos fracos. Seja sempre direto, motivador e extremamente personalizado. Use markdown para negritos.
 
 HISTÓRICO DA CONVERSA:
 ${transcript}
@@ -865,7 +901,7 @@ Mentor:`;
       try {
         const reply = await callAI(input.provider, input.apiKey, prompt, 1500);
         return { reply: reply.trim() };
-      } catch (err: unknown) {
+      } catch (err: any) {
         throw new Error(`Falha no chat: ${err instanceof Error ? err.message : String(err)}`);
       }
     }),

@@ -24,11 +24,18 @@
           "extraWidgets": []
         },
         "aiApiKey": "",
-        "aiProvider": "gemini"
+        "aiProvider": "gemini",
+        "sleepLog": [
+          {
+            "date": "2026-04-21",
+            "endStudyHour": 23,
+            "alertIssued": true
+          }
+        ]
       },
       "createdAt": "2026-04-20T22:47:06.510Z",
-      "updatedAt": "2026-04-21T01:46:52.991Z",
-      "lastSignedIn": "2026-04-21T01:46:52.991Z"
+      "updatedAt": "2026-04-21T02:16:05.640Z",
+      "lastSignedIn": "2026-04-21T02:16:05.640Z"
     }
   ],
   "disciplines": [],

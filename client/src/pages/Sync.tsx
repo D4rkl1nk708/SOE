@@ -114,6 +114,8 @@ export default function Sync() {
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [driveUrl, setDriveUrl] = useState("");
+  const [linkImportLoading, setLinkImportLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [pulling, setPulling] = useState(false);
@@ -328,6 +330,37 @@ export default function Sync() {
       setTimeout(() => window.location.reload(), 800);
     } catch { toast.error("Arquivo JSON inválido"); }
     finally { setImportLoading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  // ── Import backup from public link ────────────────────────────────────
+  const handleImportFromLink = async () => {
+    if (!driveUrl) return;
+    setLinkImportLoading(true);
+    try {
+      let fileId = "";
+      const match1 = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      const match2 = driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
+      if (match1) fileId = match1[1];
+      else if (match2) fileId = match2[1];
+      else throw new Error("Link inválido. Certifique-se de que é um link do Google Drive.");
+
+      const exportUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      const res = await fetch(exportUrl);
+      if (!res.ok) throw new Error("Falha ao baixar. Verifique se o link está configurado como 'Qualquer pessoa com o link'.");
+      
+      const json = await res.text();
+      JSON.parse(json); // validate syntax
+
+      const { localImportImportBackup } = await import("@/lib/localDb");
+      await localImportImportBackup({ json });
+      toast.success("Backup importado via link com sucesso!");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao importar arquivo do link.");
+    } finally {
+      setLinkImportLoading(false);
+      setDriveUrl("");
+    }
   };
 
   // Each card manages its own flip state independently
@@ -582,6 +615,31 @@ export default function Sync() {
             </Button>
             <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
           </label>
+        </div>
+      </div>
+
+      {/* ── Backup via Link Compartilhado ─────────────────────────── */}
+      <div className="soe-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Database className="w-4 h-4" style={{ color: "var(--primary)" }} />
+          <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Restaurar via Link (Google Drive)</h2>
+        </div>
+        <p className="text-sm mb-4" style={{ color: "var(--muted-text)" }}>
+          Cole o link público de um arquivo de backup do Google Drive para restaurá-lo diretamente no SOE. O arquivo precisa estar configurado como "Qualquer pessoa com o link" na nuvem.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Ex: https://drive.google.com/file/d/..."
+            value={driveUrl}
+            onChange={(e) => setDriveUrl(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm rounded-md focus:outline-none"
+            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}
+          />
+          <Button onClick={handleImportFromLink} disabled={linkImportLoading || !driveUrl} className="gap-2 shrink-0">
+            {linkImportLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Restaurar
+          </Button>
         </div>
       </div>
 

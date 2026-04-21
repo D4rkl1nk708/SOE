@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Brain, Lock, Send, User, Bot, Loader2, ChevronDown, ChevronUp, TrendingDown, Activity } from "lucide-react";
+import { Brain, Lock, Send, User, Bot, Loader2, ChevronDown, ChevronUp, TrendingDown, Activity, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 // RenderText component from before (to render bold natively without markdown library)
@@ -37,11 +37,21 @@ export default function MentorTab() {
   const hasRegressions = regressions.length > 0;
   const [showRegressions, setShowRegressions] = useState(false);
 
-  const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>([
-    { role: "assistant", content: "Olá, concurseiro! Sou seu Mentor Socrático. Analisei seus dados mais recentes (regressões, pontos fracos e acertos). Como posso te ajudar hoje?\n\nVocê pode pedir para eu:\n- Montar seu cronograma do dia.\n- Fazer perguntas rápidas de revisão.\n- Explicar conceitos que você está com dificuldade." }
-  ]);
+  const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>(() => {
+    try {
+      const saved = localStorage.getItem("soe_mentor_chat");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { role: "assistant", content: "Olá, concurseiro! Sou seu Mentor Socrático. Analisei seus dados mais recentes (regressões, pontos fracos e acertos). Como posso te ajudar hoje?\n\nVocê pode pedir para eu:\n- Montar seu cronograma do dia.\n- Fazer perguntas rápidas de revisão.\n- Explicar conceitos que você está com dificuldade." }
+    ];
+  });
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem("soe_mentor_chat", JSON.stringify(messages));
+  }, [messages]);
 
   const chatMut = trpc.mentor.chat.useMutation({
     onSuccess: (data) => {
@@ -101,6 +111,15 @@ export default function MentorTab() {
           <p className="text-xs" style={{ color: "var(--muted-text)" }}>
             Seu tutor pessoal 24h
           </p>
+        </div>
+        <div className="ml-auto">
+          <button 
+            onClick={() => setMessages([{ role: "assistant", content: "Olá, concurseiro! Chat limpo. Como posso te ajudar hoje?" }])}
+            title="Limpar Chat"
+            className="p-2 rounded-xl transition-all hover:opacity-70"
+            style={{ color: "var(--muted-text)", background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
+            <Trash2 size={16} />
+          </button>
         </div>
       </div>
 
