@@ -1,12 +1,16 @@
-import groovy.json.JsonSlurper
+apply plugin: 'com.android.application'
 
-def packageJsonFile = file('../../package.json')
-def packageJson = new JsonSlurper().parseText(packageJsonFile.text)
-def versionNameStr = packageJson.version
+// Lê a versão diretamente do texto do package.json (sem depender de JsonSlurper)
+def getSoeVersion() {
+    def inputFile = file('../../package.json')
+    def text = inputFile.text
+    def matcher = (text =~ /"version":\s*"([^"]+)"/)
+    return matcher ? matcher[0][1] : "1.0.0"
+}
+
+def versionNameStr = getSoeVersion()
 def versionParts = versionNameStr.split('\\.')
 def versionCodeNum = versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger()
-
-apply plugin: 'com.android.application'
 
 android {
     namespace = "com.soe.estudos"

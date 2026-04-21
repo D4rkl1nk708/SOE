@@ -105,7 +105,7 @@ function RichEditor({
                 {group.map((btn) => (
                   <button key={btn.cmd + (btn.val ?? "")} title={btn.title}
                     onMouseDown={(e) => { e.preventDefault(); exec(btn.cmd, btn.val); }}
-                    className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all active:scale-95">
+                    className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all active:scale-90">
                     {btn.icon}
                   </button>
                 ))}
@@ -113,7 +113,7 @@ function RichEditor({
             ))}
             <div className="w-px h-5 bg-white/10 mx-1 shrink-0" />
             <button onMouseDown={(e) => { e.preventDefault(); imgInputRef.current?.click(); }}
-              className="w-10 h-10 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all">
+              className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all">
               <ImagePlus size={16} />
             </button>
         </div>
@@ -357,18 +357,18 @@ export default function Notes() {
                         }} className="bg-transparent border-none outline-none w-full text-base md:text-2xl font-black tracking-tight text-[var(--app-fg)]" />
                     </div>
                     
-                    <div className="flex items-center gap-1 md:gap-3 shrink-0">
-                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5">
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                        <div className="hidden xs:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5">
                             {isDirty ? <Clock size={12} className="text-amber-500 animate-pulse" /> : <Check size={12} className="text-[var(--accent-green)]" />}
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{isDirty ? "..." : "Ok"}</span>
                         </div>
                         <button onClick={handleGenerateFlashcards} disabled={generateFlashcardsMut.isPending}
-                            className="p-3 md:px-4 md:py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all">
-                            <Sparkles size={16} />
+                            className="p-3.5 md:px-4 md:py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-90 transition-all">
+                            <Sparkles size={18} />
                         </button>
                         <button onClick={() => { if (confirm("Excluir anotação?")) deleteNote.mutate({ id: (activeNote as any).id }); }}
-                            className="p-3 rounded-xl hover:bg-rose-500/10 text-white/20 hover:text-rose-500 transition-all">
-                            <Trash2 size={18} />
+                            className="p-3.5 rounded-xl hover:bg-rose-500/10 text-white/20 hover:text-rose-500 transition-all active:scale-90">
+                            <Trash2 size={20} />
                         </button>
                     </div>
                 </div>

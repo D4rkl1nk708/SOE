@@ -259,18 +259,18 @@ export function Layout({ children }: { children: ReactNode }) {
             <SoeLogo size={28} />
             <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "var(--primary)" }}>SOE</span>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-4">
             <SearchButton />
-            <button onClick={toggleTheme} className="p-3 rounded-xl hover:bg-white/5 active:scale-95 transition-all" style={{ color: "var(--muted-text)" }}>
+            <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all" style={{ color: "var(--muted-text)" }}>
               {theme === "light" ? <Moon className="w-[22px] h-[22px]" /> : <Sun className="w-[22px] h-[22px]" />}
             </button>
             <Link href="/sync">
-              <a className="p-3 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/sync") ? "var(--primary)" : "var(--muted-text)" }}>
+              <a className="p-2 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/sync") ? "var(--primary)" : "var(--muted-text)" }}>
                 <Wifi className="w-[22px] h-[22px]" />
               </a>
             </Link>
             <Link href="/profile">
-              <a className="p-3 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/profile") ? "var(--primary)" : "var(--muted-text)" }}>
+              <a className="p-2 rounded-xl active:scale-95 transition-all" style={{ color: isActivePath(location, "/profile") ? "var(--primary)" : "var(--muted-text)" }}>
                 <UserCircle2 className="w-[22px] h-[22px]" />
               </a>
             </Link>

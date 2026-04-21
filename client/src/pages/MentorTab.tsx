@@ -130,20 +130,20 @@ export default function MentorTab() {
               </div>
               
               <div className="space-y-1.5 custom-scrollbar max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
-                  {sessions.map(s => (
-                      <div key={s.id} onClick={() => { setActiveSessionId(s.id); setIsSidebarOpen(false); }}
-                          className={`group relative p-4 rounded-2xl cursor-pointer transition-all border ${activeSessionId === s.id ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)]' : 'border-transparent hover:bg-white/5'}`}>
-                          <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                  <MessageSquare size={14} className={activeSessionId === s.id ? 'text-[var(--primary)]' : 'opacity-20'} />
-                                  <span className={`text-[11px] font-bold truncate ${activeSessionId === s.id ? 'text-[var(--primary)]' : 'text-white/60'}`}>{s.title}</span>
-                              </div>
-                              <button onClick={(e) => deleteSession(s.id, e)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all">
-                                  <Trash2 size={12} />
-                              </button>
-                          </div>
-                      </div>
-                  ))}
+                   {sessions.map(s => (
+                       <div key={s.id} onClick={() => { setActiveSessionId(s.id); setIsSidebarOpen(false); }}
+                           className={`group relative p-5 rounded-2xl cursor-pointer transition-all border ${activeSessionId === s.id ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)]' : 'border-transparent hover:bg-white/5'}`}>
+                           <div className="flex items-center justify-between gap-3">
+                               <div className="flex items-center gap-3 min-w-0">
+                                   <MessageSquare size={16} className={activeSessionId === s.id ? 'text-[var(--primary)]' : 'opacity-20'} />
+                                   <span className={`text-[13px] md:text-[11px] font-bold truncate ${activeSessionId === s.id ? 'text-[var(--primary)]' : 'text-white/60'}`}>{s.title}</span>
+                               </div>
+                               <button onClick={(e) => deleteSession(s.id, e)} className="p-2 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all">
+                                   <Trash2 size={14} />
+                               </button>
+                           </div>
+                       </div>
+                   ))}
               </div>
           </div>
       </div>
@@ -203,7 +203,11 @@ export default function MentorTab() {
         {/* Header */}
         <div className="relative px-4 md:px-8 py-3 md:py-4 border-b border-white/5 backdrop-blur-md bg-white/[0.01] flex items-center justify-between z-10">
             <div className="flex items-center gap-3 md:gap-4">
-                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 rounded-xl bg-white/5 text-[var(--primary)]"><Menu size={18} /></button>
+                <button onClick={() => setIsSidebarOpen(true)} className="md:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 text-[var(--primary)] active:scale-95 transition-all">
+                    <Menu size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Sessões</span>
+                </button>
+                <div className="hidden xs:block w-px h-4 bg-white/10 mx-1 md:hidden" />
                 <div className="relative">
                     <div className="absolute inset-0 bg-[var(--primary)] blur-xl opacity-20" />
                     <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]">

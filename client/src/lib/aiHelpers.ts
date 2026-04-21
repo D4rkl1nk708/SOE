@@ -5,11 +5,13 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
+  "gemini-2.0-flash-exp",
   "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
+  "gemini-1.5-pro-latest",
   "gemini-1.5-pro",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash",
+  "gemini-1.0-pro",
 ];
 
 async function callGemini(apiKey: string, prompt: string, maxTokens = 1200): Promise<string> {
@@ -30,7 +32,7 @@ async function callGemini(apiKey: string, prompt: string, maxTokens = 1200): Pro
       const d = await r.json();
       if (d.error) {
         const msg = d.error.message || "Erro Gemini";
-        if (msg.toLowerCase().includes("quota") || r.status === 429 || r.status === 404) {
+        if (msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("not found") || r.status === 429 || r.status === 404) {
           lastError = msg;
           continue;
         }
@@ -38,11 +40,11 @@ async function callGemini(apiKey: string, prompt: string, maxTokens = 1200): Pro
       }
       return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (err: any) {
-      if (!err.message?.toLowerCase().includes("quota")) throw err;
+      if (!err.message?.toLowerCase().includes("quota") && !err.message?.toLowerCase().includes("not found")) throw err;
       lastError = err.message;
     }
   }
-  throw new Error(`Cota esgotada no Gemini. Último erro: ${lastError}`);
+  throw new Error(`Nenhum modelo Gemini disponível ou cota esgotada. Último erro: ${lastError}`);
 }
 
 async function callOpenAI(apiKey: string, prompt: string, maxTokens = 1200): Promise<string> {
