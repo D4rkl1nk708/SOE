@@ -8,13 +8,13 @@
 
 import { useState, useEffect } from "react";
 import {
-  PenLine, Trash2, ChevronDown, ChevronUp, BookOpen,
-  Calendar, SlidersHorizontal, ImageOff, Key, CheckCircle2,
-  Maximize2, RefreshCw, X
+  PenLine, Trash2, ChevronDown, ChevronUp,
+  Calendar, SlidersHorizontal, ImageOff, Key,
+  Maximize2, RefreshCw, X, Award, Target, MessageSquare
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { localGetSubjectiveAnswers, localDeleteSubjectiveAnswer, type SubjectiveAnswer } from "@/lib/localDb";
-import { BANCAS } from "@/components/SubjectiveEssayModal";
 import SubjectiveEssayModal from "@/components/SubjectiveEssayModal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -38,10 +38,10 @@ function parseCorrection(raw: string): ParsedCorrection {
 }
 
 function scoreColor(n: number) {
-  if (n >= 8) return "#16a34a";
-  if (n >= 6) return "var(--gold)";
+  if (n >= 8) return "var(--accent-green)";
+  if (n >= 6) return "var(--accent-amber)";
   if (n >= 4) return "#f97316";
-  return "#dc2626";
+  return "var(--accent-red)";
 }
 
 function scoreLabel(n: number) {
@@ -90,16 +90,24 @@ function AnswerCard({
   };
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden transition-all"
-      style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="soe-card overflow-hidden transition-all group"
+      style={{ 
+        background: "var(--card-bg)",
+        border: expanded ? "1px solid var(--primary)" : "1px solid var(--card-border)",
+        boxShadow: expanded ? "0 8px 30px rgba(0,0,0,0.12)" : "none"
+      }}
     >
       {/* Header */}
-      <div className="flex items-start gap-3 p-3">
+      <div className="flex items-start gap-4 p-4">
         {/* Thumbnail */}
         <div
-          className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer group relative"
-          style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}
+          className="w-16 h-16 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer group/thumb relative border border-white/5"
+          style={{ background: "var(--stat-bg)" }}
           onClick={() => setShowImageModal(true)}
         >
           {answer.imageDataUrl && !imgError ? (
@@ -107,223 +115,210 @@ function AnswerCard({
               <img
                 src={answer.imageDataUrl}
                 alt="Resposta"
-                className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
+                className="w-full h-full object-cover group-hover/thumb:opacity-50 transition-opacity"
                 onError={() => setImgError(true)}
               />
-              <Maximize2 className="absolute opacity-0 group-hover:opacity-100 w-4 h-4 text-white transition-opacity" />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-black/40">
+                <Maximize2 className="w-5 h-5 text-white" />
+              </div>
             </>
           ) : (
-            <ImageOff className="w-5 h-5" style={{ color: "var(--muted-text)" }} />
+            <ImageOff className="w-6 h-6 opacity-30" style={{ color: "var(--muted-text)" }} />
           )}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
-              style={{
-                background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                color: "var(--primary)",
-              }}
-            >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/5 border border-white/5" style={{ color: "var(--muted-text)" }}>
               {answer.banca}
             </span>
-            <span className="text-[10px]" style={{ color: "var(--muted-text)" }}>
+            <span className="text-[9px] font-bold uppercase tracking-widest opacity-40" style={{ color: "var(--muted-text)" }}>
               {answer.disciplineName}
             </span>
           </div>
-          <p className="text-sm font-bold truncate" style={{ color: "var(--app-fg)" }}>
+          <h3 className="text-sm font-black tracking-tight line-clamp-1" style={{ color: "var(--app-fg)" }}>
             {answer.topicName}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
+          </h3>
+          <div className="flex items-center gap-2 mt-1.5 opacity-60">
             <Calendar className="w-3 h-3" style={{ color: "var(--muted-text)" }} />
-            <span className="text-[11px]" style={{ color: "var(--muted-text)" }}>
+            <span className="text-[10px] font-bold" style={{ color: "var(--muted-text)" }}>
               {formatDate(answer.createdAt)}
             </span>
           </div>
         </div>
 
         {/* Score badge */}
-        <div className="flex-shrink-0 text-center">
-          <div
-            className="text-2xl font-black leading-none"
-            style={{ color: scoreColor(score) }}
-          >
+        <div className="flex-shrink-0 flex flex-col items-center justify-center bg-[var(--stat-bg)] rounded-2xl p-2 min-w-[64px] border border-[var(--card-border)]">
+          <span className="text-2xl font-black tabular-nums leading-none" style={{ color: scoreColor(score) }}>
             {score.toFixed(1)}
-          </div>
-          <div className="text-[9px] font-medium mt-0.5" style={{ color: scoreColor(score) }}>
+          </span>
+          <span className="text-[8px] font-black uppercase tracking-tighter mt-1" style={{ color: scoreColor(score) }}>
             {scoreLabel(score)}
-          </div>
+          </span>
         </div>
       </div>
 
       {/* Expand toggle */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium hover:opacity-70 transition-opacity"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-colors border-t"
         style={{
-          borderTop: "1px solid var(--card-border)",
-          color: "var(--muted-text)",
-          background: "var(--stat-bg)",
+          borderColor: "var(--card-border)",
+          color: expanded ? "var(--primary)" : "var(--muted-text)",
+          background: expanded ? "color-mix(in srgb, var(--primary) 4%, var(--stat-bg))" : "var(--stat-bg)",
         }}
       >
-        <span>{expanded ? "Ocultar detalhes" : "Ver correção completa"}</span>
-        {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        <span>{expanded ? "Recolher Detalhes" : "Ver Correção da IA"}</span>
+        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
       </button>
 
       {/* Expanded details */}
-      {expanded && (
-        <div className="p-3 space-y-3" style={{ borderTop: "1px solid var(--card-border)" }}>
-          {/* Transcription */}
-          <section>
-            <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-text)" }}>
-              Transcrição
-            </h4>
-            <div
-              className="text-sm rounded-xl p-2.5 whitespace-pre-wrap"
-              style={{
-                background: "var(--stat-bg)",
-                border: "1px solid var(--card-border)",
-                color: "var(--app-fg)",
-                maxHeight: 140,
-                overflowY: "auto",
-              }}
-            >
-              {correction.transcricao || "Transcrição não disponível."}
-            </div>
-          </section>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 space-y-4 border-t" style={{ borderColor: "var(--card-border)" }}>
+              {/* Transcription */}
+              <section>
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-3 h-3 opacity-40" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>
+                    Transcrição
+                  </h4>
+                </div>
+                <div
+                  className="text-xs font-medium leading-relaxed rounded-2xl p-4 whitespace-pre-wrap italic"
+                  style={{
+                    background: "var(--stat-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--app-fg)",
+                    maxHeight: 160,
+                    overflowY: "auto",
+                  }}
+                >
+                  "{correction.transcricao || "Transcrição não disponível."}"
+                </div>
+              </section>
 
-          {/* Positives */}
-          {(correction.pontos_positivos?.length ?? 0) > 0 && (
-            <section>
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16a34a" }}>
-                ✓ Pontos positivos
-              </h4>
-              <ul className="space-y-0.5">
-                {correction.pontos_positivos!.map((p, i) => (
-                  <li key={i} className="text-xs flex items-start gap-1.5" style={{ color: "var(--app-fg)" }}>
-                    <span style={{ color: "#16a34a" }}>•</span> {p}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Positives */}
+                {(correction.pontos_positivos?.length ?? 0) > 0 && (
+                  <section className="space-y-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: "var(--accent-green)" }}>
+                      <Award className="w-3 h-3" /> Pontos Fortes
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {correction.pontos_positivos!.map((p, i) => (
+                        <li key={i} className="text-[11px] font-medium flex items-start gap-2 leading-tight" style={{ color: "var(--app-fg)" }}>
+                          <span className="w-1 h-1 rounded-full mt-1.5 shrink-0" style={{ background: "var(--accent-green)" }} /> {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
 
-          {/* Errors */}
-          {(correction.erros_encontrados?.length ?? 0) > 0 && (
-            <section>
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#dc2626" }}>
-                ✗ Erros encontrados
-              </h4>
-              <ul className="space-y-0.5">
-                {correction.erros_encontrados!.map((e, i) => (
-                  <li key={i} className="text-xs flex items-start gap-1.5" style={{ color: "var(--app-fg)" }}>
-                    <span style={{ color: "#dc2626" }}>•</span> {e}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* Content analysis */}
-          {correction.analise_conteudo && (
-            <section>
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-text)" }}>
-                Análise de conteúdo
-              </h4>
-              <p className="text-xs" style={{ color: "var(--app-fg)" }}>{correction.analise_conteudo}</p>
-            </section>
-          )}
-
-          {/* Form analysis */}
-          {correction.analise_forma && (
-            <section>
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-text)" }}>
-                Análise de forma
-              </h4>
-              <p className="text-xs" style={{ color: "var(--app-fg)" }}>{correction.analise_forma}</p>
-            </section>
-          )}
-
-          {/* Deductions */}
-          {(correction.deducoes?.length ?? 0) > 0 && (
-            <section>
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#f97316" }}>
-                Deduções
-              </h4>
-              <div className="space-y-1">
-                {correction.deducoes!.map((d, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between rounded-lg px-2.5 py-1"
-                    style={{
-                      background: "color-mix(in srgb, #f97316 8%, var(--stat-bg))",
-                      border: "1px solid color-mix(in srgb, #f97316 18%, transparent)",
-                    }}
-                  >
-                    <span className="text-xs" style={{ color: "var(--app-fg)" }}>{d.motivo}</span>
-                    <span className="text-xs font-bold" style={{ color: "#f97316" }}>
-                      {d.pontos > 0 ? "-" : ""}{Math.abs(d.pontos)} pt
-                    </span>
-                  </div>
-                ))}
+                {/* Errors */}
+                {(correction.erros_encontrados?.length ?? 0) > 0 && (
+                  <section className="space-y-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: "var(--accent-red)" }}>
+                      <Target className="w-3 h-3" /> Pontos a Melhorar
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {correction.erros_encontrados!.map((e, i) => (
+                        <li key={i} className="text-[11px] font-medium flex items-start gap-2 leading-tight" style={{ color: "var(--app-fg)" }}>
+                          <span className="w-1 h-1 rounded-full mt-1.5 shrink-0" style={{ background: "var(--accent-red)" }} /> {e}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </div>
-            </section>
-          )}
 
-          {/* Verdict */}
-          {correction.parecer && (
-            <section
-              className="rounded-xl p-2.5"
-              style={{
-                background: "color-mix(in srgb, var(--primary) 8%, var(--stat-bg))",
-                border: "1px solid color-mix(in srgb, var(--primary) 18%, transparent)",
-              }}
-            >
-              <h4 className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--primary)" }}>
-                Parecer conclusivo
-              </h4>
-              <p className="text-xs" style={{ color: "var(--app-fg)" }}>{correction.parecer}</p>
-            </section>
-          )}
+              {/* Deductions */}
+              {(correction.deducoes?.length ?? 0) > 0 && (
+                <section>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--accent-amber)" }}>
+                    Deduções de Pontuação
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {correction.deducoes!.map((d, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-xl px-3 py-2 border"
+                        style={{
+                          background: "color-mix(in srgb, var(--accent-amber) 6%, var(--stat-bg))",
+                          borderColor: "color-mix(in srgb, var(--accent-amber) 20%, transparent)",
+                        }}
+                      >
+                        <span className="text-[11px] font-medium truncate pr-2" style={{ color: "var(--app-fg)" }}>{d.motivo}</span>
+                        <span className="text-[11px] font-black whitespace-nowrap" style={{ color: "var(--accent-amber)" }}>
+                          {d.pontos > 0 ? "-" : ""}{Math.abs(d.pontos)} pt
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: "var(--card-border)" }}>
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-1.5 text-[11px] font-medium hover:opacity-70 transition-all px-2 py-1 rounded-lg"
-              style={{ 
-                color: confirmDelete ? "#dc2626" : "var(--muted-text)",
-                background: confirmDelete ? "color-mix(in srgb, #dc2626 10%, transparent)" : "transparent"
-              }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {confirmDelete ? "Confirmar exclusão?" : "Remover"}
-            </button>
+              {/* Verdict */}
+              {correction.parecer && (
+                <section
+                  className="rounded-2xl p-4 border"
+                  style={{
+                    background: "color-mix(in srgb, var(--primary) 6%, var(--stat-bg))",
+                    borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
+                  }}
+                >
+                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2" style={{ color: "var(--primary)" }}>
+                    <div className="w-1 h-3 rounded-full" style={{ background: "var(--primary)" }} />
+                    Parecer Estratégico
+                  </h4>
+                  <p className="text-xs font-medium leading-relaxed" style={{ color: "var(--app-fg)" }}>{correction.parecer}</p>
+                </section>
+              )}
 
-            <button
-              onClick={() => onReanalyze(answer)}
-              className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all"
-              style={{ 
-                background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                color: "var(--primary)"
-              }}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Reanalisar
-            </button>
-          </div>
-        </div>
-      )}
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--card-border)" }}>
+                <button
+                  onClick={handleDelete}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 px-3 py-1.5 rounded-xl transition-all"
+                  style={{ 
+                    color: confirmDelete ? "var(--accent-red)" : "var(--muted-text)",
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {confirmDelete ? "Confirmar?" : "Excluir"}
+                </button>
+
+                <button
+                  onClick={() => onReanalyze(answer)}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all"
+                  style={{ 
+                    background: "var(--primary)",
+                    color: "var(--primary-fg, white)"
+                  }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reanalisar com IA
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden bg-black border-none">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden bg-black/95 border-none backdrop-blur-xl">
           <div className="relative w-full h-full flex items-center justify-center p-4">
             <button 
               onClick={() => setShowImageModal(false)}
-              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/50 text-white hover:bg-black/80 transition-all"
+              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all backdrop-blur-md"
             >
               <X className="w-6 h-6" />
             </button>
@@ -335,7 +330,7 @@ function AnswerCard({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }
 
@@ -390,52 +385,59 @@ export default function SubjectiveAnswersTab() {
     : 0;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black flex items-center gap-2" style={{ color: "var(--app-fg)" }}>
-              <PenLine className="w-5 h-5" style={{ color: "var(--gold)" }} />
-              Respostas Subjetivas
-            </h2>
-            <button onClick={() => (window as any).dispatchEvent(new CustomEvent('soe-open-ai-modal'))} 
-              className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-xl transition-all"
-              style={{ 
-                background: savedKey ? "color-mix(in srgb, var(--accent-green) 12%, transparent)" : "var(--stat-bg)", 
-                border: `1px solid ${savedKey ? "var(--accent-green)" : "var(--card-border)"}`, 
-                color: savedKey ? "var(--accent-green)" : "var(--muted-text)" 
-              }}
-            >
-              <Key className="w-3 h-3" />
-              {savedKey ? "IA: configurada" : "Configurar IA"}
-            </button>
-          </div>
-          <p className="text-[11px] mt-0.5" style={{ color: "var(--muted-text)" }}>
-            Correções de respostas discursivas feitas pela IA durante as revisões
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>Média Geral</div>
-            <div className="text-2xl font-black leading-none" style={{ color: scoreColor(avg) }}>
-              {avg.toFixed(1)}
+    <div className="space-y-6">
+      {/* Header & Stats Dock */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-[var(--stat-bg)] border border-[var(--card-border)] rounded-[2rem] p-6 backdrop-blur-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20">
+              <PenLine className="w-5 h-5 text-black" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>
+                Repositório Subjetivo
+              </h2>
+              <p className="text-[11px] font-bold uppercase tracking-widest opacity-40" style={{ color: "var(--muted-text)" }}>
+                Gestão de Discursivas e Redações
+              </p>
             </div>
           </div>
         </div>
+
+        <div className="flex items-center gap-8">
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1" style={{ color: "var(--muted-text)" }}>Performance Média</p>
+            <div className="flex items-baseline justify-end gap-2">
+              <span className="text-4xl font-black tabular-nums" style={{ color: scoreColor(avg) }}>
+                {avg.toFixed(1)}
+              </span>
+              <span className="text-xs font-bold opacity-40" style={{ color: "var(--muted-text)" }}>/ 10.0</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => (window as any).dispatchEvent(new CustomEvent('soe-open-ai-modal'))} 
+            className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all hover:bg-[var(--stat-bg)] group"
+          >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--card-border)] group-hover:scale-110 transition-transform" style={{ color: savedKey ? "var(--accent-green)" : "var(--muted-text)" }}>
+              <Key className="w-4 h-4" />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: savedKey ? "var(--accent-green)" : "var(--muted-text)" }}>
+              {savedKey ? "IA Ativa" : "Configurar"}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters Dock */}
       {usedBancas.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-2 p-2 rounded-full bg-[var(--stat-bg)] border border-[var(--card-border)] w-fit">
           <button
             onClick={() => setFilterBanca("all")}
-            className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all"
+            className="px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
             style={{
-              background: filterBanca === "all" ? "var(--primary)" : "var(--stat-bg)",
-              color: filterBanca === "all" ? "white" : "var(--muted-text)",
-              border: `1px solid ${filterBanca === "all" ? "var(--primary)" : "var(--card-border)"}`,
+              background: filterBanca === "all" ? "var(--primary)" : "transparent",
+              color: filterBanca === "all" ? "var(--primary-fg, white)" : "var(--muted-text)",
             }}
           >
             Todas
@@ -444,11 +446,10 @@ export default function SubjectiveAnswersTab() {
             <button
               key={b}
               onClick={() => setFilterBanca(b)}
-              className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all"
+              className="px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
               style={{
-                background: filterBanca === b ? "var(--primary)" : "var(--stat-bg)",
-                color: filterBanca === b ? "white" : "var(--muted-text)",
-                border: `1px solid ${filterBanca === b ? "var(--primary)" : "var(--card-border)"}`,
+                background: filterBanca === b ? "var(--primary)" : "transparent",
+                color: filterBanca === b ? "var(--primary-fg, white)" : "var(--muted-text)",
               }}
             >
               {b}
@@ -459,30 +460,42 @@ export default function SubjectiveAnswersTab() {
 
       {/* List */}
       {loading ? (
-        <div className="py-20 text-center">
-          <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }} />
-          <p className="text-sm" style={{ color: "var(--muted-text)" }}>Carregando histórico...</p>
+        <div className="py-24 text-center">
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+            className="w-10 h-10 border-4 border-t-transparent rounded-full mx-auto mb-4" 
+            style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }} 
+          />
+          <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Consultando Banco Local...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center rounded-3xl border-2 border-dashed" style={{ borderColor: "var(--card-border)", background: "var(--stat-bg)" }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "var(--card-border)" }}>
-            <PenLine className="w-6 h-6" style={{ color: "var(--muted-text)" }} />
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="py-20 text-center rounded-[2.5rem] border-2 border-dashed flex flex-col items-center" 
+          style={{ borderColor: "var(--card-border)", background: "var(--stat-bg)" }}
+        >
+          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center bg-white/5 mb-4">
+            <ImageOff className="w-8 h-8 opacity-20" />
           </div>
-          <p className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>Nenhuma resposta encontrada</p>
-          <p className="text-xs mt-1" style={{ color: "var(--muted-text)" }}>
-            {filterBanca === "all" ? "Suas correções de redação aparecerão aqui." : "Nenhuma correção para esta banca."}
+          <p className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--app-fg)" }}>Sem Correções no Momento</p>
+          <p className="text-[11px] font-medium opacity-50 mt-2 max-w-[200px]">
+            {filterBanca === "all" ? "Suas avaliações de redação aparecerão aqui após serem corrigidas pela IA." : "Nenhuma correção encontrada para este filtro."}
           </p>
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map(a => (
-            <AnswerCard 
-              key={a.id} 
-              answer={a} 
-              onDelete={handleDelete} 
-              onReanalyze={handleReanalyze}
-            />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AnimatePresence mode="popLayout">
+            {filtered.map(a => (
+              <AnswerCard 
+                key={a.id} 
+                answer={a} 
+                onDelete={handleDelete} 
+                onReanalyze={handleReanalyze}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       )}
 

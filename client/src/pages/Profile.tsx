@@ -76,7 +76,7 @@ function SettingsTab() {
           {(["light", "dark"] as const).map(m => (
             <button key={m} onClick={() => { if (theme !== m) toggleTheme(); }}
               className={`group flex items-center gap-4 p-5 rounded-2xl border-2 transition-all ${theme === m ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary)]' : 'bg-white/5 border-white/5 opacity-50'}`}>
-              <div className={`p-3 rounded-xl ${theme === m ? 'bg-[var(--primary)] text-white' : 'bg-white/10 text-white/40'}`}>
+              <div className={`p-3 rounded-xl ${theme === m ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'bg-white/10 text-white/40'}`}>
                 {m === "light" ? <Sun size={20} /> : <Moon size={20} />}
               </div>
               <div className="text-left">
@@ -128,7 +128,7 @@ function SettingsTab() {
                 </div>
                 <div className="flex items-end">
                     <button onClick={handleSaveAI} disabled={updateSettings.isPending}
-                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95">
+                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95">
                         {updateSettings.isPending ? "Salvando..." : "Confirmar Motor"}
                     </button>
                 </div>
@@ -164,7 +164,7 @@ function SettingsTab() {
             
             <label className={`flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer ${autoBackupEnabled ? 'bg-white/5 border-[var(--primary-border)]' : 'bg-transparent border-white/5 opacity-50'}`}>
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${autoBackupEnabled ? 'bg-[var(--primary)] text-white' : 'bg-white/10 text-white/30'}`}>
+                    <div className={`p-2 rounded-lg ${autoBackupEnabled ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'bg-white/10 text-white/30'}`}>
                         <ShieldCheck size={16} />
                     </div>
                     <span className="text-xs font-black uppercase tracking-widest">Ativar Espelhamento Real-time</span>
@@ -297,7 +297,7 @@ function DiarioOficialTab() {
                   <input type="text" value={inputValue} onChange={e => setInputValue(e.target.value)}
                          placeholder="Ex: João Da Silva Pereira"
                          className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary-border)] transition-all" />
-                  <button onClick={handleSave} className="px-8 rounded-2xl bg-[var(--primary)] text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+                  <button onClick={handleSave} className="px-8 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
                       Salvar
                   </button>
               </div>
@@ -343,7 +343,7 @@ function DiarioOficialTab() {
 
               <div className="flex gap-3">
                   <button onClick={handleCheckNow} disabled={checking}
-                          className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-50">
+                          className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-50">
                       {checking ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
                       {checking ? "Varrendo Diários..." : "Verificar Agora"}
                   </button>
@@ -380,7 +380,7 @@ export default function Profile() {
         <div className="flex items-center gap-6">
           <div className="relative group">
               <div className="absolute inset-0 bg-[var(--primary)] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-              <div className="relative w-20 h-20 rounded-[2.5rem] bg-[var(--primary)] text-white flex items-center justify-center font-black text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
+              <div className="relative w-20 h-20 rounded-[2.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-black text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
                 {(stats as any)?.userName?.[0]?.toUpperCase() ?? <User className="w-8 h-8" />}
               </div>
               <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--accent-green)] border-4 border-[var(--app-bg)] flex items-center justify-center text-white">
@@ -407,7 +407,7 @@ export default function Profile() {
           const active = tab === t.id;
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.1em] transition-all ${active ? 'bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary-shadow)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              className={`flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.1em] transition-all ${active ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <Icon size={14} />
               <span>{t.label}</span>
             </button>

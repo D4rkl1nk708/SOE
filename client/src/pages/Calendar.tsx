@@ -261,7 +261,11 @@ export default function Calendar() {
         {/* Week headers */}
         <div className="grid grid-cols-7" style={{ borderBottom: "1px solid var(--card-border)", background: "var(--stat-bg)" }}>
           {weekDays.map(d => (
-            <div key={d} className="py-3 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>{d}</div>
+            <div key={d} className="py-2.5 text-center text-[10px] md:text-xs font-black uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>
+              {/* Show only first letter on very small screens */}
+              <span className="hidden xs:inline">{d}</span>
+              <span className="xs:hidden">{d.charAt(0)}</span>
+            </div>
           ))}
         </div>
         {/* Days */}
@@ -275,54 +279,70 @@ export default function Calendar() {
             const isLastRow = idx >= calDays.length - 7;
             return (
               <div key={day.toISOString()} onClick={() => setSelectedDay(day)}
-                className={`cursor-pointer transition-all relative group ${!isCurrentMonth ? 'opacity-20' : 'opacity-100'}`}
+                className={`cursor-pointer transition-all relative group flex flex-col ${!isCurrentMonth ? 'opacity-20' : 'opacity-100'}`}
                 style={{
-                  minHeight: "140px",
-                  padding: "12px",
+                  minHeight: "min(140px, 18vw)",
+                  aspectRatio: "1/1.2",
+                  padding: "clamp(4px, 1.5vw, 12px)",
                   background: isToday ? "var(--primary-bg-subtle)" : "var(--card-bg)",
                   borderRight: (idx + 1) % 7 !== 0 ? "1px solid var(--card-border)" : undefined,
                   borderBottom: !isLastRow ? "1px solid var(--card-border)" : undefined,
                 }}
               >
                 {isToday && <div className="absolute inset-0 border-2 border-[var(--primary)] pointer-events-none z-10 opacity-20" />}
+                
                 {/* Day number row */}
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-1 md:mb-3">
                   <span
-                    className={`text-sm font-black w-7 h-7 flex items-center justify-center rounded-lg transition-transform group-hover:scale-110 ${isToday ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)]' : 'text-white/40'}`}>
+                    className={`text-[10px] md:text-sm font-black w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-md md:rounded-lg transition-transform group-hover:scale-110 ${isToday ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md md:shadow-lg shadow-[var(--primary-shadow)]' : ''}`}
+                    style={{ color: isToday ? undefined : "var(--muted-text)" }}>
                     {format(day, "d")}
                   </span>
-                  {/* Badge conta só revisões pendentes */}
+                  
+                  {/* Badge conta só revisões pendentes - Oculto em telas micro se necessário ou reduzido */}
                   {dayActs.filter(a => !a.completed && a.type === "revision").length > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, #dc2626 18%, transparent)", color: "#dc2626" }}>
+                    <span className="text-[8px] md:text-[10px] font-black px-1 md:px-1.5 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, #dc2626 18%, transparent)", color: "#dc2626" }}>
                       {dayActs.filter(a => !a.completed && a.type === "revision").length}
                     </span>
                   )}
                 </div>
 
-                {/* Activity pills */}
-                <div className="space-y-1">
-                  {dayActs.slice(0, 3).map(a => {
-                    const isTest = a.type === "test";
-                    return (
-                      <div key={a.id}
-                        className="group/pill flex items-center gap-1.5 text-[10px] font-black rounded-lg overflow-hidden transition-all px-2 py-1.5 border border-white/5"
-                        style={{
-                          background: a.completed
-                            ? "rgba(16, 185, 129, 0.1)"
-                            : isTest
-                            ? "rgba(255, 255, 255, 0.03)"
-                            : "var(--primary-bg-subtle)",
-                          color: a.completed ? "#10b981" : isTest ? "rgba(255, 255, 255, 0.4)" : "var(--primary)",
-                          textDecoration: a.completed ? "line-through" : undefined,
-                        }}
-                      >
-                        <span className="shrink-0 opacity-50 uppercase tracking-tighter">{isTest ? "T" : "R"}</span>
-                        <span className="flex-1 truncate">{a.topicName}</span>
-                      </div>
-                    );
-                  })}
+                {/* Activity Indicators - Adaptive */}
+                <div className="space-y-1 overflow-hidden flex-1">
+                  {/* Full pills for desktop, dots/lines for mobile */}
+                  <div className="hidden md:block space-y-1">
+                    {dayActs.slice(0, 3).map(a => {
+                        const isTest = a.type === "test";
+                        return (
+                          <div key={a.id}
+                            className="group/pill flex items-center gap-1.5 text-[10px] font-black rounded-lg overflow-hidden transition-all px-2 py-1.5 border border-[var(--card-border)]"
+                            style={{
+                              background: a.completed ? "rgba(16, 185, 129, 0.1)" : isTest ? "var(--stat-bg)" : "var(--primary-bg-subtle)",
+                              color: a.completed ? "#10b981" : isTest ? "var(--muted-text)" : "var(--primary)",
+                              textDecoration: a.completed ? "line-through" : undefined,
+                            }}
+                          >
+                            <span className="shrink-0 opacity-50 uppercase tracking-tighter">{isTest ? "T" : "R"}</span>
+                            <span className="flex-1 truncate">{a.topicName}</span>
+                          </div>
+                        );
+                    })}
+                  </div>
+
+                  {/* Mobile-only dots */}
+                  <div className="md:hidden flex flex-wrap gap-1 mt-auto">
+                    {dayActs.map(a => (
+                      <div key={a.id} className="w-1.5 h-1.5 rounded-full" 
+                        style={{ 
+                          backgroundColor: a.completed ? "#10b981" : a.type === "test" ? "#f59e0b" : "var(--primary)",
+                          opacity: a.completed ? 1 : 0.8
+                        }} 
+                      />
+                    ))}
+                  </div>
+
                   {dayActs.length > 3 && (
-                    <div className="text-[11px] font-semibold pl-1" style={{ color: "var(--muted-text)" }}>
+                    <div className="text-[9px] font-black pl-1 hidden md:block" style={{ color: "var(--muted-text)" }}>
                       +{dayActs.length - 3} mais
                     </div>
                   )}
@@ -513,7 +533,7 @@ export default function Calendar() {
                   href={icalData.path}
                   download="soe-revisoes.ics"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-                  style={{ background: "var(--primary)", color: "#fff" }}>
+                  style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
                   <CalendarIcon className="h-4 w-4" />
                   Baixar soe-revisoes.ics
                 </a>
@@ -541,7 +561,7 @@ export default function Calendar() {
                       toast.success("URL copiada!");
                     }}
                     className="px-3 py-2 rounded-lg text-sm font-semibold hover:opacity-80 transition-opacity flex-shrink-0"
-                    style={{ background: "var(--primary)", color: "#fff" }}>
+                    style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
                     Copiar
                   </button>
                 </div>
@@ -574,7 +594,7 @@ export default function Calendar() {
           </div>
           <div className="flex justify-end gap-2">
             <button className="px-4 py-2 bg-transparent text-sm font-medium hover:opacity-70" onClick={() => schedule.setScheduleDialogOpen(false)}>Cancelar</button>
-            <button className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-primary" onClick={schedule.handleSaveSchedule} disabled={schedule.isSaving}>{schedule.isSaving ? "Salvando..." : "Salvar"}</button>
+            <button className="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-[var(--primary-foreground)]" onClick={schedule.handleSaveSchedule} disabled={schedule.isSaving}>{schedule.isSaving ? "Salvando..." : "Salvar"}</button>
           </div>
         </DialogContent>
       </Dialog>

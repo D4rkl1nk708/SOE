@@ -261,15 +261,15 @@ export default function QuestionSession() {
           <div className="grid grid-cols-3 gap-2">
             {[5, 10, 15, 20, 30, 50].map(n => (
               <button key={n} onClick={() => setTotalQ(n)}
-                className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? 'bg-[var(--primary)] text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+                className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'bg-white/5 opacity-50 hover:opacity-100'}`} style={{ color: "var(--app-fg)" }}>
                 {n}
               </button>
             ))}
           </div>
         </div>
         <button onClick={() => setShowQuickPick(false)}
-          className="w-full py-3 rounded-xl text-sm font-black flex items-center gap-2 justify-center bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-transform">
-          <Play className="w-4 h-4 fill-white" /> Iniciar Agora
+          className="w-full py-3 rounded-xl text-sm font-black flex items-center gap-2 justify-center bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-transform">
+          <Play className="w-4 h-4 fill-[var(--primary-foreground)]" /> Iniciar Agora
         </button>
         <button onClick={() => navigate("/")} className="text-sm opacity-50 hover:opacity-100 transition-opacity">Cancelar</button>
       </div>
@@ -285,7 +285,7 @@ export default function QuestionSession() {
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
       ].map(t => (
         <button key={t.id} onClick={() => setActiveTab(t.id as any)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)]' : 'text-white/40 hover:text-white/60'}`}>
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]' : 'opacity-40 hover:opacity-70'}`} style={{ color: activeTab === t.id ? undefined : "var(--app-fg)" }}>
           <t.icon className="h-4 w-4" /> {t.label}
         </button>
       ))}
@@ -330,7 +330,7 @@ export default function QuestionSession() {
                   toast.error("O Navegador do TEC só está disponível no aplicativo Desktop.");
                 }
               }}
-              className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]">
+              className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]">
               <ExternalLink className="w-5 h-5"/> Acessar TEC Concursos
             </button>
           </div>
@@ -394,7 +394,7 @@ export default function QuestionSession() {
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                     {[5, 10, 15, 20, 30, 50].map(n => (
                       <button key={n} onClick={() => setTotalQ(n)}
-                        className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? 'bg-[var(--primary)] text-white' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                        className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'bg-white/5 opacity-40 hover:opacity-100'}`} style={{ color: "var(--app-fg)" }}>
                         {n}
                       </button>
                     ))}
@@ -404,10 +404,10 @@ export default function QuestionSession() {
                   </div>
                 </div>
 
-                <button className="w-full py-4 rounded-xl bg-[var(--primary)] text-white font-black text-sm shadow-lg shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
+                <button className="w-full py-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-sm shadow-lg shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
                   disabled={!selectedDisc || !selectedTopic}
                   onClick={() => { setStartTime(Date.now()); setPhase("session"); setCurrentIndex(0); setResults([]); setAwaitingOrigin(false); setElapsed(0); sessionStorage.removeItem("qs_prefill"); }}>
-                  <Play className="w-5 h-5 fill-white" /> INICIAR TREINAMENTO
+                  <Play className="w-5 h-5 fill-[var(--primary-foreground)]" /> INICIAR TREINAMENTO
                 </button>
               </div>
             </div>
@@ -562,7 +562,7 @@ export default function QuestionSession() {
                   <button onClick={advance} className="py-4 rounded-2xl font-black text-xs uppercase tracking-widest opacity-40 bg-white/5 border border-white/10">Pular</button>
                   <button onClick={() => { const r = parseTEC(pasteText); if (!r.ok) { setParseError(r.error); return; } setParsed(r.q); setParseError(""); }}
                     disabled={!pasteText.trim()}
-                    className="py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest disabled:opacity-20 transition-all">
+                    className="py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest disabled:opacity-20 transition-all">
                     Processar
                   </button>
                 </div>
@@ -580,7 +580,7 @@ export default function QuestionSession() {
                     {saveQuestionError.isPending ? "SALVANDO..." : "CONFIRMAR E SALVAR"}
                   </button>
                 ) : (
-                  <button onClick={advance} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-sm flex items-center justify-center gap-2">
+                  <button onClick={advance} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-sm flex items-center justify-center gap-2">
                     PRÓXIMA QUESTÃO <SkipForward className="w-4 h-4" />
                   </button>
                 )}
@@ -655,7 +655,7 @@ export default function QuestionSession() {
 
       <div className="space-y-4 pt-4">
         <button onClick={handleSaveSession} disabled={setPerformance.isPending || !selectedTopic}
-          className="w-full py-5 rounded-2xl bg-[var(--primary)] text-white font-black text-lg shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+          className="w-full py-5 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-lg shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
           <Save className="w-6 h-6" /> {setPerformance.isPending ? "SALVANDO..." : "CONCLUIR E SALVAR"}
         </button>
         <div className="grid grid-cols-2 gap-4">

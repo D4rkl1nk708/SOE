@@ -289,7 +289,7 @@ export default function MentorSession() {
                             <div className="grid grid-cols-3 gap-2">
                                 {(["easy", "medium", "hard"] as const).map((d) => (
                                     <button key={d} onClick={() => setDifficulty(d)}
-                                        className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${difficulty === d ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
+                                        className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${difficulty === d ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
                                         {DIFFICULTY_LABELS[d].split(" ")[1]}
                                     </button>
                                 ))}
@@ -339,16 +339,16 @@ export default function MentorSession() {
                     <GraduationCap size={120} />
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/5 border border-white/10 opacity-60">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2 md:px-3 py-1 rounded-full bg-white/5 border border-white/10 opacity-60">
                         {currentQuestion.banca || "Simulado IA"}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-[var(--primary-bg-subtle)] text-[var(--primary)] border border-[var(--primary-border)]">
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2 md:px-3 py-1 rounded-full bg-[var(--primary-bg-subtle)] text-[var(--primary)] border border-[var(--primary-border)]">
                         {DIFFICULTY_LABELS[adaptedDifficulty]}
                     </span>
                 </div>
 
-                <div className="text-xl font-bold leading-relaxed" style={{ color: "var(--app-fg)" }}>
+                <div className="text-lg md:text-xl font-bold leading-relaxed" style={{ color: "var(--app-fg)" }}>
                     {currentQuestion.statement}
                 </div>
 
@@ -367,9 +367,9 @@ export default function MentorSession() {
 
                       return (
                         <button key={alt.letter} disabled={confirmed} onClick={() => setSelectedAnswer(alt.letter)}
-                                className={`flex items-start gap-5 p-5 rounded-2xl border-2 transition-all text-left ${statusStyle}`}>
-                          <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-black text-xs shrink-0">{alt.letter}</span>
-                          <span className="text-sm font-medium leading-relaxed flex-1">{alt.text}</span>
+                                className={`flex items-start gap-3 md:gap-5 p-4 md:p-5 rounded-xl md:rounded-2xl border-2 transition-all text-left ${statusStyle}`}>
+                          <span className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-white/5 flex items-center justify-center font-black text-xs shrink-0">{alt.letter}</span>
+                          <span className="text-xs md:text-sm font-medium leading-relaxed flex-1">{alt.text}</span>
                           {confirmed && isCorrect && <CheckCircle2 size={18} className="shrink-0" />}
                           {confirmed && isSelected && !isCorrect && <XCircle size={18} className="shrink-0" />}
                         </button>
@@ -395,18 +395,18 @@ export default function MentorSession() {
 
                 <div className="pt-6">
                     {!confirmed ? (
-                        <Button onClick={confirmAnswer} disabled={!selectedAnswer} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                        <Button onClick={confirmAnswer} disabled={!selectedAnswer} className="w-full py-6 md:py-5 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
                             Confirmar Resposta <ArrowRight size={14} className="ml-2" />
                         </Button>
                     ) : (
-                        <div className="flex gap-4">
-                             <div className={`flex-1 p-5 rounded-2xl border flex items-center gap-4 ${selectedAnswer === currentQuestion.correctAnswer ? 'bg-[var(--accent-green)]/10 border-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
-                                {selectedAnswer === currentQuestion.correctAnswer ? <Trophy size={20} /> : <AlertTriangle size={20} />}
-                                <span className="font-black text-sm uppercase tracking-widest">
+                        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                             <div className={`flex-1 p-4 md:p-5 rounded-xl md:rounded-2xl border flex items-center gap-3 md:gap-4 ${selectedAnswer === currentQuestion.correctAnswer ? 'bg-[var(--accent-green)]/10 border-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                                {selectedAnswer === currentQuestion.correctAnswer ? <Trophy size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
+                                <span className="font-black text-xs md:text-sm uppercase tracking-widest">
                                     {selectedAnswer === currentQuestion.correctAnswer ? "Objetivo Alcançado!" : "Erro Analisado"}
                                 </span>
                              </div>
-                             <Button onClick={() => checkEndOfSession(history)} className="px-10 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-widest transition-all">
+                             <Button onClick={() => checkEndOfSession(history)} className="w-full sm:w-auto px-10 py-5 md:py-0 rounded-xl md:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] md:text-xs font-black uppercase tracking-widest transition-all">
                                 Próxima <ChevronRight size={14} className="ml-1" />
                              </Button>
                         </div>
@@ -419,28 +419,28 @@ export default function MentorSession() {
 
         {/* ── PHASE: fixation ── */}
         {phase === "fixation" && diagnosis && (
-          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="max-w-3xl mx-auto space-y-8">
-            <div className="soe-card p-10 border-l-4 border-rose-500 relative overflow-hidden">
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="max-w-3xl mx-auto space-y-6 md:space-y-8">
+            <div className="soe-card p-6 md:p-10 border-l-4 border-rose-500 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
                     <ShieldCheck size={120} />
                 </div>
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-4 md:mb-6">
                     <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
                         <Activity size={20} />
                     </div>
-                    <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Diagnóstico de Erro</h2>
+                    <h2 className="text-lg md:text-xl font-black" style={{ color: "var(--app-fg)" }}>Diagnóstico de Erro</h2>
                 </div>
                 
-                <p className="text-lg font-medium leading-relaxed mb-8 opacity-80" style={{ color: "var(--app-fg)" }}>{diagnosis.diagnosis}</p>
+                <p className="text-base md:text-lg font-medium leading-relaxed mb-6 md:mb-8 opacity-80" style={{ color: "var(--app-fg)" }}>{diagnosis.diagnosis}</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Conceito Crítico</p>
-                        <p className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>{diagnosis.concept}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 border border-white/5 space-y-1 md:space-y-2">
+                        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest opacity-40">Conceito Crítico</p>
+                        <p className="text-xs md:text-sm font-bold" style={{ color: "var(--app-fg)" }}>{diagnosis.concept}</p>
                     </div>
-                    <div className="p-5 rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] opacity-60">Regra de Ouro</p>
-                        <p className="text-sm font-black text-[var(--primary)]">{diagnosis.rule}</p>
+                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] space-y-1 md:space-y-2">
+                        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-[var(--primary)] opacity-60">Regra de Ouro</p>
+                        <p className="text-xs md:text-sm font-black text-[var(--primary)]">{diagnosis.rule}</p>
                     </div>
                 </div>
             </div>
@@ -492,7 +492,7 @@ export default function MentorSession() {
                             Validar Fixação
                         </Button>
                     ) : (
-                        <Button onClick={nextAfterFixation} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                        <Button onClick={nextAfterFixation} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
                             {fixationIndex < diagnosis.fixationQuestions.length - 1 ? "Próxima Questão" : "Retomar Sessão Principal"}
                         </Button>
                     )}
@@ -536,7 +536,7 @@ export default function MentorSession() {
                         <Button variant="outline" onClick={() => { setHistory([]); setPhase("profile"); }} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">
                             Nova Sessão
                         </Button>
-                        <Button onClick={() => navigate("/")} className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                        <Button onClick={() => navigate("/")} className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
                             Concluir Relatório
                         </Button>
                     </div>

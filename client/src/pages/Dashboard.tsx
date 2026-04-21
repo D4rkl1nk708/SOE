@@ -49,6 +49,7 @@ export default function Dashboard() {
   const utils = trpc.useUtils();
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
   const { data: notes } = trpc.note.list.useQuery();
+  const { data: heatmapData } = trpc.dashboard.getHeatmap.useQuery({ months: 5 });
 
   // ─── Custom hooks ────────────────────────────────────────────────────────
   const exams = useExams();
@@ -104,186 +105,220 @@ export default function Dashboard() {
       <SleepWarning />
       <MassStudyAlert />
 
-      {/* Header */}
-      <div className="flex justify-between items-end gap-3 flex-wrap">
+      {/* Header - Adaptive for Mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--primary)" }}>Painel de Controle</h1>
-          <p className="text-sm font-medium opacity-60" style={{ color: "var(--muted-text)" }}>Gestão centralizada do seu desempenho e metas.</p>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight" style={{ color: "var(--primary)" }}>Painel de Controle</h1>
+          <p className="text-xs md:text-sm font-medium opacity-60" style={{ color: "var(--muted-text)" }}>Gestão centralizada do seu desempenho e metas.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={() => setCustomizeOpen(true)}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none gap-1.5 text-[10px] md:text-xs rounded-xl h-10 md:h-9" onClick={() => setCustomizeOpen(true)}>
             <LayoutDashboard className="h-3.5 w-3.5" /> Personalizar
           </Button>
-          <Button data-tour="import-tec" variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" disabled={tec.isImporting} onClick={() => tec.setDialogOpen(true)}>
-            <Upload className="h-3.5 w-3.5" /> {tec.isImporting ? "Importar TEC" : "Importar TEC"}
+          <Button data-tour="import-tec" variant="outline" size="sm" className="flex-1 sm:flex-none gap-1.5 text-[10px] md:text-xs rounded-xl h-10 md:h-9" disabled={tec.isImporting} onClick={() => tec.setDialogOpen(true)}>
+            <Upload className="h-3.5 w-3.5" /> {tec.isImporting ? "Importando..." : "Importar TEC"}
           </Button>
           <input ref={tec.fileInputRef} type="file" className="hidden" accept=".xlsx,.xls" onChange={tec.handleFileUpload} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* COLUNA ESQUERDA: ANALYTICS (8 colunas) */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* Core stats row */}
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-            {/* Taxa de Acerto */}
-            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Trophy className="w-10 h-10" />
-               </div>
-               <div>
-                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Aproveitamento</p>
-                 <span className="text-3xl font-black tabular-nums" style={{ color: accuracyColor }}>{avgAccuracy}%</span>
-               </div>
-               <div className="mt-3">
-                 <Progress value={avgAccuracy} className="h-1" />
-                 <p className="text-[9px] mt-1.5 opacity-60 font-medium">{totalQuestions} questões</p>
-               </div>
+      {/* Core stats row - SPAN FULL WIDTH */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Taxa de Acerto */}
+        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Trophy className="w-10 h-10 md:w-12 md:h-12" />
             </div>
-
-            {/* Revisões */}
-            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <CheckCircle2 className="w-10 h-10" />
-               </div>
-               <div>
-                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Revisões</p>
-                 <div className="flex items-baseline gap-2">
-                   <span className="text-3xl font-black tabular-nums text-emerald-500">{stats?.completedRevisions || 0}</span>
-                   <span className="text-xs font-bold opacity-40">/ {stats?.pendingRevisions || 0}</span>
-                 </div>
-               </div>
-               <div className="mt-3 flex gap-1">
-                  {Array.from({length: 5}).map((_, i) => (
-                    <div key={i} className="h-1 flex-1 rounded-full" style={{ background: i < (stats?.completedRevisions || 0) / 10 ? 'var(--accent-green)' : 'var(--card-border)' }} />
-                  ))}
-               </div>
+            <div>
+              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">Aproveitamento</p>
+              <span className="text-3xl md:text-4xl font-black tabular-nums" style={{ color: accuracyColor }}>{avgAccuracy}%</span>
             </div>
-
-            {/* Tempo de Estudo */}
-            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Clock className="w-10 h-10" />
-               </div>
-               <div>
-                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Tempo de Estudo</p>
-                 <span className="text-2xl font-black tabular-nums" style={{ color: "var(--primary)" }}>{formatStudyTime(totalStudyTime)}</span>
-               </div>
-               <div className="mt-3">
-                 <p className="text-[9px] opacity-60 font-medium">{stats?.totalTopics || 0} temas</p>
-                 <div className="flex items-center gap-1 mt-1">
-                   <TrendingUp className="w-2.5 h-2.5" style={{ color: "var(--primary)" }} />
-                   <span className="text-[8px] font-bold uppercase" style={{ color: "var(--primary)" }}>Em progresso</span>
-                 </div>
-               </div>
+            <div className="mt-3 md:mt-4">
+              <Progress value={avgAccuracy} className="h-1.5" />
+              <p className="text-[10px] md:text-xs mt-2 opacity-60 font-medium">{totalQuestions} questões resolvidas</p>
             </div>
-          </div>
-
-          {/* Heatmap */}
-          {widgets.showExtra("heatmap") && (
-            <div className="soe-card p-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest mb-4 opacity-60">Consistência de Estudo</h3>
-              <StudyHeatmap compact showStreakCard />
-            </div>
-          )}
-
-          {/* Discipline Performance Table */}
-          <div className="soe-card overflow-hidden">
-            <div className="px-5 py-4 flex justify-between items-center bg-white/5" style={{ borderBottom: "1px solid var(--card-border)" }}>
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-tight">Gestão de Disciplinas</h2>
-                <p className="text-[10px] opacity-50">Distribuição e progresso por matéria</p>
-              </div>
-              <Library className="w-4 h-4 opacity-30" />
-            </div>
-            <div className="p-2 space-y-1">
-              {drag.orderedStats.map((d) => (
-                <div key={d.disciplineId}>
-                  <div className="cursor-pointer rounded-2xl px-4 py-3.5 transition-all hover:bg-white/5 group"
-                    draggable onDragStart={() => drag.setDraggingDisciplineId(d.disciplineId)}
-                    onDragOver={(e) => e.preventDefault()} onDrop={() => drag.handleDropDiscipline(d.disciplineId)}
-                    onClick={() => setExpandedDiscipline(expandedDiscipline === d.disciplineId ? null : d.disciplineId)}>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: d.color, boxShadow: `0 0 10px ${d.color}44` }} />
-                        <span className="font-bold text-sm tracking-tight">{d.name}</span>
-                        <Badge variant="outline" className="text-[9px] px-1.5 h-4 opacity-60 font-black">{d.topicCount} temas</Badge>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-[10px] font-bold opacity-40 uppercase">Acurácia</p>
-                          <p className="text-sm font-black" style={{ color: (d.performance?.accuracy || 0) >= 70 ? "var(--accent-green)" : (d.performance?.accuracy || 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
-                            {d.performance?.accuracy || 0}%
-                          </p>
-                        </div>
-                        {expandedDiscipline === d.disciplineId ? <ChevronDown className="h-4 w-4 opacity-30" /> : <ChevronRight className="h-4 w-4 opacity-30" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {expandedDiscipline === d.disciplineId && (
-                    <div className="mx-2 mb-4 mt-2 rounded-2xl overflow-hidden border border-white/5 bg-black/20">
-                      {d.topics?.length > 0 ? (
-                        <>
-                          <div className="grid grid-cols-6 text-[9px] font-black uppercase tracking-widest py-2.5 px-4 bg-white/5 opacity-50">
-                            <span className="col-span-2">Assunto</span>
-                            <span className="text-center">Taxa</span>
-                            <span className="text-center">Acertos</span>
-                            <span className="text-center">Erros</span>
-                            <span className="text-center">Revisão</span>
-                          </div>
-                          {(d.topics ?? []).map((t) => (
-                            <div key={t.id} className="grid grid-cols-6 items-center py-3 px-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
-                              onClick={(e) => { e.stopPropagation(); questions.openDialog(t); }}>
-                              <div className="col-span-2 min-w-0">
-                                <p className="font-bold text-xs truncate">{t.name}</p>
-                                <p className="text-[10px] opacity-40">{t.studyDate ? format(parseISO(t.studyDate), "dd MMM") : "—"}</p>
-                              </div>
-                              <div className="text-center font-black text-xs" style={{ color: (t.performance?.accuracy ?? 0) >= 70 ? "var(--accent-green)" : (t.performance?.accuracy ?? 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
-                                {t.performance?.accuracy ?? 0}%
-                              </div>
-                              <div className="text-center text-xs font-bold text-emerald-500/80">{t.performance?.correctCount ?? "—"}</div>
-                              <div className="text-center text-xs font-bold text-rose-500/80">{t.performance?.errorCount ?? "—"}</div>
-                              <div className="text-center text-xs opacity-60 font-medium">
-                                {t.completedRevisions} rev.
-                              </div>
-                            </div>
-                          ))}
-                        </>
-                      ) : <p className="text-xs py-6 text-center opacity-30 font-medium">Lista vazia para esta disciplina.</p>}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* COLUNA DIREITA: ACTIONABLE (4 colunas) */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Próxima Prova Card (Destaque) */}
-          <div className="soe-card p-6 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20 relative overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform"
-            onClick={() => exams.openCreate()}>
-            <div className="absolute top-0 right-0 p-2">
-              <div className="bg-amber-500/20 p-2 rounded-full">
-                <Target className="w-5 h-5 text-amber-500" />
+        {/* Revisões */}
+        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12" />
+            </div>
+            <div>
+              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">Revisões</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl md:text-4xl font-black tabular-nums text-emerald-500">{stats?.completedRevisions || 0}</span>
+                <span className="text-xs font-bold opacity-40">/ {stats?.pendingRevisions || 0}</span>
               </div>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-4">Próxima Prova</p>
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-5xl font-black tracking-tighter text-white">{daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}</span>
-              <span className="text-lg font-bold text-amber-500/70">DIAS</span>
+            <div className="mt-3 md:mt-4 flex gap-1 md:gap-1.5">
+              {Array.from({length: 6}).map((_, i) => (
+                <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < (stats?.completedRevisions || 0) / 10 ? 'var(--accent-green)' : 'var(--card-border)' }} />
+              ))}
             </div>
-            <p className="text-sm font-black text-white/90 truncate">{nextUpcomingExam?.name || "Definir Próxima Prova"}</p>
-            {daysToExam !== null && daysToExam >= 0 && (
-              <div className="mt-6 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <div className="h-full bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all duration-1000" style={{ width: `${Math.max(2, Math.min(100, 100 - (daysToExam / 365) * 100))}%` }} />
+        </div>
+
+        {/* Tempo de Estudo */}
+        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Clock className="w-10 h-10 md:w-12 md:h-12" />
+            </div>
+            <div>
+              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">Tempo de Estudo</p>
+              <span className="text-3xl md:text-4xl font-black tabular-nums" style={{ color: "var(--primary)" }}>{formatStudyTime(totalStudyTime)}</span>
+            </div>
+            <div className="mt-3 md:mt-4">
+              <p className="text-[10px] md:text-xs opacity-60 font-medium truncate">{stats?.totalTopics || 0} temas catalogados</p>
+              <div className="flex items-center gap-1.5 mt-1.5 md:mt-2">
+                <TrendingUp className="w-3 h-3" style={{ color: "var(--primary)" }} />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--primary)" }}>Ritmo em evolução</span>
               </div>
-            )}
+            </div>
+        </div>
+
+        {/* Próxima Prova */}
+        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:bg-white/[0.02] transition-all border-amber-500/10"
+          onClick={() => exams.openCreate()}>
+            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Target className="w-10 h-10 md:w-12 md:h-12" />
+            </div>
+            <div>
+              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">Próxima Prova</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl md:text-4xl font-black tabular-nums" style={{ color: "var(--accent-amber)" }}>
+                  {daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}
+                </span>
+                <span className="text-[10px] md:text-xs font-black opacity-40 uppercase tracking-widest">Dias</span>
+              </div>
+            </div>
+            <div className="mt-3 md:mt-4">
+              <p className="text-[10px] md:text-xs font-black truncate opacity-80" style={{ color: "var(--app-fg)" }}>
+                {nextUpcomingExam?.name || "Definir Prova"}
+              </p>
+              {daysToExam !== null && daysToExam >= 0 && (
+                <div className="mt-2 md:mt-2.5 h-1 md:h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-full bg-[var(--accent-amber)] shadow-[0_0_12px_var(--accent-amber)] transition-all duration-1000" 
+                    style={{ width: `${Math.max(2, Math.min(100, 100 - (daysToExam / 365) * 100))}%` }} />
+                </div>
+              )}
+            </div>
+        </div>
+      </div>
+       {/* Heatmap Section */}
+      {widgets.showExtra("heatmap") && (
+        <div className="soe-card p-6">
+          <div className="flex items-center justify-between mb-6">
+             <div>
+                <h3 className="text-sm font-black uppercase tracking-widest opacity-60">Consistência de Estudo</h3>
+                <p className="text-[10px] opacity-40 mt-0.5">Seu histórico de dedicação nos últimos meses</p>
+             </div>
+             <BarChart2 className="w-5 h-5 opacity-20" />
           </div>
+          <StudyHeatmap logs={heatmapData as any} compact showStreakCard />
+        </div>
+      )}
+
+      {/* Discipline Management — CENTRALIZED FULL WIDTH */}
+      <div className="soe-card overflow-hidden">
+        <div className="px-4 md:px-6 py-4 md:py-5 flex justify-between items-center bg-white/[0.02]" style={{ borderBottom: "1px solid var(--card-border)" }}>
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-2.5 rounded-xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)]">
+                <Library className="w-4 h-4 md:w-5 md:h-5 text-[var(--primary)]" />
+            </div>
+            <div>
+                <h2 className="text-sm md:text-base font-black uppercase tracking-tight">Gestão de Disciplinas</h2>
+                <p className="text-[10px] md:text-xs opacity-50">Sua evolução por matéria</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 pr-2 opacity-40 text-[10px] font-black uppercase tracking-widest hidden sm:flex">
+             <span>Progresso</span>
+             <span>Desempenho</span>
+          </div>
+        </div>
+        <div className="p-3 space-y-2">
+          {drag.orderedStats.map((d) => (
+            <div key={d.disciplineId} className="group">
+              <div className="cursor-pointer rounded-2xl px-6 py-4 transition-all hover:bg-white/[0.03] border border-transparent hover:border-white/5"
+                draggable onDragStart={() => drag.setDraggingDisciplineId(d.disciplineId)}
+                onDragOver={(e) => e.preventDefault()} onDrop={() => drag.handleDropDiscipline(d.disciplineId)}
+                onClick={() => setExpandedDiscipline(expandedDiscipline === d.disciplineId ? null : d.disciplineId)}>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-5">
+                    <div className="w-4 h-4 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.5)] border-2 border-white/20" style={{ backgroundColor: d.color, boxShadow: `0 0 12px ${d.color}66` }} />
+                    <div className="space-y-0.5">
+                        <span className="font-black text-sm tracking-tight block">{d.name}</span>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[9px] px-1.5 h-4 opacity-50 font-black bg-white/5 border-white/10">{d.topicCount} temas</Badge>
+                            <span className="text-[10px] opacity-30 font-bold">{formatStudyTime(d.studyTimeSeconds || 0)} investidos</span>
+                        </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-8">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[10px] font-black opacity-30 uppercase tracking-widest mb-1">Acurácia Global</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-32 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full transition-all duration-1000" style={{ width: `${d.performance?.accuracy || 0}%`, backgroundColor: (d.performance?.accuracy || 0) >= 70 ? "var(--accent-green)" : (d.performance?.accuracy || 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }} />
+                        </div>
+                        <p className="text-sm font-black w-10" style={{ color: (d.performance?.accuracy || 0) >= 70 ? "var(--accent-green)" : (d.performance?.accuracy || 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
+                            {d.performance?.accuracy || 0}%
+                        </p>
+                      </div>
+                    </div>
+                    {expandedDiscipline === d.disciplineId ? <ChevronDown className="h-5 w-5 opacity-20" /> : <ChevronRight className="h-5 w-5 opacity-20" />}
+                  </div>
+                </div>
+              </div>
+
+              {expandedDiscipline === d.disciplineId && (
+                <div className="mx-4 mb-4 mt-2 rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 animate-in slide-in-from-top-2 duration-300">
+                  {d.topics?.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-6 text-[10px] font-black uppercase tracking-widest py-4 px-8 bg-white/5 opacity-40">
+                        <span className="col-span-2">Assunto / Tema</span>
+                        <span className="text-center">Taxa</span>
+                        <span className="text-center">Acertos</span>
+                        <span className="text-center">Erros</span>
+                        <span className="text-center">Progresso</span>
+                      </div>
+                      {(d.topics ?? []).map((t) => (
+                        <div key={t.id} className="grid grid-cols-6 items-center py-4 px-8 border-b border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer group/row"
+                          onClick={(e) => { e.stopPropagation(); questions.openDialog(t); }}>
+                          <div className="col-span-2 min-w-0">
+                            <p className="font-bold text-xs truncate group-hover/row:text-[var(--primary)] transition-colors">{t.name}</p>
+                            <p className="text-[10px] opacity-30 mt-0.5 font-medium">Último estudo: {t.studyDate ? format(parseISO(t.studyDate), "dd 'de' MMM", { locale: ptBR }) : "Não iniciado"}</p>
+                          </div>
+                          <div className="text-center font-black text-xs" style={{ color: (t.performance?.accuracy ?? 0) >= 70 ? "var(--accent-green)" : (t.performance?.accuracy ?? 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
+                            {t.performance?.accuracy ?? 0}%
+                          </div>
+                          <div className="text-center text-xs font-bold text-emerald-500/80">{t.performance?.correctCount ?? 0}</div>
+                          <div className="text-center text-xs font-bold text-rose-500/80">{t.performance?.errorCount ?? 0}</div>
+                          <div className="flex flex-col items-center gap-1">
+                             <div className="w-16 h-1 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full bg-[var(--primary)]" style={{ width: `${Math.min(100, (t.completedRevisions / 5) * 100)}%` }} />
+                             </div>
+                             <span className="text-[9px] font-bold opacity-30 uppercase">{t.completedRevisions} revs</span>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : <p className="text-xs py-10 text-center opacity-30 font-medium tracking-widest uppercase">Nenhum tema vinculado</p>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8 space-y-6">
+          {/* Espaço para futuros widgets principais ou expansões */}
+        </div>
+
+        <div className="lg:col-span-4 space-y-6">
+
+          
+
 
           {/* Quick Actions (Compact) */}
           {widgets.showExtra("quickActions") && (
@@ -294,9 +329,9 @@ export default function Dashboard() {
                 { href: "/notes", label: "Anotações", color: "var(--accent-green)", icon: FileText },
                 { href: "/statistics", label: "Análise", color: "var(--accent-blue)", icon: BarChart2 },
               ].map(({ href, label, color, icon: Icon }) => (
-                <a key={href} href={href} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:-translate-y-1">
+                <a key={href} href={href} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[var(--stat-bg)] border border-[var(--card-border)] hover:bg-[var(--primary-bg-subtle)] transition-all hover:-translate-y-1">
                   <Icon className="w-6 h-6" style={{ color }} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{label}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>{label}</span>
                 </a>
               ))}
             </div>
@@ -327,7 +362,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs font-bold text-emerald-500">Anotações Salvas</p>
-                <p className="text-[10px] text-white/50">{notes!.length} notas prontas para revisão.</p>
+                <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>{notes!.length} notas prontas para revisão.</p>
               </div>
             </div>
           )}
@@ -335,14 +370,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {widgets.showExtra("notes") && (notes?.length ?? 0) > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "rgba(176,104,32,0.06)", border: "1px solid rgba(176,104,32,0.16)" }}>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold" style={{ color: "var(--accent-amber)" }}>{notes!.length} anotação{notes!.length !== 1 ? "ões" : ""}</p>
-            {notes![0] && <p className="text-xs truncate" style={{ color: "var(--muted-text)" }}>Última: {notes![0].title}</p>}
-          </div>
-        </div>
-      )}
+
 
       {/* ── Customize Dialog ── */}
       <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>

@@ -380,13 +380,13 @@ export default function Notes() {
   const activeTopic = allTopics.find((t: any) => t.id === (activeNote as any)?.topicId);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-[var(--app-bg)]">
+    <div className="flex h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-[var(--app-bg)] relative">
       {/* Glassmorphism Sidebar */}
-      <div className={`${activeNoteId && "hidden md:flex"} flex flex-col w-[320px] shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl`}>
+      <div className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl transition-all`}>
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Notes</h1>
-                <button onClick={() => setIsCreating(true)} className="p-2 rounded-xl bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+                <button onClick={() => setIsCreating(true)} className="p-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all">
                     <Plus size={18} />
                 </button>
             </div>
@@ -399,7 +399,7 @@ export default function Notes() {
 
             <div className="flex gap-1.5 flex-wrap">
                 <button onClick={() => setFilterDisciplineId(null)}
-                    className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${!filterDisciplineId ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white/5 text-white/30 border-white/5'}`}>
+                    className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${!filterDisciplineId ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]' : 'bg-white/5 text-white/30 border-white/5'}`}>
                     Todos
                 </button>
                 {disciplines.filter((d: any) => notes.some((n: any) => n.disciplineId === d.id)).map((d: any) => (
@@ -460,7 +460,7 @@ export default function Notes() {
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-40">{isDirty ? "Salvando..." : "Sincronizado"}</span>
                         </div>
                         <button onClick={handleGenerateFlashcards} disabled={generateFlashcardsMut.isPending}
-                            className="relative group overflow-hidden px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--accent-blue)] text-white shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all">
+                            className="relative group overflow-hidden px-4 py-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--accent-blue)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all">
                             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                             <div className="flex items-center gap-2 relative">
                                 <Sparkles size={14} className="animate-pulse" />
@@ -491,7 +491,7 @@ export default function Notes() {
                     <p className="text-sm opacity-30 max-w-sm mx-auto leading-relaxed">Organize seus conhecimentos em resumos ricos e deixe a IA transformar tudo em flashcards automaticamente.</p>
                 </div>
                 <div className="flex gap-4">
-                    <button onClick={() => setIsCreating(true)} className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
+                    <button onClick={() => setIsCreating(true)} className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
                         + Nova Anotação
                     </button>
                     <button onClick={() => { setIsCreating(true); importFileRef.current?.click(); }} className="px-8 py-4 rounded-2xl bg-white/5 border border-white/5 font-black text-xs uppercase tracking-widest opacity-60 hover:opacity-100 transition-all">
@@ -544,7 +544,7 @@ export default function Notes() {
                       <div className="flex gap-3 pt-4">
                           <button onClick={() => setIsCreating(false)} className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 opacity-40">Cancelar</button>
                           <button onClick={handleCreate} disabled={!newTitle.trim() || !newDisciplineId}
-                              className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] transition-all disabled:opacity-20">
+                              className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] transition-all disabled:opacity-20">
                               Criar Documento
                           </button>
                       </div>

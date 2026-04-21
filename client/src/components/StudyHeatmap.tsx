@@ -9,7 +9,13 @@ interface SessionLog {
   accuracy: number;
 }
 
-export function StudyHeatmap({ logs }: { logs: SessionLog[] }) {
+interface StudyHeatmapProps {
+  logs?: SessionLog[];
+  compact?: boolean;
+  showStreakCard?: boolean;
+}
+
+export function StudyHeatmap({ logs = [], compact, showStreakCard }: StudyHeatmapProps) {
   const days = useMemo(() => {
     const end = startOfToday();
     const start = subDays(end, 18 * 7 - 1); // 18 weeks
@@ -18,7 +24,8 @@ export function StudyHeatmap({ logs }: { logs: SessionLog[] }) {
     // Group logs by date
     const logMap: Record<string, number> = {};
     logs.forEach(l => {
-      logMap[l.date] = (logMap[l.date] || 0) + l.durationMin;
+      const mins = (l as any).minutes ?? l.durationMin ?? 0;
+      logMap[l.date] = (logMap[l.date] || 0) + mins;
     });
 
     return interval.map(date => {

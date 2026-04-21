@@ -9,7 +9,10 @@ const GEMINI_MODELS = [
   "gemini-2.0-flash",
   "gemini-2.0-flash-lite",
   "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
   "gemini-1.5-pro",
+  "gemini-1.5-pro-latest",
+  "gemini-pro",
 ];
 
 interface GeminiErrorResponse {
@@ -176,8 +179,9 @@ export async function callAiProvider(
       
       const isQuota = err.message.toLowerCase().includes("quota") || err.message.toLowerCase().includes("exceeded") || err.message.includes("429");
       const isInvalid = err.message.toLowerCase().includes("invalid") || err.message.toLowerCase().includes("key") || err.message.includes("401");
+      const isNotFound = err.message.toLowerCase().includes("not found") || err.message.toLowerCase().includes("not supported");
       
-      if (apiKeys.length > 1 && (isQuota || isInvalid)) {
+      if (apiKeys.length > 1 && (isQuota || isInvalid || isNotFound)) {
         continue; // Tenta a próxima chave
       }
       throw err; // Propaga o erro se for fatal ou única chave

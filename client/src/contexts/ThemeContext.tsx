@@ -46,8 +46,9 @@ function applyTheme(colorTheme: ColorTheme, darkMode: DarkMode) {
   const cfg = COLOR_THEMES[colorTheme];
   const isDark = darkMode === "dark";
   const primary = isDark ? cfg.dark : cfg.light;
-  const fgOnPrimary = isDark ? "#0a0a0a" : "#ffffff";
   const { r, g, b } = hexToRgb(primary);
+  const luminosity = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const fgOnPrimary = luminosity > 160 ? "#0a0a0a" : "#ffffff";
 
   // 1. Set dark/light class first (controls bg/border/text surfaces)
   root.classList.remove("light", "dark");
@@ -64,13 +65,13 @@ function applyTheme(colorTheme: ColorTheme, darkMode: DarkMode) {
     "--gold": primary,
     "--gold-light": primary,
     "--gold-dark": isDark ? cfg.light : cfg.dark,
-    "--sidebar-active-bg": `rgba(${r},${g},${b},${isDark ? 0.2 : 0.1})`,
-    "--sidebar-active-fg": primary,
-    "--sidebar-active-border": `rgba(${r},${g},${b},${isDark ? 0.3 : 0.2})`,
-    "--sidebar-accent": `rgba(${r},${g},${b},${isDark ? 0.12 : 0.07})`,
-    "--sidebar-accent-foreground": primary,
-    "--primary-shadow": `rgba(${r},${g},${b},${isDark ? 0.45 : 0.35})`,
-    "--primary-bg-subtle": `rgba(${r},${g},${b},${isDark ? 0.15 : 0.08})`,
+    "--sidebar-active-bg": `rgba(${r},${g},${b},${isDark ? 0.25 : (luminosity > 200 ? 0.15 : 0.1)})`,
+    "--sidebar-active-fg": fgOnPrimary === "#0a0a0a" ? "#000000" : primary,
+    "--sidebar-active-border": `rgba(${r},${g},${b},${isDark ? 0.4 : 0.2})`,
+    "--sidebar-accent": `rgba(${r},${g},${b},${isDark ? 0.15 : 0.08})`,
+    "--sidebar-accent-foreground": fgOnPrimary === "#0a0a0a" ? "#000000" : primary,
+    "--primary-shadow": `rgba(${r},${g},${b},${isDark ? 0.5 : 0.3})`,
+    "--primary-bg-subtle": `rgba(${r},${g},${b},${isDark ? 0.2 : (luminosity > 200 ? 0.12 : 0.08)})`,
   };
 
   for (const [k, v] of Object.entries(vars)) {

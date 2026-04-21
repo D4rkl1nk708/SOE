@@ -325,7 +325,7 @@ export default function Sync() {
             </div>
             <button
               onClick={() => setFlipped(true)}
-              className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
               <RotateCw size={14} /> Revelar QR Code
             </button>
           </div>
@@ -464,9 +464,9 @@ export default function Sync() {
                 </p>
                 <div className="grid gap-4">
                   <button onClick={handlePull} disabled={pulling}
-                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all">
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-2xl bg-[var(--primary-foreground)]/20 flex items-center justify-center">
                         {pulling ? <RefreshCw className="animate-spin" /> : <ArrowDownToLine />}
                       </div>
                       <div className="text-left">

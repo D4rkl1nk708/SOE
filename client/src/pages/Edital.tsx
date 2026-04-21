@@ -339,7 +339,7 @@ function EditalTab({ rows, setRows, data }: {
               {/* Step 1 — Tabs */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0" style={{ background: "var(--primary)" }}>1</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-[var(--primary-foreground)] shrink-0" style={{ background: "var(--primary)" }}>1</div>
                   <h3 className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>Cada disciplina é uma aba separada</h3>
                 </div>
                 {/* Visual mockup of Excel tabs */}
@@ -352,7 +352,7 @@ function EditalTab({ rows, setRows, data }: {
                       <div key={tab} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border"
                         style={{
                           background: i === 0 ? "var(--primary)" : "var(--stat-bg)",
-                          color: i === 0 ? "white" : "var(--muted-text)",
+                          color: i === 0 ? "var(--primary-foreground)" : "var(--muted-text)",
                           borderColor: i === 0 ? "var(--primary)" : "var(--card-border)",
                         }}>
                         <BookOpen className="h-3 w-3" /> {tab}
@@ -368,7 +368,7 @@ function EditalTab({ rows, setRows, data }: {
               {/* Step 2 — Visual table */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0" style={{ background: "var(--primary)" }}>2</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-[var(--primary-foreground)] shrink-0" style={{ background: "var(--primary)" }}>2</div>
                   <h3 className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>Estrutura das colunas dentro de cada aba</h3>
                 </div>
                 <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--card-border)" }}>
@@ -431,7 +431,7 @@ function EditalTab({ rows, setRows, data }: {
 
             <div className="px-6 pb-6">
               <button onClick={() => setShowGuide(false)}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:opacity-85"
+                className="w-full py-3 rounded-xl font-bold text-[var(--primary-foreground)] text-sm transition-all hover:opacity-85"
                 style={{ background: "var(--primary)" }}>
                 Entendido, vou importar!
               </button>
@@ -469,7 +469,7 @@ function EditalTab({ rows, setRows, data }: {
         </button>
         <button onClick={() => fileRef.current?.click()} disabled={importing}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-          style={{ background: "var(--primary)", color: "white" }}>
+          style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
           <Upload className="h-4 w-4" />{importing ? "Importando..." : "Importar xlsx"}
         </button>
         {rows.length > 0 && (
@@ -513,7 +513,7 @@ function EditalTab({ rows, setRows, data }: {
             ["sem_acerto", "Sem acerto", "var(--muted-text)"],
           ] as [string, string, string | null][]).map(([val, label, color]) => (
             <button key={val} onClick={() => setFilterFlag(val as any)}
-              className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${filterFlag === val ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
+              className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${filterFlag === val ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
               {label}
             </button>
           ))}
@@ -538,7 +538,7 @@ function EditalTab({ rows, setRows, data }: {
               Ver Guia
             </button>
             <button onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95"
+              className="flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95"
               style={{ background: "var(--primary)" }}>
               <Upload className="h-4 w-4" /> Importar Agora
             </button>

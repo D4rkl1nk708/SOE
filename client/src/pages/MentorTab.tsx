@@ -115,7 +115,7 @@ export default function MentorTab() {
       {/* Sidebar - Modern Glass List */}
       <div className="hidden md:flex flex-col w-72 shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl">
         <div className="p-6 space-y-6">
-            <button onClick={createNewSession} className="group relative w-full overflow-hidden p-4 rounded-2xl bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+            <button onClick={createNewSession} className="group relative w-full overflow-hidden p-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 <div className="relative flex items-center justify-center gap-3">
                     <Plus size={18} />
@@ -174,7 +174,7 @@ export default function MentorTab() {
             <div className="flex items-center gap-4">
                 <div className="relative">
                     <div className="absolute inset-0 bg-[var(--primary)] blur-xl opacity-20" />
-                    <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-white shadow-lg shadow-[var(--primary-shadow)]">
+                    <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]">
                         <Brain size={20} />
                     </div>
                 </div>
@@ -239,7 +239,7 @@ export default function MentorTab() {
                             </p>
                         </div>
                         <button onClick={() => navigate("/profile#settings")}
-                            className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
+                            className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
                             Ir para Configurações
                         </button>
                     </div>
@@ -248,10 +248,10 @@ export default function MentorTab() {
                         {messages.map((m, i) => (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={i}
                                 className={`flex gap-6 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                                <div className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg transition-all ${m.role === "user" ? 'bg-[var(--primary)] text-white shadow-[var(--primary-shadow)]' : 'bg-white/5 text-[var(--primary)]'}`}>
+                                <div className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg transition-all ${m.role === "user" ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[var(--primary-shadow)]' : 'bg-white/5 text-[var(--primary)]'}`}>
                                     {m.role === "user" ? <User size={18} /> : <GraduationCap size={18} />}
                                 </div>
-                                <div className={`relative p-6 rounded-[2rem] max-w-[85%] border ${m.role === "user" ? 'bg-white/5 border-white/10 text-white' : 'bg-transparent border-transparent text-[var(--app-fg)]'}`}>
+                                <div className={`relative p-6 rounded-[2rem] max-w-[85%] border ${m.role === "user" ? 'bg-white/5 border-white/10 text-[var(--app-fg)]' : 'bg-transparent border-transparent text-[var(--app-fg)]'}`}>
                                     {m.role === "assistant" ? <RenderText text={m.content} /> : <p className="text-sm leading-relaxed opacity-90">{m.content}</p>}
                                 </div>
                             </motion.div>
@@ -290,7 +290,7 @@ export default function MentorTab() {
                             rows={1} className="flex-1 bg-transparent border-none outline-none py-4 text-sm font-medium placeholder:opacity-20 resize-none min-h-[56px] max-h-32 custom-scrollbar"
                             style={{ color: "var(--app-fg)" }} />
                         <button onClick={handleSend} disabled={!input.trim() || chatMut.isPending}
-                            className="p-4 rounded-[1.5rem] bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100">
+                            className="p-4 rounded-[1.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100">
                             {chatMut.isPending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                         </button>
                     </div>

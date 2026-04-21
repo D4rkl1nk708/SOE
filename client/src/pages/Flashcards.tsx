@@ -118,7 +118,7 @@ function ReviewSession({
         </div>
 
         <button onClick={onDone}
-          className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-95"
+          className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-95"
           style={{ background: "var(--primary)" }}>
           Retornar ao Painel
         </button>
@@ -126,7 +126,8 @@ function ReviewSession({
     );
   }
 
-  const disc = (disciplines as any[]).find((d: any) => d.id === card.disciplineId);
+  if (!card && !done) return null;
+  const disc = card ? (disciplines as any[]).find((d: any) => d.id === card.disciplineId) : null;
 
   return (
     <div className="flex flex-col h-full max-w-2xl mx-auto py-6 gap-6">
@@ -233,7 +234,7 @@ function ReviewSession({
             </div>
         ) : (
             <button onClick={() => setFlipped(true)}
-            className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
+            className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
             style={{ background: "var(--primary)" }}>
             Revelar Resposta
             </button>
@@ -326,7 +327,7 @@ function FlashcardForm({
           Descartar
         </button>
         <button onClick={handleSubmit}
-          className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
+          className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ background: "var(--primary)" }}>
           {initial ? "Salvar Alterações" : "Gerar Flashcard"}
         </button>
@@ -389,7 +390,7 @@ export default function Flashcards() {
                     <p className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>Tudo em Dia!</p>
                     <p className="text-sm opacity-50">Você completou todas as revisões desta seleção.</p>
                 </div>
-                <button onClick={() => setMode("list")} className="px-10 py-3 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest">Painel Principal</button>
+                <button onClick={() => setMode("list")} className="px-10 py-3 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest">Painel Principal</button>
             </div>
         ) : (
             <ReviewSession cards={reviewCards} onDone={() => setMode("list")} hardMode={hardMode} />
@@ -427,7 +428,7 @@ export default function Flashcards() {
           </div>
         </div>
         <button onClick={() => setMode("create")}
-            className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
+            className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
             <Plus className="h-4 w-4" /> Novo Flashcard
         </button>
       </div>
@@ -470,7 +471,7 @@ export default function Flashcards() {
                 </div>
                 <div className="flex flex-col gap-3 w-full md:w-auto">
                     <button onClick={() => { setReviewFilter("due"); setMode("review"); }}
-                        className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
                         <Zap size={14} /> Começar Sessão
                     </button>
                     <button onClick={() => setHardMode(!hardMode)}
@@ -489,7 +490,7 @@ export default function Flashcards() {
             <Filter size={14} className="opacity-40" />
         </div>
         <button onClick={() => setFilterDisc(null)}
-          className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all border ${!filterDisc ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
+          className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all border ${!filterDisc ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
           Todos
         </button>
         {disciplines.filter((d: any) => cards.some((c: any) => c.disciplineId === d.id)).map((d: any) => (
