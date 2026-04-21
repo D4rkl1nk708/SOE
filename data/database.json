@@ -28,14 +28,14 @@
         "sleepLog": [
           {
             "date": "2026-04-21",
-            "endStudyHour": 23,
+            "endStudyHour": 0,
             "alertIssued": true
           }
         ]
       },
       "createdAt": "2026-04-20T22:47:06.510Z",
-      "updatedAt": "2026-04-21T02:16:05.640Z",
-      "lastSignedIn": "2026-04-21T02:16:05.640Z"
+      "updatedAt": "2026-04-21T03:26:15.723Z",
+      "lastSignedIn": "2026-04-21T03:26:15.723Z"
     }
   ],
   "disciplines": [],

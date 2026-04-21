@@ -57,9 +57,10 @@ export default function MentorTab() {
     onSuccess: (data) => {
       setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
     },
-    onError: (err) => {
+    onError: (err, variables) => {
       toast.error(err.message);
-      setMessages(prev => prev.slice(0, -1)); // remove user msg on error
+      setMessages(prev => prev.slice(0, -1)); // remove user msg from history
+      setInput(variables.message); // restore user's text back to the input box so they can just press enter again
     }
   });
 

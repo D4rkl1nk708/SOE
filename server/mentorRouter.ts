@@ -869,7 +869,7 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
       
       const topicsStr = topics.sort((a, b) => b.studyDate.localeCompare(a.studyDate))
                               .slice(0, 10)
-                              .map(t => t.name).join(", ");
+                              .map(t => `ID: ${t.id} | DiscID: ${t.disciplineId} | Nome: ${t.name}`).join("\n");
 
       const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
       
@@ -892,6 +892,18 @@ ${topicsStr || "Nenhum tópico em andamento."}
 Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, ou usar as questões erradas para testá-lo.
 Se o aluno pedir questões, gere-as focadas nos pontos fracos. Seja sempre direto, motivador e extremamente personalizado. Use markdown para negritos.
 
+🚨 ALERTA TEÓRICO: Analise ativamente as anotações recentes do aluno fornecidas acima. Se você notar qualquer erro conceitual grave, desatualização jurisprudencial ou legislativa, alerte-o imediatamente!
+
+Poder Mágico 1 (Criação de Flashcards):
+Se o aluno te pedir para criar um ou mais flashcards sobre algum assunto, você PODE criá-los automaticamente. Para isso, basta incluir no final da sua resposta blocos exatamente neste formato:
+[FLASHCARD]{"front": "Pergunta do flashcard", "back": "Resposta curta e direta", "disciplineId": 123, "topicId": 123}[/FLASHCARD]
+Se você não souber o disciplineId ou topicId correto, escolha o DiscID/ID do tópico mais próximo do assunto listado acima. Você pode emitir vários blocos [FLASHCARD].
+
+Poder Mágico 2 (Agendamento de Revisões):
+Se o aluno pedir para adiar ou reagendar o estudo/revisão de alguma matéria, você pode fazer isso automaticamente por ele gerando o seguinte bloco no final da resposta:
+[RESCHEDULE]{"topicId": 123, "newDate": "YYYY-MM-DD"}[/RESCHEDULE]
+Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${new Date().toISOString().split('T')[0]}). Pode gerar vários blocos se necessário.
+
 HISTÓRICO DA CONVERSA:
 ${transcript}
 
@@ -899,8 +911,64 @@ Aluno: ${input.message}
 Mentor:`;
 
       try {
-        const reply = await callAI(input.provider, input.apiKey, prompt, 1500);
-        return { reply: reply.trim() };
+        let reply = await callAI(input.provider, input.apiKey, prompt, 1500);
+        let finalReply = reply.trim();
+        
+        // Extract and execute Flashcards
+        const flashcardRegex = /\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g;
+        let match;
+        let createdCount = 0;
+        
+        while ((match = flashcardRegex.exec(finalReply)) !== null) {
+          try {
+            const data = JSON.parse(match[1]);
+            if (data.front && data.back && data.disciplineId) {
+              await storage.createFlashcard({
+                userId: ctx.user.id,
+                disciplineId: Number(data.disciplineId),
+                topicId: data.topicId ? Number(data.topicId) : undefined,
+                front: data.front,
+                back: data.back
+              });
+              createdCount++;
+            }
+          } catch (e) {
+            console.error("Falha ao parsear flashcard gerado pela IA:", e);
+          }
+        }
+        
+        // Extract and execute Reschedules
+        const rescheduleRegex = /\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g;
+        let reschedMatch;
+        let rescheduledCount = 0;
+        
+        while ((reschedMatch = rescheduleRegex.exec(finalReply)) !== null) {
+          try {
+            const data = JSON.parse(reschedMatch[1]);
+            if (data.topicId && data.newDate) {
+              const pendingRev = revisions.find(r => r.topicId === Number(data.topicId) && !r.completed && !r.ignored);
+              if (pendingRev) {
+                 await storage.rescheduleRevision(pendingRev.id, ctx.user.id, data.newDate);
+                 rescheduledCount++;
+              }
+            }
+          } catch (e) {
+            console.error("Falha ao parsear reagendamento gerado pela IA:", e);
+          }
+        }
+        
+        // Remove tags from user view
+        finalReply = finalReply.replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "").trim();
+        finalReply = finalReply.replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "").trim();
+        
+        if (createdCount > 0) {
+          finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} automaticamente para você! Estão na sua aba de Revisão)*`;
+        }
+        if (rescheduledCount > 0) {
+          finalReply += `\n\n📅 *(Reagendei ${rescheduledCount} revisão${rescheduledCount > 1 ? 'ões' : ''} automaticamente para você!)*`;
+        }
+
+        return { reply: finalReply };
       } catch (err: any) {
         throw new Error(`Falha no chat: ${err instanceof Error ? err.message : String(err)}`);
       }
