@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -296,7 +296,19 @@ function EditalTab({ rows, setRows, data }: {
   const inputStyle = { background: "var(--input-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header Imersivo */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)]">
+            <FileSpreadsheet className="w-6 h-6 text-[var(--primary)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Conteúdo Programático</h1>
+            <p className="text-sm opacity-60">Mapeamento completo do seu edital e evolução por tópico.</p>
+          </div>
+        </div>
+      </div>
       {/* Guide modal */}
       {showGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -431,7 +443,7 @@ function EditalTab({ rows, setRows, data }: {
       {/* Confirm clear modal */}
       {confirmClear && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }}>
-          <div className="w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: "var(--card-bg, var(--app-bg))", border: "1px solid var(--card-border)" }}>
+          <div className="w-full max-sm rounded-2xl p-6 space-y-4" style={{ background: "var(--card-bg, var(--app-bg))", border: "1px solid var(--card-border)" }}>
             <h3 className="font-black text-base" style={{ color: "var(--app-fg)" }}>Limpar conteúdo?</h3>
             <p className="text-sm" style={{ color: "var(--muted-text)" }}>Isso apaga todos os tópicos. Não pode ser desfeito.</p>
             <div className="flex gap-3">
@@ -471,16 +483,20 @@ function EditalTab({ rows, setRows, data }: {
 
       {/* Stats bar */}
       {totalTopics > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total de tópicos", value: totalTopics, color: "var(--primary)" },
-            { label: "Concluídos", value: completedTopics, color: "var(--accent-green)" },
-            { label: "Para revisar", value: revisarCount, color: "var(--accent-amber)" },
-            { label: "Para avançar", value: avancarCount, color: "var(--accent-blue, #2563eb)" },
+            { label: "Total de tópicos", value: totalTopics, color: "var(--primary)", icon: BookOpen },
+            { label: "Concluídos", value: completedTopics, color: "#10b981", icon: CheckCircle2 },
+            { label: "Para revisar", value: revisarCount, color: "#f59e0b", icon: TrendingUp },
+            { label: "Para avançar", value: avancarCount, color: "#3b82f6", icon: ChevronRight },
           ].map(s => (
-            <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-              <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{s.label}</p>
+            <div key={s.label} className="soe-card p-5 relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{s.label}</p>
+                <s.icon className="w-4 h-4 opacity-20 group-hover:opacity-100 transition-opacity" style={{ color: s.color }} />
+              </div>
+              <p className="text-3xl font-black tabular-nums" style={{ color: s.color }}>{s.value}</p>
+              <div className="absolute bottom-0 left-0 h-1 bg-current opacity-10 transition-all group-hover:opacity-30" style={{ width: '100%', color: s.color }} />
             </div>
           ))}
         </div>
@@ -497,12 +513,7 @@ function EditalTab({ rows, setRows, data }: {
             ["sem_acerto", "Sem acerto", "var(--muted-text)"],
           ] as [string, string, string | null][]).map(([val, label, color]) => (
             <button key={val} onClick={() => setFilterFlag(val as any)}
-              className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-              style={{
-                background: filterFlag === val ? (color || "var(--primary)") : "var(--stat-bg)",
-                color: filterFlag === val ? "white" : "var(--muted-text)",
-                border: "1px solid var(--card-border)",
-              }}>
+              className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${filterFlag === val ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
               {label}
             </button>
           ))}
@@ -511,20 +522,27 @@ function EditalTab({ rows, setRows, data }: {
 
       {/* Empty state */}
       {rows.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 gap-5 rounded-2xl"
-          style={{ border: "2px dashed var(--card-border)" }}>
-          <FileSpreadsheet className="h-14 w-14" style={{ color: "var(--muted-text)", opacity: 0.3 }} />
-          <div className="text-center">
-            <p className="font-bold text-lg" style={{ color: "var(--app-fg)" }}>Nenhum conteúdo programático</p>
-            <p className="text-sm mt-1 max-w-sm" style={{ color: "var(--muted-text)" }}>
-              Importe sua planilha xlsx no formato com disciplinas em abas separadas, cada uma com colunas de Índice, Quantidade, Porcentagem e Acerto.
+        <div className="flex flex-col items-center justify-center py-24 gap-6 rounded-[2rem] border-2 border-dashed border-white/5 bg-white/[0.02]">
+          <div className="w-24 h-24 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)]">
+            <Upload className="h-10 w-10 text-[var(--primary)] animate-bounce" />
+          </div>
+          <div className="text-center space-y-2">
+            <p className="font-black text-2xl" style={{ color: "var(--app-fg)" }}>Sua jornada começa aqui.</p>
+            <p className="text-sm max-w-sm opacity-50 mx-auto leading-relaxed">
+              Importe sua planilha do TEC Concursos ou siga nosso guia para montar seu mapeamento personalizado.
             </p>
           </div>
-          <button onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: "var(--primary)" }}>
-            <Upload className="h-4 w-4" /> Importar planilha
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setShowGuide(true)}
+              className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all">
+              Ver Guia
+            </button>
+            <button onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95"
+              style={{ background: "var(--primary)" }}>
+              <Upload className="h-4 w-4" /> Importar Agora
+            </button>
+          </div>
         </div>
       )}
 
@@ -536,44 +554,39 @@ function EditalTab({ rows, setRows, data }: {
         const progressPct = group.topics.length > 0 ? Math.round((completedInGroup / group.topics.length) * 100) : 0;
 
         return (
-          <div key={group.name} className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--card-border)" }}>
+          <div key={group.name} className="soe-card overflow-hidden group/disc">
             {/* Discipline header */}
             <div
-              className="flex items-center gap-3 px-4 py-3 select-none"
-              style={{ background: "var(--stat-bg)", borderBottom: isCollapsed ? "none" : "1px solid var(--card-border)" }}>
-              <button className="shrink-0" style={{ color: "var(--muted-text)" }}
-                onClick={() => setCollapsed(c => ({ ...c, [group.name]: !c[group.name] }))}>
+              className="flex items-center gap-4 px-6 py-4 select-none cursor-pointer hover:bg-white/[0.02] transition-colors"
+              onClick={() => setCollapsed(c => ({ ...c, [group.name]: !c[group.name] }))}>
+              <div className={`p-2 rounded-lg transition-all ${isCollapsed ? 'bg-white/5 text-white/40' : 'bg-[var(--primary-bg-subtle)] text-[var(--primary)]'}`}>
                 {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>{group.name}</span>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-black text-lg tracking-tight" style={{ color: "var(--app-fg)" }}>{group.name}</span>
                   {header?.acerto !== undefined && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: `${hitColor(header.acerto)}22`, color: hitColor(header.acerto) }}>
-                      {Math.round(header.acerto * 100)}% acerto
-                    </span>
-                  )}
-                  {header?.quantidade !== undefined && (
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--card-border)", color: "var(--muted-text)" }}>
-                      {header.quantidade.toLocaleString()} questões
-                    </span>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: hitColor(header.acerto) }} />
+                      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: hitColor(header.acerto) }}>
+                        {Math.round(header.acerto * 100)}% acerto
+                      </span>
+                    </div>
                   )}
                 </div>
                 {group.topics.length > 0 && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--card-border)", maxWidth: 160 }}>
-                      <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: "var(--primary)" }} />
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden max-w-[200px]">
+                      <div className="h-full bg-[var(--primary)] shadow-[0_0_8px_var(--primary-shadow)] transition-all duration-500" style={{ width: `${progressPct}%` }} />
                     </div>
-                    <span className="text-[10px]" style={{ color: "var(--muted-text)" }}>{completedInGroup}/{group.topics.length}</span>
+                    <span className="text-[10px] font-black opacity-30 uppercase tracking-widest">{completedInGroup} / {group.topics.length} concluídos</span>
                   </div>
                 )}
               </div>
               <button title="Remover disciplina"
-                onClick={() => deleteDiscipline(group.name)}
-                className="p-1.5 rounded-lg hover:opacity-70 transition-all shrink-0 ml-1"
-                style={{ color: "var(--accent-red, #dc2626)" }}>
-                <Trash2 className="h-4 w-4" />
+                onClick={(e) => { e.stopPropagation(); deleteDiscipline(group.name); }}
+                className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/20 hover:text-rose-500 transition-all opacity-0 group-hover/disc:opacity-100">
+                <Trash2 className="h-5 w-5" />
               </button>
             </div>
 
@@ -595,11 +608,11 @@ function EditalTab({ rows, setRows, data }: {
                   <tbody>
                     {group.topics.map((t, i) => (
                       <tr key={t.id}
-                        className="transition-all"
+                        className="transition-all hover:bg-white/[0.01]"
                         style={{
                           borderBottom: i < group.topics.length - 1 ? "1px solid var(--card-border)" : "none",
-                          opacity: t.completed ? 0.5 : 1,
-                          background: t.completed ? "color-mix(in srgb, var(--accent-green) 4%, transparent)" : "transparent",
+                          opacity: t.completed ? 0.4 : 1,
+                          background: t.completed ? "rgba(16, 185, 129, 0.02)" : "transparent",
                         }}>
                         {/* Checkbox */}
                         <td className="px-4 py-2.5">
@@ -633,11 +646,11 @@ function EditalTab({ rows, setRows, data }: {
                         {/* Incidência bar */}
                         <td className="px-2 py-2.5 text-center">
                           {t.incidencia !== undefined ? (
-                            <div className="flex items-center gap-1.5 justify-center">
-                              <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--card-border)" }}>
-                                <div className="h-full rounded-full" style={{ width: `${Math.round(t.incidencia * 100)}%`, background: "var(--primary)" }} />
+                            <div className="flex items-center gap-2 justify-center">
+                              <div className="w-12 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full bg-[var(--primary)] opacity-60" style={{ width: `${Math.round(t.incidencia * 100)}%` }} />
                               </div>
-                              <span style={{ color: "var(--muted-text)" }}>{(t.incidencia * 100).toFixed(1)}%</span>
+                              <span className="text-[10px] font-black opacity-30">{(t.incidencia * 100).toFixed(0)}%</span>
                             </div>
                           ) : "—"}
                         </td>
@@ -661,7 +674,7 @@ function EditalTab({ rows, setRows, data }: {
                         </td>
                         {/* Flags */}
                         <td className="px-2 py-2.5">
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
                             {([
                               ["revisar", "R", "var(--accent-amber)", "Revisar"],
                               ["avancar", "A", "var(--accent-blue, #2563eb)", "Avançar"],
@@ -669,11 +682,10 @@ function EditalTab({ rows, setRows, data }: {
                             ] as [keyof EditalTopico, string, string, string][]).map(([flag, letter, color, title]) => (
                               <button key={flag} title={title}
                                 onClick={() => toggleFlag(t.id, flag as "revisar" | "avancar" | "discursiva")}
-                                className="w-5 h-5 rounded text-[10px] font-black transition-all"
+                                className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center border ${t[flag] ? 'text-white shadow-sm' : 'text-white/10 border-white/5 bg-white/[0.02] hover:text-white/30'}`}
                                 style={{
-                                  background: t[flag] ? color : "var(--stat-bg)",
-                                  color: t[flag] ? "white" : "var(--muted-text)",
-                                  border: `1px solid ${t[flag] ? color : "var(--card-border)"}`,
+                                  backgroundColor: t[flag] ? color : undefined,
+                                  borderColor: t[flag] ? color : undefined,
                                 }}>
                                 {letter}
                               </button>
@@ -788,8 +800,8 @@ function DisciplineProgressTable({ disciplines, expandedDisc, onExpand }: {
               const accColor = acc == null ? "var(--muted-text)" : acc >= 70 ? "var(--accent-green)" : acc >= 50 ? "#f59e0b" : "var(--accent-red)";
               const isExpanded = expandedDisc === disc.id;
               return (
-                <>
-                  <tr key={disc.id} className="cursor-pointer hover:opacity-80 transition-opacity" style={{ borderBottom: "1px solid var(--card-border)" }}
+                <Fragment key={disc.id}>
+                  <tr className="cursor-pointer hover:opacity-80 transition-opacity" style={{ borderBottom: "1px solid var(--card-border)" }}
                     onClick={() => onExpand(isExpanded ? null : disc.id)}>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
@@ -840,7 +852,7 @@ function DisciplineProgressTable({ disciplines, expandedDisc, onExpand }: {
                       </tr>
                     );
                   })}
-                </>
+                </Fragment>
               );
             })}
           </tbody>

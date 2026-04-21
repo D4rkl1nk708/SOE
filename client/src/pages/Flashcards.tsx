@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import {
   Plus, Trash2, Edit2, BookOpen, Brain, ChevronLeft, ChevronRight,
   Check, X, RotateCcw, Zap, Star, AlertTriangle, Eye, EyeOff,
-  Filter, Layers,
+  Filter, Layers, TrendingUp, Info, History, GraduationCap
 } from "lucide-react";
 import { format, parseISO, isToday, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,21 +14,14 @@ type Mode = "list" | "review" | "create" | "edit";
 
 function CardBadge({ text, color }: { text: string; color: string }) {
   return (
-    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: `${color}22`, color, border: `1px solid ${color}44` }}>
+    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}30` }}>
       {text}
     </span>
   );
 }
 
 // ── Review Session ─────────────────────────────────────────────────────────────
-/**
- * F18 - Flashcard Hard Mode (sem dica)
- * Base científica (Cap 5.7): quanto mais esforço para evocar, maior a retenção.
- * "Provas abertas são mais eficazes que múltipla escolha" (Chaves).
- * No hard mode, a frente do card não mostra nenhum contexto além do tópico —
- * forçando máximo esforço cognitivo antes de revelar o verso.
- */
 function ReviewSession({
   cards, onDone, hardMode = false,
 }: {
@@ -46,20 +39,22 @@ function ReviewSession({
   const [results, setResults] = useState<{ id: number; q: number }[]>([]);
   const [done, setDone] = useState(false);
 
-  // Must be called unconditionally (before any early return) — Rules of Hooks
   const { data: disciplines = [] } = trpc.discipline.list.useQuery();
 
   const card = cards[idx];
 
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
+  const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0.5, 1, 1, 1, 0.5]);
+  const xInput = [-100, 0, 100];
+  const colorRight = useTransform(x, xInput, ["rgba(16, 185, 129, 0)", "rgba(16, 185, 129, 0)", "rgba(16, 185, 129, 0.2)"]);
+  const colorLeft = useTransform(x, xInput, ["rgba(244, 63, 94, 0.2)", "rgba(244, 63, 94, 0)", "rgba(244, 63, 94, 0)"]);
 
   const handleRate = async (quality: number) => {
     await reviewCard.mutateAsync({ id: card.id, quality });
     const newResults = [...results, { id: card.id, q: quality }];
     setResults(newResults);
     
-    // reset motion states
     x.set(0);
 
     if (idx + 1 >= cards.length) {
@@ -85,29 +80,47 @@ function ReviewSession({
   if (done) {
     const passed = results.filter(r => r.q >= 3).length;
     const failed = results.filter(r => r.q < 3).length;
+    const accuracy = results.length > 0 ? Math.round((passed / results.length) * 100) : 0;
+
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-6 py-12">
-        <div className="p-6 rounded-2xl" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-          <Brain className="h-14 w-14 mx-auto" style={{ color: "var(--primary)" }} />
+      <div className="flex flex-col items-center justify-center py-12 gap-8 max-w-md mx-auto">
+        <div className="relative">
+            <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-20 animate-pulse" />
+            <div className="relative p-8 rounded-3xl bg-[var(--stat-bg)] border border-[var(--primary-border)] shadow-2xl">
+                <Brain className="h-16 w-16 text-[var(--primary)]" />
+            </div>
         </div>
-        <div className="text-center">
-          <h2 className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>Sessão concluída!</h2>
-          <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>{results.length} flashcard{results.length !== 1 ? "s" : ""} revisado{results.length !== 1 ? "s" : ""}</p>
+        
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Sessão Finalizada!</h2>
+          <p className="text-sm opacity-50 font-medium uppercase tracking-widest">{results.length} cards revisados</p>
         </div>
-        <div className="flex gap-4">
-          <div className="text-center px-6 py-4 rounded-xl" style={{ background: "color-mix(in srgb, var(--accent-green) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-green) 30%, transparent)" }}>
-            <p className="text-3xl font-black" style={{ color: "var(--accent-green)" }}>{passed}</p>
-            <p className="text-xs mt-1" style={{ color: "var(--accent-green)" }}>Acertos</p>
-          </div>
-          <div className="text-center px-6 py-4 rounded-xl" style={{ background: "color-mix(in srgb, var(--accent-red) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-red) 30%, transparent)" }}>
-            <p className="text-3xl font-black" style={{ color: "var(--accent-red)" }}>{failed}</p>
-            <p className="text-xs mt-1" style={{ color: "var(--accent-red)" }}>Para reforçar</p>
-          </div>
+
+        <div className="grid grid-cols-2 gap-4 w-full">
+            <div className="soe-card p-6 flex flex-col items-center gap-1 border-[var(--accent-green)]/20">
+                <p className="text-3xl font-black text-[var(--accent-green)]">{passed}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Acertos</p>
+            </div>
+            <div className="soe-card p-6 flex flex-col items-center gap-1 border-rose-500/20">
+                <p className="text-3xl font-black text-rose-500">{failed}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Erros</p>
+            </div>
         </div>
+
+        <div className="w-full space-y-2">
+            <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest opacity-40 px-1">
+                <span>Precisão Mental</span>
+                <span>{accuracy}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div className="h-full bg-[var(--primary)] shadow-[0_0_12px_var(--primary-shadow)] transition-all duration-1000" style={{ width: `${accuracy}%` }} />
+            </div>
+        </div>
+
         <button onClick={onDone}
-          className="px-8 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-85 active:scale-95"
+          className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-95"
           style={{ background: "var(--primary)" }}>
-          Voltar aos flashcards
+          Retornar ao Painel
         </button>
       </div>
     );
@@ -116,115 +129,121 @@ function ReviewSession({
   const disc = (disciplines as any[]).find((d: any) => d.id === card.disciplineId);
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto py-6 gap-4">
-      {/* Progress bar */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-medium" style={{ color: "var(--muted-text)" }}>{idx + 1} / {cards.length}</span>
-        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--stat-bg)" }}>
-          <div className="h-full rounded-full transition-all duration-300"
-            style={{ width: `${((idx) / cards.length) * 100}%`, background: "var(--primary)" }} />
-        </div>
+    <div className="flex flex-col h-full max-w-2xl mx-auto py-6 gap-6">
+      {/* Progress header */}
+      <div className="space-y-3 px-2">
+          <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Sessão em curso</span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--primary)" }}>
+                {idx + 1} de {cards.length}
+              </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-full bg-[var(--primary)] transition-all duration-300"
+                style={{ width: `${((idx) / cards.length) * 100}%` }} />
+          </div>
       </div>
 
-      {/* Card */}
-      <div className="relative flex-1">
-        <AnimatePresence>
+      {/* Card Arena */}
+      <div className="relative flex-1" style={{ perspective: "1000px" }}>
+        <AnimatePresence mode="wait">
           <motion.div
             key={card.id + (flipped ? "-back" : "-front")}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={1}
+            dragElastic={0.8}
             onDragEnd={handleDragEnd}
-            onClick={() => { if (!flipped) setFlipped(true); else setFlipped(false); }}
-            className="flex-1 flex flex-col items-center justify-center rounded-2xl cursor-pointer transition-colors active:scale-[0.99] gap-4 p-8"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            onClick={() => { if (!flipped) setFlipped(true); }}
+            className="flex-1 h-full min-h-[400px] flex flex-col items-center justify-center rounded-[2.5rem] cursor-pointer shadow-2xl relative overflow-hidden group p-10 text-center"
+            initial={{ rotateY: flipped ? -90 : 90, opacity: 0, scale: 0.9 }}
+            animate={{ rotateY: 0, opacity: 1, scale: 1 }}
+            exit={{ rotateY: flipped ? 90 : -90, opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", damping: 20, stiffness: 100 }}
             style={{
-              x, rotate, zIndex: 100, position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-              background: flipped ? "color-mix(in srgb, var(--primary) 6%, var(--card-bg, var(--app-bg)))" : "var(--card-bg, var(--app-bg))",
-              border: `2px solid ${flipped ? "var(--primary)" : "var(--card-border)"}`,
+              x, rotate, opacity,
+              background: "var(--card-bg, var(--app-bg))",
+              border: `1px solid var(--card-border)`,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
             }}
           >
+            {/* Visual feedback overlays */}
+            <motion.div className="absolute inset-0 pointer-events-none" style={{ background: colorRight }} />
+            <motion.div className="absolute inset-0 pointer-events-none" style={{ background: colorLeft }} />
+
             {disc && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full self-start"
-                style={{ background: `${disc.color}22`, color: disc.color }}>
-                {disc.name}
-              </span>
-            )}
-        <div className="text-center flex-1 flex flex-col items-center justify-center gap-3">
-          <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: "var(--muted-text)" }}>
-            {flipped ? "RESPOSTA" : hardMode && !flipped ? "MODO DIFÍCIL — EVOQUE SEM DICA" : "PERGUNTA"}
-          </p>
-          {/* F18: Hard mode hides the front text until user consciously tries to recall */}
-          {hardMode && !flipped ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", border: "2px dashed var(--primary)" }}>
-                <Brain className="h-8 w-8" style={{ color: "var(--primary)" }} />
+              <div className="absolute top-8 left-8">
+                 <CardBadge text={disc.name} color={disc.color} />
               </div>
-              <p className="text-sm font-medium" style={{ color: "var(--muted-text)" }}>
-                Tente lembrar antes de virar o card.
-              </p>
-              <p className="text-xs text-center" style={{ color: "var(--muted-text)", maxWidth: 220 }}>
-                Quanto mais esforço você fizer agora, mais forte fica a memória.
-                (Bjork et al. — "desirable difficulty")
-              </p>
+            )}
+
+            <div className="flex flex-col items-center justify-center gap-8 flex-1 w-full">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30">
+                {flipped ? "Evocação Completa" : hardMode ? "Desafio Cognitivo — Sem Dicas" : "Pergunta Mental"}
+              </span>
+
+              {hardMode && !flipped ? (
+                <div className="space-y-6">
+                  <div className="w-24 h-24 rounded-[2rem] bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)] mx-auto">
+                    <Brain className="h-10 w-10 text-[var(--primary)]" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Tente Relembrar</p>
+                    <p className="text-xs opacity-50 max-w-[240px] mx-auto leading-relaxed">
+                        A "dificuldade desejável" aumenta sua retenção em até 40%. Não vire o card antes de lutar pela memória.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full"
+                  style={{ color: "var(--app-fg)" }}
+                  dangerouslySetInnerHTML={{ __html: flipped ? `<div class="text-2xl leading-relaxed">${card.back}</div>` : `<div class="text-3xl font-black tracking-tight">${card.front}</div>` }} />
+              )}
             </div>
-          ) : (
-            <p className="text-xl font-semibold leading-relaxed" style={{ color: "var(--app-fg)" }}
-              dangerouslySetInnerHTML={{ __html: flipped ? card.back : card.front }} />
-          )}
-        </div>
-        <p className="text-xs flex items-center gap-1.5" style={{ color: "var(--muted-text)" }}>
-          {flipped ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          {flipped ? "Clique para ver a pergunta" : hardMode ? "Clique para revelar (após tentar lembrar)" : "Clique para revelar a resposta"}
-        </p>
+
+            <div className="flex items-center gap-3 opacity-20 group-hover:opacity-60 transition-opacity">
+               {flipped ? <EyeOff size={14} /> : <Eye size={14} />}
+               <span className="text-[10px] font-black uppercase tracking-widest">
+                  {flipped ? "Toque para ver a pergunta" : "Toque para revelar"}
+               </span>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Rating buttons */}
-      {flipped ? (
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => handleRate(1)}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl font-semibold transition-all hover:opacity-85 active:scale-95"
-            style={{ background: "color-mix(in srgb, var(--accent-red) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-red) 35%, transparent)", color: "var(--accent-red)" }}>
-            <X className="h-5 w-5" />
-            <span className="text-xs">Errei / Não sei</span>
-          </button>
-          <button onClick={() => handleRate(3)}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl font-semibold transition-all hover:opacity-85 active:scale-95"
-            style={{ background: "color-mix(in srgb, var(--accent-amber) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-amber) 35%, transparent)", color: "var(--accent-amber)" }}>
-            <AlertTriangle className="h-5 w-5" />
-            <span className="text-xs">Com dificuldade</span>
-          </button>
-          <button onClick={() => handleRate(4)}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl font-semibold transition-all hover:opacity-85 active:scale-95"
-            style={{ background: "color-mix(in srgb, var(--accent-green) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-green) 35%, transparent)", color: "var(--accent-green)" }}>
-            <Check className="h-5 w-5" />
-            <span className="text-xs">Acertei</span>
-          </button>
-          <button onClick={() => handleRate(5)}
-            className="flex flex-col items-center gap-1 py-3 rounded-xl font-semibold transition-all hover:opacity-85 active:scale-95"
-            style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 35%, transparent)", color: "var(--primary)" }}>
-            <Star className="h-5 w-5" />
-            <span className="text-xs">Fácil demais</span>
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => setFlipped(true)}
-          className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-85 active:scale-95"
-          style={{ background: "var(--primary)" }}>
-          Revelar resposta
-        </button>
-      )}
+      {/* Control Panel */}
+      <div className="px-2">
+        {flipped ? (
+            <div className="grid grid-cols-4 gap-3">
+            {[
+                { q: 1, icon: X, color: "#f43f5e", label: "Errei" },
+                { q: 3, icon: AlertTriangle, color: "#f59e0b", label: "Difícil" },
+                { q: 4, icon: Check, color: "#10b981", label: "Bom" },
+                { q: 5, icon: Star, color: "var(--primary)", label: "Fácil" }
+            ].map(btn => (
+                <button key={btn.q} onClick={() => handleRate(btn.q)}
+                className="flex flex-col items-center gap-2 py-4 rounded-2xl transition-all hover:opacity-90 active:scale-95 group border border-white/5"
+                style={{ background: `${btn.color}15` }}>
+                <btn.icon size={20} style={{ color: btn.color }} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: btn.color }}>{btn.label}</span>
+                </button>
+            ))}
+            </div>
+        ) : (
+            <button onClick={() => setFlipped(true)}
+            className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
+            style={{ background: "var(--primary)" }}>
+            Revelar Resposta
+            </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Create / Edit Form ─────────────────────────────────────────────────────────
+// ── Form logic remains functional but styled ─────────────────────────────────
 function FlashcardForm({
   initial, onSave, onCancel,
 }: {
@@ -246,7 +265,7 @@ function FlashcardForm({
 
   const handleSubmit = () => {
     if (!disciplineId || !front.trim() || !back.trim()) {
-      toast.error("Preencha disciplina, frente e verso.");
+      toast.error("Preencha os campos obrigatórios.");
       return;
     }
     onSave({ disciplineId: Number(disciplineId), topicId: topicId ? Number(topicId) : undefined, front: front.trim(), back: back.trim() });
@@ -255,50 +274,61 @@ function FlashcardForm({
   const inputStyle = { background: "var(--input-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 py-4">
-      <h2 className="text-lg font-bold" style={{ color: "var(--app-fg)" }}>{initial ? "Editar Flashcard" : "Novo Flashcard"}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-medium block mb-1.5" style={{ color: "var(--muted-text)" }}>Disciplina *</label>
+    <div className="max-w-3xl mx-auto space-y-6 py-6 px-4">
+      <div className="flex items-center gap-4 mb-4">
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-xl border border-[var(--primary-border)]">
+              <Layers className="w-5 h-5 text-[var(--primary)]" />
+          </div>
+          <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>
+              {initial ? "Refinar Flashcard" : "Novo Flashcard"}
+          </h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Disciplina *</label>
           <select value={disciplineId} onChange={e => { setDisciplineId(e.target.value as any); setTopicId(""); }}
-            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style={inputStyle}>
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none appearance-none" style={inputStyle}>
             <option value="">Selecionar...</option>
-            {(disciplines as any[]).map((d: any) => <option key={d.id} value={d.id} style={{ background: "var(--input-bg)", color: "var(--app-fg)" }}>{d.name}</option>)}
+            {(disciplines as any[]).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="text-xs font-medium block mb-1.5" style={{ color: "var(--muted-text)" }}>Tema (opcional)</label>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Tema Associado</label>
           <select value={topicId} onChange={e => setTopicId(e.target.value as any)} disabled={!disciplineId}
-            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none disabled:opacity-40" style={inputStyle}>
-            <option value="">Sem tema</option>
-            {(topics as any[]).map((t: any) => <option key={t.id} value={t.id} style={{ background: "var(--input-bg)", color: "var(--app-fg)" }}>{t.name}</option>)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none appearance-none disabled:opacity-40" style={inputStyle}>
+            <option value="">Sem tema específico</option>
+            {(topics as any[]).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
       </div>
-      <div>
-        <label className="text-xs font-medium block mb-1.5" style={{ color: "var(--muted-text)" }}>Frente (Pergunta) *</label>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Frente (Pergunta/Conceito) *</label>
         <textarea value={front} onChange={e => setFront(e.target.value)} rows={3}
-          placeholder="Ex: O que é o Habeas Corpus?"
-          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+          placeholder="Ex: Qual o princípio da anterioridade tributária?"
+          className="w-full px-4 py-4 rounded-2xl text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--primary-border)]"
           style={inputStyle} />
       </div>
-      <div>
-        <label className="text-xs font-medium block mb-1.5" style={{ color: "var(--muted-text)" }}>Verso (Resposta) *</label>
-        <textarea value={back} onChange={e => setBack(e.target.value)} rows={4}
-          placeholder="Ex: Remédio constitucional que protege a liberdade de locomoção..."
-          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Verso (Explicação/Resposta) *</label>
+        <textarea value={back} onChange={e => setBack(e.target.value)} rows={5}
+          placeholder="Ex: Impede que tributos sejam cobrados no mesmo exercício financeiro em que foi publicada a lei..."
+          className="w-full px-4 py-4 rounded-2xl text-sm outline-none resize-none focus:ring-2 focus:ring-[var(--primary-border)]"
           style={inputStyle} />
       </div>
-      <div className="flex gap-2 pt-2">
+
+      <div className="flex gap-4 pt-4">
         <button onClick={onCancel}
-          className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-          style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}>
-          Cancelar
+          className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-white/5"
+          style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+          Descartar
         </button>
         <button onClick={handleSubmit}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+          className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-[var(--primary-shadow)] transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ background: "var(--primary)" }}>
-          {initial ? "Salvar alterações" : "Criar flashcard"}
+          {initial ? "Salvar Alterações" : "Gerar Flashcard"}
         </button>
       </div>
     </div>
@@ -319,11 +349,11 @@ export default function Flashcards() {
   const [editingCard, setEditingCard] = useState<any | null>(null);
   const [filterDisc, setFilterDisc] = useState<number | null>(null);
   const [reviewFilter, setReviewFilter] = useState<"due" | "all">("due");
-  const [hardMode, setHardMode] = useState(false); // F18 - Modo difícil sem dica
+  const [hardMode, setHardMode] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
-
   const dueCards = useMemo(() => (cards as any[]).filter((c: any) => c.nextReviewDate <= today), [cards, today]);
+  
   const filteredCards = useMemo(() => {
     let list = cards as any[];
     if (filterDisc) list = list.filter((c: any) => c.disciplineId === filterDisc);
@@ -336,228 +366,197 @@ export default function Flashcards() {
     return list;
   }, [dueCards, cards, filterDisc, reviewFilter]);
 
-  if (isLoading) return <div className="p-8 text-center" style={{ color: "var(--muted-text)" }}>Carregando...</div>;
+  if (isLoading) return <div className="p-8 text-center opacity-30 font-black uppercase text-xs tracking-widest">Sintonizando Banco de Dados...</div>;
 
   if (mode === "review") {
-    if (reviewCards.length === 0) {
+    return (
+      <div className="h-[calc(100vh-6rem)] flex flex-col">
+        <div className="flex items-center justify-between mb-4 px-2">
+            <button onClick={() => setMode("list")} className="flex items-center gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-xs font-black uppercase tracking-widest">
+                <ChevronLeft className="h-4 w-4" /> Cancelar
+            </button>
+            {hardMode && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--primary-border)] bg-[var(--primary-bg-subtle)]">
+                    <Zap size={14} className="text-[var(--primary)]" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)]">Evoque: Modo Difícil</span>
+                </div>
+            )}
+        </div>
+        {reviewCards.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-6">
+                <Check className="h-20 w-20 text-[var(--accent-green)] p-5 rounded-[2rem] bg-[var(--accent-green)]/10 border border-[var(--accent-green)]/20" />
+                <div className="text-center">
+                    <p className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>Tudo em Dia!</p>
+                    <p className="text-sm opacity-50">Você completou todas as revisões desta seleção.</p>
+                </div>
+                <button onClick={() => setMode("list")} className="px-10 py-3 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest">Painel Principal</button>
+            </div>
+        ) : (
+            <ReviewSession cards={reviewCards} onDone={() => setMode("list")} hardMode={hardMode} />
+        )}
+      </div>
+    );
+  }
+
+  if (mode === "create" || mode === "edit") {
       return (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Check className="h-16 w-16" style={{ color: "var(--accent-green)" }} />
-          <p className="text-xl font-bold" style={{ color: "var(--app-fg)" }}>Tudo em dia!</p>
-          <p className="text-sm" style={{ color: "var(--muted-text)" }}>Nenhum flashcard para revisar agora.</p>
-          <button onClick={() => setMode("list")} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: "var(--primary)" }}>
-            Voltar
-          </button>
-        </div>
+          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <button onClick={() => setMode("list")} className="w-fit flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-xs font-black uppercase tracking-widest mb-4">
+                  <ChevronLeft className="h-4 w-4" /> Voltar
+              </button>
+              <FlashcardForm 
+                initial={mode === "edit" ? editingCard : undefined} 
+                onSave={(d) => mode === "edit" ? updateCard.mutate({ id: editingCard.id, front: d.front, back: d.back }) : createCard.mutate(d)} 
+                onCancel={() => setMode("list")} 
+              />
+          </div>
       );
-    }
-    return (
-      <div className="h-[calc(100vh-5rem)]">
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setMode("list")} className="p-2 rounded-lg" style={{ color: "var(--muted-text)" }}>
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <h1 className="font-bold text-lg" style={{ color: "var(--app-fg)" }}>Revisando {reviewCards.length} flashcard{reviewCards.length !== 1 ? "s" : ""}</h1>
-          {/* F18 - Hard mode badge */}
-          {hardMode && (
-            <span className="ml-auto text-xs font-bold px-2 py-1 rounded-full"
-              style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)", color: "var(--primary)", border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)" }}>
-              🧠 Modo Difícil
-            </span>
-          )}
-        </div>
-        <ReviewSession cards={reviewCards} onDone={() => setMode("list")} hardMode={hardMode} />
-      </div>
-    );
-  }
-
-  if (mode === "create") {
-    return (
-      <div className="pb-24 md:pb-0">
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setMode("list")} className="p-2 rounded-lg" style={{ color: "var(--muted-text)" }}><ChevronLeft className="h-5 w-5" /></button>
-          <h1 className="font-bold text-lg" style={{ color: "var(--app-fg)" }}>Novo Flashcard</h1>
-        </div>
-        <FlashcardForm onSave={(d) => createCard.mutate(d)} onCancel={() => setMode("list")} />
-      </div>
-    );
-  }
-
-  if (mode === "edit" && editingCard) {
-    return (
-      <div className="pb-24 md:pb-0">
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setMode("list")} className="p-2 rounded-lg" style={{ color: "var(--muted-text)" }}><ChevronLeft className="h-5 w-5" /></button>
-          <h1 className="font-bold text-lg" style={{ color: "var(--app-fg)" }}>Editar Flashcard</h1>
-        </div>
-        <FlashcardForm
-          initial={editingCard}
-          onSave={(d) => updateCard.mutate({ id: editingCard.id, front: d.front, back: d.back })}
-          onCancel={() => setMode("list")}
-        />
-      </div>
-    );
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>Flashcards</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted-text)" }}>Revisão espaçada com algoritmo SM-2</p>
+    <div className="space-y-8 pb-12">
+      {/* Immersive Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
+            <GraduationCap className="w-6 h-6 text-[var(--primary)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Flashcards</h1>
+            <p className="text-sm opacity-60">Repetição espaçada via algoritmo SM-2.</p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setMode("create")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ background: "var(--primary)" }}>
-            <Plus className="h-4 w-4" /> Novo card
-          </button>
-        </div>
+        <button onClick={() => setMode("create")}
+            className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all">
+            <Plus className="h-4 w-4" /> Novo Flashcard
+        </button>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Total", value: (cards as any[]).length, color: "var(--primary)" },
-          { label: "Para revisar hoje", value: dueCards.length, color: dueCards.length > 0 ? "var(--accent-amber)" : "var(--accent-green)" },
-          { label: "Dominados", value: (cards as any[]).filter((c: any) => c.interval >= 21).length, color: "var(--accent-green)" },
+          { label: "Acervo Total", value: cards.length, color: "var(--primary)", icon: Layers },
+          { label: "Pendente Hoje", value: dueCards.length, color: dueCards.length > 0 ? "var(--accent-amber)" : "var(--accent-green)", icon: History },
+          { label: "Nível de Maestria", value: `${Math.round((cards.filter((c: any) => c.interval >= 21).length / (cards.length || 1)) * 100)}%`, color: "var(--accent-green)", icon: TrendingUp },
         ].map(s => (
-          <div key={s.label} className="rounded-xl p-4 text-center" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-            <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{s.label}</p>
+          <div key={s.label} className="soe-card p-6 flex items-center justify-between group overflow-hidden relative">
+            <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">{s.label}</p>
+                <p className="text-3xl font-black" style={{ color: s.color }}>{s.value}</p>
+            </div>
+            <s.icon size={40} className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.08] group-hover:-rotate-12 transition-all" style={{ color: s.color }} />
           </div>
         ))}
       </div>
 
-      {/* Review CTA */}
+      {/* Hero CTA */}
+      <AnimatePresence>
       {dueCards.length > 0 && (
-        <div className="flex items-center justify-between p-4 rounded-2xl"
-          style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)" }}>
-          <div className="flex items-center gap-3">
-            <Brain className="h-8 w-8" style={{ color: "var(--primary)" }} />
-            <div>
-              <p className="font-bold text-sm" style={{ color: "var(--app-fg)" }}>{dueCards.length} flashcard{dueCards.length !== 1 ? "s" : ""} para revisar hoje</p>
-              <p className="text-xs" style={{ color: "var(--muted-text)" }}>Não deixe a revisão acumular!</p>
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden p-1 rounded-[2.5rem] bg-gradient-to-br from-[var(--primary-border)] to-transparent shadow-2xl">
+            <div className="bg-[var(--card-bg,var(--app-bg))] rounded-[2.4rem] p-8 md:p-10 flex flex-col md:flex-row items-center gap-8">
+                <div className="w-20 h-20 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)] shrink-0">
+                    <Brain className="w-10 h-10 text-[var(--primary)] animate-pulse" />
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-2">
+                    <h3 className="text-2xl font-black" style={{ color: "var(--app-fg)" }}>
+                        {dueCards.length} Cards aguardam sua evocação
+                    </h3>
+                    <p className="text-sm opacity-50 max-w-lg">
+                        Sua curva de esquecimento está em ação. Revise agora para consolidar o conhecimento na memória de longo prazo.
+                    </p>
+                </div>
+                <div className="flex flex-col gap-3 w-full md:w-auto">
+                    <button onClick={() => { setReviewFilter("due"); setMode("review"); }}
+                        className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <Zap size={14} /> Começar Sessão
+                    </button>
+                    <button onClick={() => setHardMode(!hardMode)}
+                        className={`px-8 py-3 rounded-2xl border font-black text-[10px] uppercase tracking-widest transition-all ${hardMode ? 'bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] text-[var(--primary)]' : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'}`}>
+                        🧠 {hardMode ? "Hard Mode Ativo" : "Ativar Modo Difícil"}
+                    </button>
+                </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-1.5 items-end">
-            <button onClick={() => { setReviewFilter("due"); setMode("review"); }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-              style={{ background: "var(--primary)" }}>
-              <Zap className="h-4 w-4" /> Revisar agora
-            </button>
-            {/* F18 - Hard mode toggle */}
-            <button
-              onClick={() => setHardMode(h => !h)}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: hardMode ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "transparent",
-                color: hardMode ? "var(--primary)" : "var(--muted-text)",
-                border: `1px solid ${hardMode ? "color-mix(in srgb, var(--primary) 40%, transparent)" : "var(--card-border)"}`,
-              }}
-              title="Modo Difícil: esconde o enunciado para forçar evocação pura (mais eficaz, segundo Bjork et al.)"
-            >
-              🧠 {hardMode ? "Modo difícil ON" : "Ativar modo difícil"}
-            </button>
-          </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
-      {/* Filter + list header */}
+      {/* Filter Chips */}
       <div className="flex flex-wrap items-center gap-2">
-        <Filter className="h-4 w-4" style={{ color: "var(--muted-text)" }} />
+        <div className="p-2 rounded-xl bg-white/5 border border-white/5 mr-2">
+            <Filter size={14} className="opacity-40" />
+        </div>
         <button onClick={() => setFilterDisc(null)}
-          className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-          style={{
-            background: !filterDisc ? "var(--primary)" : "var(--stat-bg)",
-            color: !filterDisc ? "white" : "var(--muted-text)",
-          }}>
-          Todas
+          className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all border ${!filterDisc ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
+          Todos
         </button>
-        {(disciplines as any[]).filter((d: any) => filteredCards.some((c: any) => c.disciplineId === d.id)).map((d: any) => (
+        {disciplines.filter((d: any) => cards.some((c: any) => c.disciplineId === d.id)).map((d: any) => (
           <button key={d.id} onClick={() => setFilterDisc(filterDisc === d.id ? null : d.id)}
-            className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-            style={{
-              background: filterDisc === d.id ? d.color : "var(--stat-bg)",
-              color: filterDisc === d.id ? "white" : "var(--muted-text)",
-              border: `1px solid ${filterDisc === d.id ? d.color : "var(--card-border)"}`,
+            className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl transition-all border ${filterDisc === d.id ? 'text-white' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}
+            style={{ 
+                backgroundColor: filterDisc === d.id ? d.color : undefined,
+                borderColor: filterDisc === d.id ? d.color : undefined,
+                boxShadow: filterDisc === d.id ? `0 8px 20px -6px ${d.color}60` : undefined
             }}>
             {d.name}
           </button>
         ))}
-        {filteredCards.length > 0 && (
-          <button onClick={() => { setReviewFilter("all"); setMode("review"); }}
-            className="ml-auto text-xs px-3 py-1.5 rounded-full font-medium"
-            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
-            Revisar filtro ({filteredCards.length})
-          </button>
-        )}
       </div>
 
-      {/* Card list */}
+      {/* Card Grid */}
       {filteredCards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-4"
-          style={{ border: "2px dashed var(--card-border)", borderRadius: 16 }}>
-          <Layers className="h-12 w-12" style={{ color: "var(--muted-text)", opacity: 0.3 }} />
-          <p className="font-semibold" style={{ color: "var(--app-fg)" }}>Nenhum flashcard ainda</p>
-          <p className="text-sm text-center max-w-xs" style={{ color: "var(--muted-text)" }}>
-            Crie flashcards para revisar conteúdos usando repetição espaçada
-          </p>
-          <button onClick={() => setMode("create")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-            style={{ background: "var(--primary)" }}>
-            <Plus className="h-4 w-4" /> Criar primeiro flashcard
-          </button>
+        <div className="flex flex-col items-center justify-center py-24 gap-6 rounded-[2.5rem] border-2 border-dashed border-white/5 bg-white/[0.01]">
+            <Layers size={48} className="opacity-10" />
+            <div className="text-center space-y-2">
+                <p className="font-black text-xl opacity-40 uppercase tracking-widest">Nada por aqui</p>
+                <p className="text-xs opacity-20 max-w-xs mx-auto">Sua coleção de flashcards aparecerá aqui. Comece criando o seu primeiro card de estudo.</p>
+            </div>
+            <button onClick={() => setMode("create")} className="px-8 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity">
+                + Adicionar Card
+            </button>
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCards.map((card: any) => {
-            const disc = (disciplines as any[]).find((d: any) => d.id === card.disciplineId);
+            const disc = disciplines.find((d: any) => d.id === card.disciplineId);
             const isDue = card.nextReviewDate <= today;
-            const daysUntil = Math.max(0, Math.ceil((new Date(card.nextReviewDate).getTime() - new Date(today).getTime()) / 86400000));
             return (
-              <div key={card.id} className="rounded-xl p-4 space-y-3 transition-all"
-                style={{
-                  background: "var(--card-bg, var(--app-bg))",
-                  border: `1px solid ${isDue ? "color-mix(in srgb, var(--accent-amber) 40%, var(--card-border))" : "var(--card-border)"}`,
-                }}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {disc && <CardBadge text={disc.name} color={disc.color} />}
-                    {isDue
-                      ? <CardBadge text="Revisar hoje" color="var(--accent-amber, #d97706)" />
-                      : <CardBadge text={`Em ${daysUntil}d`} color="var(--accent-green, #16a34a)" />}
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => { setEditingCard(card); setMode("edit"); }}
-                      className="p-1.5 rounded-lg transition-all hover:opacity-60"
-                      style={{ color: "var(--muted-text)" }}>
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => { if (confirm("Excluir flashcard?")) deleteCard.mutate({ id: card.id }); }}
-                      className="p-1.5 rounded-lg transition-all hover:opacity-60"
-                      style={{ color: "var(--accent-red, #dc2626)" }}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+              <div key={card.id} className="soe-card p-6 flex flex-col gap-4 group hover:border-[var(--primary-border)] transition-colors">
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-1.5">
+                        {disc && <CardBadge text={disc.name} color={disc.color} />}
+                        {isDue && <CardBadge text="Revisar" color="var(--accent-amber)" />}
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => { setEditingCard(card); setMode("edit"); }} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                            <Edit2 size={12} />
+                        </button>
+                        <button onClick={() => { if (confirm("Excluir definitivamente?")) deleteCard.mutate({ id: card.id }); }} className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-500 transition-all">
+                            <Trash2 size={12} />
+                        </button>
+                    </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-text)" }}>Frente</p>
-                  <p className="text-sm font-medium line-clamp-2" style={{ color: "var(--app-fg)" }}
-                    dangerouslySetInnerHTML={{ __html: card.front }} />
+                
+                <div className="flex-1 space-y-4">
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-20">Frente</p>
+                        <p className="text-sm font-bold leading-relaxed line-clamp-3" style={{ color: "var(--app-fg)" }} dangerouslySetInnerHTML={{ __html: card.front }} />
+                    </div>
+                    <div className="h-px bg-white/5 w-1/4" />
+                    <div className="space-y-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-20">Verso</p>
+                        <p className="text-xs opacity-50 line-clamp-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: card.back }} />
+                    </div>
                 </div>
-                <div className="h-px" style={{ background: "var(--card-border)" }} />
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "var(--muted-text)" }}>Verso</p>
-                  <p className="text-sm line-clamp-2" style={{ color: "var(--muted-text)" }}
-                    dangerouslySetInnerHTML={{ __html: card.back }} />
-                </div>
-                <div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--muted-text)" }}>
-                  <RotateCcw className="h-3 w-3" />
-                  <span>{card.repetitions} repetição{card.repetitions !== 1 ? "ões" : ""}</span>
-                  <span>·</span>
-                  <span>Intervalo: {card.interval}d</span>
+
+                <div className="pt-4 mt-2 border-t border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 opacity-30">
+                        <RotateCcw size={10} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">{card.repetitions} evocações</span>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-30">Gap: {card.interval}d</span>
                 </div>
               </div>
             );

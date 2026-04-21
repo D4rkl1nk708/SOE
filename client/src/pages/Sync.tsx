@@ -4,14 +4,16 @@ import { Capacitor } from "@capacitor/core";
 import {
   QrCode, Smartphone, Monitor, RefreshCw, Download,
   Upload, CheckCircle2, Wifi, AlertCircle, Clock, Database,
-  Camera, ArrowDownToLine, ArrowUpFromLine, X, RotateCw
+  Camera, ArrowDownToLine, ArrowUpFromLine, X, RotateCw,
+  Cloud, HardDrive, ShieldCheck, Share2, Info, ChevronRight,
+  Zap, Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const isAndroid = Capacitor.isNativePlatform();
 const isDesktop = !isAndroid;
 
-// ── QR Code generator ─────────────────────────────────────────────────────
+// ── QR Code generator (utility remains the same, styling improved) ───────────
 async function getQRDataURL(text: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if ((window as any).QRCode) { buildQR(text, resolve, reject); return; }
@@ -27,7 +29,14 @@ function buildQR(text: string, resolve: (s: string) => void, reject: (e: any) =>
   div.style.display = "none";
   document.body.appendChild(div);
   try {
-    new (window as any).QRCode(div, { text, width: 240, height: 240, correctLevel: (window as any).QRCode.CorrectLevel.M });
+    new (window as any).QRCode(div, { 
+      text, 
+      width: 240, 
+      height: 240, 
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: (window as any).QRCode.CorrectLevel.M 
+    });
     setTimeout(() => {
       const canvas = div.querySelector("canvas");
       const img = div.querySelector("img");
@@ -37,67 +46,53 @@ function buildQR(text: string, resolve: (s: string) => void, reject: (e: any) =>
   } catch (e) { document.body.removeChild(div); reject(e); }
 }
 
-// ── Native barcode scanner via @capacitor-mlkit/barcode-scanning ──────────
+// ── Native barcode scanner ───────────────────────────────────────────────────
 async function scanQRNative(): Promise<string | null> {
   try {
     const { BarcodeScanner, BarcodeFormat } = await import("@capacitor-mlkit/barcode-scanning");
 
-    // Passo 1: verifica se o modelo MLKit está instalado (necessário em alguns dispositivos)
     try {
       const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
       if (!available) {
         await BarcodeScanner.installGoogleBarcodeScannerModule();
-        toast("Instalando módulo de scanner... Tente novamente em instantes.", { duration: 4000 });
+        toast("Instalando módulo de scanner...", { duration: 4000 });
         return null;
       }
-    } catch (_) {
-      // Alguns dispositivos/versões não têm esse método — ignorar e continuar
-    }
+    } catch (_) {}
 
-    // Passo 2: checa e pede permissão de câmera explicitamente
     let granted = false;
     try {
       const { camera: status } = await BarcodeScanner.checkPermissions();
       if (status === "granted" || status === "limited") {
         granted = true;
       } else if (status === "denied") {
-        // Já foi negada antes — abre configurações
-        toast.error("Permissão de câmera bloqueada. Habilite em: Configurações → Apps → SOE → Permissões → Câmera");
+        toast.error("Permissão de câmera bloqueada. Habilite nas configurações.");
         return null;
       } else {
-        // "prompt" ou "prompt-with-rationale" → pede permissão
         const { camera: newStatus } = await BarcodeScanner.requestPermissions();
         granted = newStatus === "granted" || newStatus === "limited";
       }
     } catch (_) {
-      // checkPermissions falhou — tenta pedir direto
       try {
         const { camera } = await BarcodeScanner.requestPermissions();
         granted = camera === "granted" || camera === "limited";
-      } catch (permErr) {
-        console.error("Erro ao pedir permissão:", permErr);
-      }
+      } catch (e) {}
     }
 
     if (!granted) {
-      toast.error("Câmera não autorizada. Acesse: Configurações → Apps → SOE → Permissões → Câmera");
+      toast.error("Câmera não autorizada.");
       return null;
     }
 
-    // Passo 3: escaneia
     const { barcodes } = await BarcodeScanner.scan({
       formats: [BarcodeFormat.QrCode],
     });
 
-    if (barcodes.length > 0) {
-      return barcodes[0].rawValue ?? null;
-    }
-    return null;
+    return barcodes.length > 0 ? barcodes[0].rawValue ?? null : null;
   } catch (e: any) {
     const msg = e?.message || String(e);
     if (msg.includes("cancel") || msg.includes("Cancel") || msg.includes("dismiss")) return null;
-    console.error("QR Scan error:", e);
-    toast.error("Erro ao abrir câmera: " + msg);
+    toast.error("Erro no scanner: " + msg);
     return null;
   }
 }
@@ -121,22 +116,17 @@ export default function Sync() {
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
 
-  // ── PC: SSE waiting for Android push ────────────────────────────────
   const [waitingReceive, setWaitingReceive] = useState(false);
   const [received, setReceived] = useState(false);
   const sseRef = useRef<EventSource | null>(null);
 
-  // ── Fetch sync info ──────────────────────────────────────────────────
   const fetchSyncInfo = useCallback(async () => {
     if (!isDesktop) return;
     try {
       const res = await fetch("/api/sync/info");
       const data = await res.json();
       setSyncInfo(data);
-      // Seleciona o primeiro IP automaticamente se nenhum ainda escolhido
-      if (data.ips && data.ips.length > 0) {
-        setSelectedIp((prev) => prev || data.ips[0]);
-      }
+      if (data.ips && data.ips.length > 0) setSelectedIp((prev) => prev || data.ips[0]);
     } catch {}
   }, []);
 
@@ -174,11 +164,10 @@ export default function Sync() {
     fetchSyncInfo();
     fetchBackups();
     runAutoBackup();
-  }, []);
+  }, [fetchSyncInfo, fetchBackups, runAutoBackup]);
 
-  useEffect(() => { if (syncInfo && selectedIp) generateQRs(syncInfo, selectedIp); }, [syncInfo, selectedIp]);
+  useEffect(() => { if (syncInfo && selectedIp) generateQRs(syncInfo, selectedIp); }, [syncInfo, selectedIp, generateQRs]);
 
-  // ── SSE listener ─────────────────────────────────────────────────────
   const startListening = useCallback(() => {
     sseRef.current?.close();
     setWaitingReceive(true);
@@ -190,7 +179,7 @@ export default function Sync() {
         setReceived(true);
         setWaitingReceive(false);
         es.close();
-        toast.success("Dados recebidos do Android! Recarregue para ver.");
+        toast.success("Dados recebidos do Android!");
         fetchBackups();
       }
     };
@@ -199,7 +188,6 @@ export default function Sync() {
 
   useEffect(() => () => { sseRef.current?.close(); }, []);
 
-  // ── Helper: HTTP nativo via CapacitorHttp (bypassa CORS e cleartext do WebView) ──
   const nativeFetch = useCallback(async (
     url: string,
     options: { method?: string; headers?: Record<string, string>; data?: any; timeoutMs?: number }
@@ -221,103 +209,55 @@ export default function Sync() {
     });
   }, []);
 
-  // ── Android: PULL from PC ─────────────────────────────────────────────
   const handlePull = useCallback(async () => {
     setPulling(true);
     try {
       const url = await scanQRNative();
       if (!url) return;
-      toast.info("QR lido! Baixando dados do PC...");
-      try {
-        const res = await nativeFetch(url, {
-          method: "GET",
-          headers: { "Accept": "application/json" },
-          timeoutMs: 15000,
-        });
-        if (res.status < 200 || res.status >= 300)
-          throw new Error(`Servidor respondeu ${res.status}. Verifique se o PC está ligado e na mesma rede.`);
-        const json = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
-        const { localImportImportBackup } = await import("@/lib/localDb");
-        await localImportImportBackup({ json });
-        toast.success("Dados sincronizados do PC!");
-        setTimeout(() => window.location.reload(), 800);
-      } catch (err: any) {
-        if (err?.message === "TIMEOUT")
-          throw new Error("Timeout ao conectar com o PC. Verifique:\n• PC e celular na mesma rede Wi-Fi\n• Firewall do PC não bloqueando a porta\n• App do PC está aberto");
-        throw err;
-      }
+      toast.info("Conectando ao PC...");
+      const res = await nativeFetch(url, { method: "GET", headers: { "Accept": "application/json" }, timeoutMs: 15000 });
+      if (res.status < 200 || res.status >= 300) throw new Error("Erro de conexão");
+      const json = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+      const { localImportImportBackup } = await import("@/lib/localDb");
+      await localImportImportBackup({ json });
+      toast.success("Dados sincronizados!");
+      setTimeout(() => window.location.reload(), 800);
     } catch (e: any) {
-      const msg = e?.message || String(e);
-      if (!msg.includes("cancel") && !msg.includes("Cancel")) {
-        toast.error("Erro: " + msg);
-      }
+      toast.error(e.message || "Erro na sincronização");
     } finally { setPulling(false); }
   }, [nativeFetch]);
 
-  // ── Android: PUSH to PC ───────────────────────────────────────────────
   const handlePush = useCallback(async () => {
     setPushing(true);
     try {
       const url = await scanQRNative();
       if (!url) return;
-      toast.info("QR lido! Enviando dados para o PC...");
+      toast.info("Enviando dados...");
       const { localImportExportBackup } = await import("@/lib/localDb");
       const json = await localImportExportBackup();
-      try {
-        const res = await nativeFetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          data: json,
-          timeoutMs: 20000,
-        });
-        if (res.status < 200 || res.status >= 300)
-          throw new Error(`PC respondeu ${res.status}`);
-        toast.success("Dados enviados para o PC!");
-      } catch (err: any) {
-        if (err?.message === "TIMEOUT")
-          throw new Error("Timeout ao conectar com o PC. Verifique:\n• PC e celular na mesma rede Wi-Fi\n• Firewall do PC não bloqueando a porta\n• App do PC está aberto");
-        throw err;
-      }
+      const res = await nativeFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, data: json, timeoutMs: 20000 });
+      if (res.status < 200 || res.status >= 300) throw new Error("PC recusou conexão");
+      toast.success("Enviado com sucesso!");
     } catch (e: any) {
-      const msg = e?.message || String(e);
-      if (!msg.includes("cancel") && !msg.includes("Cancel")) {
-        toast.error("Erro: " + msg);
-      }
+      toast.error(e.message || "Erro no envio");
     } finally { setPushing(false); }
   }, [nativeFetch]);
 
-  // ── Export backup ────────────────────────────────────────────────────
   const handleExportFile = async () => {
     try {
-      if (isAndroid) {
-        const { localImportExportBackup } = await import("@/lib/localDb");
-        const json = await localImportExportBackup();
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("Backup exportado!");
-      } else {
-        const { localImportExportBackup } = await import("@/lib/localDb");
-        const json = await localImportExportBackup();
-        const blob = new Blob([json], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("Backup exportado!");
-      }
-    } catch (e: any) {
-      toast.error("Erro ao exportar: " + (e?.message || String(e)));
-    }
+      const { localImportExportBackup } = await import("@/lib/localDb");
+      const json = await localImportExportBackup();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Backup pronto!");
+    } catch (e: any) { toast.error("Erro ao exportar"); }
   };
 
-  // ── Import backup from file ──────────────────────────────────────────
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -326,118 +266,97 @@ export default function Sync() {
       const json = await file.text();
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
-      toast.success("Backup importado com sucesso!");
+      toast.success("Importado!");
       setTimeout(() => window.location.reload(), 800);
-    } catch { toast.error("Arquivo JSON inválido"); }
+    } catch { toast.error("Arquivo inválido"); }
     finally { setImportLoading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
-  // ── Import backup from public link ────────────────────────────────────
   const handleImportFromLink = async () => {
     if (!driveUrl) return;
     setLinkImportLoading(true);
     try {
       let fileId = "";
-      const match1 = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      const match2 = driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
-      if (match1) fileId = match1[1];
-      else if (match2) fileId = match2[1];
-      else throw new Error("Link inválido. Certifique-se de que é um link do Google Drive.");
+      const m1 = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      const m2 = driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
+      fileId = m1 ? m1[1] : (m2 ? m2[1] : "");
+      if (!fileId) throw new Error("Link inválido");
 
-      const exportUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      const res = await fetch(exportUrl);
-      if (!res.ok) throw new Error("Falha ao baixar. Verifique se o link está configurado como 'Qualquer pessoa com o link'.");
-      
+      const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+      if (!res.ok) throw new Error("Acesso negado ao arquivo");
       const json = await res.text();
-      JSON.parse(json); // validate syntax
-
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
-      toast.success("Backup importado via link com sucesso!");
+      toast.success("Sincronizado com a nuvem!");
       setTimeout(() => window.location.reload(), 800);
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao importar arquivo do link.");
-    } finally {
-      setLinkImportLoading(false);
-      setDriveUrl("");
-    }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setLinkImportLoading(false); setDriveUrl(""); }
   };
 
-  // Each card manages its own flip state independently
   const FlipQRCard = ({ 
-    title, subtitle, icon: Icon, iconColor, qrUrl, loading, buttonColor, footerAction
+    title, subtitle, icon: Icon, iconColor, qrUrl, loading, footerAction
   }: { 
     title: string; subtitle: string; icon: any; iconColor: string; qrUrl: string; loading: boolean;
-    buttonColor: string; footerAction?: React.ReactNode;
+    footerAction?: React.ReactNode;
   }) => {
     const [flipped, setFlipped] = useState(false);
-
     return (
       <div className="w-full" style={{ perspective: "1000px" }}>
-        {/* Flip container */}
         <div style={{
-          position: "relative",
-          width: "100%",
-          height: 340,
+          position: "relative", width: "100%", height: 380,
           transformStyle: "preserve-3d",
-          transition: "transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1)",
+          transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
           transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
         }}>
-          {/* FRONT — info + button to reveal */}
-          <div style={{
-            position: "absolute", inset: 0,
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
-            borderRadius: 18,
-            background: "var(--stat-bg)",
-            border: "2px solid var(--card-border)",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: "24px 20px",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-              <Icon size={16} style={{ color: iconColor }} />
-              <span style={{ fontWeight: 600, fontSize: 14, color: "var(--app-fg)" }}>{title}</span>
+          {/* FRONT */}
+          <div className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between border-2 border-transparent hover:border-[var(--primary-border)] transition-colors">
+            <div className="flex items-center gap-2.5 w-full">
+              <div className="p-2 rounded-lg" style={{ background: `${iconColor}15` }}>
+                <Icon size={18} style={{ color: iconColor }} />
+              </div>
+              <span className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>{title}</span>
             </div>
-            <div style={{ width: "100%", border: "2px dashed var(--card-border)", borderRadius: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "40px 16px" }}>
-              <QrCode size={40} style={{ color: "var(--muted-text)", opacity: 0.35 }} />
-              <p style={{ fontSize: 12, color: "var(--muted-text)", textAlign: "center" }}>{subtitle}</p>
+            <div className="w-full flex-1 my-4 rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-4 bg-white/[0.01]">
+              <div className="relative">
+                <QrCode size={40} className="text-white/10" />
+                <Zap size={14} className="absolute -top-1 -right-1 text-[var(--primary)] animate-pulse" />
+              </div>
+              <p className="text-[10px] text-white/40 text-center mt-3 leading-relaxed">{subtitle}</p>
             </div>
             <button
               onClick={() => setFlipped(true)}
-              style={{ width: "100%", padding: "10px 0", borderRadius: 12, background: buttonColor, color: "#fff", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
               <RotateCw size={14} /> Revelar QR Code
             </button>
           </div>
 
-          {/* BACK — QR code */}
-          <div style={{
-            position: "absolute", inset: 0,
-            backfaceVisibility: "hidden",
-            WebkitBackfaceVisibility: "hidden",
-            transform: "rotateY(180deg)",
-            borderRadius: 18,
-            background: "var(--stat-bg)",
-            border: "2px solid " + iconColor + "66",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "20px 16px",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-              <Icon size={16} style={{ color: iconColor }} />
-              <span style={{ fontWeight: 600, fontSize: 14, color: "var(--app-fg)" }}>{title}</span>
+          {/* BACK */}
+          <div className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between rotate-y-180" 
+               style={{ borderColor: `${iconColor}40`, background: "var(--stat-bg)" }}>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2.5">
+                <Icon size={18} style={{ color: iconColor }} />
+                <span className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>{title}</span>
+              </div>
+              <button onClick={() => setFlipped(false)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/20 hover:text-white">
+                <X size={18} />
+              </button>
             </div>
-            {loading ? (
-              <div style={{ width: 200, height: 200, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12, background: "var(--app-bg)" }}>
-                <RefreshCw size={24} style={{ color: "var(--muted-text)" }} className="animate-spin" />
-              </div>
-            ) : qrUrl ? (
-              <div style={{ padding: 10, borderRadius: 14, background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
-                <img src={qrUrl} alt="QR Code" style={{ width: 190, height: 190, display: "block" }} />
-              </div>
-            ) : null}
-            {footerAction}
-            <button
-              onClick={() => setFlipped(false)}
-              style={{ width: "100%", padding: "8px 0", borderRadius: 10, background: "transparent", color: "var(--muted-text)", fontWeight: 500, fontSize: 12, border: "1px solid var(--card-border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <X size={13} /> Ocultar QR
-            </button>
+            <div className="flex-1 flex items-center justify-center w-full p-2">
+              {loading ? (
+                <RefreshCw size={28} className="text-[var(--primary)] animate-spin opacity-40" />
+              ) : qrUrl ? (
+                <div className="p-2 bg-white rounded-xl shadow-2xl">
+                  <img src={qrUrl} alt="QR" className="w-40 h-40 md:w-44 md:h-44 block object-contain" />
+                </div>
+              ) : (
+                <AlertCircle size={28} className="text-rose-500/40" />
+              )}
+            </div>
+            <div className="w-full space-y-3">
+              {footerAction}
+              <p className="text-[10px] text-center uppercase tracking-widest opacity-30 font-black">Escaneie com o App Mobile</p>
+            </div>
           </div>
         </div>
       </div>
@@ -445,237 +364,248 @@ export default function Sync() {
   };
 
   return (
-    <div className="w-full space-y-4 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight soe-gold-text flex items-center gap-2">
-          <QrCode className="w-6 h-6" /> Sync & Backup
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted-text)" }}>
-          {isAndroid ? "Sincronize com o PC ou importe um backup" : "Sincronize com o Android e gerencie backups"}
-        </p>
+    <div className="w-full max-w-6xl mx-auto space-y-8 pb-12">
+      {/* Header Imersivo */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
+            <RefreshCw className="w-6 h-6 text-[var(--primary)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Sync & Backup</h1>
+            <p className="text-sm opacity-60">Sincronização em tempo real e segurança de dados.</p>
+          </div>
+        </div>
+        
+        {/* Connection Status Badge */}
+        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 border border-white/5">
+          <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
+            {isDesktop ? "Terminal Host Ativo" : "Cliente Mobile Conectado"}
+          </span>
+        </div>
       </div>
 
-      {/* ── DESKTOP: Stacked QR Cards ──────────────────────────────────── */}
-      {isDesktop && (
-        <div className="soe-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Smartphone className="w-4 h-4" style={{ color: "var(--primary)" }} />
-            <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Sincronizar com Android</h2>
-          </div>
-
-          {syncInfo && syncInfo.ips.length > 0 ? (
-            <div className="space-y-5">
-              <div className="flex items-start gap-2 text-sm" style={{ color: "var(--app-fg)" }}>
-                <Wifi className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "var(--accent-green)" }} />
-                PC e Android devem estar na <strong>mesma rede Wi-Fi</strong>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-2">
+        {/* Left Column: QR & Sync */}
+        <div className="lg:col-span-8 space-y-8">
+          <div className="soe-card p-8 relative overflow-hidden">
+             {/* Background decorative icon */}
+            <Smartphone className="absolute -right-8 -bottom-8 w-48 h-48 opacity-[0.02] -rotate-12 pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
+                <Wifi className="w-5 h-5 text-[var(--primary)]" />
               </div>
+              <div>
+                <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Sincronização Direta</h2>
+                <p className="text-xs opacity-50">Transfira dados instantaneamente via Wi-Fi.</p>
+              </div>
+            </div>
 
-              {/* Seletor de IP — aparece somente se houver mais de 1 IP */}
-              {syncInfo.ips.length > 1 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-medium" style={{ color: "var(--muted-text)" }}>
-                    IP do PC detectado — se o QR não funcionar, tente outro:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {syncInfo.ips.map(ip => (
-                      <button
-                        key={ip}
-                        onClick={() => setSelectedIp(ip)}
-                        className="px-3 py-1 rounded-lg text-xs font-mono transition-opacity"
-                        style={{
-                          background: selectedIp === ip ? "var(--primary)" : "var(--stat-bg)",
-                          color: selectedIp === ip ? "var(--primary-foreground)" : "var(--app-fg)",
-                          border: `1px solid ${selectedIp === ip ? "var(--primary)" : "var(--card-border)"}`,
-                        }}
-                      >
-                        {ip}
-                      </button>
-                    ))}
+            {isDesktop ? (
+              <div className="space-y-8">
+                {syncInfo && syncInfo.ips.length > 0 ? (
+                  <>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-4">
+                      <Globe className="w-5 h-5 text-[var(--accent-blue, #3b82f6)]" />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Endereço Local</p>
+                        <code className="text-sm font-black">{selectedIp}:{syncInfo.port}</code>
+                      </div>
+                      {syncInfo.ips.length > 1 && (
+                        <div className="flex gap-1.5">
+                          {syncInfo.ips.map(ip => (
+                            <button key={ip} onClick={() => setSelectedIp(ip)}
+                                    className={`w-2 h-2 rounded-full transition-all ${selectedIp === ip ? 'bg-[var(--primary)] scale-125' : 'bg-white/10'}`} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FlipQRCard
+                        title="Baixar para Mobile"
+                        subtitle="Transfere os dados do PC para o seu celular."
+                        icon={ArrowDownToLine}
+                        iconColor="var(--accent-green)"
+                        qrUrl={qrPullUrl}
+                        loading={qrLoading}
+                      />
+                      <FlipQRCard
+                        title="Enviar para o PC"
+                        subtitle="Envia o progresso do celular para este computador."
+                        icon={ArrowUpFromLine}
+                        iconColor="var(--primary)"
+                        qrUrl={qrPushUrl}
+                        loading={qrLoading}
+                        footerAction={
+                          <button
+                            onClick={startListening}
+                            disabled={waitingReceive}
+                            className={`w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${received ? 'bg-[var(--accent-green)] text-white border-[var(--accent-green)]' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10'}`}>
+                            {received ? "✓ Recebido" : waitingReceive ? "Aguardando..." : "Escutar Android"}
+                          </button>
+                        }
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-12 text-center bg-white/5 rounded-[2rem] border-2 border-dashed border-white/10">
+                    <Wifi size={40} className="mx-auto mb-4 opacity-20" />
+                    <p className="text-sm font-bold opacity-40">Sem rede Wi-Fi detectada.</p>
                   </div>
-                  <p className="text-xs" style={{ color: "var(--muted-text)" }}>
-                    IP selecionado: <code className="font-mono">{selectedIp}:{syncInfo.port}</code>
-                  </p>
-                </div>
-              )}
-
-              {/* Mostra o IP mesmo quando só há 1 */}
-              {syncInfo.ips.length === 1 && (
-                <p className="text-xs" style={{ color: "var(--muted-text)" }}>
-                  Endereço do PC: <code className="font-mono px-1 py-0.5 rounded" style={{ background: "var(--stat-bg)" }}>{selectedIp}:{syncInfo.port}</code>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm opacity-50 leading-relaxed mb-6">
+                  Abra o Dashboard no seu PC e aponte a câmera para os QR Codes.
                 </p>
-              )}
+                <div className="grid gap-4">
+                  <button onClick={handlePull} disabled={pulling}
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-[var(--primary)] text-white shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                        {pulling ? <RefreshCw className="animate-spin" /> : <ArrowDownToLine />}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-black text-lg">Baixar do PC</p>
+                        <p className="text-xs opacity-70">Importar dados do computador</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="opacity-40 group-hover:translate-x-1 transition-transform" />
+                  </button>
 
-              <div className="flex flex-col sm:flex-row gap-6 pt-4">
-                {/* Flip QR Cards */}
-                <div className="flex-1">
-                  <FlipQRCard
-                    title="PC → Android"
-                    subtitle="Clique para ver o QR Code e escaneie no celular para baixar os dados do PC"
-                    icon={ArrowDownToLine}
-                    iconColor="var(--accent-green)"
-                    qrUrl={qrPullUrl}
-                    loading={qrLoading}
-                    buttonColor="var(--accent-green)"
-                  />
-                </div>
-
-                <div className="flex-1">
-                  <FlipQRCard
-                    title="Android → PC"
-                    subtitle="Clique para ver o QR Code e escaneie no celular para enviar dados ao PC"
-                    icon={ArrowUpFromLine}
-                    iconColor="var(--primary)"
-                    qrUrl={qrPushUrl}
-                    loading={qrLoading}
-                    buttonColor="var(--primary)"
-                    footerAction={
-                      <Button
-                        size="sm"
-                        variant={received ? "default" : "outline"}
-                        onClick={startListening}
-                        disabled={waitingReceive}
-                        className="gap-2 w-full"
-                      >
-                        {received ? (
-                          <><CheckCircle2 className="w-3.5 h-3.5" /> Dados recebidos!</>
-                        ) : waitingReceive ? (
-                          <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Aguardando Android...</>
-                        ) : (
-                          <><RefreshCw className="w-3.5 h-3.5" /> Aguardar envio do Android</>
-                        )}
-                      </Button>
-                    }
-                  />
+                  <button onClick={handlePush} disabled={pushing}
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-[var(--primary-bg-subtle)] flex items-center justify-center text-[var(--primary)]">
+                        {pushing ? <RefreshCw className="animate-spin" /> : <ArrowUpFromLine />}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-black text-lg" style={{ color: "var(--app-fg)" }}>Enviar ao PC</p>
+                        <p className="text-xs opacity-50">Sincronizar progresso atual</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="opacity-20 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
               </div>
-
-              <div className="flex justify-end pt-8">
-                <Button variant="outline" size="sm" onClick={() => { fetchSyncInfo(); }} className="gap-2">
-                  <RefreshCw className="w-3.5 h-3.5" /> Atualizar QRs
-                </Button>
+            )}
+          </div>
+          
+          {/* Cloud Restoration */}
+          <div className="soe-card p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
+                <Cloud className="w-5 h-5 text-sky-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Restauração em Nuvem</h2>
+                <p className="text-xs opacity-50">Importe backups compartilhados via link.</p>
               </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "var(--stat-bg)" }}>
-              <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: "var(--accent-amber)" }} />
-              <p className="text-sm" style={{ color: "var(--muted-text)" }}>Nenhuma rede Wi-Fi detectada.</p>
+            
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Cole o link do Google Drive aqui..."
+                value={driveUrl}
+                onChange={(e) => setDriveUrl(e.target.value)}
+                className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
+                style={{ background: "var(--input-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}
+              />
+              <button onClick={handleImportFromLink} disabled={linkImportLoading || !driveUrl}
+                className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2">
+                {linkImportLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}
+                Importar
+              </button>
+            </div>
+            <div className="mt-4 flex items-center gap-2 opacity-30">
+              <ShieldCheck size={14} />
+              <p className="text-[10px] font-bold uppercase tracking-tighter">Conexão Segura SSL</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Files & Automation */}
+        <div className="lg:col-span-4 space-y-8">
+          {/* File Backup */}
+          <div className="soe-card p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-[var(--accent-amber)]/10 flex items-center justify-center">
+                <HardDrive className="w-5 h-5 text-[var(--accent-amber)]" />
+              </div>
+              <h2 className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>Arquivo Local</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={handleExportFile}
+                className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                <Share2 className="text-[var(--primary)]" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Exportar</span>
+              </button>
+              <label className="cursor-pointer">
+                <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                  <Upload className="text-[var(--accent-green)]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{importLoading ? "Carregando" : "Importar"}</span>
+                </div>
+                <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+              </label>
+            </div>
+          </div>
+
+          {/* Automated Backups List (PC) */}
+          {isDesktop && (
+            <div className="soe-card p-6 flex flex-col h-full max-h-[500px]">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-[var(--primary)]" />
+                  </div>
+                  <h2 className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>Histórico</h2>
+                </div>
+                <button onClick={() => { runAutoBackup(); fetchBackups(); }}
+                        className="p-2 rounded-lg hover:bg-white/5 text-white/30 transition-colors">
+                  <RotateCw size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                {backupLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />
+                  ))
+                ) : backups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 opacity-20">
+                    <Info size={32} />
+                    <p className="text-xs font-bold mt-2">Sem backups</p>
+                  </div>
+                ) : (
+                  backups.map(b => (
+                    <div key={b.name} className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--accent-green)]/10 flex items-center justify-center text-[var(--accent-green)]">
+                        <ShieldCheck size={14} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{b.date}</p>
+                        <p className="text-xs font-bold truncate" style={{ color: "var(--app-fg)" }}>{b.name}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-white/5">
+                <p className="text-[9px] font-black uppercase tracking-widest opacity-20 text-center leading-relaxed">
+                  Backups retidos por 30 dias<br />em ./userData/data/backups
+                </p>
+              </div>
             </div>
           )}
         </div>
-      )}
-
-      {/* ── ANDROID: dois botões ────────────────────────────────────── */}
-      {isAndroid && (
-        <div className="soe-card p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Monitor className="w-4 h-4" style={{ color: "var(--primary)" }} />
-            <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Sincronizar com o PC</h2>
-          </div>
-          <p className="text-sm mb-4" style={{ color: "var(--muted-text)" }}>
-            Abra o SOE no PC e vá em Sync & Backup. Dois QR Codes vão aparecer — use o certo para cada direção.
-          </p>
-          <div className="grid grid-cols-1 gap-3">
-            <Button
-              onClick={handlePull}
-              disabled={pulling || pushing}
-              className="w-full gap-2 h-12 text-base font-semibold"
-            >
-              {pulling ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowDownToLine className="w-5 h-5" />}
-              {pulling ? "Baixando dados..." : "Baixar dados do PC"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handlePush}
-              disabled={pulling || pushing}
-              className="w-full gap-2 h-12 text-base font-semibold"
-            >
-              {pushing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ArrowUpFromLine className="w-5 h-5" />}
-              {pushing ? "Enviando dados..." : "Enviar dados para o PC"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Backup por arquivo ─────────────────────────────────────── */}
-      <div className="soe-card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Database className="w-4 h-4" style={{ color: "var(--primary)" }} />
-          <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Backup por arquivo</h2>
-        </div>
-        <p className="text-sm mb-4" style={{ color: "var(--muted-text)" }}>
-          Exporte um arquivo JSON com todos os seus dados. Ideal para mandar por WhatsApp para si mesmo.
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={handleExportFile} className="gap-2">
-            <Download className="w-4 h-4" /> Exportar JSON
-          </Button>
-          <label>
-            <Button variant="outline" className="gap-2" asChild>
-              <span><Upload className="w-4 h-4" />{importLoading ? "Importando..." : "Importar JSON"}</span>
-            </Button>
-            <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
-          </label>
-        </div>
       </div>
-
-      {/* ── Backup via Link Compartilhado ─────────────────────────── */}
-      <div className="soe-card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Database className="w-4 h-4" style={{ color: "var(--primary)" }} />
-          <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Restaurar via Link (Google Drive)</h2>
-        </div>
-        <p className="text-sm mb-4" style={{ color: "var(--muted-text)" }}>
-          Cole o link público de um arquivo de backup do Google Drive para restaurá-lo diretamente no SOE. O arquivo precisa estar configurado como "Qualquer pessoa com o link" na nuvem.
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Ex: https://drive.google.com/file/d/..."
-            value={driveUrl}
-            onChange={(e) => setDriveUrl(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm rounded-md focus:outline-none"
-            style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}
-          />
-          <Button onClick={handleImportFromLink} disabled={linkImportLoading || !driveUrl} className="gap-2 shrink-0">
-            {linkImportLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Restaurar
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Backups automáticos (PC only) ─────────────────────────── */}
-      {isDesktop && (
-        <div className="soe-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" style={{ color: "var(--primary)" }} />
-              <h2 className="font-semibold" style={{ color: "var(--app-fg)" }}>Backups automáticos</h2>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => { runAutoBackup(); fetchBackups(); }} className="gap-1.5 text-xs">
-              <RefreshCw className="w-3.5 h-3.5" /> Fazer backup agora
-            </Button>
-          </div>
-          <p className="text-sm mb-3" style={{ color: "var(--muted-text)" }}>
-            Um backup é salvo automaticamente ao abrir esta página, 1 por dia, máximo 30 dias.
-            Localização: <code className="text-xs px-1 py-0.5 rounded" style={{ background: "var(--stat-bg)" }}>userData/data/backups/</code>
-          </p>
-          {backupLoading ? (
-            <p className="text-sm" style={{ color: "var(--muted-text)" }}>Carregando...</p>
-          ) : backups.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--muted-text)" }}>Nenhum backup encontrado ainda.</p>
-          ) : (
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {backups.map(b => (
-                <div key={b.name} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: "var(--stat-bg)" }}>
-                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--accent-green)" }} />
-                  <span className="text-sm flex-1" style={{ color: "var(--app-fg)" }}>{b.date}</span>
-                  <span className="text-xs" style={{ color: "var(--muted-text)" }}>{b.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

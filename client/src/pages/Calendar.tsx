@@ -133,14 +133,14 @@ export default function Calendar() {
     <div className="space-y-5" style={{ maxWidth: "100%" }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2" style={{ color: "var(--app-fg)" }}>
-            <CalendarDays className="h-6 w-6" style={{ color: "var(--gold)" }} />
-            Calendário de Revisões
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
-            Clique em um dia para ver e gerenciar as atividades
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)]">
+            <CalendarDays className="w-6 h-6 text-[var(--primary)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Cronograma</h1>
+            <p className="text-sm opacity-60">Sua jornada de estudos organizada e previsível.</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -235,17 +235,23 @@ export default function Calendar() {
       )}
 
       {/* Weekly summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Esta semana", value: weekSummary.total, sub: "revisões agendadas", color: "var(--primary)" },
-          { label: "Pendentes", value: weekSummary.pending, sub: `${weekSummary.tests} testes opcionais`, color: weekSummary.pending > 0 ? "#f59e0b" : "var(--accent-green)" },
-          { label: "Concluídas", value: weekSummary.done, sub: "na semana", color: "var(--accent-green, #16a34a)" },
-          { label: "Atrasadas", value: weekSummary.overdue, sub: "de meses anteriores", color: weekSummary.overdue > 0 ? "#dc2626" : "var(--muted-text)" },
+          { label: "Esta semana", value: weekSummary.total, sub: "revisões agendadas", color: "var(--primary)", icon: CalendarDays },
+          { label: "Pendentes", value: weekSummary.pending, sub: `${weekSummary.tests} testes opcionais`, color: weekSummary.pending > 0 ? "#f59e0b" : "#10b981", icon: Settings2 },
+          { label: "Concluídas", value: weekSummary.done, sub: "na semana", color: "#10b981", icon: Check },
+          { label: "Atrasadas", value: weekSummary.overdue, sub: "anteriores", color: weekSummary.overdue > 0 ? "#f43f5e" : "var(--muted-text)", icon: XIcon },
         ].map(s => (
-          <div key={s.label} className="rounded-2xl p-4" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-            <p className="text-xs font-semibold mb-1" style={{ color: "var(--muted-text)" }}>{s.label}</p>
-            <p className="text-2xl font-black leading-none" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-[11px] mt-1" style={{ color: "var(--muted-text)" }}>{s.sub}</p>
+          <div key={s.label} className="soe-card p-5 relative overflow-hidden group">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{s.label}</p>
+              <s.icon className="w-4 h-4 opacity-20 group-hover:opacity-100 transition-opacity" style={{ color: s.color }} />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl font-black tabular-nums" style={{ color: s.color }}>{s.value}</p>
+            </div>
+            <p className="text-[10px] mt-1 font-bold opacity-40 uppercase">{s.sub}</p>
+            <div className="absolute bottom-0 left-0 h-1 bg-current opacity-10 transition-all group-hover:opacity-30" style={{ width: '100%', color: s.color }} />
           </div>
         ))}
       </div>
@@ -269,29 +275,20 @@ export default function Calendar() {
             const isLastRow = idx >= calDays.length - 7;
             return (
               <div key={day.toISOString()} onClick={() => setSelectedDay(day)}
-                className="cursor-pointer transition-colors"
+                className={`cursor-pointer transition-all relative group ${!isCurrentMonth ? 'opacity-20' : 'opacity-100'}`}
                 style={{
-                  minHeight: "120px",
-                  padding: "10px 8px",
-                  background: isToday ? "color-mix(in srgb, var(--gold) 8%, var(--card-bg))" : "var(--card-bg)",
+                  minHeight: "140px",
+                  padding: "12px",
+                  background: isToday ? "var(--primary-bg-subtle)" : "var(--card-bg)",
                   borderRight: (idx + 1) % 7 !== 0 ? "1px solid var(--card-border)" : undefined,
                   borderBottom: !isLastRow ? "1px solid var(--card-border)" : undefined,
-                  opacity: isCurrentMonth ? 1 : 0.25,
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = isToday ? "color-mix(in srgb, var(--gold) 14%, var(--card-bg))" : "var(--stat-bg)")}
-                onMouseLeave={e => (e.currentTarget.style.background = isToday ? "color-mix(in srgb, var(--gold) 8%, var(--card-bg))" : "var(--card-bg)")}
               >
+                {isToday && <div className="absolute inset-0 border-2 border-[var(--primary)] pointer-events-none z-10 opacity-20" />}
                 {/* Day number row */}
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <span
-                    className="text-sm font-bold leading-none flex items-center justify-center"
-                    style={{
-                      width: isToday ? "26px" : undefined,
-                      height: isToday ? "26px" : undefined,
-                      borderRadius: isToday ? "50%" : undefined,
-                      background: isToday ? "var(--gold)" : undefined,
-                      color: isToday ? "#fff" : "var(--app-fg)",
-                    }}>
+                    className={`text-sm font-black w-7 h-7 flex items-center justify-center rounded-lg transition-transform group-hover:scale-110 ${isToday ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)]' : 'text-white/40'}`}>
                     {format(day, "d")}
                   </span>
                   {/* Badge conta só revisões pendentes */}
@@ -308,34 +305,19 @@ export default function Calendar() {
                     const isTest = a.type === "test";
                     return (
                       <div key={a.id}
-                        className="group flex items-center gap-1 text-[11px] font-semibold rounded-lg overflow-hidden transition-all"
+                        className="group/pill flex items-center gap-1.5 text-[10px] font-black rounded-lg overflow-hidden transition-all px-2 py-1.5 border border-white/5"
                         style={{
                           background: a.completed
-                            ? "color-mix(in srgb, #16a34a 12%, transparent)"
+                            ? "rgba(16, 185, 129, 0.1)"
                             : isTest
-                            ? "transparent"
-                            : "color-mix(in srgb, var(--primary) 13%, transparent)",
-                          border: isTest && !a.completed ? "1px dashed color-mix(in srgb, var(--muted-text) 30%, transparent)" : "1px solid transparent",
-                          opacity: isTest && !a.completed ? 0.5 : 1,
+                            ? "rgba(255, 255, 255, 0.03)"
+                            : "var(--primary-bg-subtle)",
+                          color: a.completed ? "#10b981" : isTest ? "rgba(255, 255, 255, 0.4)" : "var(--primary)",
+                          textDecoration: a.completed ? "line-through" : undefined,
                         }}
-                        onMouseEnter={e => { if (isTest && !a.completed) { (e.currentTarget as HTMLElement).style.opacity = "1"; (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--gold) 12%, transparent)"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--gold) 30%, transparent)"; } }}
-                        onMouseLeave={e => { if (isTest && !a.completed) { (e.currentTarget as HTMLElement).style.opacity = "0.5"; (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "color-mix(in srgb, var(--muted-text) 30%, transparent)"; } }}
                       >
-                        <span
-                          className="flex-1 truncate px-1.5 py-1"
-                          style={{
-                            color: a.completed ? "#16a34a" : isTest ? "var(--muted-text)" : "var(--primary)",
-                            textDecoration: a.completed ? "line-through" : undefined,
-                          }}>
-                          <span className="font-black mr-1">{isTest ? "T" : "R"}</span>{a.topicName}
-                        </span>
-                        <button
-                          onClick={e => { e.stopPropagation(); markCompleted.mutate({ id: a.id, completed: !a.completed }); }}
-                          className="flex-shrink-0 px-1 py-1 hover:opacity-70 transition-opacity"
-                          style={{ color: a.completed ? "#16a34a" : "var(--muted-text)" }}
-                          title={a.completed ? "Desmarcar" : "Marcar como feito"}>
-                          <Check className="w-3 h-3" />
-                        </button>
+                        <span className="shrink-0 opacity-50 uppercase tracking-tighter">{isTest ? "T" : "R"}</span>
+                        <span className="flex-1 truncate">{a.topicName}</span>
                       </div>
                     );
                   })}

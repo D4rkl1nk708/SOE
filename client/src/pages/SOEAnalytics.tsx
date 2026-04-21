@@ -12,9 +12,10 @@ import { toast } from "sonner";
 import {
   Clock, Brain, Zap, TrendingDown, TrendingUp,
   AlertCircle, BarChart2, Shuffle, ChevronRight,
-  Target, Trophy, Percent,
+  Target, Trophy, Percent, Sparkles,
 } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 
@@ -310,8 +311,14 @@ export default function SOEAnalytics() {
   const { data: forgettingStats } = trpc.v10.getForgettingVelocity.useQuery();
   const { data: rebalance } = trpc.v10.getDisciplineRebalance.useQuery();
 
+  const [reportOpen, setReportOpen] = useState(false);
+  const [deepReport, setDeepReport] = useState<string | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
+  const generateReport = trpc.mentor.generateDeepAnalysis.useMutation();
+
   const topics = useMemo<ET[]>(() => {
-    type RawDisc = { disciplineId: number; name: string; color: string; studyTimeSeconds: number; topics: Array<{ id: number; name: string; studyDate: string; studyTimeSeconds: number; completedRevisions: number; performance?: { correctCount: number; errorCount: number; questionsResolved: number; errorByAttention?: number; errorByForgetting?: number; errorByTheory?: number; errorByTrap?: number } | null }> };
+    type RawDisc = { disciplineId: number; name: string; color: string; studyTimeSeconds: number; topics: Array<{ id: number; name: string; studyDate: string; studyTimeSeconds: number; completedRevisions: number; performance?: { correctCount: number; errorCount: number; questionsResolved: number; errorByAttention?: number; errorByForgetting?: number; errorByTheory?: number; errorByTrap?: number; incidencia?: number; totalQuestoesBanca?: number; bancaDominante?: string; dificuldade?: number; } | null }> };
     const disciplines = ((stats?.disciplineStats ?? []) as RawDisc[]);
     return disciplines.flatMap(d =>
       d.topics.map(t => {
@@ -337,7 +344,7 @@ export default function SOEAnalytics() {
   }, [stats, rebalance]);
 
   const disciplines = useMemo(() =>
-    ((stats?.disciplineStats ?? []) as Array<{ disciplineId: number; name: string; color: string; studyTimeSeconds: number; topics: ET[] }>)
+    ((stats?.disciplineStats ?? []) as any[])
       .map(d => ({ ...d, topics: topics.filter(t => t.disciplineId === d.disciplineId) })),
   [stats, topics]);
 
@@ -375,10 +382,72 @@ export default function SOEAnalytics() {
 
   return (
     <div className="space-y-6 pb-10">
-      <div>
-        <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Análise IA</h1>
-        <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>Padrões que as estatísticas normais não revelam</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Análise IA</h1>
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>Padrões que as estatísticas normais não revelam</p>
+        </div>
+        {stats?.settings?.aiApiKey && (
+          <button
+            onClick={() => {
+              if (loadingReport) return;
+              setLoadingReport(true);
+              generateReport.mutate({
+                apiKey: stats.settings.aiApiKey as string,
+                provider: (stats.settings as any).aiProvider ?? "gemini"
+              }, {
+                onSuccess: (res) => { setDeepReport(res.report); setReportOpen(true); },
+                onSettled: () => setLoadingReport(false)
+              });
+            }}
+            disabled={loadingReport}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)", color: "white", boxShadow: "0 4px 12px var(--primary-shadow)" }}>
+            <Sparkles className={`w-4 h-4 ${loadingReport ? 'animate-spin' : ''}`} />
+            {loadingReport ? "Analisando..." : "Relatório de Guerra"}
+          </button>
+        )}
       </div>
+
+      {/* Deep Report Modal */}
+      <AnimatePresence>
+        {reportOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+               onClick={(e) => e.target === e.currentTarget && setReportOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl"
+              style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+            >
+              <div className="p-6 border-b flex justify-between items-center" style={{ borderColor: "var(--card-border)" }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--primary)", color: "white" }}>
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black" style={{ color: "var(--app-fg)" }}>Relatório de Guerra</h2>
+                    <p className="text-xs" style={{ color: "var(--muted-text)" }}>Diagnóstico estratégico personalizado</p>
+                  </div>
+                </div>
+                <button onClick={() => setReportOpen(false)} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
+                  <AlertCircle className="w-6 h-6 rotate-45" style={{ color: "var(--muted-text)" }} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-black prose-headings:text-white prose-strong:text-primary">
+                 <div style={{ color: "var(--app-fg)" }} dangerouslySetInnerHTML={{ __html: deepReport?.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') || "" }} />
+              </div>
+              <div className="p-6 border-t flex justify-end" style={{ borderColor: "var(--card-border)" }}>
+                <button onClick={() => setReportOpen(false)} className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all"
+                  style={{ background: "var(--primary)", color: "white" }}>
+                  Entendido, Mentor
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Paradoxo do Conforto */}
       {cp.length > 0 && (

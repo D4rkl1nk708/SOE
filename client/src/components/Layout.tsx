@@ -6,7 +6,6 @@ import {
   ListChecks, Sparkles, Sheet, Settings, ChevronLeft, ChevronRight, Download
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { StudyTimer } from "./StudyTimer";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -75,8 +74,8 @@ function SoeLogo({ size = 28 }: { size?: number }) {
       style={{
         width: size,
         height: size,
-        background: "#0071e3",
-        boxShadow: "0 2px 8px rgba(0,113,227,0.35)",
+        background: "var(--primary)",
+        boxShadow: "0 2px 10px var(--primary-shadow)",
       }}
     >
       <svg width={Math.round(size * 0.57)} height={Math.round(size * 0.57)} viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -136,7 +135,7 @@ function Sidebar({ collapsed, onToggle, location }: { collapsed: boolean; onTogg
           <a className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
             <SoeLogo size={28} />
             {!collapsed && (
-              <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "#0071e3" }}>
+              <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "var(--primary)" }}>
                 SOE
               </span>
             )}
@@ -258,7 +257,7 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center gap-2.5">
             <SoeLogo size={28} />
-            <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "#0071e3" }}>SOE</span>
+            <span className="font-bold text-[15px] tracking-[-0.4px]" style={{ color: "var(--primary)" }}>SOE</span>
           </div>
           <div className="flex items-center gap-0.5">
             <SearchButton />
@@ -334,7 +333,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[64px] transition-all"
                   style={{ color: active ? "var(--primary)" : "var(--sidebar-fg)" }}
                 >
-                  <div className="p-1.5 rounded-lg" style={{ background: active ? "rgba(0,113,227,0.08)" : "transparent" }}>
+                  <div className="p-1.5 rounded-lg" style={{ background: active ? "var(--primary-bg-subtle)" : "transparent" }}>
                     <Icon className="w-[20px] h-[20px]" style={{ opacity: active ? 1 : 0.45 }} />
                   </div>
                   <span className="text-[9px] leading-none tracking-tight font-bold" style={{ opacity: active ? 1 : 0.55 }}>
@@ -401,7 +400,6 @@ export function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       <GlobalSearch />
-      <StudyTimer />
     </div>
   );
 }

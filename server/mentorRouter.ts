@@ -9,137 +9,16 @@ import * as storage from "./jsonStorage";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-type ClaudeContentPart = { type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
-
-function callClaude(apiKey: string, prompt: string, maxTokens = 1200, imageBase64?: string): Promise<string> {
-  const content: ClaudeContentPart[] = [];
-  if (imageBase64) {
-    const [mime, data] = imageBase64.includes(",") ? imageBase64.split(",") : ["image/jpeg", imageBase64];
-    const actualMime = mime.includes(":") ? mime.split(":")[1].split(";")[0] : "image/jpeg";
-    content.push({
-      type: "image",
-      source: { type: "base64", media_type: actualMime, data: data },
-    });
-  }
-  content.push({ type: "text", text: prompt });
-
-  return fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: maxTokens,
-      messages: [{ role: "user", content }],
-    }),
-  })
-    .then((r) => r.json())
-    .then((d: { error?: { message?: string }; content?: { text: string }[] }) => {
-      if (d.error) throw new Error(d.error.message ?? "Erro na API Claude");
-      return d.content?.[0]?.text ?? "";
-    });
-}
-
-async function callGemini(apiKey: string, prompt: string, maxTokens = 1200, imageBase64?: string): Promise<string> {
-  // Lista de modelos para tentar em ordem — cada um tem cotas independentes
-  const GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-  ];
-
-  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [{ text: prompt }];
-  if (imageBase64) {
-    const [mime, data] = imageBase64.includes(",") ? imageBase64.split(",") : ["image/jpeg", imageBase64];
-    const actualMime = mime.includes(":") ? mime.split(":")[1].split(";")[0] : "image/jpeg";
-    parts.push({ inlineData: { mimeType: actualMime, data: data } });
-  }
-
-  let lastError = "";
-  for (const model of GEMINI_MODELS) {
-    try {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
-          }),
-        }
-      );
-      const d = await r.json() as { error?: { message?: string }; candidates?: { content: { parts: { text: string }[] } }[] };
-
-      // Se deu erro de cota (429) ou modelo não encontrado, tenta o próximo
-      if (d.error) {
-        const msg: string = d.error.message || "Erro Gemini";
-        const isQuota = msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("exceeded") || r.status === 429;
-        const isNotFound = msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("not supported") || r.status === 404;
-        if (isQuota || isNotFound) {
-          lastError = `[${model}] ${msg}`;
-          console.warn(`[Gemini] Modelo ${model} indisponível, tentando próximo...`);
-          continue;
-        }
-        throw new Error(msg);
-      }
-
-      return (d.candidates?.[0]?.content?.parts?.[0]?.text as string) || "";
-    } catch (err: any) {
-      // Só propaga se não for erro de cota
-      if (!err.message?.toLowerCase().includes("quota") && !err.message?.toLowerCase().includes("exceeded")) {
-        throw err;
-      }
-      lastError = err.message;
-      console.warn(`[Gemini] Erro no modelo ${model}: ${err.message}`);
-    }
-  }
-
-  throw new Error(`Todos os modelos Gemini estão com cota esgotada. Último erro: ${lastError}\n\nSolução: ative o faturamento em console.cloud.google.com ou use uma chave de outra conta Google.`);
-}
-
-function callOpenAI(apiKey: string, prompt: string, maxTokens = 1200, imageBase64?: string): Promise<string> {
-  type OpenAIContent = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
-  const content: OpenAIContent[] = [];
-  if (imageBase64) {
-    content.push({
-      type: "image_url",
-      image_url: { url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}` },
-    });
-  }
-  content.push({ type: "text", text: prompt });
-
-  return fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content }],
-      max_tokens: maxTokens,
-    }),
-  })
-    .then((r) => r.json())
-    .then((d: { error?: { message?: string }; choices?: { message: { content: string } }[] }) => {
-      if (d.error) throw new Error(d.error.message ?? "Erro OpenAI");
-      return d.choices?.[0]?.message?.content ?? "";
-    });
-}
+import { callAiProvider } from "./aiProviders";
 
 async function callAI(
   provider: "claude" | "gemini" | "openai",
-  apiKey: string,
+  apiKeyString: string,
   prompt: string,
   maxTokens = 1200,
   imageBase64?: string
 ): Promise<string> {
-  if (provider === "claude") return callClaude(apiKey, prompt, maxTokens, imageBase64);
-  if (provider === "gemini") return callGemini(apiKey, prompt, maxTokens, imageBase64);
-  return callOpenAI(apiKey, prompt, maxTokens, imageBase64);
+  return callAiProvider(provider, apiKeyString, prompt, maxTokens, imageBase64);
 }
 
 /**
@@ -301,6 +180,41 @@ export const mentorRouter = router({
   }),
 
   /**
+   * Insights Rápidos de Estatística — IA analisa os números e dá 1 linha de impacto
+   */
+  getStatsInsight: protectedProcedure
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const stats = await storage.getDashboardStats(ctx.user.id);
+      const totalResolved = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
+      const totalCorrect = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.correctCount ?? 0), 0);
+      const overallAccuracy = totalResolved > 0 ? Math.round(totalCorrect / totalResolved * 100) : 0;
+      
+      const discList = (stats.disciplineStats ?? []).map(d => `${d.name}: ${d.performance?.accuracy ?? 0}% (${d.performance?.questionsResolved ?? 0}q)`).join(", ");
+
+      const prompt = `Você é o Mentor SOE. Analise as estatísticas atuais do aluno e dê UM insight de 1 frase (máximo 25 palavras) que seja encorajador mas cirúrgico.
+      
+      DADOS:
+      - Total resolvidas: ${totalResolved}
+      - Acerto Geral: ${overallAccuracy}%
+      - Desempenho por matéria: ${discList}
+      
+      Responda em português, direto, sem introduções. Use negrito em partes importantes.`;
+
+      try {
+        const insight = await callAI(input.provider, input.apiKey, prompt, 200);
+        return { insight: insight.trim() };
+      } catch (err: any) {
+        return { insight: "Continue focado na constância. O resultado vem com o tempo." };
+      }
+    }),
+
+  /**
    * Briefing Diário — IA gera plano personalizado baseado nos dados do usuário
    */
   getDailyBriefing: protectedProcedure
@@ -429,6 +343,61 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
         };
       } catch (err: any) {
         throw new Error(`Falha ao gerar briefing: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Relatório Profundo — IA analisa o perfil completo e gera um relatório narrativo
+   */
+  generateDeepAnalysis: protectedProcedure
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [stats, weak, errors, disciplines, revisions, regressions] = await Promise.all([
+        storage.getDashboardStats(ctx.user.id),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id),
+        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 20 }).then(r => r.items),
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getRevisionsByUser(ctx.user.id),
+        storage.getTecRegressions(ctx.user.id, 5),
+      ]);
+
+      const totalResolved = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
+      const overallAcc = totalResolved > 0 ? Math.round((stats.disciplineStats ?? []).reduce((s, d) => s + (d.performance?.correctCount ?? 0), 0) / totalResolved * 100) : 0;
+
+      const weakList = weak.slice(0, 10).map(t => `- ${t.disciplineName} > ${t.topicName}: ${t.accuracy}%`).join("\n");
+      const errorPatterns = errors.map(e => `- ${e.errorOrigin}: ${e.statement.substring(0, 100)}...`).join("\n");
+
+      const prompt = `Você é o Mentor Estratégico SOE. Sua tarefa é analisar o perfil completo de um concurseiro e gerar um "Relatório de Guerra" profundo.
+
+      DADOS DO ALUNO:
+      - Total de Questões: ${totalResolved}
+      - Acerto Médio: ${overallAcc}%
+      - Pontos Críticos (Ranking de Vulnerabilidade):
+      ${weakList}
+      
+      - Padrões de Erro Recentes:
+      ${errorPatterns}
+      
+      - Regressões Detectadas: ${regressions.length} temas pioraram recentemente.
+
+      ESTRUTURA DO RELATÓRIO:
+      1. **Diagnóstico da Situação Atual**: Onde o aluno está (faixa de acerto, maturidade).
+      2. **Análise de Pontos Cegos**: O que os números sugerem que ele está ignorando (padrões de erro, regressões).
+      3. **Ajuste de Rota**: 3 mudanças práticas na rotina para subir o acerto em 10% nas próximas 3 semanas.
+      4. **Veredito do Mentor**: Uma mensagem final de impacto.
+
+      Responda em Markdown, com tom profissional, técnico e extremamente motivador. Seja duro onde for preciso.`;
+
+      try {
+        const report = await callAI(input.provider, input.apiKey, prompt, 1500);
+        return { report };
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar relatório: ${err.message}`);
       }
     }),
 

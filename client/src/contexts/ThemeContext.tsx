@@ -69,6 +69,8 @@ function applyTheme(colorTheme: ColorTheme, darkMode: DarkMode) {
     "--sidebar-active-border": `rgba(${r},${g},${b},${isDark ? 0.3 : 0.2})`,
     "--sidebar-accent": `rgba(${r},${g},${b},${isDark ? 0.12 : 0.07})`,
     "--sidebar-accent-foreground": primary,
+    "--primary-shadow": `rgba(${r},${g},${b},${isDark ? 0.45 : 0.35})`,
+    "--primary-bg-subtle": `rgba(${r},${g},${b},${isDark ? 0.15 : 0.08})`,
   };
 
   for (const [k, v] of Object.entries(vars)) {

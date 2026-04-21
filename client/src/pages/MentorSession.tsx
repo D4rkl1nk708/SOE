@@ -1,23 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   Brain, ChevronLeft, CheckCircle2, XCircle, Zap, AlertTriangle,
   BarChart2, Lock, RefreshCw, ChevronRight, Target, BookOpen,
-  TrendingDown, Play, Trophy, Clock,
+  TrendingDown, Play, Trophy, Clock, Sparkles, GraduationCap,
+  ShieldCheck, ArrowRight, Activity, Lightbulb
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WeakProfileChart } from "@/components/WeakProfileChart";
+import { motion, AnimatePresence } from "framer-motion";
 
-// ─── types ────────────────────────────────────────────────────────────────────
-
-type Phase =
-  | "config"      // API key + select discipline/topic
-  | "profile"     // view weak profile, pick focus
-  | "question"    // answering current question
-  | "fixation"    // post-error fixation questions
-  | "summary";    // end of session
+type Phase = "config" | "profile" | "question" | "fixation" | "summary";
 
 interface SessionQuestion {
   questionId: string;
@@ -51,51 +46,32 @@ interface Diagnosis {
   }>;
 }
 
-// ─── constants ────────────────────────────────────────────────────────────────
-
 const API_KEY_KEY = "soe_mentor_api_key";
 const API_PROVIDER_KEY = "soe_mentor_provider";
 const SESSION_SIZE = 10;
 
 const DIFFICULTY_LABELS: Record<string, string> = {
-  easy: "Fácil",
-  medium: "Médio",
-  hard: "Difícil",
+  easy: "Nível Fundamental",
+  medium: "Nível Intermediário",
+  hard: "Nível Avançado",
 };
-
-function RenderText({ text }: { text: string }) {
-  return (
-    <div style={{ lineHeight: 1.75, fontSize: 13 }}>
-      {text.split("\n").map((line, i) => {
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <div key={i} style={{ marginBottom: line.trim() === "" ? "0.4rem" : 0 }}>
-            {parts.map((p, j) =>
-              p.startsWith("**") && p.endsWith("**") ? (
-                <strong key={j}>{p.slice(2, -2)}</strong>
-              ) : (
-                <span key={j}>{p}</span>
-              )
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── main ─────────────────────────────────────────────────────────────────────
 
 export default function MentorSession() {
   const [, navigate] = useLocation();
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const globalApiKey = (stats?.settings as any)?.aiApiKey ?? "";
+  const globalProvider = (stats?.settings as any)?.aiProvider ?? "gemini";
 
-  // Config
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_KEY) ?? "");
   const [provider, setProvider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_KEY) as any) ?? "claude"
+    () => (localStorage.getItem(API_PROVIDER_KEY) as any) ?? "gemini"
   );
 
-  // Session state
+  useEffect(() => {
+    if (!apiKey && globalApiKey) setApiKey(globalApiKey);
+    if (globalProvider) setProvider(globalProvider as any);
+  }, [globalApiKey, globalProvider]);
+
   const [phase, setPhase] = useState<Phase>("config");
   const [selectedDiscId, setSelectedDiscId] = useState<number | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
@@ -118,12 +94,10 @@ export default function MentorSession() {
 
   const utils = trpc.useUtils();
   const { data: disciplines } = trpc.discipline.list.useQuery();
-
   const generateQ = trpc.mentor.generateAdaptiveQuestion.useMutation();
   const diagnoseErr = trpc.mentor.diagnoseError.useMutation();
   const saveResult = trpc.mentor.saveSessionResult.useMutation();
 
-  // ── auto-adjust difficulty based on recent performance ──────────────────
   const recentHits = history.slice(-4).filter((h) => h.correct).length;
   const adaptedDifficulty =
     history.length >= 4 && recentHits >= 4
@@ -132,66 +106,37 @@ export default function MentorSession() {
       ? "easy"
       : difficulty;
 
-  // ── fetch next question ──────────────────────────────────────────────────
-  const fetchNextQuestion = () => {
+  const fetchNextQuestion = useCallback(() => {
     if (!selectedDiscId) return;
     setSelectedAnswer(null);
     setConfirmed(false);
     setShowHint(false);
     generateQ.mutate(
-      {
-        apiKey,
-        provider,
-        disciplineId: selectedDiscId,
-        topicId: selectedTopicId ?? undefined,
-        difficulty: adaptedDifficulty,
-        sessionHistory: history,
-      },
+      { apiKey, provider, disciplineId: selectedDiscId, topicId: selectedTopicId ?? undefined, difficulty: adaptedDifficulty, sessionHistory: history },
       {
         onSuccess: (q) => setCurrentQuestion(q as SessionQuestion),
         onError: (err) => toast.error(err.message),
       }
     );
-  };
+  }, [selectedDiscId, selectedTopicId, adaptedDifficulty, history, apiKey, provider]);
 
-  // ── confirm answer ──────────────────────────────────────────────────────
   const confirmAnswer = async () => {
     if (!selectedAnswer || !currentQuestion) return;
     setConfirmed(true);
     const correct = selectedAnswer === currentQuestion.correctAnswer;
-    const entry: SessionEntry = {
-      questionId: currentQuestion.questionId,
-      correct,
-      userAnswer: selectedAnswer,
-    };
+    const entry: SessionEntry = { questionId: currentQuestion.questionId, correct, userAnswer: selectedAnswer };
     setHistory((prev) => [...prev, entry]);
 
     if (!correct) {
-      // Fetch diagnosis
       diagnoseErr.mutate(
-        {
-          apiKey,
-          provider,
-          statement: currentQuestion.statement,
-          alternatives: currentQuestion.alternatives,
-          userAnswer: selectedAnswer,
-          correctAnswer: currentQuestion.correctAnswer,
-          disciplineName: currentQuestion.disciplineName,
-          topicName: currentQuestion.topicName,
-        },
+        { apiKey, provider, statement: currentQuestion.statement, alternatives: currentQuestion.alternatives, userAnswer: selectedAnswer, correctAnswer: currentQuestion.correctAnswer, disciplineName: currentQuestion.disciplineName, topicName: currentQuestion.topicName },
         {
           onSuccess: (d) => {
             setDiagnosis(d as Diagnosis);
-            setFixationIndex(0);
-            setFixationAnswer(null);
-            setFixationConfirmed(false);
+            setFixationIndex(0); setFixationAnswer(null); setFixationConfirmed(false);
             setPhase("fixation");
           },
-          onError: (err) => {
-            toast.error("Diagnóstico falhou: " + err.message);
-            // Continue anyway
-            checkEndOfSession([...history, entry]);
-          },
+          onError: (err) => { toast.error("Diagnóstico falhou."); checkEndOfSession([...history, entry]); }
         }
       );
     } else {
@@ -200,50 +145,28 @@ export default function MentorSession() {
   };
 
   const checkEndOfSession = (h: SessionEntry[]) => {
-    if (h.length >= SESSION_SIZE) {
-      endSession(h);
-    } else {
-      setPhase("question");
-      fetchNextQuestion();
-    }
+    if (h.length >= SESSION_SIZE) endSession(h);
+    else { setPhase("question"); fetchNextQuestion(); }
   };
 
   const endSession = (h: SessionEntry[]) => {
     const correct = h.filter((e) => e.correct).length;
     const wrong = h.filter((e) => !e.correct).length;
     const elapsed = Math.round((Date.now() - sessionStart) / 1000);
-    if (selectedDiscId) {
-      saveResult.mutate({
-        disciplineId: selectedDiscId,
-        topicId: selectedTopicId ?? undefined,
-        correct,
-        wrong,
-        durationSeconds: elapsed,
-      });
-    }
+    if (selectedDiscId) saveResult.mutate({ disciplineId: selectedDiscId, topicId: selectedTopicId ?? undefined, correct, wrong, durationSeconds: elapsed });
     utils.mentor.getWeakProfile.invalidate();
     setPhase("summary");
-  };
-
-  // ── after fixation question ─────────────────────────────────────────────
-  const confirmFixation = () => {
-    setFixationConfirmed(true);
   };
 
   const nextAfterFixation = () => {
     if (!diagnosis) return;
     if (fixationIndex < diagnosis.fixationQuestions.length - 1) {
-      setFixationIndex((i) => i + 1);
-      setFixationAnswer(null);
-      setFixationConfirmed(false);
+      setFixationIndex((i) => i + 1); setFixationAnswer(null); setFixationConfirmed(false);
     } else {
-      // Fixation done — continue session
-      setDiagnosis(null);
-      checkEndOfSession(history);
+      setDiagnosis(null); checkEndOfSession(history);
     }
   };
 
-  // ── save config ─────────────────────────────────────────────────────────
   const saveConfig = () => {
     if (!apiKey.trim()) { toast.error("Informe a API Key"); return; }
     localStorage.setItem(API_KEY_KEY, apiKey);
@@ -251,475 +174,392 @@ export default function MentorSession() {
     setPhase("profile");
   };
 
-  // ── start session ───────────────────────────────────────────────────────
-  const startSession = () => {
-    if (!selectedDiscId) { toast.error("Selecione uma disciplina"); return; }
-    setHistory([]);
-    setCurrentQuestion(null);
-    setPhase("question");
-    fetchNextQuestion();
-  };
-
-  const accuracy =
-    history.length > 0
-      ? Math.round((history.filter((h) => h.correct).length / history.length) * 100)
-      : 0;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
+  const accuracy = history.length > 0 ? Math.round((history.filter((h) => h.correct).length / history.length) * 100) : 0;
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "1rem" }}>
-      {/* Top bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem" }}>
-        <button
-          onClick={() => navigate("/")}
-          style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6, padding: 4 }}
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <div
-          style={{
-            width: 32, height: 32, borderRadius: 9,
-            background: "linear-gradient(135deg, #d4af37 0%, #f0d060 100%)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <Brain size={16} color="#1a1a1a" />
+    <div className="w-full max-w-4xl mx-auto space-y-8 pb-12">
+      {/* Immersive Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate("/")} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all">
+            <ChevronLeft size={20} className="opacity-60" />
+          </button>
+          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
+            <Brain className="w-6 h-6 text-[var(--primary)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Mentor IA</h1>
+            <p className="text-sm opacity-60">Sessão adaptativa baseada em pontos fracos.</p>
+          </div>
         </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>IA</div>
-          <div style={{ fontSize: 11, opacity: 0.55 }}>Aprendizado adaptativo personalizado</div>
-        </div>
+        
         {history.length > 0 && (
-          <div style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12, opacity: 0.7 }}>
-            <span>{history.length}/{SESSION_SIZE}</span>
-            <span style={{ color: accuracy >= 60 ? "var(--success-fg, green)" : "var(--danger-fg, red)" }}>
-              {accuracy}%
-            </span>
+          <div className="flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/5">
+             <div className="flex items-center gap-2">
+                <Activity size={14} className="text-[var(--primary)]" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Eficiência</span>
+                <span className="text-xs font-black" style={{ color: accuracy >= 70 ? "var(--accent-green)" : "var(--accent-amber)" }}>{accuracy}%</span>
+             </div>
+             <div className="w-px h-4 bg-white/10" />
+             <div className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                Questão {history.length} / {SESSION_SIZE}
+             </div>
           </div>
         )}
       </div>
 
-      {/* ── PHASE: config ── */}
-      {phase === "config" && (
-        <div className="soe-card" style={{ padding: "1.5rem" }}>
-          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
-            <Lock size={15} /> Configurar IA do Mentor
-          </div>
-          <label style={{ fontSize: 12, opacity: 0.65, display: "block", marginBottom: 4 }}>Provedor de IA</label>
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as any)}
-            style={{ width: "100%", marginBottom: 12, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--card-border)", fontSize: 13, background: "var(--card-bg)", color: "var(--app-fg)" }}
-          >
-            <option value="claude">Claude (Anthropic) — recomendado</option>
-            <option value="gemini">Gemini (Google)</option>
-            <option value="openai">GPT-4o mini (OpenAI)</option>
-          </select>
-          <label style={{ fontSize: 12, opacity: 0.65, display: "block", marginBottom: 4 }}>API Key</label>
-          <input
-            type="password"
-            placeholder="sk-ant-... / AIza... / sk-..."
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            style={{ width: "100%", marginBottom: 16, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--card-border)", fontSize: 13, background: "var(--card-bg)", color: "var(--app-fg)" }}
-          />
-          <Button onClick={saveConfig} style={{ width: "100%" }}>
-            Continuar <ChevronRight size={14} />
-          </Button>
-          <div style={{ fontSize: 11, opacity: 0.45, marginTop: 10, textAlign: "center" }}>
-            Sua API Key é salva apenas localmente no browser.
-          </div>
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {/* ── PHASE: config ── */}
+        {phase === "config" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-xl mx-auto">
+            <div className="soe-card p-8 space-y-8">
+                <div className="flex items-center gap-3">
+                    <Lock size={18} className="text-[var(--primary)]" />
+                    <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Configuração de IA</h2>
+                </div>
+                
+                <div className="space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Provedor</label>
+                        <select value={provider} onChange={(e) => setProvider(e.target.value as any)}
+                                className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/5 text-sm outline-none appearance-none">
+                            <option value="gemini">Google Gemini (Flash 1.5)</option>
+                            <option value="claude">Anthropic Claude 3</option>
+                            <option value="openai">OpenAI GPT-4o</option>
+                        </select>
+                    </div>
 
-      {/* ── PHASE: profile ── */}
-      {phase === "profile" && (
-        <div>
-          <div className="soe-card" style={{ padding: "1.25rem", marginBottom: "1rem" }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: "1rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <BarChart2 size={15} /> Seus pontos fracos
+                    <div className="space-y-1.5">
+                        <div className="flex items-center justify-between ml-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Chaves de API</label>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--primary)]">Auto-Rotação Ativa</span>
+                        </div>
+                        <textarea value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                                  placeholder="Uma ou mais chaves (uma por linha)..."
+                                  className="w-full px-4 py-4 rounded-2xl bg-white/5 border border-white/5 text-xs outline-none min-h-[120px] resize-none focus:border-[var(--primary-border)] transition-all" />
+                    </div>
+                </div>
+
+                <Button onClick={saveConfig} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                    Próximo Passo <ChevronRight size={14} className="ml-1" />
+                </Button>
             </div>
-            <WeakProfileChart
-              onSelectTopic={(discId, topicId, topicName, discName) => {
-                setSelectedDiscId(discId);
-                setSelectedTopicId(topicId);
-                setSelectedTopicName(topicName);
-                setSelectedDiscName(discName);
-              }}
-            />
-          </div>
+          </motion.div>
+        )}
 
-          <div className="soe-card" style={{ padding: "1.25rem" }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: "1rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <Target size={15} /> Configurar sessão
+        {/* ── PHASE: profile ── */}
+        {phase === "profile" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-7 soe-card p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <BarChart2 size={18} className="text-[var(--primary)]" />
+                        <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Perfil de Fraquezas</h2>
+                    </div>
+                    <div className="h-[300px]">
+                        <WeakProfileChart onSelectTopic={(discId, topicId, topicName, discName) => {
+                            setSelectedDiscId(discId); setSelectedTopicId(topicId);
+                            setSelectedTopicName(topicName); setSelectedDiscName(discName);
+                        }} />
+                    </div>
+                </div>
+
+                <div className="lg:col-span-5 soe-card p-8 space-y-8">
+                    <div className="flex items-center gap-3">
+                        <Target size={18} className="text-[var(--primary)]" />
+                        <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Ajuste de Foco</h2>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Disciplina Principal</label>
+                            <select value={selectedDiscId ?? ""} onChange={(e) => {
+                                const id = Number(e.target.value);
+                                const name = disciplines?.find(d => d.id === id)?.name ?? "";
+                                setSelectedDiscId(id); setSelectedDiscName(name);
+                                setSelectedTopicId(null); setSelectedTopicName("");
+                            }} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none">
+                                <option value="">Selecionar...</option>
+                                {disciplines?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Nível de Pressão</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(["easy", "medium", "hard"] as const).map((d) => (
+                                    <button key={d} onClick={() => setDifficulty(d)}
+                                        className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${difficulty === d ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]' : 'bg-white/5 text-white/30 border-white/5 hover:bg-white/10'}`}>
+                                        {DIFFICULTY_LABELS[d].split(" ")[1]}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {selectedDiscId && (
+                            <div className="p-4 rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] space-y-1">
+                                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Alvo da Sessão</p>
+                                <p className="text-xs font-bold" style={{ color: "var(--app-fg)" }}>
+                                    {selectedDiscName} {selectedTopicName && <span className="opacity-40">› {selectedTopicName}</span>}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <Button onClick={startSession} disabled={!selectedDiscId} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                        Iniciar Treinamento <Play size={12} className="ml-2 fill-current" />
+                    </Button>
+                </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── PHASE: question ── */}
+        {phase === "question" && (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="max-w-3xl mx-auto space-y-6">
+            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                <motion.div className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent-amber)] shadow-[0_0_15px_var(--primary-shadow)]"
+                            initial={{ width: 0 }} animate={{ width: `${(history.length / SESSION_SIZE) * 100}%` }} transition={{ duration: 0.5 }} />
             </div>
 
-            <label style={{ fontSize: 12, opacity: 0.65, display: "block", marginBottom: 4 }}>Disciplina *</label>
-            <select
-              value={selectedDiscId ?? ""}
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                const name = disciplines?.find(d => d.id === id)?.name ?? "";
-                setSelectedDiscId(id);
-                setSelectedDiscName(name);
-                setSelectedTopicId(null);
-                setSelectedTopicName("");
-              }}
-              style={{ width: "100%", marginBottom: 12, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--card-border)", fontSize: 13, background: "var(--card-bg)", color: "var(--app-fg)" }}
-            >
-              <option value="">Selecione...</option>
-              {disciplines?.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+            {generateQ.isPending ? (
+              <div className="soe-card p-24 text-center space-y-6">
+                  <div className="relative inline-block">
+                      <RefreshCw size={48} className="animate-spin text-[var(--primary)] opacity-20" />
+                      <Brain size={24} className="absolute inset-0 m-auto text-[var(--primary)] animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                      <p className="text-lg font-black uppercase tracking-widest opacity-40">Consultando Mentor...</p>
+                      <p className="text-xs opacity-20">Analisando histórico para calibração de dificuldade.</p>
+                  </div>
+              </div>
+            ) : currentQuestion && (
+              <div className="soe-card p-10 space-y-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
+                    <GraduationCap size={120} />
+                </div>
 
-            <label style={{ fontSize: 12, opacity: 0.65, display: "block", marginBottom: 4 }}>Nível de dificuldade inicial</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              {(["easy", "medium", "hard"] as const).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  style={{
-                    flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 500,
-                    border: `1px solid ${difficulty === d ? "#d4af37" : "var(--card-border)"}`,
-                    background: difficulty === d ? "rgba(212,175,55,0.12)" : "none",
-                    cursor: "pointer", color: "var(--app-fg)",
-                  }}
-                >
-                  {DIFFICULTY_LABELS[d]}
-                </button>
-              ))}
-            </div>
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/5 border border-white/10 opacity-60">
+                        {currentQuestion.banca || "Simulado IA"}
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-[var(--primary-bg-subtle)] text-[var(--primary)] border border-[var(--primary-border)]">
+                        {DIFFICULTY_LABELS[adaptedDifficulty]}
+                    </span>
+                </div>
 
-            {selectedDiscId && (
-              <div
-                style={{
-                  padding: "8px 12px", borderRadius: 8, marginBottom: 12,
-                  background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.3)",
-                  fontSize: 12,
-                }}
-              >
-                <strong>Foco:</strong> {selectedDiscName || disciplines?.find(d => d.id === selectedDiscId)?.name}
-                {selectedTopicName && ` › ${selectedTopicName}`}
-                {selectedTopicName && (
-                  <button
-                    onClick={() => { setSelectedTopicId(null); setSelectedTopicName(""); }}
-                    style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.5, fontSize: 11 }}
-                  >
-                    remover tópico
-                  </button>
+                <div className="text-xl font-bold leading-relaxed" style={{ color: "var(--app-fg)" }}>
+                    {currentQuestion.statement}
+                </div>
+
+                <div className="grid gap-3">
+                    {currentQuestion.alternatives.map((alt) => {
+                      const isSelected = selectedAnswer === alt.letter;
+                      const isCorrect = alt.letter === currentQuestion.correctAnswer;
+                      let statusStyle = "bg-white/5 border-white/5 hover:bg-white/10";
+                      if (confirmed) {
+                        if (isCorrect) statusStyle = "bg-[var(--accent-green)]/10 border-[var(--accent-green)] text-[var(--accent-green)]";
+                        else if (isSelected) statusStyle = "bg-rose-500/10 border-rose-500 text-rose-500";
+                        else statusStyle = "opacity-30 border-white/5";
+                      } else if (isSelected) {
+                        statusStyle = "bg-[var(--primary-bg-subtle)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]";
+                      }
+
+                      return (
+                        <button key={alt.letter} disabled={confirmed} onClick={() => setSelectedAnswer(alt.letter)}
+                                className={`flex items-start gap-5 p-5 rounded-2xl border-2 transition-all text-left ${statusStyle}`}>
+                          <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-black text-xs shrink-0">{alt.letter}</span>
+                          <span className="text-sm font-medium leading-relaxed flex-1">{alt.text}</span>
+                          {confirmed && isCorrect && <CheckCircle2 size={18} className="shrink-0" />}
+                          {confirmed && isSelected && !isCorrect && <XCircle size={18} className="shrink-0" />}
+                        </button>
+                      );
+                    })}
+                </div>
+
+                {currentQuestion.hint && !confirmed && (
+                  <div className="pt-4">
+                    {showHint ? (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                  className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex gap-4">
+                        <Lightbulb size={20} className="text-amber-500 shrink-0" />
+                        <p className="text-sm italic opacity-80">{currentQuestion.hint}</p>
+                      </motion.div>
+                    ) : (
+                      <button onClick={() => setShowHint(true)} className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 hover:text-amber-500 transition-colors flex items-center gap-1.5 ml-1">
+                        <Sparkles size={12} /> Solicitar dica do mentor
+                      </button>
+                    )}
+                  </div>
                 )}
+
+                <div className="pt-6">
+                    {!confirmed ? (
+                        <Button onClick={confirmAnswer} disabled={!selectedAnswer} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                            Confirmar Resposta <ArrowRight size={14} className="ml-2" />
+                        </Button>
+                    ) : (
+                        <div className="flex gap-4">
+                             <div className={`flex-1 p-5 rounded-2xl border flex items-center gap-4 ${selectedAnswer === currentQuestion.correctAnswer ? 'bg-[var(--accent-green)]/10 border-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                                {selectedAnswer === currentQuestion.correctAnswer ? <Trophy size={20} /> : <AlertTriangle size={20} />}
+                                <span className="font-black text-sm uppercase tracking-widest">
+                                    {selectedAnswer === currentQuestion.correctAnswer ? "Objetivo Alcançado!" : "Erro Analisado"}
+                                </span>
+                             </div>
+                             <Button onClick={() => checkEndOfSession(history)} className="px-10 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-widest transition-all">
+                                Próxima <ChevronRight size={14} className="ml-1" />
+                             </Button>
+                        </div>
+                    )}
+                </div>
               </div>
             )}
+          </motion.div>
+        )}
 
-            <Button onClick={startSession} disabled={!selectedDiscId} style={{ width: "100%" }}>
-              <Play size={14} /> Iniciar sessão ({SESSION_SIZE} questões)
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ── PHASE: question ── */}
-      {phase === "question" && (
-        <div>
-          {/* Progress */}
-          <div style={{ marginBottom: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
-              <span>Questão {history.length + 1} de {SESSION_SIZE}</span>
-              <span>
-                {DIFFICULTY_LABELS[adaptedDifficulty]}
-                {adaptedDifficulty !== difficulty && " (ajustado)"}
-              </span>
+        {/* ── PHASE: fixation ── */}
+        {phase === "fixation" && diagnosis && (
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="max-w-3xl mx-auto space-y-8">
+            <div className="soe-card p-10 border-l-4 border-rose-500 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
+                    <ShieldCheck size={120} />
+                </div>
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                        <Activity size={20} />
+                    </div>
+                    <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Diagnóstico de Erro</h2>
+                </div>
+                
+                <p className="text-lg font-medium leading-relaxed mb-8 opacity-80" style={{ color: "var(--app-fg)" }}>{diagnosis.diagnosis}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-5 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Conceito Crítico</p>
+                        <p className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>{diagnosis.concept}</p>
+                    </div>
+                    <div className="p-5 rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] opacity-60">Regra de Ouro</p>
+                        <p className="text-sm font-black text-[var(--primary)]">{diagnosis.rule}</p>
+                    </div>
+                </div>
             </div>
-            <div style={{ height: 4, borderRadius: 2, background: "var(--card-border)", overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%", borderRadius: 2,
-                  width: `${(history.length / SESSION_SIZE) * 100}%`,
-                  background: "linear-gradient(90deg, #d4af37, #f0d060)",
-                  transition: "width 0.3s ease",
-                }}
-              />
-            </div>
-          </div>
 
-          {generateQ.isPending && (
-            <div className="soe-card" style={{ padding: "3rem", textAlign: "center" }}>
-              <RefreshCw size={28} className="animate-spin" style={{ margin: "0 auto 0.75rem", display: "block", opacity: 0.4 }} />
-              <div style={{ fontSize: 13, opacity: 0.5 }}>
-                {history.filter(h => !h.correct).length > 0
-                  ? "Mentor selecionando questão no seu ponto fraco..."
-                  : "Gerando questão..."}
-              </div>
-            </div>
-          )}
+            <div className="soe-card p-10 space-y-8">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Zap size={18} className="text-amber-500" />
+                        <h3 className="font-black text-sm uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>Teste de Fixação</h3>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{fixationIndex + 1} / {diagnosis.fixationQuestions.length}</span>
+                </div>
 
-          {generateQ.isError && (
-            <div className="soe-card" style={{ padding: "1.5rem", textAlign: "center" }}>
-              <div style={{ fontSize: 13, color: "var(--danger-fg, red)", marginBottom: 12 }}>
-                {generateQ.error.message}
-              </div>
-              <Button onClick={fetchNextQuestion} size="sm">Tentar novamente</Button>
-            </div>
-          )}
+                <div className="text-lg font-bold leading-relaxed" style={{ color: "var(--app-fg)" }}>
+                    {diagnosis.fixationQuestions[fixationIndex].statement}
+                </div>
 
-          {currentQuestion && !generateQ.isPending && (
-            <div className="soe-card" style={{ padding: "1.25rem" }}>
-              {/* Meta */}
-              <div style={{ display: "flex", gap: 8, marginBottom: "0.75rem", flexWrap: "wrap" }}>
-                {currentQuestion.banca && (
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, border: "1px solid var(--card-border)", opacity: 0.6 }}>
-                    {currentQuestion.banca}
-                  </span>
+                <div className="grid gap-3">
+                    {diagnosis.fixationQuestions[fixationIndex].alternatives.map((alt) => {
+                      const isSelected = fixationAnswer === alt.letter;
+                      const isCorrect = alt.letter === diagnosis.fixationQuestions[fixationIndex].correctAnswer;
+                      let statusStyle = "bg-white/5 border-white/5 hover:bg-white/10";
+                      if (fixationConfirmed) {
+                        if (isCorrect) statusStyle = "bg-[var(--accent-green)]/10 border-[var(--accent-green)] text-[var(--accent-green)]";
+                        else if (isSelected) statusStyle = "bg-rose-500/10 border-rose-500 text-rose-500";
+                        else statusStyle = "opacity-30 border-white/5";
+                      } else if (isSelected) statusStyle = "bg-white/10 border-[var(--primary-border)]";
+
+                      return (
+                        <button key={alt.letter} disabled={fixationConfirmed} onClick={() => setFixationAnswer(alt.letter)}
+                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left ${statusStyle}`}>
+                          <span className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center font-black text-[10px] shrink-0">{alt.letter}</span>
+                          <span className="text-xs font-medium leading-relaxed">{alt.text}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+
+                {fixationConfirmed && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                              className="p-5 rounded-2xl bg-white/5 border border-white/10 text-xs leading-relaxed italic opacity-60">
+                    {diagnosis.fixationQuestions[fixationIndex].explanation}
+                  </motion.div>
                 )}
-                {currentQuestion.year && (
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, border: "1px solid var(--card-border)", opacity: 0.6 }}>
-                    {currentQuestion.year}
-                  </span>
-                )}
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, border: "1px solid var(--card-border)", opacity: 0.6 }}>
-                  {currentQuestion.source === "ai" ? "IA" : "Banco"}
-                </span>
-              </div>
 
-              {/* Statement */}
-              <div style={{ fontSize: 14, lineHeight: 1.7, marginBottom: "1rem" }}>
-                {currentQuestion.statement}
-              </div>
+                <div className="pt-4">
+                    {!fixationConfirmed ? (
+                        <Button onClick={() => setFixationConfirmed(true)} disabled={!fixationAnswer} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest">
+                            Validar Fixação
+                        </Button>
+                    ) : (
+                        <Button onClick={nextAfterFixation} className="w-full py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                            {fixationIndex < diagnosis.fixationQuestions.length - 1 ? "Próxima Questão" : "Retomar Sessão Principal"}
+                        </Button>
+                    )}
+                </div>
+            </div>
+          </motion.div>
+        )}
 
-              {/* Alternatives */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1rem" }}>
-                {currentQuestion.alternatives.map((alt) => {
-                  const isSelected = selectedAnswer === alt.letter;
-                  const isCorrect = alt.letter === currentQuestion.correctAnswer;
-                  let bg = "transparent";
-                  let borderColor = "var(--card-border)";
-                  if (confirmed) {
-                    if (isCorrect) { bg = "rgba(26,127,55,0.1)"; borderColor = "var(--success-fg, #1a7f37)"; }
-                    else if (isSelected && !isCorrect) { bg = "rgba(192,57,43,0.1)"; borderColor = "var(--danger-fg, #c0392b)"; }
-                  } else if (isSelected) {
-                    bg = "rgba(212,175,55,0.12)";
-                    borderColor = "#d4af37";
-                  }
-                  return (
-                    <button
-                      key={alt.letter}
-                      disabled={confirmed}
-                      onClick={() => setSelectedAnswer(alt.letter)}
-                      style={{
-                        display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
-                        borderRadius: 8, border: `1px solid ${borderColor}`,
-                        background: bg, cursor: confirmed ? "default" : "pointer",
-                        textAlign: "left", transition: "all 0.15s", color: "var(--app-fg)",
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, fontSize: 13, flexShrink: 0, opacity: 0.7 }}>
-                        {alt.letter})
-                      </span>
-                      <span style={{ fontSize: 13, lineHeight: 1.6 }}>{alt.text}</span>
-                      {confirmed && isCorrect && <CheckCircle2 size={14} color="var(--success-fg, green)" style={{ marginLeft: "auto", flexShrink: 0 }} />}
-                      {confirmed && isSelected && !isCorrect && <XCircle size={14} color="var(--danger-fg, red)" style={{ marginLeft: "auto", flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Hint */}
-              {currentQuestion.hint && !confirmed && (
-                <div style={{ marginBottom: "0.75rem" }}>
-                  {!showHint ? (
-                    <button
-                      onClick={() => setShowHint(true)}
-                      style={{ fontSize: 12, opacity: 0.5, background: "none", border: "none", cursor: "pointer" }}
-                    >
-                      Ver dica do mentor
-                    </button>
-                  ) : (
-                    <div style={{ fontSize: 12, padding: "8px 12px", borderRadius: 8, background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.3)" }}>
-                      💡 {currentQuestion.hint}
+        {/* ── PHASE: summary ── */}
+        {phase === "summary" && (
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-3xl mx-auto space-y-8">
+            <div className="soe-card p-12 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-[var(--primary-bg-subtle)] to-transparent opacity-30" />
+                <div className="relative z-10 space-y-6">
+                    <div className="inline-block p-8 rounded-[3rem] bg-white/[0.02] border border-white/5 shadow-2xl relative">
+                        <Trophy size={64} className="text-amber-500 animate-bounce" />
+                        <Sparkles size={24} className="absolute top-4 right-4 text-[var(--primary)] animate-pulse" />
                     </div>
-                  )}
-                </div>
-              )}
-
-              {!confirmed ? (
-                <Button
-                  onClick={confirmAnswer}
-                  disabled={!selectedAnswer}
-                  style={{ width: "100%" }}
-                >
-                  Confirmar resposta
-                </Button>
-              ) : (
-                <div>
-                  {selectedAnswer === currentQuestion.correctAnswer ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 8, background: "rgba(26,127,55,0.08)", marginBottom: 10 }}>
-                      <CheckCircle2 size={16} color="var(--success-fg, green)" />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--success-fg, green)" }}>Correto! Bom trabalho.</span>
+                    
+                    <div className="space-y-2">
+                        <h2 className="text-3xl font-black" style={{ color: "var(--app-fg)" }}>Ciclo Adaptativo Completo</h2>
+                        <p className="text-sm opacity-40 font-medium">{selectedDiscName} {selectedTopicName && ` › ${selectedTopicName}`}</p>
                     </div>
-                  ) : (
-                    <div style={{ padding: "10px 14px", borderRadius: 8, background: "rgba(192,57,43,0.06)", marginBottom: 10 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <XCircle size={16} color="var(--danger-fg, red)" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--danger-fg, red)" }}>Errou.</span>
-                        {diagnoseErr.isPending && <span style={{ fontSize: 12, opacity: 0.5 }}>Mentor analisando...</span>}
-                      </div>
+
+                    <div className="grid grid-cols-3 gap-6 max-w-md mx-auto">
+                        <div className="space-y-1">
+                            <p className="text-3xl font-black text-[var(--accent-green)]">{history.filter(h => h.correct).length}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Acertos</p>
+                        </div>
+                        <div className="space-y-1 border-x border-white/5">
+                            <p className="text-3xl font-black text-rose-500">{history.filter(h => !h.correct).length}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Falhas</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-3xl font-black" style={{ color: "var(--app-fg)" }}>{accuracy}%</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Precisão</p>
+                        </div>
                     </div>
-                  )}
+
+                    <div className="pt-8 flex gap-4">
+                        <Button variant="outline" onClick={() => { setHistory([]); setPhase("profile"); }} className="flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">
+                            Nova Sessão
+                        </Button>
+                        <Button onClick={() => navigate("/")} className="flex-1 py-4 rounded-2xl bg-[var(--primary)] text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]">
+                            Concluir Relatório
+                        </Button>
+                    </div>
                 </div>
-              )}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* ── PHASE: fixation ── */}
-      {phase === "fixation" && diagnosis && (
-        <div>
-          {/* Diagnosis card */}
-          <div className="soe-card" style={{ padding: "1.25rem", marginBottom: "1rem", borderLeft: "3px solid var(--danger-fg, #c0392b)" }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <AlertTriangle size={14} color="var(--danger-fg, #c0392b)" /> Diagnóstico do mentor
-            </div>
-            <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: "0.75rem" }}>{diagnosis.diagnosis}</div>
-            <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(212,175,55,0.08)", marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.6, marginBottom: 2 }}>Conceito cobrado</div>
-              <div style={{ fontSize: 13 }}>{diagnosis.concept}</div>
-            </div>
-            <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(26,127,55,0.06)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.6, marginBottom: 2 }}>Regra para não errar</div>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{diagnosis.rule}</div>
-            </div>
-          </div>
-
-          {/* Fixation question */}
-          {diagnosis.fixationQuestions[fixationIndex] && (
-            <div className="soe-card" style={{ padding: "1.25rem" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.5, marginBottom: "0.5rem" }}>
-                FIXAÇÃO {fixationIndex + 1}/{diagnosis.fixationQuestions.length}
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.7, marginBottom: "1rem" }}>
-                {diagnosis.fixationQuestions[fixationIndex].statement}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1rem" }}>
-                {diagnosis.fixationQuestions[fixationIndex].alternatives.map((alt) => {
-                  const isSelected = fixationAnswer === alt.letter;
-                  const isCorrect = alt.letter === diagnosis.fixationQuestions[fixationIndex].correctAnswer;
-                  let bg = "transparent";
-                  let borderColor = "var(--card-border)";
-                  if (fixationConfirmed) {
-                    if (isCorrect) { bg = "rgba(26,127,55,0.1)"; borderColor = "var(--success-fg, green)"; }
-                    else if (isSelected) { bg = "rgba(192,57,43,0.1)"; borderColor = "var(--danger-fg, red)"; }
-                  } else if (isSelected) {
-                    bg = "rgba(212,175,55,0.12)"; borderColor = "#d4af37";
-                  }
-                  return (
-                    <button
-                      key={alt.letter}
-                      disabled={fixationConfirmed}
-                      onClick={() => setFixationAnswer(alt.letter)}
-                      style={{
-                        display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
-                        borderRadius: 8, border: `1px solid ${borderColor}`,
-                        background: bg, cursor: fixationConfirmed ? "default" : "pointer",
-                        textAlign: "left", color: "var(--app-fg)",
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, fontSize: 13, flexShrink: 0, opacity: 0.7 }}>{alt.letter})</span>
-                      <span style={{ fontSize: 13, lineHeight: 1.6 }}>{alt.text}</span>
-                      {fixationConfirmed && isCorrect && <CheckCircle2 size={14} color="var(--success-fg, green)" style={{ marginLeft: "auto", flexShrink: 0 }} />}
-                    </button>
-                  );
-                })}
-              </div>
-              {fixationConfirmed && (
-                <div style={{ fontSize: 13, padding: "8px 12px", borderRadius: 8, background: "rgba(26,127,55,0.06)", marginBottom: 12 }}>
-                  {diagnosis.fixationQuestions[fixationIndex].explanation}
+            <div className="soe-card p-10">
+                <div className="flex items-center gap-3 mb-8">
+                    <TrendingDown size={18} className="text-rose-500" />
+                    <h3 className="font-black text-sm uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>Seus Novos Pontos de Atenção</h3>
                 </div>
-              )}
-              {!fixationConfirmed ? (
-                <Button onClick={confirmFixation} disabled={!fixationAnswer} style={{ width: "100%" }}>
-                  Confirmar
-                </Button>
-              ) : (
-                <Button onClick={nextAfterFixation} style={{ width: "100%" }}>
-                  {fixationIndex < diagnosis.fixationQuestions.length - 1
-                    ? "Próxima questão de fixação"
-                    : "Continuar sessão"}
-                  <ChevronRight size={14} />
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── PHASE: summary ── */}
-      {phase === "summary" && (
-        <div>
-          <div className="soe-card" style={{ padding: "1.5rem", textAlign: "center", marginBottom: "1rem" }}>
-            <div style={{ fontSize: 48, marginBottom: "0.5rem" }}>
-              {accuracy >= 80 ? "🏆" : accuracy >= 60 ? "💪" : "📚"}
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Sessão concluída</div>
-            <div style={{ fontSize: 13, opacity: 0.6, marginBottom: "1.5rem" }}>
-              {selectedDiscName}{selectedTopicName ? ` › ${selectedTopicName}` : ""}
-            </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: "1.5rem" }}>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "var(--success-fg, green)" }}>
-                  {history.filter((h) => h.correct).length}
+                <div className="h-[250px]">
+                    <WeakProfileChart />
                 </div>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>Corretas</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "var(--danger-fg, red)" }}>
-                  {history.filter((h) => !h.correct).length}
-                </div>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>Erradas</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 700 }}>{accuracy}%</div>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>Acerto</div>
-              </div>
             </div>
-            <div style={{ fontSize: 13, opacity: 0.7 }}>
-              {accuracy >= 80
-                ? "Excelente! Você está dominando este conteúdo."
-                : accuracy >= 60
-                ? "Bom progresso. Continue praticando os pontos fracos."
-                : "Este conteúdo precisa de mais atenção. O mentor anotou os pontos críticos."}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <Button
-              variant="outline"
-              onClick={() => { setHistory([]); setPhase("profile"); }}
-              style={{ flex: 1 }}
-            >
-              Nova sessão
-            </Button>
-            <Button
-              onClick={() => navigate("/")}
-              style={{ flex: 1 }}
-            >
-              Voltar ao início
-            </Button>
-          </div>
-
-          {/* Updated weak profile */}
-          <div className="soe-card" style={{ padding: "1.25rem", marginTop: "1rem" }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: "1rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <TrendingDown size={14} /> Perfil atualizado
-            </div>
-            <WeakProfileChart />
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
+
+  function startSession() {
+    if (!selectedDiscId) { toast.error("Selecione uma disciplina"); return; }
+    setHistory([]); setCurrentQuestion(null); setPhase("question"); fetchNextQuestion();
+  }
 }

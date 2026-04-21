@@ -96,257 +96,244 @@ export default function Dashboard() {
   const accuracyColor = avgAccuracy >= 70 ? "var(--accent-green)" : avgAccuracy >= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)";
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-6 w-full pb-10">
       {showOnboarding && <OnboardingWizard onComplete={() => utils.dashboard.getStats.invalidate()} />}
 
-      {/* F16 - Modo pré-prova */}
+      {/* F16 - Modo pré-prova, F15 - Aviso de madrugada, F05 - Alerta de estudo em massa */}
       <PreExamBanner />
-      {/* F15 - Aviso de madrugada */}
       <SleepWarning />
-      {/* F05 - Alerta de estudo em massa */}
       <MassStudyAlert />
 
-      {/* IA — briefing diário */}
-      {widgets.showExtra("mentorBriefing") && <MentorBriefing />}
-
       {/* Header */}
-      <div className="flex justify-between items-start gap-3 flex-wrap">
+      <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black soe-gold-text">Dashboard</h1>
-          <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>Visão geral dos seus estudos</p>
+          <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--primary)" }}>Painel de Controle</h1>
+          <p className="text-sm font-medium opacity-60" style={{ color: "var(--muted-text)" }}>Gestão centralizada do seu desempenho e metas.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setCustomizeOpen(true)}>
-            <LayoutDashboard className="h-3.5 w-3.5" /> + Widgets
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" onClick={() => setCustomizeOpen(true)}>
+            <LayoutDashboard className="h-3.5 w-3.5" /> Personalizar
           </Button>
-          <Button data-tour="import-tec" variant="outline" size="sm" className="gap-1.5 text-xs" disabled={tec.isImporting} onClick={() => tec.setDialogOpen(true)}>
-            <Upload className="h-3.5 w-3.5" /> {tec.isImporting ? "Importando..." : "Importar TEC"}
+          <Button data-tour="import-tec" variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl" disabled={tec.isImporting} onClick={() => tec.setDialogOpen(true)}>
+            <Upload className="h-3.5 w-3.5" /> {tec.isImporting ? "Importar TEC" : "Importar TEC"}
           </Button>
           <input ref={tec.fileInputRef} type="file" className="hidden" accept=".xlsx,.xls" onChange={tec.handleFileUpload} />
         </div>
       </div>
 
-      {/* ── Core stats row: Prova + Acerto + Revisões + Tempo ── */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {/* Próxima Prova */}
-        <div className="soe-stat-card flex flex-col gap-2 cursor-pointer hover:opacity-90 transition-all col-span-2 md:col-span-1"
-          style={{ border: "1px solid var(--stat-border)" }}
-          onClick={() => { exams.openCreate(); }}>
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 mb-1.5">
-                <p className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--muted-text)" }}>Próxima Prova</p>
-                <Settings2 className="h-2.5 w-2.5" style={{ color: "var(--muted-text)", opacity: 0.5 }} />
-              </div>
-              <div className="flex items-end gap-1">
-                <span className="text-3xl font-black tabular-nums" style={{ color: "var(--app-fg)" }}>
-                  {daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}
-                </span>
-                {daysToExam !== null && daysToExam >= 0 && <span className="text-xs mb-1" style={{ color: "var(--muted-text)" }}>dias</span>}
-              </div>
-              {nextUpcomingExam
-                ? <p className="text-xs truncate mt-0.5" style={{ color: "var(--muted-text)" }}>{nextUpcomingExam.name}</p>
-                : <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>clique para definir</p>}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* COLUNA ESQUERDA: ANALYTICS (8 colunas) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Core stats row */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            {/* Taxa de Acerto */}
+            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Trophy className="w-10 h-10" />
+               </div>
+               <div>
+                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Aproveitamento</p>
+                 <span className="text-3xl font-black tabular-nums" style={{ color: accuracyColor }}>{avgAccuracy}%</span>
+               </div>
+               <div className="mt-3">
+                 <Progress value={avgAccuracy} className="h-1" />
+                 <p className="text-[9px] mt-1.5 opacity-60 font-medium">{totalQuestions} questões</p>
+               </div>
             </div>
-            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(44,110,158,0.1)" }}>
-              <Target className="h-4 w-4" style={{ color: "var(--accent-blue, #2563eb)" }} />
+
+            {/* Revisões */}
+            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                <CheckCircle2 className="w-10 h-10" />
+               </div>
+               <div>
+                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Revisões</p>
+                 <div className="flex items-baseline gap-2">
+                   <span className="text-3xl font-black tabular-nums text-emerald-500">{stats?.completedRevisions || 0}</span>
+                   <span className="text-xs font-bold opacity-40">/ {stats?.pendingRevisions || 0}</span>
+                 </div>
+               </div>
+               <div className="mt-3 flex gap-1">
+                  {Array.from({length: 5}).map((_, i) => (
+                    <div key={i} className="h-1 flex-1 rounded-full" style={{ background: i < (stats?.completedRevisions || 0) / 10 ? 'var(--accent-green)' : 'var(--card-border)' }} />
+                  ))}
+               </div>
+            </div>
+
+            {/* Tempo de Estudo */}
+            <div className="soe-card p-4 flex flex-col justify-between relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Clock className="w-10 h-10" />
+               </div>
+               <div>
+                 <p className="text-[9px] font-bold tracking-widest uppercase mb-1 opacity-60">Tempo de Estudo</p>
+                 <span className="text-2xl font-black tabular-nums" style={{ color: "var(--primary)" }}>{formatStudyTime(totalStudyTime)}</span>
+               </div>
+               <div className="mt-3">
+                 <p className="text-[9px] opacity-60 font-medium">{stats?.totalTopics || 0} temas</p>
+                 <div className="flex items-center gap-1 mt-1">
+                   <TrendingUp className="w-2.5 h-2.5" style={{ color: "var(--primary)" }} />
+                   <span className="text-[8px] font-bold uppercase" style={{ color: "var(--primary)" }}>Em progresso</span>
+                 </div>
+               </div>
             </div>
           </div>
-          {daysToExam !== null && daysToExam >= 0 && (
-            <div className="h-0.5 rounded-full overflow-hidden" style={{ background: "var(--stat-border)" }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, 100 - (daysToExam / 365) * 100))}%`, background: "var(--accent-blue, #2563eb)" }} />
+
+          {/* Heatmap */}
+          {widgets.showExtra("heatmap") && (
+            <div className="soe-card p-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest mb-4 opacity-60">Consistência de Estudo</h3>
+              <StudyHeatmap compact showStreakCard />
             </div>
           )}
-        </div>
 
-        {/* Taxa de Acerto */}
-        <div className="soe-stat-card flex flex-col gap-2">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] font-semibold tracking-widest uppercase mb-1.5" style={{ color: "var(--muted-text)" }}>Taxa de Acerto</p>
-              <span className="text-3xl font-black tabular-nums" style={{ color: accuracyColor }}>{avgAccuracy}%</span>
-              <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{totalQuestions} questões</p>
-            </div>
-            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(45,138,94,0.1)" }}>
-              <Trophy className="h-4 w-4" style={{ color: "var(--accent-green)" }} />
-            </div>
-          </div>
-          <div className="h-0.5 rounded-full overflow-hidden" style={{ background: "var(--stat-border)" }}>
-            <div className="h-full rounded-full" style={{ width: `${avgAccuracy}%`, background: accuracyColor }} />
-          </div>
-        </div>
-
-        {/* Revisões */}
-        <div className="soe-stat-card flex flex-col gap-2">
-          <p className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--muted-text)" }}>Revisões</p>
-          <div className="flex items-end gap-3">
-            <div>
-              <span className="text-3xl font-black tabular-nums" style={{ color: "var(--accent-green)" }}>{stats?.completedRevisions || 0}</span>
-              <p className="text-[10px] mt-0.5" style={{ color: "var(--accent-green)" }}>feitas</p>
-            </div>
-            <div className="pb-1 text-lg font-light opacity-30">/</div>
-            <div>
-              <span className="text-3xl font-black tabular-nums" style={{ color: "var(--accent-red, #dc2626)" }}>{stats?.pendingRevisions || 0}</span>
-              <p className="text-[10px] mt-0.5" style={{ color: "var(--accent-red, #dc2626)" }}>pendentes</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tempo Total */}
-        <div className="soe-stat-card flex flex-col gap-2">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] font-semibold tracking-widest uppercase mb-1.5" style={{ color: "var(--muted-text)" }}>Tempo Total</p>
-              <span className="text-3xl font-black tabular-nums" style={{ color: "var(--accent-blue, #2563eb)" }}>{formatStudyTime(totalStudyTime)}</span>
-              <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{stats?.totalTopics || 0} temas</p>
-            </div>
-            <div className="p-2 rounded-xl shrink-0" style={{ background: "rgba(44,110,158,0.1)" }}>
-              <Clock className="h-4 w-4" style={{ color: "var(--accent-blue, #2563eb)" }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Heatmap (slightly smaller) ── */}
-      {widgets.showExtra("heatmap") && (
-        <div style={{ transform: "scale(1)", transformOrigin: "top left" }}>
-          <StudyHeatmap compact showStreakCard />
-        </div>
-      )}
-
-      {/* ── Extra widgets (user-controlled) ── */}
-      {widgets.showExtra("dailyGoal") && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DailyGoalWidget />
-        </div>
-      )}
-      {widgets.showExtra("todayRevisions") && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <TodayRevisions />
-        </div>
-      )}
-
-      {/* ── Discipline Performance Table ── */}
-      <div className="soe-card overflow-hidden">
-        <div className="px-5 py-3.5" style={{ borderBottom: "1px solid var(--card-border)" }}>
-          <h2 className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>Desempenho por Disciplina</h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>Clique para expandir · arraste para reordenar</p>
-        </div>
-        <div className="p-2 space-y-0.5">
-          {drag.orderedStats.map((d) => (
-            <div key={d.disciplineId}>
-              <div className="cursor-pointer rounded-xl px-3 py-2.5 transition-all space-y-1"
-                draggable onDragStart={() => drag.setDraggingDisciplineId(d.disciplineId)}
-                onDragOver={(e) => e.preventDefault()} onDrop={() => drag.handleDropDiscipline(d.disciplineId)}
-                onClick={() => setExpandedDiscipline(expandedDiscipline === d.disciplineId ? null : d.disciplineId)}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--stat-bg)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="font-semibold text-sm truncate">{d.name}</span>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 h-4">{d.topicCount}</Badge>
-                    {expandedDiscipline === d.disciplineId ? <ChevronDown className="h-3 w-3 shrink-0" style={{ color: "var(--muted-text)" }} /> : <ChevronRight className="h-3 w-3 shrink-0" style={{ color: "var(--muted-text)" }} />}
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-2">
-                    <span className="text-xs hidden md:block" style={{ color: "var(--muted-text)" }}>{formatStudyTime(d.studyTimeSeconds || 0)}</span>
-                    {d.performance ? (
-                      <div className="text-right">
-                        <div className="text-sm font-bold" style={{ color: (d.performance.accuracy || 0) >= 70 ? "var(--accent-green)" : (d.performance.accuracy || 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)" }}>
-                          {d.performance.accuracy || 0}%
-                        </div>
-                        <div className="text-[10px]">
-                          <span style={{ color: "var(--accent-green)" }}>{d.performance.correctCount || 0} acertos</span>{" "}
-                          <span style={{ color: "var(--accent-red, #dc2626)" }}>{d.performance.errorCount || 0} erros</span>
-                        </div>
-                      </div>
-                    ) : <span className="text-xs italic" style={{ color: "var(--muted-text)" }}>sem dados</span>}
-                  </div>
-                </div>
-                <Progress value={d.performance?.accuracy || 0} className="h-0.5" />
+          {/* Discipline Performance Table */}
+          <div className="soe-card overflow-hidden">
+            <div className="px-5 py-4 flex justify-between items-center bg-white/5" style={{ borderBottom: "1px solid var(--card-border)" }}>
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-tight">Gestão de Disciplinas</h2>
+                <p className="text-[10px] opacity-50">Distribuição e progresso por matéria</p>
               </div>
-
-              {expandedDiscipline === d.disciplineId && (
-                <div className="mx-2 mb-2 rounded-xl overflow-hidden" style={{ border: "1px solid var(--card-border)", background: "var(--stat-bg)" }}>
-                  {d.topics?.length > 0 ? (
-                    <>
-                      <div className="grid grid-cols-6 text-[9px] font-semibold uppercase tracking-widest py-2 px-3" style={{ borderBottom: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
-                        <span className="col-span-2">Tema</span><span className="text-center">%</span>
-                        <span className="text-center" style={{ color: "var(--accent-green)" }}>Acertos</span>
-                        <span className="text-center" style={{ color: "var(--accent-red, #dc2626)" }}>Erros</span>
-                        <span className="text-center">Rev/Tempo</span>
+              <Library className="w-4 h-4 opacity-30" />
+            </div>
+            <div className="p-2 space-y-1">
+              {drag.orderedStats.map((d) => (
+                <div key={d.disciplineId}>
+                  <div className="cursor-pointer rounded-2xl px-4 py-3.5 transition-all hover:bg-white/5 group"
+                    draggable onDragStart={() => drag.setDraggingDisciplineId(d.disciplineId)}
+                    onDragOver={(e) => e.preventDefault()} onDrop={() => drag.handleDropDiscipline(d.disciplineId)}
+                    onClick={() => setExpandedDiscipline(expandedDiscipline === d.disciplineId ? null : d.disciplineId)}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: d.color, boxShadow: `0 0 10px ${d.color}44` }} />
+                        <span className="font-bold text-sm tracking-tight">{d.name}</span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 h-4 opacity-60 font-black">{d.topicCount} temas</Badge>
                       </div>
-                      {(d.topics ?? []).map((t) => (
-                        <div key={t.id} className="grid grid-cols-6 items-center py-2 px-3 cursor-pointer transition-all"
-                          style={{ borderBottom: "1px solid var(--card-border)" }}
-                          draggable onDragStart={() => drag.setDraggingTopic({ disciplineId: d.disciplineId, topicId: t.id })}
-                          onDragOver={(e) => e.preventDefault()} onDrop={() => drag.handleDropTopic(d.disciplineId, t.id)}
-                          onClick={(e) => { e.stopPropagation(); questions.openDialog(t); }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--card-bg)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                          <div className="col-span-2 min-w-0">
-                            <p className="font-medium truncate text-xs">{t.name}</p>
-                            <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>{t.studyDate ? format(parseISO(t.studyDate), "dd/MM/yy") : "—"}</p>
-                          </div>
-                          <div className="text-center">
-                            {t.performance ? (
-                              <span className="font-bold text-xs" style={{ color: t.performance.accuracy >= 70 ? "var(--accent-green)" : t.performance.accuracy >= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)" }}>{t.performance.accuracy}%</span>
-                            ) : <span className="text-xs opacity-40" style={{ color: "var(--muted-text)" }}>+add</span>}
-                          </div>
-                          <div className="text-center text-xs font-semibold" style={{ color: "var(--accent-green)" }}>{t.performance?.correctCount ?? "—"}</div>
-                          <div className="text-center text-xs font-semibold" style={{ color: "var(--accent-red, #dc2626)" }}>{t.performance?.errorCount ?? "—"}</div>
-                          <div className="text-center text-xs" style={{ color: "var(--muted-text)" }}>
-                            <span className="font-medium" style={{ color: "var(--app-fg)" }}>{t.completedRevisions}</span>/
-                            <button
-                              onClick={(e) => { e.stopPropagation(); timeEdit.setDialog({ topicId: t.id, topicName: t.name, hours: Math.floor((t.studyTimeSeconds || 0) / 3600), minutes: Math.floor(((t.studyTimeSeconds || 0) % 3600) / 60) }); }}
-                              className="underline decoration-dotted hover:opacity-70 transition-opacity"
-                              title="Clique para editar o tempo de estudo"
-                              style={{ color: "var(--muted-text)", background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: "inherit" }}>
-                              {formatStudyTime(t.studyTimeSeconds || 0)}
-                            </button>
-                          </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right hidden sm:block">
+                          <p className="text-[10px] font-bold opacity-40 uppercase">Acurácia</p>
+                          <p className="text-sm font-black" style={{ color: (d.performance?.accuracy || 0) >= 70 ? "var(--accent-green)" : (d.performance?.accuracy || 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
+                            {d.performance?.accuracy || 0}%
+                          </p>
                         </div>
-                      ))}
-                    </>
-                  ) : (
-                    <p className="text-xs py-4 text-center" style={{ color: "var(--muted-text)" }}>Nenhum tema.</p>
+                        {expandedDiscipline === d.disciplineId ? <ChevronDown className="h-4 w-4 opacity-30" /> : <ChevronRight className="h-4 w-4 opacity-30" />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {expandedDiscipline === d.disciplineId && (
+                    <div className="mx-2 mb-4 mt-2 rounded-2xl overflow-hidden border border-white/5 bg-black/20">
+                      {d.topics?.length > 0 ? (
+                        <>
+                          <div className="grid grid-cols-6 text-[9px] font-black uppercase tracking-widest py-2.5 px-4 bg-white/5 opacity-50">
+                            <span className="col-span-2">Assunto</span>
+                            <span className="text-center">Taxa</span>
+                            <span className="text-center">Acertos</span>
+                            <span className="text-center">Erros</span>
+                            <span className="text-center">Revisão</span>
+                          </div>
+                          {(d.topics ?? []).map((t) => (
+                            <div key={t.id} className="grid grid-cols-6 items-center py-3 px-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                              onClick={(e) => { e.stopPropagation(); questions.openDialog(t); }}>
+                              <div className="col-span-2 min-w-0">
+                                <p className="font-bold text-xs truncate">{t.name}</p>
+                                <p className="text-[10px] opacity-40">{t.studyDate ? format(parseISO(t.studyDate), "dd MMM") : "—"}</p>
+                              </div>
+                              <div className="text-center font-black text-xs" style={{ color: (t.performance?.accuracy ?? 0) >= 70 ? "var(--accent-green)" : (t.performance?.accuracy ?? 0) >= 50 ? "var(--accent-amber)" : "var(--accent-red)" }}>
+                                {t.performance?.accuracy ?? 0}%
+                              </div>
+                              <div className="text-center text-xs font-bold text-emerald-500/80">{t.performance?.correctCount ?? "—"}</div>
+                              <div className="text-center text-xs font-bold text-rose-500/80">{t.performance?.errorCount ?? "—"}</div>
+                              <div className="text-center text-xs opacity-60 font-medium">
+                                {t.completedRevisions} rev.
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      ) : <p className="text-xs py-6 text-center opacity-30 font-medium">Lista vazia para esta disciplina.</p>}
+                    </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
-          {drag.orderedStats.length === 0 && (
-            <div className="text-center py-10" style={{ color: "var(--muted-text)" }}>
-              <BookOpen className="h-8 w-8 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Nenhuma disciplina. Crie uma para começar!</p>
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA: ACTIONABLE (4 colunas) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Próxima Prova Card (Destaque) */}
+          <div className="soe-card p-6 bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20 relative overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => exams.openCreate()}>
+            <div className="absolute top-0 right-0 p-2">
+              <div className="bg-amber-500/20 p-2 rounded-full">
+                <Target className="w-5 h-5 text-amber-500" />
+              </div>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500 mb-4">Próxima Prova</p>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-5xl font-black tracking-tighter text-white">{daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}</span>
+              <span className="text-lg font-bold text-amber-500/70">DIAS</span>
+            </div>
+            <p className="text-sm font-black text-white/90 truncate">{nextUpcomingExam?.name || "Definir Próxima Prova"}</p>
+            {daysToExam !== null && daysToExam >= 0 && (
+              <div className="mt-6 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                <div className="h-full bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all duration-1000" style={{ width: `${Math.max(2, Math.min(100, 100 - (daysToExam / 365) * 100))}%` }} />
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions (Compact) */}
+          {widgets.showExtra("quickActions") && (
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { href: "/flashcards", label: "Flashcards", color: "var(--primary)", icon: Brain },
+                { href: "/revisions", label: "Revisar", color: "var(--accent-amber)", icon: Library },
+                { href: "/notes", label: "Anotações", color: "var(--accent-green)", icon: FileText },
+                { href: "/statistics", label: "Análise", color: "var(--accent-blue)", icon: BarChart2 },
+              ].map(({ href, label, color, icon: Icon }) => (
+                <a key={href} href={href} className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:-translate-y-1">
+                  <Icon className="w-6 h-6" style={{ color }} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{label}</span>
+                </a>
+              ))}
             </div>
           )}
+
+          {/* IA Mentor Briefing */}
+          {widgets.showExtra("mentorBriefing") && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-2">
+                <Brain className="w-4 h-4 text-amber-400" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-500/80">Mentor Estratégico</h3>
+              </div>
+              <MentorBriefing />
+            </div>
+          )}
+
+          {/* Metas e Revisões Hoje */}
+          <div className="space-y-4">
+            {widgets.showExtra("dailyGoal") && <DailyGoalWidget />}
+            {widgets.showExtra("todayRevisions") && <TodayRevisions />}
+          </div>
+
+          {/* Notes Reminder */}
+          {widgets.showExtra("notes") && (notes?.length ?? 0) > 0 && (
+            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-3">
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <BookMarked className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-500">Anotações Salvas</p>
+                <p className="text-[10px] text-white/50">{notes!.length} notas prontas para revisão.</p>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
-
-      {/* ── Extra widgets continued ── */}
-      {widgets.showExtra("quickActions") && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { href: "/flashcards", label: "Flashcards",   sub: "Revisão espaçada", color: "var(--primary)",             icon: Brain },
-            { href: "/revisions",  label: "Revisões",     sub: `${stats?.pendingRevisions||0} pendentes`, color: "var(--accent-amber)", icon: Library },
-            { href: "/notes",      label: "Anotações",    sub: `${notes?.length||0} notas`, color: "var(--accent-green)",  icon: FileText },
-            { href: "/statistics", label: "Estatísticas", sub: "Desempenho detalhado", color: "var(--accent-blue, #2563eb)", icon: BarChart2 },
-          ].map(({ href, label, sub, color, icon: Icon }) => (
-            <a key={href} href={href}
-              className="flex items-center gap-3 p-4 rounded-2xl transition-all hover:opacity-85"
-              style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-              <div className="p-2 rounded-xl shrink-0" style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}>
-                <Icon className="w-5 h-5" style={{ color }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: "var(--app-fg)" }}>{label}</p>
-                <p className="text-xs truncate" style={{ color: "var(--muted-text)" }}>{sub}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
 
       {widgets.showExtra("notes") && (notes?.length ?? 0) > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "rgba(176,104,32,0.06)", border: "1px solid rgba(176,104,32,0.16)" }}>
