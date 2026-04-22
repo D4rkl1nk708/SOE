@@ -27,6 +27,7 @@ const plugins = [
     },
     workbox: {
       globPatterns: ["**/*.{js,css,html,png,svg,ico,json}"],
+      maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB
     },
   }),
 ];
