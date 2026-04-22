@@ -223,9 +223,8 @@ export const mentorRouter = router({
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
       })
-    )
     .mutation(async ({ ctx, input }) => {
-      const [stats, revisions, disciplines, topics, errors, rebalance, snapshots, regressions, weakFromSnap] = await Promise.all([
+      const [stats, revisions, disciplines, topics, errors, rebalance, snapshots, regressions, weakFromSnap, observationsResult] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
         storage.getRevisionsByUser(ctx.user.id),
         storage.getDisciplinesByUser(ctx.user.id),
@@ -235,7 +234,11 @@ export const mentorRouter = router({
         storage.getTecSnapshots(ctx.user.id, 2),
         storage.getTecRegressions(ctx.user.id, 5),
         storage.getWeakTopicsFromSnapshot(ctx.user.id, 65),
+        storage.getMentorObservations(ctx.user.id),
       ]);
+
+      const observations = observationsResult as string[];
+
 
       const todayRevisions = revisions.filter((r) => {
         if (r.completed || r.ignored) return false;
@@ -306,8 +309,9 @@ DADOS DO ALUNO HOJE:
 - Total de questões resolvidas (banco SOE): ${totalQuestionsResolved}
 - Revisões pendentes HOJE: ${todayRevisions.length}
 - Revisões urgentes: ${urgentRevisions.length > 0 ? urgentRevisions.join("; ") : "nenhuma"}
-- Disciplinas com fraqueza (banco SOE): ${weakDiscs.length > 0 ? weakDiscs.join("; ") : "sem dados suficientes"}
 - Últimos erros registrados: ${recentErrors.length > 0 ? recentErrors.join(" | ") : "nenhum registrado"}${tecContext}${regressionContext}
+- Memória Estratégica (Padrões detectados anteriormente):
+${observations.length > 0 ? observations.join("\n") : "Nenhum padrão detectado ainda."}
 
 INSTRUÇÕES:
 - Os dados do TEC Concursos são os mais confiáveis — priorize-os no diagnóstico.
@@ -804,7 +808,7 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
     )
     .mutation(async ({ ctx, input }) => {
       // gather basic stats to feed as context
-      const [stats, weak, errors, disciplines, revisions, notes, flashcards, topics] = await Promise.all([
+      const [stats, weak, errors, disciplines, revisions, notes, flashcards, topics, observationsResult] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
         storage.getWeakTopicsFromSnapshot(ctx.user.id, 65),
         storage.getQuestionErrorsByUser(ctx.user.id, { limit: 10 }).then(r => r.items),
@@ -812,8 +816,12 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
         storage.getRevisionsByUser(ctx.user.id),
         storage.getNotesByUser(ctx.user.id),
         storage.getFlashcardsByUser(ctx.user.id),
-        storage.getTopicsByUser(ctx.user.id)
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getMentorObservations(ctx.user.id)
       ]);
+      
+      const observations = observationsResult as string[];
+
       
       const totalResolved = ((stats as any).disciplineStats ?? []).reduce((sum: number, d: any) => sum + (d.performance?.questionsResolved ?? 0), 0);
       
@@ -857,6 +865,8 @@ ${notesStr || "Nenhuma anotação."}
 - Flashcards: ${flashcardsCount} flashcards salvos.
 - Editais/Disciplinas (Tópicos em andamento):
 ${topicsStr || "Nenhum tópico em andamento."}
+- Memória Estratégica (Suas observações passadas sobre este aluno):
+${observations.length > 0 ? observations.join("\n") : "Sem observações prévias."}
 
 Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, ou usar as questões erradas para testá-lo.
 Se o aluno pedir questões, gere-as focadas nos pontos fracos. Seja sempre direto, motivador e extremamente personalizado. Use markdown para negritos.
@@ -872,6 +882,11 @@ Poder Mágico 2 (Agendamento de Revisões):
 Se o aluno pedir para adiar ou reagendar o estudo/revisão de alguma matéria, você pode fazer isso automaticamente por ele gerando o seguinte bloco no final da resposta:
 [RESCHEDULE]{"topicId": 123, "newDate": "YYYY-MM-DD"}[/RESCHEDULE]
 Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${new Date().toISOString().split('T')[0]}). Pode gerar vários blocos se necessário.
+
+Poder Mágico 3 (Memória Estratégica):
+Sempre que você notar um padrão de comportamento, um erro recorrente de lógica ou uma evolução notável, salve uma observação curta (máx 15 palavras) para você mesmo ler no futuro usando:
+[OBSERVATION]O aluno confunde Atos Compostos com Complexos por causa da estrutura de vontade.[/OBSERVATION]
+Isso é fundamental para sua "inteligência" de longo prazo. Gere no máximo 1 observação por resposta.
 
 HISTÓRICO DA CONVERSA:
 ${transcript}
@@ -930,6 +945,15 @@ Mentor:`;
         finalReply = finalReply.replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "").trim();
         finalReply = finalReply.replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "").trim();
         
+        // Extract and save Observation
+        const obsRegex = /\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g;
+        let obsMatch;
+        while ((obsMatch = obsRegex.exec(finalReply)) !== null) {
+          const obs = obsMatch[1].trim();
+          if (obs) await storage.addMentorObservation(ctx.user.id, obs);
+        }
+        finalReply = finalReply.replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "").trim();
+        
         if (createdCount > 0) {
           finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} automaticamente para você! Estão na sua aba de Revisão)*`;
         }
@@ -941,5 +965,224 @@ Mentor:`;
       } catch (err: any) {
         throw new Error(`Falha no chat: ${err instanceof Error ? err.message : String(err)}`);
       }
+    }),
+
+  /**
+   * Insights Neurais — Análise profunda de conexões entre matérias e detecção de "efeito platô"
+   */
+  getNeuralInsights: protectedProcedure
+    .input(z.object({
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [stats, weak, errors, disciplines, revisions, notes, observations] = await Promise.all([
+        storage.getDashboardStats(ctx.user.id),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 70),
+        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 30 }).then(r => r.items),
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getRevisionsByUser(ctx.user.id),
+        storage.getNotesByUser(ctx.user.id),
+        storage.getMentorObservations(ctx.user.id),
+      ]);
+
+      const prompt = `Você é o Arquiteto de Aprendizagem SOE. Sua tarefa é realizar uma "Neuro-Análise" do perfil do aluno.
+      
+      DADOS:
+      - Observações anteriores: ${observations.join(" | ")}
+      - Tópicos Críticos: ${weak.map(t => t.topicName).join(", ")}
+      - Erros Recentes: ${errors.map(e => e.errorOrigin).join(", ")}
+      
+      OBJETIVO:
+      Identifique conexões invisíveis entre as falhas do aluno. Por exemplo: "Você erra controle de constitucionalidade porque ainda tem lacunas em Teoria da Constituição".
+      Detecte se o aluno está em um "Platô de Desempenho" e por quê.
+      
+      Retorne um JSON com:
+      {
+        "diagnosis": "Análise profunda da raiz dos problemas",
+        "crossConnections": ["Conexão 1", "Conexão 2"],
+        "plateauDetection": "Status do platô (Sim/Não + Explicação)",
+        "masteryAction": "A 'Ação de Mestre' — 1 única coisa que mudará tudo"
+      }`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 1200);
+        return extractJSON(raw);
+      } catch (err: any) {
+        throw new Error(`Falha nos insights neurais: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Shadow Examiner — Gera uma sessão de "Stress" com questões focadas em derrubar o aluno
+   */
+  generateShadowSession: protectedProcedure
+    .input(z.object({
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      count: z.number().default(5)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [observations, errors, weak] = await Promise.all([
+        storage.getMentorObservations(ctx.user.id),
+        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 20 }).then(r => r.items),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 70)
+      ]);
+
+      const prompt = `Você é o "Shadow Examiner" do SOE — seu objetivo é criar questões que TESTEM O LIMITE do aluno.
+      
+      CONTEXTO DE FALHAS DO ALUNO:
+      - Observações do Mentor: ${observations.join(" | ")}
+      - Erros reais cometidos: ${errors.map(e => e.statement.substring(0, 100)).join("\n")}
+      
+      TAREFA:
+      Gere ${input.count} questões inéditas de múltipla escolha. 
+      Cada questão deve ser uma "pegadinha" ou explorar uma confusão de lógica que o aluno já demonstrou ter nas observações acima.
+      Foque nos temas: ${weak.slice(0, 3).map(t => t.topicName).join(", ")}.
+
+      Retorne um JSON com:
+      {
+        "questions": [
+          {
+            "statement": "...",
+            "alternatives": [{"letter": "A", "text": "..."}, ...],
+            "correctAnswer": "A",
+            "trapExplanation": "Por que esta questão foi feita para te derrubar e qual o detalhe que você costuma esquecer"
+          }
+        ]
+      }`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 2500);
+        return extractJSON(raw);
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar Shadow Session: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Fact-Checker de Notas — Analisa anotações em busca de erros teóricos
+   */
+  verifyNoteAccuracy: protectedProcedure
+    .input(z.object({
+      noteId: z.number(),
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const notes = await storage.getNotesByUser(ctx.user.id);
+      const note = notes.find(n => n.id === input.noteId);
+      if (!note) throw new Error("Nota não encontrada");
+
+      const prompt = `Você é o Revisor Técnico SOE. Analise a seguinte anotação de estudo de um aluno concorseiro.
+      Sua missão é encontrar erros factuais, prazos errados, leis revogadas ou confusões conceituais.
+      
+      NOTA:
+      Título: ${note.title}
+      Conteúdo: ${note.content}
+      
+      Retorne um JSON:
+      {
+        "isValid": boolean,
+        "findings": [
+          {
+            "severity": "critical" | "warning" | "tip",
+            "originalText": "trecho problemático",
+            "correction": "o que deveria ser",
+            "reason": "explicação técnica/legal"
+          }
+        ],
+        "summary": "Resumo geral da qualidade da nota"
+      }`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 1500);
+        return extractJSON(raw);
+      } catch (err: any) {
+        throw new Error(`Falha no Fact-Check: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Audio-Mentor Script — Gera o roteiro narrativo para uma revisão em áudio
+   */
+  generateAudioReviewScript: protectedProcedure
+    .input(z.object({
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const [briefing, observations, weak] = await Promise.all([
+        // Simulando a chamada interna para pegar o briefing do dia
+        this?.getDailyBriefing.mutate({ ctx, input: { ...input, apiKey: input.apiKey } } as any) as any,
+        storage.getMentorObservations(ctx.user.id),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65)
+      ]);
+
+      const prompt = `Você é um Professor Particular de alto nível gravando um áudio de 5 minutos para seu aluno.
+      Use uma linguagem natural, falada, encorajadora e direta. Não use listas, use parágrafos narrativos.
+      
+      CONTEÚDO PARA ABORDAR:
+      - Observações de padrões do aluno: ${observations.slice(-3).join(" | ")}
+      - Tópicos críticos: ${weak.slice(0, 2).map(t => t.topicName).join(" e ")}
+      
+      ESTRUTURA DO ROTEIRO:
+      1. Introdução rápida (E aí, pronto para o dia de hoje?).
+      2. Revisão rápida do "calcanhar de Aquiles" (os pontos fracos detectados).
+      3. O "Pulo do Gato" (uma dica técnica de ouro para hoje).
+      4. Mensagem de foco.
+      
+      Retorne apenas o texto do roteiro, pronto para ser lido por um sintetizador de voz (TTS).`;
+
+      try {
+        const script = await callAI(input.provider, input.apiKey, prompt, 1200);
+        return { script };
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar roteiro de áudio: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Propose Flashcard Cleanup — Identifica flashcards de temas masterizados para arquivamento
+   */
+  proposeFlashcardCleanup: protectedProcedure
+    .query(async ({ ctx }) => {
+      const [flashcards, topics] = await Promise.all([
+        storage.getFlashcardsByUser(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id)
+      ]);
+
+      const activeCards = flashcards.filter(f => !f.archived);
+      
+      const proposals = topics
+        .filter(t => t.performance && t.performance.questionsResolved > 20 && t.performance.accuracy > 92)
+        .map(t => {
+          const topicCards = activeCards.filter(f => f.topicId === t.id);
+          if (topicCards.length === 0) return null;
+          
+          return {
+            topicId: t.id,
+            topicName: t.name,
+            accuracy: t.performance!.accuracy,
+            questionCount: t.performance!.questionsResolved,
+            cardCount: topicCards.length,
+            cardIds: topicCards.map(f => f.id)
+          };
+        })
+        .filter(Boolean);
+
+      return { proposals };
+    }),
+
+  /**
+   * Execute Flashcard Cleanup — Arquiva os flashcards selecionados
+   */
+  executeFlashcardCleanup: protectedProcedure
+    .input(z.object({ cardIds: z.array(z.number()) }))
+    .mutation(async ({ ctx, input }) => {
+      for (const id of input.cardIds) {
+        await storage.archiveFlashcard(id, ctx.user.id, true);
+      }
+      return { success: true, archivedCount: input.cardIds.length };
     }),
 });

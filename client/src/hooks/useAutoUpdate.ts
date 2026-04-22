@@ -45,14 +45,21 @@ export function useAutoUpdate() {
             const platform = Capacitor.getPlatform();
             const ua = window.navigator.userAgent.toLowerCase();
             
+            const isAndroid = platform === 'android' || ua.includes('android');
+            const isWindows = ua.includes('win');
+            const isMac = ua.includes('mac') || ua.includes('darwin');
+            const isLinux = (ua.includes('linux') || ua.includes('x11')) && !isAndroid;
+            
             let bestAsset = null;
 
-            if (platform === 'android') {
-              bestAsset = assets.find((a: any) => a.name.endsWith('.apk'));
-            } else if (ua.includes('win')) {
-              bestAsset = assets.find((a: any) => a.name.endsWith('.exe'));
-            } else if (ua.includes('linux')) {
-              bestAsset = assets.find((a: any) => a.name.endsWith('.AppImage'));
+            if (isAndroid) {
+              bestAsset = assets.find((a: any) => a.name.toLowerCase().endsWith('.apk'));
+            } else if (isWindows) {
+              bestAsset = assets.find((a: any) => a.name.toLowerCase().endsWith('.exe'));
+            } else if (isLinux) {
+              bestAsset = assets.find((a: any) => a.name.toLowerCase().endsWith('.appimage'));
+            } else if (isMac) {
+              bestAsset = assets.find((a: any) => a.name.toLowerCase().endsWith('.dmg') || a.name.toLowerCase().endsWith('.zip'));
             }
 
             // Se encontrou o arquivo específico, usa ele. Caso contrário, vai para a página da release.

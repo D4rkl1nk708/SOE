@@ -211,6 +211,8 @@ export interface UserSettings {
   /** Sincronização em Nuvem Invisível: Diretório de auto-backup (para espelhar no Google Drive/Dropbox localmente) */
   autoBackupDir?: string;
   autoBackupEnabled?: boolean;
+  /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
+  mentorObservations?: string[];
 }
 
 export interface User {
@@ -239,6 +241,7 @@ export interface Flashcard {
   easeFactor: number;    // SM-2 ease factor (default 2.5)
   repetitions: number;   // times reviewed successfully
   nextReviewDate: string; // YYYY-MM-DD
+  archived?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1824,6 +1827,43 @@ export async function revokePushToken(userId: number): Promise<void> {
   if (idx >= 0) {
     const { pushToken: _, ...rest } = db.users[idx].settings;
     db.users[idx].settings = rest as typeof db.users[idx]["settings"];
+    writeDatabase(db);
+  }
+}
+// ============ MENTOR OBSERVATIONS ============
+
+export async function getMentorObservations(userId: number): Promise<string[]> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  return user?.settings?.mentorObservations || [];
+}
+
+export async function addMentorObservation(userId: number, observation: string): Promise<void> {
+  const db = readDatabase();
+  const index = db.users.findIndex((u) => u.id === userId);
+  if (index >= 0) {
+    const user = db.users[index];
+    if (!user.settings) user.settings = {} as any;
+    if (!user.settings.mentorObservations) user.settings.mentorObservations = [];
+    
+    // Keep only last 20 observations to prevent prompt bloating
+    user.settings.mentorObservations.push(`${new Date().toISOString().split('T')[0]}: ${observation}`);
+    if (user.settings.mentorObservations.length > 20) {
+      user.settings.mentorObservations.shift();
+    }
+    
+    writeDatabase(db);
+  }
+}
+
+// ============ FLASHCARD ARCHIVING ============
+
+export async function archiveFlashcard(id: number, userId: number, archived: boolean = true): Promise<void> {
+  const db = readDatabase();
+  const index = db.flashcards.findIndex((f) => f.id === id && f.userId === userId);
+  if (index >= 0) {
+    db.flashcards[index].archived = archived;
+    db.flashcards[index].updatedAt = new Date().toISOString();
     writeDatabase(db);
   }
 }
