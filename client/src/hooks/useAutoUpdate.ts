@@ -41,13 +41,25 @@ export function useAutoUpdate() {
           );
 
           if (wantUpdate) {
-            // Pega o primeiro asset, ou fallback para a página da release
-            const firstAssetUrl = data.assets && data.assets.length > 0 
-              ? data.assets[0].browser_download_url 
-              : data.html_url;
+            const assets = data.assets || [];
+            const platform = Capacitor.getPlatform();
+            const ua = window.navigator.userAgent.toLowerCase();
+            
+            let bestAsset = null;
 
-            if (firstAssetUrl) {
-              window.open(firstAssetUrl, "_blank");
+            if (platform === 'android') {
+              bestAsset = assets.find((a: any) => a.name.endsWith('.apk'));
+            } else if (ua.includes('win')) {
+              bestAsset = assets.find((a: any) => a.name.endsWith('.exe'));
+            } else if (ua.includes('linux')) {
+              bestAsset = assets.find((a: any) => a.name.endsWith('.AppImage'));
+            }
+
+            // Se encontrou o arquivo específico, usa ele. Caso contrário, vai para a página da release.
+            const downloadUrl = bestAsset ? bestAsset.browser_download_url : data.html_url;
+
+            if (downloadUrl) {
+              window.open(downloadUrl, "_blank");
             }
           }
         }
