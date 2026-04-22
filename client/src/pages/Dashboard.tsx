@@ -90,9 +90,9 @@ export default function Dashboard() {
   const daysToExam = examDate ? differenceInDays(examDate, nowDate) : null;
   const totalStudyTime = drag.orderedStats.reduce((acc, d) => acc + (d.studyTimeSeconds || 0), 0);
   const totalQuestions = drag.orderedStats.reduce((acc, d) => acc + (d.performance?.questionsResolved || 0), 0);
-  const disciplinesWithData = drag.orderedStats.filter(d => d.performance);
-  const avgAccuracy = disciplinesWithData.length
-    ? Math.round(disciplinesWithData.reduce((acc, d) => acc + (d.performance?.accuracy || 0), 0) / disciplinesWithData.length)
+  const totalCorrect = drag.orderedStats.reduce((acc, d) => acc + (d.performance?.correctCount || 0), 0);
+  const avgAccuracy = totalQuestions > 0
+    ? Math.round((totalCorrect / totalQuestions) * 100)
     : 0;
   const accuracyColor = avgAccuracy >= 70 ? "var(--accent-green)" : avgAccuracy >= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)";
 

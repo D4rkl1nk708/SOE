@@ -623,7 +623,7 @@ export async function localDashboardGetStats(): Promise<Record<string, unknown>>
     const totalError = discTopics.reduce((s, t) => s + (t.performance?.errorCount ?? 0), 0);
     const agg = totalResolved > 0
       ? { questionsResolved: totalResolved, accuracy: Math.round((totalCorrect / totalResolved) * 100), correctCount: totalCorrect, errorCount: totalError }
-      : d;
+      : (d as any).performance;
     const studyTime = discTopics.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0);
     return {
       disciplineId: d.id,

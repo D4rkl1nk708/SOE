@@ -46,7 +46,7 @@ export function SleepWarning() {
           São {currentHour}h — considere parar por hoje
         </p>
         <p className="text-xs mt-0.5" style={{ color: "var(--app-fg)" }}>
-          A ciência é clara: <strong>o sono consolida a memória</strong>. O que você estudou hoje
+          <strong>o sono consolida a memória</strong>. O que você estudou hoje
           vai se fixar melhor durante o sono do que se você continuar estudando agora.
           Prefira revisar amanhã cedo com o cérebro descansado.
         </p>
