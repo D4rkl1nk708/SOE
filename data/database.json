@@ -1,62 +1,16 @@
 {
-  "users": [
-    {
-      "id": 1,
-      "openId": "local-user",
-      "name": "Usuário Local",
-      "email": "local@estudos.local",
-      "loginMethod": "local",
-      "role": "admin",
-      "settings": {
-        "theme": "light",
-        "studyStreak": {
-          "current": 0,
-          "best": 0,
-          "lastStudyDate": null
-        },
-        "dailyGoalMinutes": 240,
-        "onboardingCompleted": true,
-        "exams": [],
-        "editalCycle": [],
-        "editalRows": [],
-        "pushToken": "s1ocpq68bcgl4firfk0x8mo7sluw4lo2c9w9uzep",
-        "dashboardConfig": {
-          "extraWidgets": []
-        },
-        "aiApiKey": "",
-        "aiProvider": "gemini",
-        "sleepLog": [
-          {
-            "date": "2026-04-21",
-            "endStudyHour": 0,
-            "alertIssued": true
-          }
-        ]
-      },
-      "createdAt": "2026-04-20T22:47:06.510Z",
-      "updatedAt": "2026-04-21T21:17:49.721Z",
-      "lastSignedIn": "2026-04-21T21:17:49.721Z"
-    }
-  ],
+  "users": [],
   "disciplines": [],
   "topics": [],
   "revisions": [],
   "mockExams": [],
   "notes": [],
   "counters": {
-    "users": 1,
-    "disciplines": 1,
+    "users": 0,
+    "disciplines": 0,
     "topics": 0,
     "revisions": 0,
     "mockExams": 0,
-    "notes": 1,
-    "flashcards": 0,
-    "questionErrors": 0,
-    "tecSnapshots": 0
-  },
-  "flashcards": [],
-  "questionErrors": [],
-  "tecSnapshots": [],
-  "cadernosTec": {},
-  "_encodingFixed": true
+    "notes": 0
+  }
 }

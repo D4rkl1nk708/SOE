@@ -221,8 +221,8 @@ export const mentorRouter = router({
     .input(
       z.object({
         apiKey: z.string().min(1),
-        provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
       })
+    )
     .mutation(async ({ ctx, input }) => {
       const [stats, revisions, disciplines, topics, errors, rebalance, snapshots, regressions, weakFromSnap, observationsResult] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
