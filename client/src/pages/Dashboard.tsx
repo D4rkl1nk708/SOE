@@ -23,6 +23,7 @@ import { MassStudyAlert } from "@/components/MassStudyAlert";
 import { SleepWarning } from "@/components/SleepWarning";
 import { EmotionLogger } from "@/components/EmotionLogger";
 import { MentorBriefing } from "@/components/MentorBriefing";
+import { ConfusionMatrixWidget } from "@/components/ConfusionMatrixWidget";
 import {
   useExams,
   useScheduleSettings,
@@ -219,7 +220,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {widgets.showExtra("mentorBriefing") && <div className="lg:col-span-1"><MentorBriefing /></div>}
+        <div className="lg:col-span-1 space-y-6">
+          {widgets.showExtra("mentorBriefing") && <MentorBriefing />}
+          <ConfusionMatrixWidget />
+        </div>
         <div className="lg:col-span-3 space-y-6">
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {widgets.showExtra("dailyGoal") && <DailyGoalWidget />}

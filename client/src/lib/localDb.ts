@@ -141,6 +141,7 @@ interface Counters {
   questionErrors: number;
   flashcards: number;
   tecSnapshots: number;
+  conceptConfusions: number;
 }
 
 interface QuestionError {
@@ -175,6 +176,18 @@ export interface SubjectiveAnswer {
   createdAt: string;
 }
 
+export interface ConceptConfusion {
+  id: number;
+  userId: number;
+  disciplineId?: number;
+  discipline?: string;
+  conceptA: string;
+  conceptB: string;
+  explanation: string;
+  count: number;
+  lastDetectedAt: string;
+}
+
 class LocalDb extends Dexie {
   users!: Table<User & { id: number }>;
   disciplines!: Table<Discipline & { id: number }>;
@@ -188,6 +201,7 @@ class LocalDb extends Dexie {
   extraCollections!: Table<{ key: string; data: unknown }>;
   counters!: Table<{ key: string; value: number }>;
   subjectiveAnswers!: Table<SubjectiveAnswer & { id: number }>;
+  conceptConfusions!: Table<ConceptConfusion & { id: number }>;
 
   constructor() {
     super("SOE_Local");
@@ -246,6 +260,21 @@ class LocalDb extends Dexie {
       extraCollections: "key",
       counters: "key",
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+    });
+    this.version(6).stores({
+      users: "id, openId",
+      disciplines: "id, userId",
+      topics: "id, userId, disciplineId, [userId+disciplineId]",
+      revisions: "id, userId, topicId, scheduledDate",
+      mockExams: "id, userId",
+      notes: "id, userId, disciplineId",
+      questionErrors: "id, userId, topicId, disciplineId",
+      flashcards: "id, userId, disciplineId, topicId",
+      tecSnapshots: "id, userId, importedAt",
+      extraCollections: "key",
+      counters: "key",
+      subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+      conceptConfusions: "id, userId, disciplineId",
     });
   }
 }
@@ -1241,4 +1270,38 @@ ${input.text}`;
     });
   }
   return { success: true, count: cards.length };
+}
+
+export async function localGetConceptConfusions(): Promise<ConceptConfusion[]> {
+  return db.conceptConfusions.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("lastDetectedAt");
+}
+
+export async function localSaveConceptConfusion(input: Partial<ConceptConfusion>): Promise<{ success: boolean }> {
+  const existing = await db.conceptConfusions
+    .where({ userId: LOCAL_USER_ID, conceptA: input.conceptA, conceptB: input.conceptB })
+    .first();
+
+  if (existing) {
+    await db.conceptConfusions.update(existing.id, {
+      count: (existing.count || 0) + 1,
+      lastDetectedAt: now(),
+      explanation: input.explanation || existing.explanation,
+    });
+  } else {
+    const c = await getCounters();
+    const id = c.conceptConfusions + 1;
+    await db.conceptConfusions.add({
+      id,
+      userId: LOCAL_USER_ID,
+      disciplineId: input.disciplineId,
+      discipline: input.discipline,
+      conceptA: input.conceptA!,
+      conceptB: input.conceptB!,
+      explanation: input.explanation || "",
+      count: 1,
+      lastDetectedAt: now(),
+    });
+    await db.counters.put({ key: "conceptConfusions", value: id });
+  }
+  return { success: true };
 }

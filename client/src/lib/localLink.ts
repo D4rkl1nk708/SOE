@@ -123,8 +123,10 @@ const PROCEDURES: Record<
   "mentor.diagnoseError": (i) => localDiagnoseError(i as any),
   "ai.processText": (i) => localProcessText(i as any),
   "ai.generateFlashcardsFromText": (i) => localGenerateFlashcardsFromText(i as any),
-  "v10.updateV10Settings": (i) => localUpdateSettings(i as Record<string, unknown>), // Reusing localUpdateSettings as they target the same settings object
-  "v10.saveRecallRating": (i) => Promise.resolve({ success: true }), // Mock for now if not critical
+  "mentor.getConceptConfusions": () => localGetConceptConfusions(),
+  "mentor.saveConceptConfusion": (i) => localSaveConceptConfusion(i as any),
+  "v10.updateV10Settings": (i) => localUpdateSettings(i as Record<string, unknown>), 
+  "v10.saveRecallRating": (i) => Promise.resolve({ success: true }),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {
