@@ -907,19 +907,24 @@ ESTRUTURA JSON OBRIGATÓRIA (retorne APENAS o JSON, sem markdown externo):
     "Domínio do Tema e Argumentação": "O aluno demonstrou conhecimento do tema mas a argumentação ficou superficial...",
     "Estrutura e Coesão Textual": "Boa organização em parágrafos, porém faltou transições entre as ideias..."
   },
-  "errors": [
-    { "type": "Gramática", "description": "Concordância verbal incorreta: 'as pessoa foram' deve ser 'as pessoas foram'", "suggestion": "as pessoas foram", "line": 3 }
+  "desvios": [
+    { "tipo": "Gramática", "trecho_original": "as pessoa foram", "sugestao": "as pessoas foram", "explicacao": "Erro de concordância nominal" }
   ],
+  "estatisticas": {
+    "caracteres": 1200,
+    "palavras": 250,
+    "frases": 15,
+    "paragrafos": 4,
+    "conectivos": 8,
+    "tempoLeitura": "1 min",
+    "nivelComplexidade": "Intermediário"
+  },
   "strengths": [
     "Introdução bem contextualizada com dados relevantes",
-    "Uso adequado de conectivos argumentativos como 'ademais' e 'entretanto'",
     "Proposta de intervenção concreta no parágrafo final"
   ],
   "improvementPlan": [
     "Pratique 10 exercícios semanais de concordância verbal e nominal",
-    "Leia e analise 3 redações nota máxima da banca ${essay.banca} por semana",
-    "Reescreva seus parágrafos de desenvolvimento usando a estrutura: tese → argumento → exemplo → mini-conclusão",
-    "Amplie o repertório sociocultural lendo artigos de opinião de qualidade",
     "Dedique 15 min/dia à revisão gramatical focada em regência verbal e nominal"
   ],
   "feedback": "### Parecer Geral do Examinador\\n\\nSua redação demonstra..."

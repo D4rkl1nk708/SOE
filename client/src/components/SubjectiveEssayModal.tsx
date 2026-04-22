@@ -120,7 +120,24 @@ ${text}
   "erros_encontrados": ["<erro 1>", "<erro 2>", ...],
   "pontos_positivos": ["<ponto 1>", "<ponto 2>", ...],
   "analise_conteudo": "<análise técnica do conteúdo>",
-  "analise_forma": "<análise da forma e estrutura>"
+  "analise_forma": "<análise da forma e estrutura>",
+  "desvios": [
+    {
+      "tipo": "<Categoria: Concordância, Ortografia, Expressão prolixa, etc>",
+      "trecho_original": "<Trecho exato do texto (curto) que contém o erro para ser sublinhado>",
+      "sugestao": "<Sugestão de correção ou troca de pronome/palavra>",
+      "explicacao": "<Por que está errado ou como melhorar>"
+    }
+  ],
+  "estatisticas": {
+    "caracteres": <numero total de caracteres>,
+    "palavras": <numero total de palavras>,
+    "frases": <numero total de frases>,
+    "paragrafos": <numero de parágrafos>,
+    "conectivos": <numero de conectivos identificados>,
+    "tempo_leitura_segundos": <tempo estimado em segundos>,
+    "nivel_complexidade": "<Baixo | Médio | Alto>"
+  }
 }
 
 **IMPORTANTE:** Comece o JSON obrigatoriamente pela nota, parecer e deduções. Deixe as análises extensas para o final. Se o texto for muito longo, a IA pode ser cortada, então garanta que o início seja completo. Responda APENAS com o JSON, sem markdown.`;
@@ -267,6 +284,8 @@ export default function SubjectiveEssayModal({
     deducoes: { motivo: string; pontos: number }[];
     nota_final: number;
     parecer: string;
+    desvios?: { tipo: string; trecho_original: string; sugestao: string; explicacao: string }[];
+    estatisticas?: { caracteres: number; palavras: number; frases: number; paragrafos: number; conectivos: number; tempo_leitura_segundos: number; nivel_complexidade: string; };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

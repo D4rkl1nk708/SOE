@@ -1330,3 +1330,10 @@ Server running on http://0.0.0.0:3001/
 5:33:56 PM [tsx] change in ./package.json Restarting...
 cPort 3000 is busy, using port 3001 instead
 Server running on http://0.0.0.0:3001/
+6:55:01 PM [tsx] change in ./package.json Restarting...
+cServer running on http://0.0.0.0:3000/
+7:08:11 PM [vite] (client) hmr update /src/index.css, /src/components/SubjectiveAnswersTab.tsx
+7:10:32 PM [vite] (client) hmr update /src/index.css, /src/components/SubjectiveAnswersTab.tsx
+7:20:57 PM [tsx] change in ./server/routers.ts Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/

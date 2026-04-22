@@ -10,7 +10,8 @@ import { useState, useEffect } from "react";
 import {
   PenLine, Trash2, ChevronDown, ChevronUp,
   Calendar, SlidersHorizontal, ImageOff, Key,
-  Maximize2, RefreshCw, X, Award, Target, MessageSquare
+  Maximize2, RefreshCw, X, Award, Target, MessageSquare,
+  BarChart2, AlertTriangle, FileText, Star, Clock, Zap, CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -27,6 +28,16 @@ type ParsedCorrection = {
   deducoes?: { motivo: string; pontos: number }[];
   nota_final?: number;
   parecer?: string;
+  desvios?: { tipo: string; trecho_original: string; sugestao: string; explicacao: string }[];
+  estatisticas?: {
+    caracteres: number;
+    palavras: number;
+    frases: number;
+    paragrafos: number;
+    conectivos: number;
+    tempo_leitura_segundos: number;
+    nivel_complexidade?: string;
+  };
 };
 
 function parseCorrection(raw: string): ParsedCorrection {
@@ -61,6 +72,54 @@ function formatDate(iso: string) {
   }
 }
 
+function StatBox({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="soe-card p-4 flex flex-col items-center justify-center gap-1 bg-white/[0.02]">
+      <span className="text-2xl font-black tabular-nums" style={{ color: "var(--app-fg)" }}>{value}</span>
+      <span className="text-[9px] font-black uppercase tracking-widest opacity-40 text-center">{label}</span>
+    </div>
+  );
+}
+
+export function HighlightedText({ text, desvios }: { text: string; desvios?: any[] }) {
+  if (!desvios || desvios.length === 0 || !text) return <span>{text}</span>;
+  
+  let highlighted = text;
+  desvios.forEach((d, i) => {
+    if (d.trecho_original && d.trecho_original.length > 2) {
+      const parts = highlighted.split(d.trecho_original);
+      if (parts.length > 1) {
+         highlighted = parts.join(`___MARK_${i}___`);
+      }
+    }
+  });
+
+  const parts = highlighted.split(/___MARK_(\d+)___/);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (i % 2 === 1) {
+           const desvio = desvios[parseInt(p)];
+           return (
+             <span key={i} className="relative group/desvio cursor-help transition-all" style={{ textDecoration: "underline wavy var(--accent-red)", textUnderlineOffset: 4, textDecorationThickness: 1.5, background: "color-mix(in srgb, var(--accent-red) 15%, transparent)", borderRadius: 4, padding: "0 2px" }}>
+               {desvio.trecho_original}
+               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-2xl bg-slate-900 text-white text-[10px] opacity-0 group-hover/desvio:opacity-100 pointer-events-none transition-opacity z-10 shadow-2xl border border-white/10">
+                 <p className="font-black text-rose-400 mb-1.5 uppercase tracking-widest">{desvio.tipo}</p>
+                 <p className="opacity-90 leading-tight mb-2.5 text-xs">{desvio.explicacao}</p>
+                 <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-2 rounded-xl text-xs font-bold flex items-center gap-2">
+                   <CheckCircle2 className="w-3.5 h-3.5" /> {desvio.sugestao}
+                 </div>
+                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900" />
+               </div>
+             </span>
+           );
+        }
+        return <span key={i}>{p}</span>;
+      })}
+    </>
+  );
+}
+
 // ─── Single card ─────────────────────────────────────────────────────────────
 function AnswerCard({
   answer, onDelete, onReanalyze,
@@ -73,6 +132,7 @@ function AnswerCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"nota" | "desvios" | "comentarios" | "estat" | "texto">("nota");
   
   const correction = parseCorrection(answer.correction);
   const score = correction.nota_final ?? answer.score ?? 0;
@@ -182,127 +242,218 @@ function AnswerCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 space-y-4 border-t" style={{ borderColor: "var(--card-border)" }}>
-              {/* Transcription */}
-              <section>
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="w-3 h-3 opacity-40" />
-                  <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>
-                    Transcrição
-                  </h4>
-                </div>
-                <div
-                  className="text-xs font-medium leading-relaxed rounded-2xl p-4 whitespace-pre-wrap italic"
-                  style={{
-                    background: "var(--stat-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--app-fg)",
-                    maxHeight: 160,
-                    overflowY: "auto",
-                  }}
-                >
-                  "{correction.transcricao || "Transcrição não disponível."}"
-                </div>
-              </section>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Positives */}
-                {(correction.pontos_positivos?.length ?? 0) > 0 && (
-                  <section className="space-y-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: "var(--accent-green)" }}>
-                      <Award className="w-3 h-3" /> Pontos Fortes
-                    </h4>
-                    <ul className="space-y-1.5">
-                      {correction.pontos_positivos!.map((p, i) => (
-                        <li key={i} className="text-[11px] font-medium flex items-start gap-2 leading-tight" style={{ color: "var(--app-fg)" }}>
-                          <span className="w-1 h-1 rounded-full mt-1.5 shrink-0" style={{ background: "var(--accent-green)" }} /> {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-
-                {/* Errors */}
-                {(correction.erros_encontrados?.length ?? 0) > 0 && (
-                  <section className="space-y-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: "var(--accent-red)" }}>
-                      <Target className="w-3 h-3" /> Pontos a Melhorar
-                    </h4>
-                    <ul className="space-y-1.5">
-                      {correction.erros_encontrados!.map((e, i) => (
-                        <li key={i} className="text-[11px] font-medium flex items-start gap-2 leading-tight" style={{ color: "var(--app-fg)" }}>
-                          <span className="w-1 h-1 rounded-full mt-1.5 shrink-0" style={{ background: "var(--accent-red)" }} /> {e}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-              </div>
-
-              {/* Deductions */}
-              {(correction.deducoes?.length ?? 0) > 0 && (
-                <section>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--accent-amber)" }}>
-                    Deduções de Pontuação
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {correction.deducoes!.map((d, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between rounded-xl px-3 py-2 border"
-                        style={{
-                          background: "color-mix(in srgb, var(--accent-amber) 6%, var(--stat-bg))",
-                          borderColor: "color-mix(in srgb, var(--accent-amber) 20%, transparent)",
-                        }}
-                      >
-                        <span className="text-[11px] font-medium truncate pr-2" style={{ color: "var(--app-fg)" }}>{d.motivo}</span>
-                        <span className="text-[11px] font-black whitespace-nowrap" style={{ color: "var(--accent-amber)" }}>
-                          {d.pontos > 0 ? "-" : ""}{Math.abs(d.pontos)} pt
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Verdict */}
-              {correction.parecer && (
-                <section
-                  className="rounded-2xl p-4 border"
-                  style={{
-                    background: "color-mix(in srgb, var(--primary) 6%, var(--stat-bg))",
-                    borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
-                  }}
-                >
-                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2" style={{ color: "var(--primary)" }}>
-                    <div className="w-1 h-3 rounded-full" style={{ background: "var(--primary)" }} />
-                    Parecer Estratégico
-                  </h4>
-                  <p className="text-xs font-medium leading-relaxed" style={{ color: "var(--app-fg)" }}>{correction.parecer}</p>
-                </section>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--card-border)" }}>
+            <div className="flex border-t border-[var(--card-border)] overflow-x-auto no-scrollbar">
+              {[
+                { id: "nota", icon: Star, label: "Resultado Estimado" },
+                { id: "desvios", icon: AlertTriangle, label: "Inadequações", badge: correction.desvios?.length },
+                { id: "comentarios", icon: MessageSquare, label: "Parecer Técnico" },
+                { id: "estat", icon: BarChart2, label: "Métricas Textuais" },
+                { id: "texto", icon: FileText, label: "Raio-X do Texto" }
+              ].map(t => (
                 <button
-                  onClick={handleDelete}
-                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 px-3 py-1.5 rounded-xl transition-all"
-                  style={{ 
-                    color: confirmDelete ? "var(--accent-red)" : "var(--muted-text)",
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id as any)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 min-w-[120px] text-[10px] font-black uppercase tracking-widest transition-colors border-b-2"
+                  style={{
+                    color: activeTab === t.id ? "var(--app-fg)" : "var(--muted-text)",
+                    borderColor: activeTab === t.id ? "var(--primary)" : "transparent",
+                    background: activeTab === t.id ? "color-mix(in srgb, var(--primary) 4%, transparent)" : "transparent"
                   }}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {confirmDelete ? "Confirmar?" : "Excluir"}
+                  <t.icon className="w-3.5 h-3.5" />
+                  {t.label}
+                  {t.badge ? (
+                    <span className="bg-rose-500 text-white px-1.5 py-0.5 rounded-full text-[8px] ml-1">{t.badge}</span>
+                  ) : null}
                 </button>
+              ))}
+            </div>
 
-                <button
-                  onClick={() => onReanalyze(answer)}
-                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all"
-                  style={{ 
-                    background: "var(--primary)",
-                    color: "var(--primary-fg, white)"
-                  }}
-                >
+            <div className="p-6 space-y-6" style={{ background: "color-mix(in srgb, var(--stat-bg) 50%, transparent)" }}>
+              {activeTab === "nota" && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex flex-col items-center justify-center py-6">
+                    <div className="w-32 h-32 rounded-full border-[6px] flex flex-col items-center justify-center shadow-lg bg-[var(--app-bg)] relative"
+                         style={{ borderColor: scoreColor(score) }}>
+                      <span className="text-4xl font-black tabular-nums" style={{ color: scoreColor(score) }}>
+                        {score.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">nota final</span>
+                    </div>
+                    <p className="mt-4 text-sm font-bold opacity-80" style={{ color: "var(--app-fg)" }}>
+                      {score >= 8 ? "Mandou bem!!! 🎉🚀" : score >= 6 ? "Bom trabalho, mas pode melhorar! 👍" : "Precisa de mais foco! 🧐"}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(correction.deducoes?.length ?? 0) > 0 && (
+                      <section className="soe-card p-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "var(--accent-amber)" }}>
+                           <AlertTriangle className="w-3 h-3" /> Deduções de Pontuação
+                        </h4>
+                        <div className="space-y-2">
+                          {correction.deducoes!.map((d, i) => (
+                            <div key={i} className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/5">
+                              <span className="text-[11px] font-medium" style={{ color: "var(--app-fg)" }}>{d.motivo}</span>
+                              <span className="text-[11px] font-black whitespace-nowrap" style={{ color: "var(--accent-amber)" }}>
+                                {d.pontos > 0 ? "-" : ""}{Math.abs(d.pontos)} pt
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    
+                    <div className="space-y-4">
+                      {(correction.pontos_positivos?.length ?? 0) > 0 && (
+                        <section className="soe-card p-4" style={{ borderColor: "color-mix(in srgb, var(--accent-green) 20%, var(--card-border))" }}>
+                          <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mb-3" style={{ color: "var(--accent-green)" }}>
+                            <Award className="w-3 h-3" /> Pontos Fortes
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {correction.pontos_positivos!.map((p, i) => (
+                              <li key={i} className="text-[11px] font-medium flex items-start gap-2 leading-tight" style={{ color: "var(--app-fg)" }}>
+                                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-green-500" /> {p}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "desvios" && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {!correction.desvios || correction.desvios.length === 0 ? (
+                    <div className="py-10 text-center opacity-50 flex flex-col items-center">
+                      <Target className="w-8 h-8 mb-2" />
+                      <p className="text-sm font-bold">Nenhuma inadequação estrutural ou gramatical detectada!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {correction.desvios.map((d, i) => (
+                        <div key={i} className="soe-card p-5 border-l-4" style={{ borderLeftColor: "var(--accent-red)" }}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>{d.tipo}</span>
+                            </div>
+                          </div>
+                          <p className="text-xs font-medium mb-4 opacity-90 leading-relaxed" style={{ color: "var(--app-fg)" }}>{d.explicacao}</p>
+                          <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                            <div className="flex-1 w-full bg-rose-500/10 text-rose-500 px-4 py-3 rounded-2xl text-xs font-medium border border-rose-500/20 line-through decoration-rose-500/50 flex items-center justify-center text-center">
+                              {d.trecho_original}
+                            </div>
+                            <div className="hidden sm:flex items-center justify-center opacity-30">
+                              <span className="text-xl font-black">→</span>
+                            </div>
+                            <div className="flex-1 w-full bg-emerald-500/10 text-emerald-500 px-4 py-3 rounded-2xl text-xs font-bold border border-emerald-500/20 flex items-center justify-center gap-2 text-center shadow-lg shadow-emerald-500/5">
+                              <CheckCircle2 className="w-4 h-4 shrink-0" /> {d.sugestao}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "comentarios" && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {correction.parecer && (
+                    <section className="soe-card p-5" style={{ background: "color-mix(in srgb, var(--primary) 4%, var(--app-bg))", borderColor: "color-mix(in srgb, var(--primary) 20%, var(--card-border))" }}>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "var(--primary)" }}>
+                        <Zap className="w-3 h-3" /> Parecer Estratégico Geral
+                      </h4>
+                      <p className="text-sm font-medium leading-relaxed opacity-90" style={{ color: "var(--app-fg)" }}>{correction.parecer}</p>
+                    </section>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {correction.analise_conteudo && (
+                      <section className="soe-card p-5">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 text-emerald-500">Análise de Conteúdo</h4>
+                        <p className="text-xs leading-relaxed opacity-80" style={{ color: "var(--app-fg)" }}>{correction.analise_conteudo}</p>
+                      </section>
+                    )}
+                    {correction.analise_forma && (
+                      <section className="soe-card p-5">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 text-blue-500">Análise de Forma</h4>
+                        <p className="text-xs leading-relaxed opacity-80" style={{ color: "var(--app-fg)" }}>{correction.analise_forma}</p>
+                      </section>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "estat" && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {!correction.estatisticas ? (
+                    <div className="py-10 text-center opacity-50 flex flex-col items-center">
+                      <BarChart2 className="w-8 h-8 mb-2" />
+                      <p className="text-sm font-bold">Métricas detalhadas indisponíveis nesta correção.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <section className="space-y-3">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>Métricas Gerais do Texto</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                          <StatBox label="Caracteres" value={correction.estatisticas.caracteres} />
+                          <StatBox label="Palavras" value={correction.estatisticas.palavras} />
+                          <StatBox label="Frases" value={correction.estatisticas.frases} />
+                          <StatBox label="Parágrafos" value={correction.estatisticas.paragrafos} />
+                          <StatBox label="Conectivos" value={correction.estatisticas.conectivos} />
+                        </div>
+                      </section>
+                      <section className="space-y-3">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>Legibilidade</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="soe-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <span className="text-xs font-bold opacity-60" style={{ color: "var(--app-fg)" }}>Tempo de Leitura Estimado</span>
+                            <div className="flex items-center gap-1.5 font-black text-lg text-blue-400">
+                              <Clock className="w-4 h-4" />
+                              {Math.floor(correction.estatisticas.tempo_leitura_segundos / 60)}m {correction.estatisticas.tempo_leitura_segundos % 60}s
+                            </div>
+                          </div>
+                          <div className="soe-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <span className="text-xs font-bold opacity-60" style={{ color: "var(--app-fg)" }}>Nível de Complexidade</span>
+                            <span className="font-black text-lg text-purple-400 uppercase tracking-wider">{correction.estatisticas.nivel_complexidade || "N/A"}</span>
+                          </div>
+                        </div>
+                      </section>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "texto" && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="soe-card p-8 bg-[var(--app-bg)] shadow-inner">
+                    <div className="text-sm font-medium leading-[2.5] whitespace-pre-wrap" style={{ color: "var(--app-fg)" }}>
+                      <HighlightedText text={correction.transcricao || "Transcrição não disponível."} desvios={correction.desvios} />
+                    </div>
+                  </div>
+                  {correction.desvios && correction.desvios.length > 0 && (
+                    <p className="text-[10px] font-bold text-center mt-4 opacity-50 uppercase tracking-widest flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-3 h-3 text-rose-500" />
+                      Passe o mouse sobre os trechos sublinhados para ver as sugestões
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Actions footer inside expanded */}
+              <div className="flex items-center justify-between pt-6 border-t" style={{ borderColor: "var(--card-border)" }}>
+                <button onClick={handleDelete}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 px-4 py-2 rounded-xl transition-all"
+                  style={{ color: confirmDelete ? "var(--accent-red)" : "var(--muted-text)" }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {confirmDelete ? "Confirmar Exclusão?" : "Excluir Registro"}
+                </button>
+                <button onClick={() => onReanalyze(answer)}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl transition-all shadow-lg active:scale-95"
+                  style={{ background: "var(--primary)", color: "white", boxShadow: "0 4px 15px color-mix(in srgb, var(--primary) 30%, transparent)" }}>
                   <RefreshCw className="w-3.5 h-3.5" />
                   Reanalisar com IA
                 </button>
