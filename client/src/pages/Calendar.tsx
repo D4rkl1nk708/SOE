@@ -32,14 +32,28 @@ export default function Calendar() {
   const [expandedLinkId, setExpandedLinkId] = useState<number | null>(null);
   const [savedLinks, setSavedLinks] = useState<Record<number, string>>(getLinks());
   const [linkDraft, setLinkDraft] = useState<Record<number, string>>({});
+  
+  // Subjective Modal State
+  const [subjectiveOpen, setSubjectiveOpen] = useState(false);
+  const [activeSubjective, setActiveSubjective] = useState<any>(null);
 
+  const utils = trpc.useUtils();
   const { data: stats } = trpc.dashboard.getStats.useQuery();
-  const schedule = useScheduleSettings(() => trpc.useUtils().dashboard.getStats.invalidate());
-  const saveLinkMut = trpc.calendar.saveLink.useMutation({ onSuccess: () => toast.success("Link salvo!") });
+  const schedule = useScheduleSettings(() => utils.dashboard.getStats.invalidate());
+  
+  const saveLinkMut = trpc.calendar.saveLink.useMutation({ 
+    onSuccess: () => {
+      toast.success("Link salvo!");
+      utils.calendar.getActivities.invalidate();
+    }
+  });
 
-  const saveLink = (revisionId: number, link: string) => {
-    saveLinkMut.mutate({ revisionId, link });
-  };
+  const markCompletedMut = trpc.calendar.markCompleted.useMutation({
+    onSuccess: () => {
+      utils.calendar.getActivities.invalidate();
+      utils.dashboard.getStats.invalidate();
+    }
+  });
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -62,6 +76,21 @@ export default function Calendar() {
     sessionStorage.setItem("qs_prefill", JSON.stringify({ topicId, topicName, disciplineId, autoStart: true }));
     navigate("/question-session");
     setSelectedDay(null);
+  };
+
+  const toggleCompleted = (revisionId: number, current: boolean) => {
+    markCompletedMut.mutate({ revisionId, completed: !current });
+  };
+
+  const handleOpenSubjective = (activity: any) => {
+    setActiveSubjective({
+      revisionId: activity.id,
+      topicId: activity.topicId,
+      topicName: activity.topicName,
+      disciplineName: activity.disciplineName,
+      revisionLabel: activity.type === "revision" ? `Revisão #${activity.id}` : "Teste"
+    });
+    setSubjectiveOpen(true);
   };
 
   return (
@@ -138,9 +167,9 @@ export default function Calendar() {
                       {/* Desktop list */}
                       <div className="hidden md:block space-y-1">
                         {dayActivities.slice(0, 3).map((a) => (
-                          <div key={a.id} className="text-[8px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border border-white/5 flex items-center gap-1"
+                          <div key={a.id} className={`text-[8px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border border-white/5 flex items-center gap-1 ${a.completed ? 'opacity-30 line-through' : ''}`}
                             style={{ backgroundColor: `${a.disciplineColor}15`, color: a.disciplineColor }}>
-                            <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: a.disciplineColor }} />
+                            {a.completed ? <Check size={8} /> : <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: a.disciplineColor }} />}
                             {a.topicName}
                           </div>
                         ))}
@@ -151,7 +180,7 @@ export default function Calendar() {
                       {/* Mobile dots */}
                       <div className="md:hidden flex flex-wrap gap-0.5">
                         {dayActivities.map(a => (
-                          <div key={a.id} className="w-1.5 h-1.5 rounded-full" style={{ background: a.disciplineColor }} />
+                          <div key={a.id} className={`w-1.5 h-1.5 rounded-full ${a.completed ? 'opacity-20' : ''}`} style={{ background: a.disciplineColor }} />
                         ))}
                       </div>
                     </div>
@@ -177,27 +206,73 @@ export default function Calendar() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {getDayActivities(selectedDay).length > 0 ? (
                     getDayActivities(selectedDay).map((activity) => (
-                      <div key={activity.id} className="p-4 rounded-2xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-all group">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
+                      <div key={activity.id} className={`p-5 rounded-2xl border transition-all group relative overflow-hidden ${activity.completed ? 'bg-white/[0.02] border-white/5 grayscale-[0.5] opacity-60' : 'bg-white/[0.03] border-white/10 hover:border-[var(--primary-border)]'}`}>
+                        {/* Background type label */}
+                        <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-white/5 text-[8px] font-black uppercase tracking-widest opacity-30">
+                          {activity.type === 'revision' ? 'Revisão' : activity.type === 'test' ? 'Teste' : 'Estudo'}
+                        </div>
+
+                        <div className="flex items-start gap-4">
+                          <button onClick={() => toggleCompleted(activity.id, activity.completed)}
+                            className={`mt-1 w-6 h-6 shrink-0 rounded-lg flex items-center justify-center border-2 transition-all ${activity.completed ? 'bg-[var(--accent-green)] border-[var(--accent-green)] text-white shadow-lg shadow-[var(--accent-green)]/20' : 'bg-white/5 border-white/10 hover:border-[var(--primary)]'}`}>
+                            {activity.completed && <Check size={14} />}
+                          </button>
+
+                          <div className="flex-1 min-w-0">
                             <span className="text-[9px] font-black uppercase tracking-widest opacity-40 block mb-1" style={{ color: activity.disciplineColor }}>
                               {activity.disciplineName}
                             </span>
-                            <h4 className="text-xs font-black leading-relaxed">{activity.topicName}</h4>
-                          </div>
-                          <div className="p-2 rounded-lg bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <PlayCircle size={14} className="text-[var(--primary)]" />
-                          </div>
-                        </div>
+                            <h4 className={`text-xs font-black leading-tight mb-4 ${activity.completed ? 'line-through' : ''}`}>{activity.topicName}</h4>
+                            
+                            <div className="flex flex-wrap gap-2">
+                                <button onClick={() => handleStudyNow(activity.topicId, activity.topicName, activity.disciplineId)}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:scale-105 transition-all">
+                                    <PlayCircle size={12} /> Treinar
+                                </button>
+                                
+                                <button onClick={() => handleOpenSubjective(activity)}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                                    <Camera size={12} /> Foto
+                                </button>
 
-                        <div className="flex items-center gap-2 mt-4">
-                          <button onClick={() => handleStudyNow(activity.topicId, activity.topicName, activity.disciplineId)}
-                            className="flex-1 py-2 rounded-xl bg-[var(--primary-bg-subtle)] text-[var(--primary)] text-[9px] font-black uppercase tracking-widest border border-[var(--primary-border)] hover:bg-[var(--primary)] hover:text-white transition-all">
-                            Treinar Agora
-                          </button>
+                                {activity.link && (
+                                    <a href={activity.link} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 text-[var(--accent-blue)] transition-all">
+                                        <LinkIcon size={12} /> TEC
+                                    </a>
+                                )}
+
+                                <button onClick={() => setExpandedLinkId(expandedLinkId === activity.id ? null : activity.id)}
+                                    className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                                    <Settings2 size={12} className="opacity-40" />
+                                </button>
+                            </div>
+
+                            {expandedLinkId === activity.id && (
+                                <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <p className="text-[9px] font-black uppercase tracking-widest opacity-30 mb-2">Link TEC Concursos</p>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Cole o link do caderno..."
+                                            value={linkDraft[activity.id] ?? activity.link ?? ""}
+                                            onChange={(e) => setLinkDraft(prev => ({ ...prev, [activity.id]: e.target.value }))}
+                                            className="flex-1 bg-white/5 border border-white/5 rounded-lg px-3 py-1.5 text-[10px] outline-none focus:border-[var(--primary)]"
+                                        />
+                                        <button onClick={() => {
+                                            const link = linkDraft[activity.id] ?? activity.link ?? "";
+                                            saveLink(activity.id, link);
+                                            setExpandedLinkId(null);
+                                        }} className="p-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-80 transition-all">
+                                            <Check size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -234,6 +309,22 @@ export default function Calendar() {
         onSave={schedule.handleSaveSchedule}
         isSaving={schedule.isSaving}
       />
+
+      {activeSubjective && (
+          <SubjectiveEssayModal
+            open={subjectiveOpen}
+            onClose={() => setSubjectiveOpen(false)}
+            revisionId={activeSubjective.revisionId}
+            topicId={activeSubjective.topicId}
+            topicName={activeSubjective.topicName}
+            disciplineName={activeSubjective.disciplineName}
+            revisionLabel={activeSubjective.revisionLabel}
+            onMarkCompleted={() => {
+                markCompletedMut.mutate({ revisionId: activeSubjective.revisionId, completed: true });
+                setSubjectiveOpen(false);
+            }}
+          />
+      )}
       
       <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
         <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">

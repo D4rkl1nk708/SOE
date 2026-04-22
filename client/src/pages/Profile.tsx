@@ -421,57 +421,67 @@ export default function Profile() {
   const { logout } = useAuth();
 
   const TABS = [
-    { id: "dou" as Tab,        label: "Monitor DOU", icon: FileText },
-    { id: "settings" as Tab,   label: "Ajustes",    icon: Settings },
-    { id: "history" as Tab,    label: "Histórico",   icon: HistoryIcon },
-    { id: "revisions" as Tab,  label: "Atividade",   icon: CheckCircle2 },
+    { id: "dou" as Tab,        label: "Sentinela",   icon: FileText,   desc: "Monitoramento DOU" },
+    { id: "settings" as Tab,   label: "Sistema",     icon: Settings,   desc: "Ajustes e IA" },
+    { id: "history" as Tab,    label: "Linha do Tempo", icon: HistoryIcon, desc: "Seu progresso" },
+    { id: "revisions" as Tab,  label: "Atividade",   icon: CheckCircle2, desc: "Log de estudos" },
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-10 pb-12">
+    <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 md:px-0">
       {/* Premium Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8">
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="relative group">
-              <div className="absolute inset-0 bg-[var(--primary)] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity" />
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-black text-2xl sm:text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
-                {(stats as any)?.userName?.[0]?.toUpperCase() ?? <User className="w-8 h-8" />}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)] opacity-[0.03] blur-[100px] -mr-32 -mt-32" />
+        
+        <div className="flex items-center gap-6 relative">
+          <div className="relative">
+              <div className="absolute inset-0 bg-[var(--primary)] blur-2xl opacity-20" />
+              <div className="relative w-20 h-20 rounded-[2rem] bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-black text-3xl shadow-2xl shadow-[var(--primary-shadow)]">
+                {(stats as any)?.userName?.[0]?.toUpperCase() ?? <User className="w-10 h-10" />}
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[var(--accent-green)] border-4 border-[var(--app-bg)] flex items-center justify-center text-white">
-                  <ShieldCheck size={10} className="sm:w-3 sm:h-3" />
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--accent-green)] border-4 border-[var(--app-bg)] flex items-center justify-center text-white shadow-lg">
+                  <ShieldCheck size={14} />
               </div>
           </div>
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter" style={{ color: "var(--app-fg)" }}>Perfil</h1>
-            <p className="text-[10px] sm:text-sm font-medium opacity-50 uppercase tracking-[0.1em] sm:tracking-[0.2em] mt-0.5 sm:mt-1">Configurações do Sistema</p>
+            <h1 className="text-4xl font-black tracking-tighter" style={{ color: "var(--app-fg)" }}>
+                Olá, {(stats as any)?.userName?.split(' ')[0] ?? 'Estudante'}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 opacity-50">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)]" />
+                <p className="text-xs font-black uppercase tracking-widest">Membro Premium SOE</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-             <button onClick={logout} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 h-12 rounded-2xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest">
-                <LogOut size={16} />
-                <span>Sair da Conta</span>
-             </button>
-        </div>
+        <button onClick={logout} className="flex items-center justify-center gap-3 px-8 h-14 rounded-2xl bg-rose-500/5 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/10 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest group">
+            <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+            <span>Encerrar Sessão</span>
+        </button>
       </div>
 
-      {/* Modern Navigation */}
-      <div className="flex gap-1 p-1 rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
+      {/* Modern Navigation Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {TABS.map(t => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${active ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
-              <Icon size={14} />
-              <span>{t.label}</span>
+            <button key={t.id} onClick={() => { setTab(t.id); window.location.hash = t.id; }}
+              className={`flex flex-col items-start gap-4 p-6 rounded-[2rem] border transition-all text-left group ${active ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-2xl shadow-[var(--primary-shadow)]' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'}`}>
+              <div className={`p-3 rounded-2xl ${active ? 'bg-white/20 text-white' : 'bg-[var(--primary)]/10 text-[var(--primary)] group-hover:scale-110 transition-transform'}`}>
+                <Icon size={20} />
+              </div>
+              <div>
+                <p className={`font-black text-xs uppercase tracking-widest ${active ? 'text-white' : 'text-[var(--app-fg)]'}`}>{t.label}</p>
+                <p className={`text-[10px] font-medium mt-0.5 ${active ? 'text-white/60' : 'opacity-40'}`}>{t.desc}</p>
+              </div>
             </button>
           );
         })}
       </div>
 
-      {/* Dynamic Content */}
-      <div className="min-h-[500px]">
+      {/* Dynamic Content Area */}
+      <div className="min-h-[600px] animate-in fade-in slide-in-from-bottom-4 duration-500">
         {tab === "dou" && <DiarioOficialTab />}
         {tab === "settings" && <SettingsTab />}
         {tab === "history" && <History />}

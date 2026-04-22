@@ -16,6 +16,13 @@
 
   const CADERNO_ID = location.pathname.match(/\/cadernos\/(\d+)/)?.[1] || null;
 
+  function debugLog(msg) {
+    console.log('[SOE DEBUG]', msg);
+    window.postMessage({ type: 'SOE_DEBUG_LOG', payload: { msg: `[${new Date().toISOString()}] ${msg}` }, _soe_internal: true }, '*');
+  }
+
+  debugLog('Script SOE v2.1 carregado. URL: ' + location.href + ' CadernoID: ' + CADERNO_ID);
+
   // ─── Captura de incidência e metadados enriquecidos ───────────────────────
 
   function parseTecResponse(data) {
@@ -165,12 +172,15 @@
     const text = document.body?.innerText || '';
     if (!text) return [];
 
-    const statsMatch = text.match(/(?:(\d+)\s*Resolvidas?,\s*)?(\d+)\s*Acertos?\s+e\s+(\d+)\s*Erros?/i);
+    // Suporta formatos: "10 Resolvidas, 8 Acertos e 2 Erros" ou "319 R, 242 A e 77 E"
+    const statsMatch = text.match(/(?:(\d+)\s*(?:Resolvidas?|R),\s*)?(\d+)\s*(?:Acertos?|A)\s+e\s+(\d+)\s*(?:Erros?|E)/i);
     const cleanBtns = s => s.replace(/[\u2715\u2716\u2297\u2A2F\u00D7]/g, '').trim();
 
-    // Strategy 1: Text labels "Matéria:" / "Assunto:" (classic TEC layout)
-    const materiaMatch = text.match(/Mat[eé]ria:\s*([^\n]+)/i);
-    const assuntoMatch = text.match(/Assunto:\s*([^\n]+)/i);
+    debugLog(`Scraping header. StatsMatch: ${statsMatch ? 'Yes (' + statsMatch[0] + ')' : 'No'}. Text length: ${text.length}`);
+
+    // Strategy 1: Text labels "Matéria:" / "Assunto:" (classic/mobile TEC layout)
+    const materiaMatch = text.match(/Mat[eé]ria:\s*([^\n\r]+)/i);
+    const assuntoMatch = text.match(/Assunto:\s*([^\n\r]+)/i);
     if (materiaMatch && assuntoMatch) {
       const disciplina = cleanBtns(materiaMatch[1]);
       const assunto = cleanBtns(assuntoMatch[1]);
@@ -388,13 +398,22 @@
   }
 
   function scrapeWrongQuestion(text, bodyElement) {
-    if (!text.match(/Você errou!/i)) return null;
+    debugLog('Tentando raspar questão errada...');
+    if (!text.match(/Você errou!/i)) {
+        debugLog('Não encontrou "Você errou!" no texto.');
+        return null;
+    }
     const errorMatch = text.match(/Você errou!(?:[\s\S]{0,500}Gabarito:\s*([A-E]|[CERTORADcertorad]+\b))?/i);
-    const headerMatch = text.match(/#(\d+)\s+([^\-]+)\s*-\s*(\d{4})?\s*-\s*([^\n]+)/);
+    
+    // Regex mais flexível para o cabeçalho
+    const headerMatch = text.match(/#(\d+)\s+([^-]+)\s*(?:-\s*(\d{4})?)?\s*(?:-\s*([^\n\r]+))?/);
+    
     const questionId = headerMatch ? headerMatch[1] : '';
-    const banca = headerMatch ? headerMatch[2].trim() : '';
+    const banca = headerMatch ? (headerMatch[2] || '').trim() : '';
     const year = headerMatch && headerMatch[3] ? parseInt(headerMatch[3], 10) : new Date().getFullYear();
-    const contest = headerMatch ? headerMatch[4].trim() : '';
+    const contest = headerMatch && headerMatch[4] ? headerMatch[4].trim() : '';
+
+    debugLog(`Questão ID: ${questionId}, Banca: ${banca}, Ano: ${year}`);
 
     const alternativesRegex = /\(\s*([A-E])\s*\)\s*([^\n]+)/g;
     const alternatives = [];
@@ -707,6 +726,16 @@
       }
     });
   }
+
+  // ─── Force Scrape Listener (para Mobile Browser) ─────────────────────────
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SOE_FORCE_SCRAPE' && e.data._soe_internal) {
+      console.log('[SOE v2] Forçando varredura manual...');
+      tryScrapeDOM();
+      scrapeHtmlTable();
+      if (location.pathname.match(/\/cadernos($|\?)/)) scrapeCadernosFromDOM();
+    }
+  });
 
   console.log('[SOE v2] content script ativo — captura enriquecida (incidência + bancas + cadernos)');
 })();

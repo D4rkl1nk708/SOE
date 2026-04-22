@@ -6,7 +6,7 @@ import {
   ChevronLeft, CheckCircle2, XCircle, SkipForward, Globe,
   BookOpen, Save, BarChart2, AlertTriangle, Brain, BookMarked, Crosshair,
   RotateCcw, Play, CircleDot, Flag, Clock, ClipboardPaste, Trash2, ListChecks, ClipboardX,
-  PenLine, Timer, Search, Zap, ExternalLink,
+  PenLine, Timer, Search, Zap, ExternalLink, FileText, Camera, Image as ImageIcon, Send, Eye, Wand2, Plus, ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QuestionErrors from "./QuestionErrors";
@@ -88,7 +88,7 @@ export default function QuestionSession() {
   const urlParams = new URLSearchParams(search);
   const urlTopicId = urlParams.get("topicId") ? Number(urlParams.get("topicId")) : null;
 
-  const [activeTab, setActiveTab] = useState<"session" | "errors" | "browser" | "subjetivas">("session");
+  const [activeTab, setActiveTab] = useState<"session" | "errors" | "browser" | "subjetivas" | "essays">("session");
   const [showTimer, setShowTimer] = useState(false);
 
   const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
@@ -283,6 +283,7 @@ export default function QuestionSession() {
         { id: "browser", label: "Browser", icon: Globe },
         { id: "errors", label: "Erros", icon: ClipboardX },
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
+        { id: "essays", label: "Redações", icon: FileText },
       ].map(t => (
         <button key={t.id} onClick={() => setActiveTab(t.id as any)}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.id ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]' : 'opacity-40 hover:opacity-70'}`} style={{ color: activeTab === t.id ? undefined : "var(--app-fg)" }}>
@@ -295,8 +296,7 @@ export default function QuestionSession() {
   // ── RENDER SETUP ───────────────────────────────────────────────────
   if (phase === "setup") {
     return (
-      <div className="max-w-5xl mx-auto space-y-8 pb-20">
-        
+      <div className="max-w-7xl mx-auto space-y-8 pb-20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
@@ -307,41 +307,13 @@ export default function QuestionSession() {
               <p className="text-sm opacity-60">Questões e performance.</p>
             </div>
           </div>
-          <TabNav />
-        </div>
-
-        {activeTab === "browser" && (
-          <div className="soe-card p-12 flex flex-col items-center text-center space-y-6 max-w-2xl mx-auto">
-            <div className="w-20 h-20 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)]">
-              <Globe className="w-10 h-10 text-[var(--primary)]" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black">Navegador TEC Integrado</h2>
-              <p className="text-sm opacity-60 leading-relaxed">
-                Abra o site do TEC Concursos diretamente dentro do SOE com a extensão já configurada. 
-                Seus acertos e erros serão sincronizados em tempo real.
-              </p>
-            </div>
-            <button 
-              onClick={() => {
-                if ((window as any).electron?.ipcRenderer) {
-                  (window as any).electron.ipcRenderer.send("open-tec-browser", pushTokenRef.current);
-                } else {
-                  toast.error("O Navegador do TEC só está disponível no aplicativo Desktop.");
-                }
-              }}
-              className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]">
-              <ExternalLink className="w-5 h-5"/> Acessar TEC Concursos
-            </button>
+          <div className="w-full sm:w-auto">
+            <TabNav />
           </div>
-        )}
-
-        {activeTab === "errors" && <QuestionErrors />}
-        {activeTab === "subjetivas" && <SubjectiveAnswersTab />}
+        </div>
 
         {activeTab === "session" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
             <div className="lg:col-span-7 space-y-6">
               <div className="soe-card p-6 space-y-6">
                 <div className="flex items-center gap-3 border-b border-white/5 pb-4">
@@ -370,7 +342,7 @@ export default function QuestionSession() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Disciplina</label>
-                    <select className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                    <select className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none"
                       value={selectedDisc ?? ""}
                       onChange={e => { setSelectedDisc(e.target.value ? Number(e.target.value) : null); setSelectedTopic(null); }}>
                       <option value="" className="bg-slate-900">Selecionar...</option>
@@ -379,7 +351,7 @@ export default function QuestionSession() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Tema / Assunto</label>
-                    <select className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-20"
+                    <select className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none disabled:opacity-20"
                       value={selectedTopic ?? ""}
                       onChange={e => setSelectedTopic(e.target.value ? Number(e.target.value) : null)}
                       disabled={!selectedDisc}>
@@ -400,7 +372,7 @@ export default function QuestionSession() {
                     ))}
                     <input type="number" value={totalQ}
                       onChange={e => setTotalQ(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="bg-white/5 border border-white/10 rounded-xl px-2 text-center text-xs font-black focus:outline-none focus:ring-2 focus:ring-[var(--primary-shadow)]" />
+                      className="bg-white/5 border border-white/10 rounded-xl px-2 text-center text-xs font-black" />
                   </div>
                 </div>
 
@@ -414,9 +386,7 @@ export default function QuestionSession() {
 
             <div className="lg:col-span-5 space-y-6">
               <div className="soe-card p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5">
-                  <Timer className="w-20 h-20" />
-                </div>
+                <div className="absolute top-0 right-0 p-4 opacity-5"><Timer className="w-20 h-20" /></div>
                 <div className="flex items-center gap-2 mb-4">
                   <Timer className="w-4 h-4 text-[var(--primary)]" />
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)]">Timer de Estudo</h3>
@@ -434,6 +404,42 @@ export default function QuestionSession() {
             </div>
           </div>
         )}
+
+        {activeTab === "browser" && (
+          <div className="space-y-6">
+            <div className="soe-card p-12 flex flex-col items-center text-center space-y-6 max-w-2xl mx-auto">
+              <div className="w-20 h-20 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)]">
+                <Globe className="w-10 h-10 text-[var(--primary)]" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black">Navegador TEC Integrado</h2>
+                <p className="text-sm opacity-60 leading-relaxed">
+                  Abra o site do TEC Concursos diretamente dentro do SOE. 
+                  { (window as any).electron?.ipcRenderer ? 
+                    " Seus acertos e erros serão sincronizados automaticamente via motor desktop." : 
+                    " No mobile, usamos um túnel seguro para garantir o rastreio automático." }
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  if ((window as any).electron?.ipcRenderer) {
+                    (window as any).electron.ipcRenderer.send("open-tec-browser", pushTokenRef.current);
+                  } else {
+                    (window as any).showTecMobile = true;
+                    document.dispatchEvent(new CustomEvent('soe-open-mobile-browser'));
+                  }
+                }}
+                className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]">
+                <ExternalLink className="w-5 h-5"/> { (window as any).electron?.ipcRenderer ? "Acessar TEC Concursos" : "Abrir Navegador Automático" }
+              </button>
+            </div>
+            <MobileTecBrowser pushToken={pushTokenData?.token || ""} />
+          </div>
+        )}
+
+        {activeTab === "errors" && <QuestionErrors />}
+        {activeTab === "subjetivas" && <SubjectiveAnswersTab />}
+        {activeTab === "essays" && <EssaysTab />}
       </div>
     );
   }
@@ -667,6 +673,471 @@ export default function QuestionSession() {
             className="py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2">
             <ChevronLeft className="w-4 h-4" /> Voltar ao Início
           </button>
+        </div>
+      </div>
+      <MobileTecBrowser pushToken={pushTokenData?.token || ""} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navegador Mobile Embutido
+// ─────────────────────────────────────────────────────────────────────────────
+function MobileTecBrowser({ pushToken }: { pushToken: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    useEffect(() => {
+        const handler = () => setIsOpen(true);
+        document.addEventListener('soe-open-mobile-browser', handler);
+        return () => document.removeEventListener('soe-open-mobile-browser', handler);
+    }, []);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.data && event.data._soe_internal) {
+                const { type, payload } = event.data;
+                console.log("[Mobile Browser] Mensagem recebida:", type, payload);
+                
+                // Mapeia os diferentes tipos de mensagens para os endpoints do servidor
+                let requests: { endpoint: string, body: any }[] = [];
+                
+                if (type === 'SOE_TEC_INCREMENT_STATS') {
+                    requests.push({ endpoint: '/api/tec/increment', body: payload });
+                } else if (type === 'SOE_TEC_WRONG_QUESTION') {
+                    requests.push({ endpoint: '/api/tec/wrong-question', body: payload });
+                } else if (type === 'SOE_DEBUG_LOG') {
+                    requests.push({ endpoint: '/api/_debug_log', body: payload });
+                } else if (type === 'SOE_TEC_DATA' && payload.rows) {
+                    // Se receber o pacotão de dados, usa a rota de caderno-push que é atômica/totalizadora
+                    requests.push({ 
+                        endpoint: '/api/tec/caderno-push', 
+                        body: {
+                            cadernoId: payload.cadernoId || 'unknown',
+                            cadernoUrl: payload.cadernoUrl || '',
+                            rows: payload.rows.map((row: any) => ({
+                                disciplina: row.disciplina,
+                                assunto: row.assunto,
+                                acertos: row.acertos,
+                                erros: row.erros
+                            }))
+                        }
+                    });
+                }
+                
+                if (requests.length > 0) {
+                    try {
+                        for (const req of requests) {
+                            const res = await fetch(req.endpoint, {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'X-SOE-Token': pushToken 
+                                },
+                                body: JSON.stringify(req.body)
+                            });
+                            const data = await res.json();
+                            
+                            if (data.blockPage) {
+                                toast.error(data.alertMessage, { duration: 8000, position: 'top-center' });
+                            }
+                        }
+                        
+                        if (type === 'SOE_TEC_INCREMENT_STATS' || type === 'SOE_TEC_DATA') {
+                            toast.success(`Progresso sincronizado!`, { position: 'bottom-center' });
+                        }
+                    } catch (e) {
+                        console.error("[Mobile Browser] Erro na requisição:", e);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [isOpen, pushToken]);
+
+    const forceSync = () => {
+        const iframe = document.querySelector('iframe[title="TEC Browser Mobile"]') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+            // Envia um comando para o script injetado rodar a varredura
+            iframe.contentWindow.postMessage({ type: 'SOE_FORCE_SCRAPE', _soe_internal: true }, "*");
+            toast.info("Sincronizando...", { duration: 1000 });
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in slide-in-from-bottom duration-500">
+            <div className="h-16 shrink-0 bg-slate-900 border-b border-white/10 flex items-center justify-between px-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center">
+                        <Zap size={16} className="text-black" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase opacity-40">Modo Mobile Automático</p>
+                        <p className="text-xs font-bold">TEC Concursos</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={forceSync} className="p-3 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary)] hover:text-black transition-all flex items-center gap-2">
+                        <RotateCcw size={12} /> Sincronizar
+                    </button>
+                    <button onClick={() => setIsOpen(false)} className="p-3 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/20 hover:text-rose-500 transition-all">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+            <div className="flex-1 bg-white">
+                <iframe 
+                    src={`/api/tec-browser/proxy?url=${encodeURIComponent('https://www.tecconcursos.com.br/questoes')}`}
+                    className="w-full h-full border-none"
+                    title="TEC Browser Mobile"
+                />
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ABA DE REDAÇÕES
+// ─────────────────────────────────────────────────────────────────────────────
+function EssaysTab() {
+  const [isCreating, setIsCreating] = useState(false);
+  const [selectedEssay, setSelectedEssay] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [banca, setBanca] = useState("CESPE");
+  const [transcription, setTranscription] = useState("");
+  const [image, setImage] = useState<string | null>(null);
+  const [disciplineId, setDisciplineId] = useState<number>(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
+  const utils = trpc.useContext();
+  const disciplines = trpc.discipline.list.useQuery();
+  const essays = trpc.essay.list.useQuery();
+  const saveEssay = trpc.essay.save.useMutation();
+  const analyzeEssay = trpc.essay.analyze.useMutation();
+  const transcribeEssay = trpc.essay.transcribe.useMutation();
+  const deleteEssay = trpc.essay.delete.useMutation();
+
+  const handleTranscribe = async (img: string) => {
+    if (!img) return;
+    setIsTranscribing(true);
+    try {
+      const user = await utils.auth.me.fetch();
+      const apiKey = user?.settings?.aiApiKey || "";
+      const provider = user?.settings?.aiProvider || "gemini";
+      
+      if (!apiKey) {
+        toast.error("Chave API não configurada. Transcrição não pôde ser iniciada.");
+        return;
+      }
+
+      const res = await transcribeEssay.mutateAsync({ image: img, apiKey, provider });
+      setTranscription(res.transcription);
+      toast.success("Transcrição automática concluída!");
+    } catch (e: any) {
+      toast.error("Falha na transcrição: " + e.message);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setImage(base64);
+        handleTranscribe(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!title || !disciplineId) {
+      toast.error("Preencha o tema e selecione a disciplina.");
+      return;
+    }
+    try {
+      const isDraft = !transcription;
+      const res = await saveEssay.mutateAsync({
+        disciplineId,
+        title,
+        banca,
+        transcription,
+        originalImage: image || undefined,
+        status: isDraft ? "draft" : "pending"
+      });
+      
+      if (isDraft) {
+        toast.success("Redação salva como rascunho! Transcreva o texto para solicitar a correção.");
+      } else {
+        toast.success("Redação salva! Iniciando correção...");
+        handleAnalyze(res.id);
+      }
+      setIsCreating(false);
+    } catch { toast.error("Erro ao salvar redação."); }
+  };
+
+  const handleAnalyze = async (id: number) => {
+    setIsAnalyzing(true);
+    try {
+      const user = await utils.auth.me.fetch();
+      const apiKey = user?.settings?.aiApiKey || "";
+      const provider = user?.settings?.aiProvider || "gemini";
+      
+      if (!apiKey) { toast.error("Chave API não configurada no Perfil."); return; }
+      
+      await analyzeEssay.mutateAsync({ id, apiKey, provider });
+      toast.success("Correção finalizada!");
+      utils.essay.list.invalidate();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setIsAnalyzing(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir esta redação?")) return;
+    await deleteEssay.mutateAsync({ id });
+    utils.essay.list.invalidate();
+    if (selectedEssay?.id === id) setSelectedEssay(null);
+  };
+
+  if (isCreating) {
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setIsCreating(false)} className="flex items-center gap-2 text-sm opacity-50 hover:opacity-100">
+            <ChevronLeft size={16} /> Voltar
+          </button>
+          <h2 className="text-xl font-black uppercase tracking-tighter">Nova Redação</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="soe-card p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase opacity-40">Disciplina</label>
+                <select value={disciplineId} onChange={e => setDisciplineId(Number(e.target.value))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--primary)] transition-all">
+                  <option value={0}>Selecionar...</option>
+                  {disciplines.data?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase opacity-40">Banca Examinadora</label>
+                <select value={banca} onChange={e => setBanca(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--primary)] transition-all">
+                  <option value="CESPE">CESPE / Cebraspe</option>
+                  <option value="FCC">FCC</option>
+                  <option value="FGV">FGV</option>
+                  <option value="VUNESP">VUNESP</option>
+                  <option value="Outra">Outra</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase opacity-40">Imagem da Redação (Opcional)</label>
+                <div className="relative group">
+                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" id="essay-image" />
+                  <label htmlFor="essay-image" className="flex flex-col items-center justify-center gap-3 w-full h-48 border-2 border-dashed border-white/10 rounded-2xl cursor-pointer hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all">
+                    {image ? (
+                      <img src={image} className="w-full h-full object-cover rounded-2xl" />
+                    ) : (
+                      <>
+                        <Camera className="w-8 h-8 opacity-20" />
+                        <span className="text-xs font-bold opacity-40">Tirar foto ou Upload</span>
+                      </>
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 space-y-4">
+            <div className="soe-card p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase opacity-40">Tema da Redação</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Os desafios da segurança pública no Brasil..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-[var(--primary)] transition-all" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase opacity-40">Transcrição do Texto</label>
+                  <button 
+                    onClick={() => image && handleTranscribe(image)} 
+                    disabled={!image || isTranscribing}
+                    className="text-[10px] font-black uppercase text-[var(--primary)] flex items-center gap-1 hover:opacity-70 disabled:opacity-30 transition-all"
+                  >
+                    {isTranscribing ? <RotateCcw size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    {isTranscribing ? 'Transcrevendo...' : 'Transcrever via IA (Beta)'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <textarea value={transcription} onChange={e => setTranscription(e.target.value)} rows={20}
+                    placeholder={isTranscribing ? "Aguarde, a IA está lendo sua imagem..." : "Escreva ou cole aqui o texto da sua redação para correção..."}
+                    className={`w-full bg-white/5 border border-white/10 rounded-xl px-6 py-5 text-base leading-relaxed focus:outline-none focus:border-[var(--primary)] transition-all min-h-[500px] resize-none ${isTranscribing ? 'animate-pulse opacity-50' : ''}`} />
+                  {isTranscribing && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl">
+                      <div className="bg-black/60 px-6 py-3 rounded-full flex items-center gap-3 backdrop-blur-md border border-white/10">
+                        <RotateCcw className="animate-spin text-[var(--primary)]" size={16} />
+                        <span className="text-xs font-black uppercase tracking-widest">IA Transcrevendo...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button onClick={handleCreate} disabled={saveEssay.isLoading || isTranscribing}
+                className="w-full py-4 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                {saveEssay.isLoading ? <RotateCcw className="animate-spin" /> : isTranscribing ? <><RotateCcw className="animate-spin" size={18} /> Aguarde a Transcrição...</> : <><Send size={18} /> Salvar e Corrigir</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-black uppercase tracking-tighter">Minhas Redações</h2>
+          <p className="text-xs opacity-50 font-bold">Corrija suas produções com inteligência artificial de banca.</p>
+        </div>
+        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+          <Plus size={16} /> Nova Redação
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-4 space-y-3">
+          {essays.isLoading ? (
+             <div className="animate-pulse space-y-3">
+               {[1,2,3].map(i => <div key={i} className="h-20 bg-white/5 rounded-2xl" />)}
+             </div>
+          ) : essays.data?.length === 0 ? (
+            <div className="soe-card p-10 text-center space-y-3 opacity-30">
+              <FileText className="w-12 h-12 mx-auto" />
+              <p className="text-sm font-bold">Nenhuma redação ainda.</p>
+            </div>
+          ) : (
+            essays.data?.map(essay => (
+              <div key={essay.id} onClick={() => setSelectedEssay(essay)}
+                className={`soe-card p-4 cursor-pointer transition-all border-2 ${selectedEssay?.id === essay.id ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent hover:border-white/10'}`}>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-1 overflow-hidden">
+                    <p className="text-[10px] font-black uppercase opacity-40">{essay.banca} • {new Date(essay.createdAt).toLocaleDateString()}</p>
+                    <h4 className="font-bold text-sm truncate">{essay.title}</h4>
+                    {essay.correction && (
+                      <div className="flex items-center gap-2">
+                        <div className="px-2 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] text-[10px] font-black">
+                          NOTA: {essay.correction.score}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(essay.id); }} className="p-2 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="lg:col-span-8">
+          {!selectedEssay ? (
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center soe-card p-10 opacity-20 border-dashed">
+               <Eye className="w-16 h-16 mb-4" />
+               <p className="font-bold">Selecione uma redação para ver a correção</p>
+            </div>
+          ) : (
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              <div className="soe-card p-8 space-y-6">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase">{selectedEssay.banca}</span>
+                      <span className="text-[10px] font-black uppercase opacity-40">{new Date(selectedEssay.createdAt).toLocaleString()}</span>
+                    </div>
+                    <h2 className="text-3xl font-black tracking-tighter leading-tight">{selectedEssay.title}</h2>
+                  </div>
+                  {selectedEssay.correction && (
+                    <div className="text-center p-4 rounded-3xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-shadow)] text-[var(--primary-foreground)] shadow-2xl">
+                      <p className="text-[10px] font-black uppercase opacity-60">Nota Final</p>
+                      <p className="text-5xl font-black">{selectedEssay.correction.score}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-[var(--primary)]">Texto Transcrito</h4>
+                    <div className="p-6 rounded-2xl bg-white/5 text-sm leading-relaxed whitespace-pre-wrap font-serif opacity-80 border border-white/5 max-h-[500px] overflow-y-auto">
+                      {selectedEssay.transcription}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-[var(--primary)]">Análise do Examinador (IA)</h4>
+                    {selectedEssay.status === "pending" || isAnalyzing ? (
+                      <div className="p-10 flex flex-col items-center justify-center gap-4 soe-card bg-white/5">
+                        <RotateCcw className="w-8 h-8 animate-spin text-[var(--primary)]" />
+                        <p className="text-xs font-bold animate-pulse">A IA está analisando sua redação...</p>
+                      </div>
+                    ) : selectedEssay.correction ? (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(selectedEssay.correction.gradeBreakdown || {}).map(([key, val]: [any, any]) => (
+                            <div key={key} className="p-3 rounded-xl bg-white/5 border border-white/10">
+                              <p className="text-[8px] font-black uppercase opacity-40">{key}</p>
+                              <p className="text-sm font-black">{val}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-black prose-headings:tracking-tighter">
+                          <div dangerouslySetInnerHTML={{ __html: (selectedEssay.correction.feedback || "").replace(/\n/g, '<br/>') }} />
+                        </div>
+                        
+                        {selectedEssay.correction.errors?.length > 0 && (
+                          <div className="space-y-3">
+                            <h5 className="text-[10px] font-black uppercase opacity-40">Erros Identificados</h5>
+                            {selectedEssay.correction.errors.map((err: any, i: number) => (
+                              <div key={i} className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase text-red-500">{err.type}</span>
+                                  {err.line && <span className="text-[10px] font-bold opacity-30">Linha {err.line}</span>}
+                                </div>
+                                <p className="text-xs font-bold">{err.description}</p>
+                                {err.suggestion && (
+                                  <div className="flex items-center gap-2 mt-2 text-[10px] font-black">
+                                    <span className="opacity-40 uppercase">Sugestão:</span>
+                                    <span className="text-green-500 bg-green-500/10 px-2 py-0.5 rounded">{err.suggestion}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button onClick={() => handleAnalyze(selectedEssay.id)}
+                        className="w-full py-6 border-2 border-dashed border-white/10 rounded-3xl hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all flex flex-col items-center gap-3">
+                        <Wand2 className="w-8 h-8 opacity-20" />
+                        <span className="text-xs font-bold opacity-40 uppercase tracking-widest">Solicitar Correção IA</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

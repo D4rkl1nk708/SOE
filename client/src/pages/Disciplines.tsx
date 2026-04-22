@@ -151,124 +151,105 @@ export default function Disciplines() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-6 bg-muted rounded w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <div className="h-4 bg-muted rounded w-1/2" />
-              </CardContent>
-            </Card>
+            <div key={i} className="h-48 rounded-[2rem] bg-white/5 animate-pulse" />
           ))}
         </div>
       ) : disciplines?.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma disciplina cadastrada</h3>
-            <p className="text-muted-foreground text-center mb-4">
-              Comece criando sua primeira disciplina para organizar seus estudos
-            </p>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Primeira Disciplina
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="soe-card p-20 flex flex-col items-center justify-center border-dashed opacity-40">
+            <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mb-6">
+                <BookOpen size={32} />
+            </div>
+            <h3 className="text-xl font-black uppercase tracking-widest">Início do Edital</h3>
+            <p className="text-xs mt-2 text-center max-w-xs">Você ainda não cadastrou nenhuma disciplina. Clique em "Nova Disciplina" para começar.</p>
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {disciplines?.map((discipline) => (
-            <Card key={discipline.id} className="group relative overflow-hidden border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all rounded-[1.5rem] md:rounded-[2rem]">
-              <div
-                className="absolute top-0 left-0 w-full h-1.5"
-                style={{ backgroundColor: discipline.color, boxShadow: `0 0 10px ${discipline.color}44` }}
+            <div key={discipline.id} className="soe-card group relative overflow-hidden transition-all hover:shadow-2xl hover:shadow-[var(--primary-shadow)]/10">
+              {/* Performance Indicator Bar */}
+              <div className="absolute top-0 left-0 w-full h-1.5 opacity-20" style={{ backgroundColor: discipline.color }} />
+              <div className="absolute top-0 left-0 h-1.5 transition-all duration-1000" 
+                   style={{ 
+                     backgroundColor: discipline.color, 
+                     width: `${(discipline as any).performance?.accuracy || 0}%`,
+                     boxShadow: `0 0 15px ${discipline.color}88`
+                   }} 
               />
-              <CardHeader className="pb-3 px-5 md:px-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-4 h-4 rounded-full shrink-0 shadow-sm"
-                      style={{ backgroundColor: discipline.color }}
-                    />
-                    <CardTitle className="text-lg font-black tracking-tight">{discipline.name}</CardTitle>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-xl bg-white/5 border border-white/5"
-                      onClick={() => setEditingDiscipline({
-                        id: discipline.id,
-                        name: discipline.name,
-                        color: discipline.color,
-                        weight: discipline.weight
-                      })}
-                    >
-                      <Pencil className="h-4 w-4 opacity-40" />
-                    </Button>
 
+              <div className="p-8 space-y-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: discipline.color }} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Edital Verticalizado</span>
+                    </div>
+                    <h3 className="text-2xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>{discipline.name}</h3>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingDiscipline({ id: discipline.id, name: discipline.name, color: discipline.color, weight: discipline.weight })}
+                            className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
+                        <Pencil size={16} className="opacity-40" />
+                    </button>
                     <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all"
-                        >
-                          <Trash2 className="h-4 w-4 text-rose-500" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="rounded-[2rem] border-white/10 bg-[var(--app-bg)]">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-xl font-black">Excluir Disciplina?</AlertDialogTitle>
-                          <AlertDialogDescription className="text-sm opacity-60">
-                            Isso removerá a disciplina "{discipline.name}" e todos os temas vinculados a ela permanentemente.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter className="gap-2">
-                          <AlertDialogCancel className="rounded-xl border-white/5 text-[10px] font-black uppercase tracking-widest opacity-60">Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteMutation.mutate({ id: discipline.id })}
-                            className="rounded-xl bg-rose-500 text-white shadow-lg shadow-rose-500/20 text-[10px] font-black uppercase tracking-widest"
-                          >
-                            Excluir Permanentemente
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
+                        <AlertDialogTrigger asChild>
+                            <button className="w-10 h-10 rounded-xl bg-rose-500/5 border border-rose-500/10 flex items-center justify-center hover:bg-rose-500 text-rose-500 hover:text-white transition-all">
+                                <Trash2 size={16} />
+                            </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8">
+                            <AlertDialogHeader>
+                                <AlertDialogTitle className="text-2xl font-black">Excluir Disciplina?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-sm opacity-60 mt-2">
+                                    Esta ação é irreversível. Todos os temas e históricos de "{discipline.name}" serão removidos permanentemente do seu banco de dados local.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="mt-8 gap-3">
+                                <AlertDialogCancel className="h-12 rounded-2xl border-white/5 font-black uppercase text-[10px] tracking-widest px-8">Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteMutation.mutate({ id: discipline.id })}
+                                    className="h-12 rounded-2xl bg-rose-500 text-white font-black uppercase text-[10px] tracking-widest px-8 shadow-xl shadow-rose-500/20">
+                                    Sim, Excluir Tudo
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
                     </AlertDialog>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="px-5 md:px-6 pb-5">
-                <div className="flex items-center justify-between">
-                  <CardDescription className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                    Peso {discipline.weight}/10
-                  </CardDescription>
-                  {(discipline as any).performance && (
-                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
-                      <span style={{
-                        color: (discipline as any).performance.accuracy >= 70 ? 'var(--accent-green)'
-                             : (discipline as any).performance.accuracy >= 50 ? 'var(--accent-amber)'
-                             : 'var(--accent-red)'
-                      }}>
-                        {(discipline as any).performance.accuracy}% Precisão
-                      </span>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-30">Precisão</p>
+                        <p className="text-xl font-black mt-1" style={{ 
+                            color: (discipline as any).performance?.accuracy >= 70 ? 'var(--accent-green)' 
+                                 : (discipline as any).performance?.accuracy >= 50 ? 'var(--accent-amber)' 
+                                 : 'var(--accent-red)' 
+                        }}>
+                            {(discipline as any).performance?.accuracy || 0}%
+                        </p>
                     </div>
-                  )}
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-30">Peso</p>
+                        <p className="text-xl font-black mt-1" style={{ color: "var(--app-fg)" }}>
+                            {discipline.weight}<span className="text-[10px] opacity-20 ml-1">/ 10</span>
+                        </p>
+                    </div>
                 </div>
-                
+
                 {(discipline as any).performance && (
-                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[9px] font-bold opacity-30 uppercase tracking-widest">
-                    <span>{(discipline as any).performance.questionsResolved} Questões</span>
-                    <div className="flex gap-2">
-                        <span className="text-green-500">{(discipline as any).performance.correctCount} Ac</span>
-                        <span className="text-rose-500">{(discipline as any).performance.errorCount} Er</span>
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                        <div className="flex items-center gap-4">
+                            <span className="opacity-40">{(discipline as any).performance.questionsResolved} Questões</span>
+                            <div className="flex gap-2">
+                                <span className="text-[var(--accent-green)]">{(discipline as any).performance.correctCount} Acertos</span>
+                                <span className="text-rose-500">{(discipline as any).performance.errorCount} Erros</span>
+                            </div>
+                        </div>
                     </div>
-                  </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

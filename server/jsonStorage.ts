@@ -15,19 +15,32 @@ if (!fs.existsSync(DATA_DIR)) {
 let _dbCache: Database | null = null;
 let _dbCacheVersion = 0; // bumped on every write
 
-// ─── Async write lock ─────────────────────────────────────────────────────────
-// Prevents concurrent writes from racing each other and corrupting the JSON.
-// All write operations queue through this promise chain.
-let _writeLock: Promise<void> = Promise.resolve();
+let _writeLock: Promise<any> = Promise.resolve();
 
-function acquireWriteLock(fn: () => void): Promise<void> {
-  const next = _writeLock.then(fn).catch((err) => {
-    console.error("[jsonStorage] write error:", err);
-    throw err;
+function acquireWriteLock(fn: () => any) {
+  _writeLock = _writeLock.then(async () => {
+    try {
+      await fn();
+    } catch (err) {
+      console.error("[jsonStorage] Lock execution error:", err);
+    }
   });
-  // The lock chain must never reject (uncaught); swallow and re-throw inside fn.
-  _writeLock = next.catch(() => {});
-  return next;
+}
+
+async function runInTransaction<T>(fn: (db: Database) => T | Promise<T>): Promise<T> {
+  const result = await (_writeLock = _writeLock.then(async () => {
+    try {
+      const db = readDatabase();
+      const res = await fn(db);
+      // We don't call writeDatabase here because we want to be explicit, 
+      // but we could. For now, let's just make sure the callers use the db we give them.
+      return res;
+    } catch (err) {
+      console.error("[jsonStorage] Transaction error:", err);
+      throw err;
+    }
+  }).catch(() => {})); // prevent lock chain from breaking
+  return result as T;
 }
 
 // Type definitions
@@ -286,6 +299,28 @@ export interface QuestionError {
   createdAt: string;
 }
 
+export interface EssayCorrection {
+  score: number;
+  feedback: string; // Markdown formatted feedback
+  errors: Array<{ type: string; description: string; suggestion?: string; line?: number }>;
+  gradeBreakdown: Record<string, number>; // e.g., { "Gramática": 2.0, "Coesão": 3.0 }
+}
+
+export interface Essay {
+  id: number;
+  userId: number;
+  disciplineId: number;
+  topicId?: number;
+  title: string; // Tema da redação
+  banca: string;
+  originalImage?: string; // Base64 or URL
+  transcription: string;
+  correction?: EssayCorrection;
+  status: "draft" | "pending" | "corrected";
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============ TEC SNAPSHOT — histórico de performance por importação ============
 export interface TecTopicSnapshot {
   topicName: string;
@@ -324,6 +359,7 @@ interface Database {
   notes: StudyNote[];
   flashcards: Flashcard[];
   questionErrors: QuestionError[];
+  essays: Essay[];
   tecSnapshots: TecSnapshot[];
   cadernosTec: Record<number, CadernoTec[]>;
   counters: {
@@ -335,6 +371,7 @@ interface Database {
     notes: number;
     flashcards: number;
     questionErrors: number;
+    essays: number;
     tecSnapshots: number;
   };
 }
@@ -352,6 +389,7 @@ function getEmptyDatabase(): Database {
     notes: [],
     flashcards: [],
     questionErrors: [],
+    essays: [],
     tecSnapshots: [],
     cadernosTec: {},
     counters: {
@@ -363,6 +401,7 @@ function getEmptyDatabase(): Database {
       notes: 0,
       flashcards: 0,
       questionErrors: 0,
+      essays: 0,
       tecSnapshots: 0,
     },
   };
@@ -398,12 +437,14 @@ function readDatabase(): Database {
       if (!db.notes) db.notes = [];
       if (!db.flashcards) db.flashcards = [];
       if (!db.questionErrors) db.questionErrors = [];
+      if (!db.essays) db.essays = [];
       if (!db.tecSnapshots) db.tecSnapshots = [];
       if (!db.cadernosTec) db.cadernosTec = {};
       if (!db.counters.mockExams) db.counters.mockExams = 0;
       if (!db.counters.notes) db.counters.notes = 0;
       if (!db.counters.flashcards) db.counters.flashcards = 0;
       if (!db.counters.questionErrors) db.counters.questionErrors = 0;
+      if (!db.counters.essays) db.counters.essays = 0;
       if (!db.counters.tecSnapshots) db.counters.tecSnapshots = 0;
       // Migration helpers — raw JSON records may be missing fields added in later versions
       type RawRecord = Record<string, unknown>;
@@ -1023,46 +1064,46 @@ export async function setTopicPerformance(
   userId: number,
   data: TopicPerformanceData
 ): Promise<void> {
-  const db = readDatabase();
-  const index = db.topics.findIndex((t) => t.id === topicId && t.userId === userId);
-  if (index < 0) return;
+  await runInTransaction((db) => {
+    const index = db.topics.findIndex((t) => t.id === topicId && t.userId === userId);
+    if (index < 0) return;
 
-  const totalResolved = data.correctCount + data.errorCount;
-  const accuracy = totalResolved > 0 ? Math.round((data.correctCount / totalResolved) * 100) : 0;
-  const prev = db.topics[index].performance;
-  const today = now().split("T")[0];
+    const totalResolved = data.correctCount + data.errorCount;
+    const accuracy = totalResolved > 0 ? Math.round((data.correctCount / totalResolved) * 100) : 0;
+    const prev = db.topics[index].performance;
+    const today = now().split("T")[0];
 
-  const prevHistory = (prev?.history ?? []).filter((h) => h.date !== today);
-  const history = [
-    ...prevHistory,
-    { date: today, accuracy: prev?.accuracy ?? 0, questionsResolved: prev?.questionsResolved ?? 0 },
-  ].slice(-30);
+    const prevHistory = (prev?.history ?? []).filter((h) => h.date !== today);
+    const history = [
+      ...prevHistory,
+      { date: today, accuracy: prev?.accuracy ?? 0, questionsResolved: prev?.questionsResolved ?? 0 },
+    ].slice(-30);
 
-  db.topics[index] = {
-    ...db.topics[index],
-    performance: {
-      questionsResolved: totalResolved,
-      accuracy,
-      correctCount: data.correctCount,
-      errorCount: data.errorCount,
-      errorByAttention: data.errorByAttention ?? prev?.errorByAttention ?? 0,
-      errorByForgetting: data.errorByForgetting ?? prev?.errorByForgetting ?? 0,
-      errorByTheory: data.errorByTheory ?? prev?.errorByTheory ?? 0,
-      errorByTrap: data.errorByTrap ?? prev?.errorByTrap ?? 0,
-      fastErrors: data.fastErrors ?? prev?.fastErrors ?? 0,
-      slowErrors: data.slowErrors ?? prev?.slowErrors ?? 0,
-      history,
-      // TEC enriched fields — preserve existing if not provided
-      incidencia: data.incidencia ?? prev?.incidencia,
-      totalQuestoesBanca: data.totalQuestoesBanca ?? prev?.totalQuestoesBanca,
-      bancaDominante: data.bancaDominante ?? prev?.bancaDominante,
-      bancaStats: data.bancaStats ?? prev?.bancaStats,
-      dificuldade: data.dificuldade ?? prev?.dificuldade,
-      lastImportedAt: now(),
-    },
-    updatedAt: now(),
-  };
-  writeDatabase(db);
+    db.topics[index] = {
+      ...db.topics[index],
+      performance: {
+        questionsResolved: totalResolved,
+        accuracy,
+        correctCount: data.correctCount,
+        errorCount: data.errorCount,
+        errorByAttention: data.errorByAttention ?? prev?.errorByAttention ?? 0,
+        errorByForgetting: data.errorByForgetting ?? prev?.errorByForgetting ?? 0,
+        errorByTheory: data.errorByTheory ?? prev?.errorByTheory ?? 0,
+        errorByTrap: data.errorByTrap ?? prev?.errorByTrap ?? 0,
+        fastErrors: data.fastErrors ?? prev?.fastErrors ?? 0,
+        slowErrors: data.slowErrors ?? prev?.slowErrors ?? 0,
+        history,
+        incidencia: data.incidencia ?? prev?.incidencia,
+        totalQuestoesBanca: data.totalQuestoesBanca ?? prev?.totalQuestoesBanca,
+        bancaDominante: data.bancaDominante ?? prev?.bancaDominante,
+        bancaStats: data.bancaStats ?? prev?.bancaStats,
+        dificuldade: data.dificuldade ?? prev?.dificuldade,
+        lastImportedAt: now(),
+      },
+      updatedAt: now(),
+    };
+    writeDatabase(db);
+  });
 }
 
 export async function updateTopicNotes(topicId: number, userId: number, mantras: string[]): Promise<void> {
@@ -1403,16 +1444,17 @@ export async function getTodayStudyMinutes(userId: number): Promise<number> {
 
 // ============ QUESTION ERRORS ============
 export async function saveQuestionError(data: Omit<QuestionError, "id" | "createdAt">): Promise<QuestionError> {
-  const db = readDatabase();
-  db.counters.questionErrors++;
-  const record: QuestionError = {
-    ...data,
-    id: db.counters.questionErrors,
-    createdAt: now(),
-  };
-  db.questionErrors.push(record);
-  writeDatabase(db);
-  return record;
+  return await runInTransaction((db) => {
+    db.counters.questionErrors++;
+    const record: QuestionError = {
+      ...data,
+      id: db.counters.questionErrors,
+      createdAt: now(),
+    };
+    db.questionErrors.push(record);
+    writeDatabase(db);
+    return record;
+  });
 }
 
 export interface QuestionErrorFilters {
@@ -1490,6 +1532,49 @@ export async function markQuestionErrorFlashcardGenerated(id: number, userId: nu
 export async function deleteQuestionError(id: number, userId: number): Promise<void> {
   const db = readDatabase();
   db.questionErrors = db.questionErrors.filter(e => !(e.id === id && e.userId === userId));
+  writeDatabase(db);
+}
+
+// ============ ESSAYS ============
+
+export async function saveEssay(data: Omit<Essay, "id" | "createdAt" | "updatedAt">): Promise<Essay> {
+  const db = readDatabase();
+  db.counters.essays++;
+  const record: Essay = {
+    ...data,
+    id: db.counters.essays,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  db.essays.push(record);
+  writeDatabase(db);
+  return record;
+}
+
+export async function getEssaysByUser(userId: number, disciplineId?: number): Promise<Essay[]> {
+  const db = readDatabase();
+  let items = db.essays.filter((e) => e.userId === userId);
+  if (disciplineId) items = items.filter(e => e.disciplineId === disciplineId);
+  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getEssayById(id: number, userId: number): Promise<Essay | null> {
+  const db = readDatabase();
+  return db.essays.find((e) => e.id === id && e.userId === userId) || null;
+}
+
+export async function updateEssay(id: number, userId: number, data: Partial<Omit<Essay, "id" | "userId" | "createdAt">>): Promise<Essay | null> {
+  const db = readDatabase();
+  const idx = db.essays.findIndex(e => e.id === id && e.userId === userId);
+  if (idx === -1) return null;
+  db.essays[idx] = { ...db.essays[idx], ...data, updatedAt: now() };
+  writeDatabase(db);
+  return db.essays[idx];
+}
+
+export async function deleteEssay(id: number, userId: number): Promise<void> {
+  const db = readDatabase();
+  db.essays = db.essays.filter(e => !(e.id === id && e.userId === userId));
   writeDatabase(db);
 }
 

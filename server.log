@@ -9,3 +9,1291 @@ Server running on http://0.0.0.0:3000/
 12:55:48 PM [vite] (client) page reload src/lib/aiHelpers.ts
 12:55:56 PM [tsx] change in ./server/_core/index.ts Restarting...
 cServer running on http://0.0.0.0:3000/
+1:16:39 PM [tsx] change in ./package.json Restarting...
+cServer running on http://0.0.0.0:3000/
+1:16:53 PM [tsx] change in ./server/aiProviders.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+1:17:26 PM [tsx] change in ./server/mentorRouter.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+1:18:11 PM [vite] (client) hmr update /src/pages/Profile.tsx, /src/index.css
+1:18:19 PM [vite] (client) hmr update /src/pages/MentorTab.tsx, /src/index.css
+1:18:29 PM [vite] (client) hmr update /src/pages/Sync.tsx, /src/index.css
+1:18:40 PM [vite] (client) hmr update /src/pages/Sync.tsx, /src/index.css
+1:18:51 PM [vite] (client) hmr update /src/pages/Sync.tsx, /src/index.css
+2:49:21 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+2:50:01 PM [vite] (client) hmr update /src/pages/Calendar.tsx, /src/index.css
+2:50:01 PM [vite] Internal server error: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (367:6)
+
+  365 |       />
+  366 |       
+> 367 |       <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
+      |       ^
+  368 |         <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">
+  369 |           <DialogHeader>
+  370 |             <DialogTitle className="text-xl font-black">Exportar Calendário</DialogTitle>
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx:367:6
+  365 |        />
+  366 |        
+  367 |        <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
+      |        ^
+  368 |          <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">
+  369 |            <DialogHeader>
+      at toParseError (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parse-error.ts:95:45)
+      at TypeScriptParserMixin.raise (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/tokenizer/index.ts:1504:19)
+      at TypeScriptParserMixin.jsxParseElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:543:20)
+      at TypeScriptParserMixin.jsxParseElement (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:559:19)
+      at TypeScriptParserMixin.parseExprAtom (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:581:21)
+      at TypeScriptParserMixin.parseExprSubscripts (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:742:23)
+      at TypeScriptParserMixin.parseUpdate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:721:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:683:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3893:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:417:14)
+      at TypeScriptParserMixin.parseExprOps (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:429:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:384:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:301:21)
+      at fn (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3745:23)
+      at TypeScriptParserMixin.tryParse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/util.ts:174:20)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3744:20)
+      at TypeScriptParserMixin.parseExpressionBase (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:226:23)
+      at callback (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:39)
+      at TypeScriptParserMixin.allowInAnd (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:3192:16)
+      at TypeScriptParserMixin.parseExpression (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:17)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:688:23)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3220:20)
+      at TypeScriptParserMixin.parseStatementLike (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:482:17)
+      at TypeScriptParserMixin.parseModuleItem (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:419:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1443:16)
+      at TypeScriptParserMixin.parseBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1417:10)
+      at TypeScriptParserMixin.parseProgram (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:229:10)
+      at TypeScriptParserMixin.parseTopLevel (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:203:25)
+      at TypeScriptParserMixin.parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/index.ts:83:25)
+      at TypeScriptParserMixin.parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:4354:20)
+      at parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/index.ts:86:38)
+      at parser (/home/anon/Desktop/SOE/node_modules/@babel/core/src/parser/index.ts:29:19)
+      at parser.next (<anonymous>)
+      at normalizeFile (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transformation/normalize-file.ts:50:24)
+      at normalizeFile.next (<anonymous>)
+      at run (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transformation/index.ts:41:36)
+      at run.next (<anonymous>)
+      at transform (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transform.ts:29:20)
+      at transform.next (<anonymous>)
+      at step (/home/anon/Desktop/SOE/node_modules/gensync/index.js:261:32)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:273:13
+      at async.call.result.err.err (/home/anon/Desktop/SOE/node_modules/gensync/index.js:223:11)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:189:28
+      at <anonymous> (/home/anon/Desktop/SOE/node_modules/@babel/core/src/gensync-utils/async.ts:90:7)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:113:33
+      at step (/home/anon/Desktop/SOE/node_modules/gensync/index.js:287:14)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:273:13
+      at async.call.result.err.err (/home/anon/Desktop/SOE/node_modules/gensync/index.js:223:11)
+2:50:01 PM [vite] (client) Pre-transform error: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (367:6)
+
+  365 |       />
+  366 |       
+> 367 |       <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
+      |       ^
+  368 |         <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">
+  369 |           <DialogHeader>
+  370 |             <DialogTitle className="text-xl font-black">Exportar Calendário</DialogTitle>
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx:367:6
+  365 |        />
+  366 |        
+  367 |        <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
+      |        ^
+  368 |          <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">
+  369 |            <DialogHeader>
+2:50:16 PM [vite] (client) hmr update /src/pages/Calendar.tsx, /src/index.css
+2:50:16 PM [vite] Internal server error: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx: Unexpected token (352:5)
+
+  350 |   );
+  351 | }
+> 352 |     </div>
+      |      ^
+  353 |   );
+  354 | }
+  355 |
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx:352:5
+  350 |    );
+  351 |  }
+  352 |      </div>
+      |       ^
+  353 |    );
+  354 |  }
+      at toParseError (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parse-error.ts:95:45)
+      at TypeScriptParserMixin.raise (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/tokenizer/index.ts:1504:19)
+      at TypeScriptParserMixin.unexpected (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/tokenizer/index.ts:1544:16)
+      at TypeScriptParserMixin.jsxParseIdentifier (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:278:14)
+      at TypeScriptParserMixin.jsxParseNamespacedName (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:288:25)
+      at TypeScriptParserMixin.jsxParseElementName (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:306:14)
+      at TypeScriptParserMixin.jsxParseOpeningElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:429:24)
+      at TypeScriptParserMixin.jsxParseElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:470:35)
+      at TypeScriptParserMixin.jsxParseElement (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:559:19)
+      at TypeScriptParserMixin.parseExprAtom (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:581:21)
+      at TypeScriptParserMixin.parseExprSubscripts (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:742:23)
+      at TypeScriptParserMixin.parseUpdate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:721:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:683:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3893:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:417:14)
+      at TypeScriptParserMixin.parseExprOps (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:429:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:384:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:301:21)
+      at fn (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3745:23)
+      at TypeScriptParserMixin.tryParse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/util.ts:174:20)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3744:20)
+      at TypeScriptParserMixin.parseExpressionBase (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:226:23)
+      at callback (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:39)
+      at TypeScriptParserMixin.allowInAnd (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:3192:16)
+      at TypeScriptParserMixin.parseExpression (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:17)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:688:23)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3220:20)
+      at TypeScriptParserMixin.parseStatementLike (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:482:17)
+      at TypeScriptParserMixin.parseModuleItem (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:419:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1443:16)
+      at TypeScriptParserMixin.parseBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1417:10)
+      at TypeScriptParserMixin.parseProgram (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:229:10)
+      at TypeScriptParserMixin.parseTopLevel (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:203:25)
+      at TypeScriptParserMixin.parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/index.ts:83:25)
+      at TypeScriptParserMixin.parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:4354:20)
+      at parse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/index.ts:86:38)
+      at parser (/home/anon/Desktop/SOE/node_modules/@babel/core/src/parser/index.ts:29:19)
+      at parser.next (<anonymous>)
+      at normalizeFile (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transformation/normalize-file.ts:50:24)
+      at normalizeFile.next (<anonymous>)
+      at run (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transformation/index.ts:41:36)
+      at run.next (<anonymous>)
+      at transform (/home/anon/Desktop/SOE/node_modules/@babel/core/src/transform.ts:29:20)
+      at transform.next (<anonymous>)
+      at step (/home/anon/Desktop/SOE/node_modules/gensync/index.js:261:32)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:273:13
+      at async.call.result.err.err (/home/anon/Desktop/SOE/node_modules/gensync/index.js:223:11)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:189:28
+      at <anonymous> (/home/anon/Desktop/SOE/node_modules/@babel/core/src/gensync-utils/async.ts:90:7)
+      at /home/anon/Desktop/SOE/node_modules/gensync/index.js:113:33
+2:50:16 PM [vite] (client) Pre-transform error: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx: Unexpected token (352:5)
+
+  350 |   );
+  351 | }
+> 352 |     </div>
+      |      ^
+  353 |   );
+  354 | }
+  355 |
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Calendar.tsx:352:5
+  350 |    );
+  351 |  }
+  352 |      </div>
+      |       ^
+  353 |    );
+  354 |  }
+2:50:25 PM [vite] (client) hmr update /src/pages/Calendar.tsx, /src/index.css
+2:54:18 PM [vite] (client) hmr update /src/pages/Profile.tsx, /src/index.css
+2:54:37 PM [vite] (client) hmr update /src/index.css, /src/pages/Disciplines.tsx
+2:54:37 PM [vite] Internal server error: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx: Unexpected token (151:14)
+
+  149 |           </DialogContent>
+  150 |         </Dialog>
+> 151 |       </      {isLoading ? (
+      |               ^
+  152 |         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  153 |           {[1, 2, 3].map((i) => (
+  154 |             <div key={i} className="h-48 rounded-[2rem] bg-white/5 animate-pulse" />
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:151:14
+  149 |            </DialogContent>
+  150 |          </Dialog>
+  151 |        </      {isLoading ? (
+      |                ^
+  152 |          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  153 |            {[1, 2, 3].map((i) => (
+      at toParseError (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parse-error.ts:95:45)
+      at TypeScriptParserMixin.raise (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/tokenizer/index.ts:1504:19)
+      at TypeScriptParserMixin.unexpected (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/tokenizer/index.ts:1544:16)
+      at TypeScriptParserMixin.jsxParseIdentifier (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:278:14)
+      at TypeScriptParserMixin.jsxParseNamespacedName (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:288:25)
+      at TypeScriptParserMixin.jsxParseElementName (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:306:14)
+      at TypeScriptParserMixin.jsxParseClosingElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:459:24)
+      at TypeScriptParserMixin.jsxParseElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:480:39)
+      at TypeScriptParserMixin.jsxParseElementAt (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:483:34)
+      at TypeScriptParserMixin.jsxParseElement (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:559:19)
+      at TypeScriptParserMixin.parseExprAtom (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:573:21)
+      at TypeScriptParserMixin.parseExprSubscripts (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:742:23)
+      at TypeScriptParserMixin.parseUpdate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:721:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:683:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3893:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:417:14)
+      at TypeScriptParserMixin.parseExprOps (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:429:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:384:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:301:21)
+      at fn (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3745:23)
+      at TypeScriptParserMixin.tryParse (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/util.ts:174:20)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3744:20)
+      at callback (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:257:12)
+      at TypeScriptParserMixin.allowInAnd (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:3197:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:256:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:3311:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:1825:16)
+      at TypeScriptParserMixin.parseExprAtom (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:1170:21)
+      at TypeScriptParserMixin.parseExprAtom (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/jsx/index.ts:583:22)
+      at TypeScriptParserMixin.parseExprSubscripts (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:742:23)
+      at TypeScriptParserMixin.parseUpdate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:721:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:683:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3893:20)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:417:14)
+      at TypeScriptParserMixin.parseExprOps (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:429:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:384:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:301:21)
+      at TypeScriptParserMixin.parseMaybeAssign (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3764:22)
+      at TypeScriptParserMixin.parseExpressionBase (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:226:23)
+      at callback (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:39)
+      at TypeScriptParserMixin.allowInAnd (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:3192:16)
+      at TypeScriptParserMixin.parseExpression (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/expression.ts:217:17)
+      at TypeScriptParserMixin.parseReturnStatement (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1115:28)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:543:21)
+      at TypeScriptParserMixin.parseStatementContent (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/plugins/typescript/index.ts:3220:20)
+      at TypeScriptParserMixin.parseStatementLike (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:482:17)
+      at TypeScriptParserMixin.parseStatementListItem (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:431:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1444:16)
+      at TypeScriptParserMixin.parseBlockBody (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1417:10)
+      at TypeScriptParserMixin.parseBlock (/home/anon/Desktop/SOE/node_modules/@babel/parser/src/parser/statement.ts:1385:10)
+2:54:37 PM [vite] (client) Pre-transform error: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx: Unexpected token (151:14)
+
+  149 |           </DialogContent>
+  150 |         </Dialog>
+> 151 |       </      {isLoading ? (
+      |               ^
+  152 |         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  153 |           {[1, 2, 3].map((i) => (
+  154 |             <div key={i} className="h-48 rounded-[2rem] bg-white/5 animate-pulse" />
+  Plugin: vite:react-babel
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:151:14
+  149 |            </DialogContent>
+  150 |          </Dialog>
+  151 |        </      {isLoading ? (
+      |                ^
+  152 |          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  153 |            {[1, 2, 3].map((i) => (
+2:54:50 PM [vite] (client) hmr update /src/index.css, /src/pages/Disciplines.tsx
+2:54:50 PM [vite] Internal server error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+      at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1748:15)
+      at /home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1017:50
+      at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:884:9)
+      at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:939:12)
+      at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:862:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2:54:50 PM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+2:55:09 PM [vite] Internal server error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+      at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1748:15)
+      at /home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1017:50
+      at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:884:9)
+      at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:939:12)
+      at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:862:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2:55:16 PM [vite] Internal server error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+      at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1748:15)
+      at /home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1017:50
+      at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:884:9)
+      at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:939:12)
+      at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:862:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2:55:23 PM [vite] (client) hmr update /src/pages/Topics.tsx, /src/index.css
+2:55:23 PM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+2:55:24 PM [vite] Internal server error: Transform failed with 1 error:
+/home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:7: ERROR: The character "}" is not valid inside a JSX element
+  Plugin: vite:esbuild
+  File: /home/anon/Desktop/SOE/client/src/pages/Disciplines.tsx:256:0
+  
+  The character "}" is not valid inside a JSX element
+  254 |          </div>
+  255 |        }
+  256 |        )}
+      |         ^
+  257 |  
+  258 |        {/* Edit Dialog */}
+  
+      at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1748:15)
+      at /home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:1017:50
+      at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:884:9)
+      at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:939:12)
+      at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/vite/node_modules/esbuild/lib/main.js:862:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+2:55:35 PM [vite] (client) hmr update /src/index.css, /src/pages/Disciplines.tsx
+2:56:28 PM [vite] (client) hmr update /src/pages/QuestionErrors.tsx, /src/index.css
+2:57:08 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+2:59:46 PM [tsx] change in ./server/_core/index.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+2:59:58 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+3:00:23 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+Erro no Proxy TEC: AxiosError: Request failed with status code 404
+    at settle (file:///home/anon/Desktop/SOE/node_modules/axios/lib/core/settle.js:20:7)
+    at Unzip.handleStreamEnd (file:///home/anon/Desktop/SOE/node_modules/axios/lib/adapters/http.js:849:13)
+    at Unzip.emit (node:events:519:28)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///home/anon/Desktop/SOE/node_modules/axios/lib/core/Axios.js:46:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/server/tecProxy.ts:41:26) {
+  isAxiosError: true,
+  code: 'ERR_BAD_REQUEST',
+  config: {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false,
+      legacyInterceptorReqResOrdering: true
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 0,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': undefined,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept-Encoding': 'gzip, compress, deflate, br'
+    },
+    responseType: 'text',
+    method: 'get',
+    url: 'https://www.tecconcursos.com.br/questoes',
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: <ref *1> ClientRequest {
+    _events: [Object: null prototype] {
+      abort: [Function (anonymous)],
+      aborted: [Function (anonymous)],
+      connect: [Function (anonymous)],
+      error: [Function (anonymous)],
+      socket: [Function (anonymous)],
+      timeout: [Function (anonymous)],
+      finish: [Function: requestOnFinish]
+    },
+    _eventsCount: 7,
+    _maxListeners: undefined,
+    outputData: [],
+    outputSize: 0,
+    writable: true,
+    destroyed: true,
+    _last: true,
+    chunkedEncoding: false,
+    shouldKeepAlive: true,
+    maxRequestsOnConnectionReached: false,
+    _defaultKeepAlive: true,
+    useChunkedEncodingByDefault: false,
+    sendDate: false,
+    _removedConnection: false,
+    _removedContLen: false,
+    _removedTE: false,
+    strictContentLength: false,
+    _contentLength: 0,
+    _hasBody: true,
+    _trailer: '',
+    finished: true,
+    _headerSent: true,
+    _closed: true,
+    _header: 'GET /questoes/ HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: www.tecconcursos.com.br\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      options: [Object: null prototype],
+      defaultPort: 443,
+      protocol: 'https:',
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 1,
+      agentKeepAliveTimeoutBuffer: 1000,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/questoes/',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 404,
+      statusMessage: '',
+      client: [TLSSocket],
+      _consuming: true,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'https://www.tecconcursos.com.br/questoes/',
+      redirects: [],
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kHeaders)]: [Object],
+      [Symbol(kHeadersCount)]: 28,
+      [Symbol(kTrailers)]: null,
+      [Symbol(kTrailersCount)]: 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: false,
+    host: 'www.tecconcursos.com.br',
+    protocol: 'https:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 1,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'https://www.tecconcursos.com.br/questoes/',
+      _timeout: null,
+      _isRedirect: true,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false,
+    [Symbol(kBytesWritten)]: 0,
+    [Symbol(kNeedDrain)]: false,
+    [Symbol(corked)]: 0,
+    [Symbol(kChunkedBuffer)]: [],
+    [Symbol(kChunkedLength)]: 0,
+    [Symbol(kSocket)]: TLSSocket {
+      _tlsOptions: [Object],
+      _secureEstablished: true,
+      _securePending: false,
+      _newSessionPending: false,
+      _controlReleased: true,
+      secureConnecting: false,
+      _SNICallback: null,
+      servername: 'www.tecconcursos.com.br',
+      alpnProtocol: false,
+      authorized: true,
+      authorizationError: null,
+      encrypted: true,
+      _events: [Object: null prototype],
+      _eventsCount: 9,
+      connecting: false,
+      _hadError: false,
+      _parent: null,
+      _host: 'www.tecconcursos.com.br',
+      _closeAfterHandlingError: false,
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: false,
+      _maxListeners: undefined,
+      _sockname: null,
+      _pendingData: null,
+      _pendingEncoding: '',
+      server: undefined,
+      _server: null,
+      ssl: [TLSWrap],
+      _requestCert: true,
+      _rejectUnauthorized: true,
+      timeout: 5000,
+      parser: null,
+      _httpMessage: null,
+      autoSelectFamilyAttemptedAddresses: [Array],
+      [Symbol(alpncallback)]: null,
+      [Symbol(res)]: [TLSWrap],
+      [Symbol(verified)]: true,
+      [Symbol(pendingSession)]: null,
+      [Symbol(async_id_symbol)]: -1,
+      [Symbol(kHandle)]: [TLSWrap],
+      [Symbol(lastWriteQueueSize)]: 0,
+      [Symbol(timeout)]: Timeout {
+        _idleTimeout: 5000,
+        _idlePrev: [TimersList],
+        _idleNext: [TimersList],
+        _idleStart: 51625,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        [Symbol(refed)]: false,
+        [Symbol(kHasPrimitive)]: false,
+        [Symbol(asyncId)]: 5713,
+        [Symbol(triggerId)]: 5711,
+        [Symbol(kAsyncContextFrame)]: undefined
+      },
+      [Symbol(kBuffer)]: null,
+      [Symbol(kBufferCb)]: null,
+      [Symbol(kBufferGen)]: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kSetNoDelay)]: false,
+      [Symbol(kSetKeepAlive)]: true,
+      [Symbol(kSetKeepAliveInitialDelay)]: 1,
+      [Symbol(kBytesRead)]: 0,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(connect-options)]: [Object]
+    },
+    [Symbol(kOutHeaders)]: [Object: null prototype] {
+      accept: [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    [Symbol(errored)]: null,
+    [Symbol(kHighWaterMark)]: 65536,
+    [Symbol(kRejectNonStandardBodyWrites)]: false,
+    [Symbol(kUniqueHeaders)]: null
+  },
+  response: {
+    status: 404,
+    statusText: '',
+    headers: Object [AxiosHeaders] {
+      date: 'Wed, 22 Apr 2026 18:00:37 GMT',
+      'content-type': 'text/html;charset=UTF-8',
+      'transfer-encoding': 'chunked',
+      connection: 'keep-alive',
+      'set-cookie': [Array],
+      server: 'nginx/1.26.2',
+      vary: 'Accept-Encoding',
+      'x-debug-message': '172.30.2.249',
+      'access-control-allow-origin': 'https://www.tecconcursos.com.br',
+      'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'access-control-allow-headers': 'Content-Type, Accept, Authorization, Origin'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 0,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      responseType: 'text',
+      method: 'get',
+      url: 'https://www.tecconcursos.com.br/questoes',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      _header: 'GET /questoes/ HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: www.tecconcursos.com.br\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/questoes/',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: false,
+      host: 'www.tecconcursos.com.br',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kChunkedBuffer)]: [],
+      [Symbol(kChunkedLength)]: 0,
+      [Symbol(kSocket)]: [TLSSocket],
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 65536,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: '<!doctype html>\n' +
+      '<html lang="pt-br">\n' +
+      '<head>\n' +
+      '\t<meta charset="UTF-8">\n' +
+      '\t<meta http-equiv="cache-control" content="no-cache">\n' +
+      '\t<meta http-equiv="pragma" content="no-cache">\n' +
+      '\t<meta http-equiv="expires" content="-1">\n' +
+      '\t<meta http-equiv="X-UA-Compatible" content="IE=edge">\n' +
+      '    <meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+      '    <meta name="theme-color" content="#384047">\n' +
+      '\t\n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/favicon.ico" >\n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-16.ico" sizes="16x16">  \n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-24.ico" sizes="24x24">  \n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-32.ico" sizes="32x32">  \n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-48.ico" sizes="48x48">\n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-64.ico" sizes="64x64">\n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-180.ico" sizes="180x180">  \n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/ico/favicon-192.ico" sizes="192x192">  \n' +
+      '\t<link rel="icon" href="https://cdn.tecconcursos.com.br/conteudo/img/logotipo-192.png" sizes="192x192"> \n' +
+      '\t\n' +
+      '\t<meta name="author" content="Tec Concursos">\n' +
+      '<meta name="description" content="Experimente gratuitamente! Estude para concursos com questões comentadas, exercícios direcionados para órgãos públicos, editais e provas de concursos para download.">\n' +
+      '<meta name="keywords" content="questões de concursos,questão de concurso,concurso,questões,concursos públicos, questões comentadas, editais, provas de concursos, estudo, estude, estudar, exercícios, órgãos públicos, bancas concurseiras">\n' +
+      '<meta name="revisit-after" content="3 days">\n' +
+      '<meta name="robots" content="noodp">\n' +
+      '<meta name="robots" content="noydir">\n' +
+      '<meta property="og:locale" content="pt_BR">\n' +
+      '\t<meta property="og:type" content="website" />\n' +
+      '\t<meta property="og:image" content="https://cdn.tecconcursos.com.br/conteudo/img/logotipo-facebook.png" />\n' +
+      '\t    <meta property="og:image:secure_url" content="https://cdn.tecconcursos.com.br/conteudo/img/logotipo-facebook.png" />\n' +
+      '\t<title>Tec Concursos - Página não encontrada</title>\n' +
+      '    <meta property="og:image:width" content="250">\n' +
+      '    <meta property="og:image:height" content="250">\n' +
+      `\t<meta property="og:title" content='Tec Concursos - Página não encontrada' />\n` +
+      `\t<meta property="og:description" content='' />\n` +
+      '\t\n' +
+      '\t<style type="text/css" title="">@import url("https://cdn.tecconcursos.com.br/style/plugins/alertify/alertify.min.css?v=15.2.39");</style>\n' +
+      '\t\t<style type="text/css" title="">@import url("https://cdn.tecconcursos.com.br/style/plugins/alertify/themes/default.min.css?v=15.2.39");</style>\n' +
+      '\t\t<style type="text/css" title="tema">@import url("https://www.tecconcursos.com.br/css/erro/erro404.css?v=15.2.39");</style>\n' +
+      '\t\t<script>\n' +
+      '\tdataLayer = [];\n' +
+      '</script>\n' +
+      '\n' +
+      '<!-- Google Tag Manager -->\n' +
+      '\t<script>\n' +
+      "\t\t(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':\n" +
+      "\t\t\tnew Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],\n" +
+      "\t\t\tj=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=\n" +
+      "\t\t\t'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);\n" +
+      "\t\t\t})(window,document,'script','dataLayer','GTM-KWK2Q8G');\n" +
+      '\t</script>\n' +
+      '\t<!-- End Google Tag Manager -->\n' +
+      '<script type="text/javascript">\n' +
+      '\t\t\tWebFontConfig = {\n' +
+      "\t\t\t\tgoogle: { families: [ 'Montserrat', 'Source Sans Pro:200,400,700' ] }\n" +
+      '\t\t\t};\n' +
+      '\t\t\t(function() {\n' +
+      "\t\t\t\tvar wf = document.createElement('script');\n" +
+      "\t\t\t\twf.src = ('https:' == document.location.protocol ? 'https' : 'http') +\n" +
+      "\t\t\t\t  '://ajax.googleapis.com/ajax/libs/webfont/1.5.18/webfont.js';\n" +
+      "\t\t\t\twf.type = 'text/javascript';\n" +
+      "\t\t\t\twf.async = 'true';\n" +
+      "\t\t\t\tvar s = document.getElementsByTagName('script')[0];\n" +
+      '\t\t\t\ts.parentNode.insertBefore(wf, s);\n' +
+      '\t\t\t})();\n' +
+      '\t\t</script>\t\n' +
+      '\t<script>\n' +
+      '\t\tvar tecAppVersion = "15.2.39";\n' +
+      '\t</script>\n' +
+      '\t\n' +
+      '\t<script type="text/javascript">\n' +
+      '\tvar contextPathUrl = "/;jsessionid=632D60026D55FB90B6E798F96443FDC7";\n' +
+      '\tvar indexSessionId = contextPathUrl.indexOf(";jsessionid")\n' +
+      '\tif (indexSessionId != -1) {\n' +
+      '\t\tcontextPathUrl = contextPathUrl.substring(0, indexSessionId);\n' +
+      '\t}\n' +
+      '\tvar problemaComProxy = "";\n' +
+      '\tif (problemaComProxy == "") {\n' +
+      '\t\tproblemaComProxy = null;\n' +
+      '\t} else {\n' +
+      '\t\tproblemaComProxy = (problemaComProxy == "true");\n' +
+      '\t}\n' +
+      '\t\n' +
+      '\tvar s3Url = {\n' +
+      '\t\tbase: "https://s3-sa-east-1.amazonaws.com/",\n' +
+      '\t\timg: "https://cdn.tecconcursos.com.br/imgs3",\n' +
+      '\t\tfiguras: "https://cdn.tecconcursos.com.br/figuras",\n' +
+      '\t\tfotos: "https://cdn.tecconcursos.com.br/fotos",\n' +
+      '\t\tteoria: "https://cdn.tecconcursos.com.br/teoria",\n' +
+      '\t\tconteudo: "https://cdn.tecconcursos.com.br/conteudo",\n' +
+      '\t\tarquivo: "https://cdn.tecconcursos.com.br/arquivos"\n' +
+      '\t};\n' +
+      '\t\n' +
+      '\tvar pathViewerPdf = "https://www.tecconcursos.com.br/js/plugins/pdf.js/web/viewer.html"\n' +
+      '\t\n' +
+      '\tvar tema = "";\n' +
+      '\n' +
+      '    \n' +
+      '\t\t\tvar userId = null;\n' +
+      '\t\t\tvar userProfessor = null;\n' +
+      '\t\t</script>\n' +
+      '<!--[if lt IE 9]>\n' +
+      '\t\t<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>\n' +
+      '\t\t<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>\n' +
+      '    <![endif]-->\n' +
+      '    \n' +
+      '\t<!-- Tag do Google -->\t\n' +
+      '\t</head>\n' +
+      '\n' +
+      '\n' +
+      '<body>\n' +
+      '\t<!-- Google Tag Manager (noscript) -->\n' +
+      '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KWK2Q8G" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>\n' +
+      '<!-- End Google Tag Manager (noscript) --><div class="body" id="body">\n' +
+      '       <div id="ajax-loading"><img src="https://cdn.tecconcursos.com.br/img/spinner.gif" alt=""/></div>\n' +
+      '<div id="ajax-error">Ocorreu um erro na requisição, tente executar a operação novamente.</div>\n' +
+      '<div id="ajax-fullscreen"></div>\n' +
+      '<header id="header" class=" secao faixa-cinza">\n' +
+      '\t<div class="container">\n' +
+      '\t\t<a id="header-deslogado-login" href="https://www.tecconcursos.com.br/login" class=" visible-xs visible-sm"  >\n' +
+      '\t\t\t\t\tEntrar\n' +
+      '\t\t\t\t</a>\n' +
+      '\n' +
+      '\t\t\t\t<a id="header-deslogado-login" href="https://www.tecconcursos.com.br/login" class=" hidden-xs hidden-sm"  >\n' +
+      '\t\t\t\t\tLogin\n' +
+      '\t\t\t\t</a>\n' +
+      '\n' +
+      '\t\t\t<div id="header-deslogado-logo">\n' +
+      '\t\t\t\t\t<div id="header-menu-mobile" class="visible-xs visible-sm">\n' +
+      '\t\t\t\t\t\t<span class="menu-voador" >\n' +
+      '\t<button class="trigger nvda-botao-transparente" data-toggle="dropdown"  aria-label="menu opções">\n' +
+      '\t\t<div class="header-menu-mobile-trigger"><span id="" class="glyphicon glyphicon-menu-hamburger " title="" ></span></div></button>\n' +
+      '\t<ul class=" dropdown-menu">\n' +
+      '\t\t<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/guias/"  id="" ><span id="" class="glyphicon glyphicon-education " title="" ></span>Guias</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/concursos/"  id="" ><span id="" class="glyphicon glyphicon-search " title="" ></span>Concursos</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/materias/"  id="" ><span id="" class="glyphicon glyphicon-folder-open " title="" ></span>Matérias</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/orgaos/"  id="" ><span id="" class="glyphicon glyphicon-tower " title="" ></span>Órgãos</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/bancas/"  id="" ><span id="" class="glyphicon glyphicon-certificate " title="" ></span>Bancas</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/assinar"  id="" ><span id="" class="glyphicon glyphicon-shopping-cart " title="" ></span>Preços</a>\n' +
+      '\t\t</li>\n' +
+      '<li >\n' +
+      '\t<a href="https://www.tecconcursos.com.br/blog/"  id="" ><span id="" class="glyphicon glyphicon-globe " title="" ></span>Blog</a>\n' +
+      '\t\t</li>\n' +
+      '</ul>\n' +
+      '</span>\n' +
+      '<div class="menu-logo-mobile">\n' +
+      '\t\t\t\t\t\t\t<a href="https://www.tecconcursos.com.br/"><img src="https://cdn.tecconcursos.com.br/conteudo/img/logotipo_mobile.svg" width="130" style="margin-top: 0.1rem" alt="Logotipo TEC Concursos" /></a>\n' +
+      '\t\t\t\t\t\t</div>\n' +
+      '\t\t\t\t\t</div>\n' +
+      '\t\t\t\n' +
+      '\t\t\t\n' +
+      '\t\t\t\t<a href="https://www.tecconcursos.com.br/"><img src="https://cdn.tecconcursos.com.br/conteudo/img/logotipo.svg" width="180" height="36"  class="hidden-xs hidden-sm" alt="Logotipo TEC Concursos" /></a>\n' +
+      '\t\t\t\t\n' +
+      `\t\t\t\t<nav id="header-menu" class="hidden-xs hidden-sm" itemscope='itemscope' itemtype='http://schema.org/SiteNavigationElement'>\t\t\t\t\n` +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/concursos" class="menu-busca " itemprop='url' >\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Concursos</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/guias/" class="menu-guia " itemprop='url' >\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Guias</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/orgaos/" class="menu-busca " itemprop='url'  >\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Órgãos</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/bancas/" class="menu-busca " itemprop='url' >\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Bancas</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/materias/" class="menu-materias " itemprop='url'>\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Matérias</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/assinar" class="menu-busca "  itemprop='url'>\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Preços</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      `\t\t\t\t\t<a href="https://www.tecconcursos.com.br/blog/" class="menu-busca "  itemprop='url'>\n` +
+      '\t\t\t\t\t\t<span class="texto deslogado" itemprop="name">Blog</span>\n' +
+      '\t\t\t\t\t</a>\n' +
+      '\t\t\t\t</nav>\n' +
+      '\t\t\t\t\n' +
+      '\t\t\t</div>\t\n' +
+      '\t\t</div>\n' +
+      '</header>\n' +
+      '<div id="" class="secao " >\n' +
+      '\t<div class="container">\n' +
+      '\t\t<div class="titulo">\n' +
+      '\t<h1>404 - Página não encontrada</h1>\n' +
+      '</div>\n' +
+      '<div class=" form-body">\n' +
+      '\t<div>\n' +
+      '\t\t<div class="subtitulo">\n' +
+      '\t<h4>A página que você tentou acessar não existe. Verifique se o endereço está correto.</h4>\n' +
+      '</div>\n' +
+      '<div class="subtitulo">\n' +
+      '\t<h4>\n' +
+      '\t\t\t\tCaso o problema persista, entre em contato através do <a target="_blank" style="text-decoration: underline" href="/fale-conosco;jsessionid=632D60026D55FB90B6E798F96443FDC7">Fale Conosco</a>.\n' +
+      '\t\t\t</h4>\n' +
+      '</div>\n' +
+      '<div class="subtitulo">\n' +
+      '\t<h4></h4>\n' +
+      '</div>\n' +
+      '</div>\n' +
+      '</div>\n' +
+      '</div>\n' +
+      '</div>\n' +
+      '<div id="concursos" class="secao " >\n' +
+      '\t<div class="container">\n' +
+      '\t\t<div>\n' +
+      '\t\t\t<h2 cla'... 7607 more characters
+  },
+  status: 404
+}
+3:01:26 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+3:02:05 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Erro no Proxy TEC: Request failed with status code 404
+3:02:53 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+[TEC Proxy] Acessando: https://www.tecconcursos.com.br/questoes
+[TEC Proxy Error] TEC respondeu com erro 404
+3:04:06 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+[TEC Proxy] Fetching: https://www.tecconcursos.com.br/questoes
+[TEC Proxy Error] TEC respondeu com status 404 ()
+[TEC Proxy] Fetching: https://www.tecconcursos.com.br/questoes/
+[TEC Proxy Error] TEC respondeu com status 404 ()
+[TEC Proxy] Fetching: https://www.tecconcursos.com.br/questoes/
+[TEC Proxy Error] TEC respondeu com status 404 ()
+[TEC Proxy] Fetching: https://www.tecconcursos.com.br/questoes/
+[TEC Proxy Error] TEC respondeu com status 404 ()
+[TEC Proxy] Fetching: https://www.tecconcursos.com.br/questoes
+[TEC Proxy Error] TEC respondeu com status 404 ()
+3:06:39 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:08:01 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+3:08:08 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:09:29 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:11:43 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+3:11:50 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+3:12:00 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:13:58 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:23:14 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+3:23:30 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:29:36 PM [tsx] change in ./package.json Restarting...
+cServer running on http://0.0.0.0:3000/
+3:33:09 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+3:33:20 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+3:33:36 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+3:36:33 PM [tsx] change in ./server/jsonStorage.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:478:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:548:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+3:36:55 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+Proxy falhou, tentando redirecionar... Request failed with status code 404
+4:15:29 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:478:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:548:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+[TEC Proxy] Request: https://www.tecconcursos.com.br/questoes
+[TEC Proxy] TEC returned 404 for https://www.tecconcursos.com.br/questoes
+4:20:37 PM [tsx] change in ./server/tecProxy.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:478:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:548:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+4:21:33 PM [tsx] change in ./server/tecProxy.ts Restarting...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/tecProxy.ts:104:7: ERROR: Multiple exports with the same name "default"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:25:02 PM [tsx] change in ./server/jsonStorage.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/tecProxy.ts:104:7: ERROR: Multiple exports with the same name "default"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:25:31 PM [tsx] change in ./server/jsonStorage.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/tecProxy.ts:104:7: ERROR: Multiple exports with the same name "default"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:26:39 PM [tsx] change in ./server/routers.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/routers.ts:1259:2: ERROR: Expected "}" but found ";"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:31:19 PM [tsx] change in ./server/tecProxy.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/routers.ts:1259:2: ERROR: Expected "}" but found ";"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:32:01 PM [tsx] change in ./server/routers.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/routers.ts:898:7: ERROR: Unexpected ")"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:32:09 PM [tsx] change in ./server/routers.ts Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/routers.ts:897:6: ERROR: Expected "finally" but found "}"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+4:32:31 PM [tsx] change in ./server/routers.ts Rerunning...
+cServer running on http://0.0.0.0:3000/
+4:32:50 PM [tsx] change in ./package.json Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+4:37:23 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:505:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:575:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+4:42:57 PM [tsx] change in ./server/routers.ts Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+4:43:33 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:505:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:575:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+4:43:41 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+Error ensuring local user: ReferenceError: acquireWriteLock is not defined
+    at writeDatabase (/home/anon/Desktop/SOE/server/jsonStorage.ts:505:3)
+    at Module.upsertUser (/home/anon/Desktop/SOE/server/jsonStorage.ts:575:3)
+    at ensureLocalUser (/home/anon/Desktop/SOE/server/_core/context.ts:32:19)
+    at Object.createContext (/home/anon/Desktop/SOE/server/_core/context.ts:57:11)
+    at Object.createContext (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:94:24)
+    at Object.create (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:287:34)
+    at resolveResponse (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/unstable-core-do-not-import/http/resolveResponse.ts:326:22)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/anon/Desktop/SOE/node_modules/@trpc/server/src/adapters/node-http/nodeHTTPRequestHandler.ts:100:26)
+4:46:06 PM [tsx] change in ./server/jsonStorage.ts Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+4:49:04 PM [tsx] change in ./server/jsonStorage.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+4:51:48 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+4:52:05 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+4:52:28 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+4:52:37 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+4:59:01 PM [tsx] change in ./server/routers.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+4:59:36 PM [tsx] change in ./server/routers.ts Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+4:59:53 PM [tsx] change in ./package.json Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+5:02:48 PM [tsx] change in ./package.json Restarting...
+cServer running on http://0.0.0.0:3000/

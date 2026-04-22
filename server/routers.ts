@@ -520,6 +520,12 @@ export const appRouter = router({
         await storage.updateRevisionLink(input.revisionId, ctx.user.id, input.link);
         return { success: true };
       }),
+    markCompleted: protectedProcedure
+      .input(z.object({ revisionId: z.number(), completed: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await storage.markRevisionCompleted(input.revisionId, ctx.user.id, input.completed);
+        return { success: true };
+      }),
   }),
   dashboard: router({
     getStats: protectedProcedure.query(async ({ ctx }) => {
@@ -547,7 +553,7 @@ export const appRouter = router({
       return { minutes: await getTodayStudyMinutes(ctx.user.id) };
     }),
   }),
-  flashcard: router({
+    flashcard: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return storage.getFlashcardsByUser(ctx.user.id);
     }),
@@ -795,6 +801,118 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
           return { front: parsed.front, back: parsed.back };
         } catch (err: unknown) {
           throw new Error(`Falha ao gerar flashcard: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }),
+  }),
+
+  essay: router({
+    list: protectedProcedure
+      .input(z.object({ disciplineId: z.number().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        return storage.getEssaysByUser(ctx.user.id, input?.disciplineId);
+      }),
+    transcribe: protectedProcedure
+      .input(z.object({
+        image: z.string(), // base64
+        apiKey: z.string().min(1),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }))
+      .mutation(async ({ input }) => {
+        const prompt = "Você é um especialista em OCR e transcrição de textos manuscritos. Transcreva EXATAMENTE o texto contido na imagem fornecida, mantendo parágrafos e pontuação originais. Retorne APENAS o texto limpo, sem introduções ou explicações.";
+        try {
+          const result = await callAiProvider(input.provider, input.apiKey, prompt, 2048, input.image);
+          return { transcription: result };
+        } catch (err: unknown) {
+          throw new Error(`Falha na transcrição: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }),
+    save: protectedProcedure
+      .input(z.object({
+        disciplineId: z.number(),
+        topicId: z.number().optional(),
+        title: z.string().min(1),
+        banca: z.string().min(1),
+        transcription: z.string().default(""),
+        originalImage: z.string().optional(),
+        status: z.enum(["draft", "pending", "corrected"]).default("draft"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return storage.saveEssay({ ...input, userId: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        transcription: z.string().optional(),
+        status: z.enum(["draft", "pending", "corrected"]).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        return storage.updateEssay(id, ctx.user.id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await storage.deleteEssay(input.id, ctx.user.id);
+        return { success: true };
+      }),
+    analyze: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const essay = await storage.getEssayById(input.id, ctx.user.id);
+        if (!essay) throw new Error("Redação não encontrada.");
+        if (!essay.transcription || essay.transcription.trim().length < 10) {
+          throw new Error("A redação precisa ter uma transcrição (mínimo 10 caracteres) para ser analisada pela IA.");
+        }
+
+        const prompt = `Você é um examinador experiente de redações para concursos públicos brasileiros, especialista na banca ${essay.banca}.
+Sua missão é corrigir a redação do aluno de forma cirúrgica, pedagógica e rigorosa, agindo como o motor de correção do site Glau.
+
+TEMA DA REDAÇÃO: ${essay.title}
+TEXTO DA REDAÇÃO:
+---
+${essay.transcription}
+---
+
+INSTRUÇÕES DE CORREÇÃO:
+1. Analise o texto seguindo fielmente os critérios da banca ${essay.banca} (ex: CESPE foca em macro e microestrutura, FCC foca em argumentação, etc).
+2. Atribua uma nota de 0 a 10 para cada critério relevante e uma nota final.
+3. Se a banca for CESPE/Cebraspe, aplique a "diluição de erros" (Nota = NC - (K * NE / TotalLinhas)). Estime o número de linhas baseando-se no volume de texto (aprox. 10 palavras por linha).
+4. Identifique erros de gramática, concordância, coesão e argumentação.
+5. Para cada erro, indique o que está errado, por que está errado e dê uma sugestão de substituição exata.
+6. Forneça um feedback geral sobre o desempenho e pontos de melhora.
+
+REGRAS DE FORMATAÇÃO:
+- Retorne APENAS um JSON válido.
+- O campo "feedback" deve estar em Markdown elegante.
+- Estrutura do JSON esperado:
+{
+  "score": 8.5,
+  "gradeBreakdown": { "Domínio do Tema": 4.5, "Gramática": 2.0, "Coesão": 2.0 },
+  "errors": [
+    { "type": "Gramática", "description": "Erro de concordância em 'as pessoa'", "suggestion": "as pessoas", "line": 5 }
+  ],
+  "feedback": "### Análise Geral\\nSeu texto apresenta uma boa estrutura..."
+}
+
+Responda apenas o JSON.`;
+
+        try {
+          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+          const parsed = extractJSON(raw) as any;
+          
+          await storage.updateEssay(input.id, ctx.user.id, {
+            correction: parsed,
+            status: "corrected"
+          });
+          
+          return parsed;
+        } catch (err: unknown) {
+          throw new Error(`Falha na correção da IA: ${err instanceof Error ? err.message : String(err)}`);
         }
       }),
   }),
@@ -1113,7 +1231,7 @@ ${input.text.substring(0, 8000)}`;
       }),
   }),
 
-  export: router({
+  exporter: router({
     getSchedule: protectedProcedure
       .input(z.object({
         disciplineId: z.number().optional(),

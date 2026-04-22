@@ -94,14 +94,13 @@ export default function QuestionErrors() {
   const [filterOrigin, setFilterOrigin] = useState<string>("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
-  const [showKeyModal, setShowKeyModal] = useState(false);
 
   const [loadingAction, setLoadingAction] = useState<{ id: number; action: string } | null>(null);
-  const [savedKey] = useState(loadSavedKey);
-  const [savedProvider] = useState(loadSavedProvider);
 
+  const utils = trpc.useUtils();
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: disciplines } = trpc.discipline.list.useQuery();
-  const { data: topicsData } = trpc.topic.list.useQuery({ disciplineId: filterDisc || undefined }, { enabled: true });
+  const { data: topicsData } = trpc.topic.list.useQuery({ disciplineId: filterDisc || undefined }, { enabled: !!filterDisc });
   const topics = (topicsData as any)?.topics ?? [];
 
   const { data: errorsPage, isLoading, refetch } = trpc.questionError.list.useQuery({
@@ -110,6 +109,11 @@ export default function QuestionErrors() {
     limit: 200,
   });
   const errors = errorsPage?.items ?? [];
+
+  // Extract keys from DB
+  const aiSettings = (stats?.settings as any) || {};
+  const dbApiKey = aiSettings.aiApiKey || "";
+  const dbProvider = aiSettings.aiProvider || "gemini";
 
   const deleteError = trpc.questionError.delete.useMutation({
     onSuccess: () => { refetch(); toast.success("Questão removida."); setDeleting(null); },
@@ -126,87 +130,105 @@ export default function QuestionErrors() {
   const topicName = (id: number) => topics.find((t: any) => t.id === id)?.name ?? "Tema";
 
   const callAI = (id: number, action: "analyze" | "revisionTip" | "similarQuestions" | "generateFlashcard") => {
-    if (!savedKey) { window.dispatchEvent(new CustomEvent('soe-open-ai-modal')); return; }
+    if (!dbApiKey) { 
+        toast.error("Configuração de IA ausente no Perfil!"); 
+        return; 
+    }
     setLoadingAction({ id, action });
     setExpanded(id);
-    const args = { id, apiKey: savedKey, provider: savedProvider };
+    const args = { id, apiKey: dbApiKey, provider: dbProvider };
+    
     if (action === "analyze") analyzeMut.mutate(args);
     else if (action === "revisionTip") revisionTipMut.mutate(args);
     else if (action === "similarQuestions") similarMut.mutate(args);
     else if (action === "generateFlashcard") flashcardMut.mutate(args);
   };
 
-  const isLoading2 = (id: number, action: string) => loadingAction?.id === id && loadingAction?.action === action;
+  const isActionLoading = (id: number, action: string) => loadingAction?.id === id && loadingAction?.action === action;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header Area */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-black tracking-tight flex items-center gap-2.5" style={{ color: "var(--app-fg)" }}>
-            Erros
-          </h2>
-          <p className="text-sm opacity-60">Diagnóstico individualizado com IA.</p>
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Premium Header Area */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500 opacity-[0.03] blur-[100px] -mr-32 -mt-32" />
+        
+        <div className="space-y-2 relative">
+          <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+                  <XCircle size={18} />
+              </div>
+              <h2 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Painel de Erros</h2>
+          </div>
+          <p className="text-sm opacity-50 font-medium">Transforme suas falhas em aprendizado com diagnóstico de IA.</p>
         </div>
         
-        <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5 w-full sm:w-auto">
-            <div className={`p-2 rounded-lg ${savedKey ? 'bg-[var(--accent-green)]/20 text-[var(--accent-green)]' : 'bg-white/5 text-white/20'}`}>
-                <Zap size={16} />
-            </div>
-            <div>
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Motor IA</p>
-                <p className="text-xs font-black uppercase tracking-widest">{savedKey ? savedProvider : "Off"}</p>
+        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border transition-all ${dbApiKey ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-500' : 'bg-rose-500/5 border-rose-500/10 text-rose-500'}`}>
+            <Zap size={18} className={dbApiKey ? 'animate-pulse' : ''} />
+            <div className="text-left">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Status do Motor</p>
+                <p className="text-xs font-black uppercase tracking-widest">{dbApiKey ? `IA Ativa (${dbProvider})` : "IA Desativada"}</p>
             </div>
         </div>
       </div>
 
-      {/* Modern Filter Dock */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <select value={filterDisc} onChange={e => { setFilterDisc(e.target.value ? Number(e.target.value) : ""); setFilterTopic(""); }} 
-            className="col-span-2 md:col-span-1 bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all">
-            <option value="">Matéria</option>
-            {(disciplines as any[])?.map((d: any) => <option key={d.id} value={d.id} className="bg-slate-900">{d.name}</option>)}
-        </select>
-        <select value={filterTopic} onChange={e => setFilterTopic(e.target.value ? Number(e.target.value) : "")} disabled={!filterDisc}
-            className="col-span-2 md:col-span-1 bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all disabled:opacity-20">
-            <option value="">Assunto</option>
-            {topics.map((t: any) => <option key={t.id} value={t.id} className="bg-slate-900">{t.name}</option>)}
-        </select>
-        <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)}
-            className="bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all">
-            <option value="">Origem</option>
-            {Object.entries(ORIGIN_LABELS).map(([id, info]) => <option key={id} value={id} className="bg-slate-900">{info.label}</option>)}
-        </select>
-        <div className="flex gap-2">
+      {/* Advanced Filter Control */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-2 bg-white/[0.01] rounded-[2rem]">
+        <div className="md:col-span-1 space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">Disciplina</label>
+            <select value={filterDisc} onChange={e => { setFilterDisc(e.target.value ? Number(e.target.value) : ""); setFilterTopic(""); }} 
+                className="w-full bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all cursor-pointer">
+                <option value="">Todas as Matérias</option>
+                {(disciplines as any[])?.map((d: any) => <option key={d.id} value={d.id} className="bg-slate-900">{d.name}</option>)}
+            </select>
+        </div>
+        <div className="md:col-span-1 space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">Assunto</label>
+            <select value={filterTopic} onChange={e => setFilterTopic(e.target.value ? Number(e.target.value) : "")} disabled={!filterDisc}
+                className="w-full bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all disabled:opacity-20 cursor-pointer">
+                <option value="">Todos os Temas</option>
+                {topics.map((t: any) => <option key={t.id} value={t.id} className="bg-slate-900">{t.name}</option>)}
+            </select>
+        </div>
+        <div className="md:col-span-1 space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">Natureza do Erro</label>
+            <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)}
+                className="w-full bg-white/5 border border-white/5 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all cursor-pointer">
+                <option value="">Qualquer Origem</option>
+                {Object.entries(ORIGIN_LABELS).map(([id, info]) => <option key={id} value={id} className="bg-slate-900">{info.label}</option>)}
+            </select>
+        </div>
+        <div className="flex items-end pb-1 px-1">
             <button onClick={() => { setFilterDisc(""); setFilterTopic(""); setFilterOrigin(""); }}
-                className="flex-1 bg-white/5 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 transition-all">
-                Limpar
+                className="w-full h-14 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 transition-all flex items-center justify-center gap-2">
+                <RefreshCw size={14} /> Limpar Filtros
             </button>
         </div>
       </div>
 
-      {/* Stats Counter */}
-      <div className="flex items-center gap-4 px-2">
-        <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-[0.2em] opacity-40">
-                {filtered.length} Ocorrências Identificadas
-            </span>
-        </div>
-      </div>
-
+      {/* Main Content */}
       {isLoading ? (
-        <div className="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest animate-pulse">Varrendo registros de erros...</div>
+        <div className="py-20 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full border-4 border-[var(--primary)]/10 border-t-[var(--primary)] animate-spin mx-auto" />
+            <p className="opacity-30 font-black uppercase text-[10px] tracking-widest">Sincronizando banco de erros...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="soe-card py-20 flex flex-col items-center justify-center gap-6 opacity-40 border-dashed">
-            <CheckCircle2 size={48} />
+        <div className="soe-card p-24 flex flex-col items-center justify-center gap-6 opacity-40 border-dashed">
+            <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mb-2">
+                <CheckCircle2 size={32} />
+            </div>
             <div className="text-center">
-                <p className="text-xl font-black uppercase tracking-widest">Nada pendente</p>
-                <p className="text-xs mt-2">Suas questões erradas aparecerão aqui para diagnóstico.</p>
+                <p className="text-xl font-black uppercase tracking-widest">Nenhum Erro Registrado</p>
+                <p className="text-xs mt-2 font-medium">Suas questões incorretas serão listadas aqui automaticamente.</p>
             </div>
         </div>
       ) : (
         <div className="space-y-6">
+            <div className="flex items-center gap-4 px-2 mb-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">
+                    {filtered.length} Incidentes Detectados no Período
+                </span>
+            </div>
+
             {filtered.map(e => {
                 const isExpanded = expanded === e.id;
                 const originInfo = e.errorOrigin ? ORIGIN_LABELS[e.errorOrigin] : null;
@@ -217,72 +239,73 @@ export default function QuestionErrors() {
                 const hasFlashcard = !!(e as any).aiFlashcardGenerated;
 
                 return (
-                    <div key={e.id} className={`soe-card group overflow-hidden transition-all ${isExpanded ? 'border-[var(--primary-border)] shadow-2xl' : 'hover:border-white/10'}`}>
-                        <div className="p-6">
-                            <div className="flex items-start gap-4">
-                                <div className="shrink-0 w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
-                                    <XCircle size={20} />
+                    <div key={e.id} className={`soe-card group overflow-hidden transition-all duration-300 ${isExpanded ? 'border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)]/5' : 'hover:border-white/10'}`}>
+                        <div className="p-8">
+                            <div className="flex flex-col md:flex-row items-start gap-6">
+                                <div className="shrink-0 w-14 h-14 rounded-[1.2rem] bg-rose-500/5 border border-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
+                                    <XCircle size={24} />
                                 </div>
-                                <div className="flex-1 min-w-0 space-y-4">
+                                <div className="flex-1 min-w-0 space-y-6">
                                     <div className="flex flex-wrap items-center justify-between gap-4">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            {e.banca && <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest opacity-60">{e.banca}</span>}
-                                            {e.year && <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest opacity-60">{e.year}</span>}
+                                            {e.banca && <span className="px-3 py-1 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest opacity-60">{e.banca}</span>}
+                                            {e.year && <span className="px-3 py-1 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest opacity-60">{e.year}</span>}
                                             {originInfo && OriginIcon && (
-                                                <span className="px-2.5 py-1 rounded-lg flex items-center gap-2 text-[9px] font-black uppercase tracking-widest border"
+                                                <span className="px-3 py-1 rounded-xl flex items-center gap-2 text-[9px] font-black uppercase tracking-widest border"
                                                     style={{ background: `${originInfo.color}15`, borderColor: `${originInfo.color}25`, color: originInfo.color }}>
-                                                    <OriginIcon size={10} /> {originInfo.label}
+                                                    <OriginIcon size={12} /> {originInfo.label}
                                                 </span>
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 opacity-30">
-                                            <Calendar size={12} />
+                                            <Clock size={12} />
                                             <span className="text-[9px] font-black uppercase tracking-widest">{new Date(e.createdAt).toLocaleDateString("pt-BR")}</span>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40">
-                                            <BookOpen size={12} />
-                                            <span>{discName(e.disciplineId)}</span>
-                                            {e.topicId > 0 && <><ArrowRight size={10} /><span>{topicName(e.topicId)}</span></>}
+                                    <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+                                            <span className="text-[var(--primary)]">{discName(e.disciplineId)}</span>
+                                            {e.topicId > 0 && <><ArrowRight size={10} className="opacity-20" /><span className="opacity-60">{topicName(e.topicId)}</span></>}
                                         </div>
-                                        <p className="text-sm font-bold leading-relaxed line-clamp-2" style={{ color: "var(--app-fg)" }}>{e.statement}</p>
+                                        <p className="text-base font-black leading-tight tracking-tight" style={{ color: "var(--app-fg)" }}>{e.statement}</p>
                                     </div>
 
                                     {e.userAnswer && e.correctAnswer && (
-                                        <div className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5 w-fit">
+                                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.01] border border-white/5 w-fit">
                                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500">
-                                                <XCircle size={12} /> Marcado: {e.userAnswer}
+                                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                Você: {e.userAnswer}
                                             </div>
                                             <div className="w-px h-3 bg-white/10" />
                                             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                                                <CheckCircle2 size={12} /> Gabarito: {e.correctAnswer}
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                Gabarito: {e.correctAnswer}
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <div className="grid grid-cols-2 xs:grid-cols-4 gap-2 w-full sm:w-auto">
-                                    <AIActionButton label="Analisar" doneLabel="Re-analisar" icon={Brain} color="#7c3aed"
-                                        loading={isLoading2(e.id,"analyze")} done={hasAnalysis} onClick={() => callAI(e.id,"analyze")} />
-                                    <AIActionButton label="Dica" doneLabel="Nova Dica" icon={Lightbulb} color="#f59e0b"
-                                        loading={isLoading2(e.id,"revisionTip")} done={hasTip} onClick={() => callAI(e.id,"revisionTip")} />
-                                    <AIActionButton label="Similar" doneLabel="Ver Mais" icon={Search} color="#3b82f6"
-                                        loading={isLoading2(e.id,"similarQuestions")} done={hasSimilar} onClick={() => callAI(e.id,"similarQuestions")} />
-                                    <AIActionButton label="Card" doneLabel="✓" icon={CreditCard} color="#10b981"
-                                        loading={isLoading2(e.id,"generateFlashcard")} done={hasFlashcard} onClick={() => !hasFlashcard && callAI(e.id,"generateFlashcard")} />
+                            <div className="mt-8 pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full sm:w-auto">
+                                    <AIActionButton label="Analisar" doneLabel="Re-analisar" icon={Brain} color="#8b5cf6"
+                                        loading={isActionLoading(e.id,"analyze")} done={hasAnalysis} onClick={() => callAI(e.id,"analyze")} />
+                                    <AIActionButton label="Estratégia" doneLabel="Ver Dica" icon={Lightbulb} color="#f59e0b"
+                                        loading={isActionLoading(e.id,"revisionTip")} done={hasTip} onClick={() => callAI(e.id,"revisionTip")} />
+                                    <AIActionButton label="Similares" doneLabel="Ver Mais" icon={Search} color="#3b82f6"
+                                        loading={isActionLoading(e.id,"similarQuestions")} done={hasSimilar} onClick={() => callAI(e.id,"similarQuestions")} />
+                                    <AIActionButton label="Criar Card" doneLabel="Card ✓" icon={CreditCard} color="#10b981"
+                                        loading={isActionLoading(e.id,"generateFlashcard")} done={hasFlashcard} onClick={() => !hasFlashcard && callAI(e.id,"generateFlashcard")} />
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
                                     <button onClick={() => setExpanded(isExpanded ? null : e.id)}
-                                        className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all">
-                                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                        className={`flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 h-12 rounded-2xl transition-all border ${isExpanded ? 'bg-[var(--primary)] text-white border-[var(--primary)]' : 'bg-white/5 hover:bg-white/10 border-white/5 font-black text-[10px] uppercase tracking-widest'}`}>
+                                        {isExpanded ? <ChevronUp size={18} /> : <div className="flex items-center gap-2 uppercase tracking-widest text-[9px] font-black">Detalhes <ChevronDown size={14} /></div>}
                                     </button>
                                     <button onClick={() => { if (deleting===e.id) { deleteError.mutate({ id:e.id }); } else { setDeleting(e.id); setTimeout(() => setDeleting(null), 3000); } }}
-                                        className={`p-3 rounded-xl transition-all border ${deleting===e.id ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white/5 hover:bg-rose-500/10 border-white/10 text-rose-500'}`}>
+                                        className={`w-12 h-12 rounded-2xl transition-all border flex items-center justify-center ${deleting===e.id ? 'bg-rose-500 border-rose-500 text-white animate-pulse' : 'bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/10 text-rose-500'}`}>
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
@@ -292,29 +315,31 @@ export default function QuestionErrors() {
                         <AnimatePresence>
                             {isExpanded && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                    <div className="px-6 pb-6 space-y-6 pt-4 border-t border-white/5 bg-white/[0.01]">
-                                        <div className="space-y-3">
-                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Enunciado Completo</p>
-                                            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--app-fg)" }}>{e.statement}</p>
+                                    <div className="px-8 pb-8 space-y-8 pt-6 border-t border-white/5 bg-black/20">
+                                        <div className="space-y-4">
+                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"><Info size={12} /> Contexto do Enunciado</p>
+                                            <div className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 shadow-inner">
+                                                <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap" style={{ color: "var(--app-fg)" }}>{e.statement}</p>
+                                            </div>
                                         </div>
 
                                         {e.alternatives?.length > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Alternativas</p>
-                                                <div className="grid grid-cols-1 gap-2">
+                                            <div className="space-y-4">
+                                                <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Análise das Alternativas</p>
+                                                <div className="grid grid-cols-1 gap-3">
                                                     {e.alternatives.map((a: any) => {
                                                         const isUser = a.letter === e.userAnswer;
                                                         const isCorrect = a.letter === e.correctAnswer;
                                                         return (
-                                                            <div key={a.letter} className={`p-4 rounded-2xl border flex gap-4 transition-all ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/20' : isUser ? 'bg-rose-500/10 border-rose-500/20' : 'bg-white/5 border-white/5 opacity-50'}`}>
-                                                                <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${isCorrect ? 'bg-emerald-500 text-white' : isUser ? 'bg-rose-500 text-white' : 'bg-white/10 text-white/40'}`}>
+                                                            <div key={a.letter} className={`p-5 rounded-[1.5rem] border flex gap-6 transition-all ${isCorrect ? 'bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5' : isUser ? 'bg-rose-500/5 border-rose-500/20' : 'bg-white/5 border-white/5 opacity-40'}`}>
+                                                                <div className={`shrink-0 w-10 h-10 rounded-[1rem] flex items-center justify-center font-black text-sm ${isCorrect ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : isUser ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-white/10 text-white/40'}`}>
                                                                     {a.letter}
                                                                 </div>
-                                                                <div className="flex-1 pt-1">
-                                                                    <p className="text-sm font-medium leading-relaxed" style={{ color: "var(--app-fg)" }}>{a.text}</p>
-                                                                    <div className="mt-2 flex items-center gap-2">
-                                                                        {isCorrect && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Gabarito Oficial</span>}
-                                                                        {isUser && !isCorrect && <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">Sua Resposta</span>}
+                                                                <div className="flex-1 pt-2">
+                                                                    <p className="text-sm font-semibold leading-relaxed" style={{ color: "var(--app-fg)" }}>{a.text}</p>
+                                                                    <div className="mt-3 flex items-center gap-3">
+                                                                        {isCorrect && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1.5"><CheckCircle2 size={12} /> Gabarito Correto</span>}
+                                                                        {isUser && !isCorrect && <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-1.5"><XCircle size={12} /> Sua Escolha</span>}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -324,13 +349,16 @@ export default function QuestionErrors() {
                                             </div>
                                         )}
 
-                                        <div className="space-y-4 pt-4 border-t border-white/5">
-                                            {hasAnalysis && <AIResultPanel title="Análise Cognitiva" color="#7c3aed" icon={Brain} content={(e as any).aiAnalysis} date={(e as any).aiAnalyzedAt} />}
-                                            {hasTip && <AIResultPanel title="Estratégia de Estudo" color="#f59e0b" icon={Lightbulb} content={(e as any).aiRevisionTip} date={(e as any).aiRevisionTipAt} />}
-                                            {hasSimilar && <AIResultPanel title="Treinamento de Reforço" color="#3b82f6" icon={Search} content={(e as any).aiSimilarQuestions} date={(e as any).aiSimilarQuestionsAt} />}
+                                        <div className="grid grid-cols-1 gap-6 pt-6 border-t border-white/5">
+                                            {hasAnalysis && <AIResultPanel title="Análise Cognitiva & Diagnóstico" color="#8b5cf6" icon={Brain} content={(e as any).aiAnalysis} date={(e as any).aiAnalyzedAt} />}
+                                            {hasTip && <AIResultPanel title="Estratégia de Correção & Revisão" color="#f59e0b" icon={Lightbulb} content={(e as any).aiRevisionTip} date={(e as any).aiRevisionTipAt} />}
+                                            {hasSimilar && <AIResultPanel title="Questões de Reforço Relacionadas" color="#3b82f6" icon={Search} content={(e as any).aiSimilarQuestions} date={(e as any).aiSimilarQuestionsAt} />}
                                             {hasFlashcard && (
-                                                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-500 font-black text-xs uppercase tracking-widest">
-                                                    <CreditCard size={18} /> Card criado no seu acervo mental
+                                                <div className="p-6 rounded-[2rem] bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-4 text-emerald-500 font-black text-xs uppercase tracking-widest">
+                                                    <div className="p-2 bg-emerald-500/20 rounded-xl">
+                                                        <CreditCard size={20} />
+                                                    </div>
+                                                    <span>Flashcard gerado com sucesso no seu banco de estudos</span>
                                                 </div>
                                             )}
                                         </div>

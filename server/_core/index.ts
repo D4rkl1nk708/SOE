@@ -11,6 +11,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import * as storage from "../jsonStorage";
+import tecProxy from "../tecProxy";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -140,6 +141,9 @@ async function startServer() {
       res.status(500).json({ error: String(e?.message ?? e) });
     }
   });
+  
+  // ── Proxy TEC para Mobile (Navegador Integrado) ───────────────────────────
+  app.use("/api/tec-browser", tecProxy);
 
   // ── Proxy DOU via API de pesquisa JSON ─────────────────────────────────────
   // O portal in.gov.br usa uma API REST interna. Este endpoint a chama
