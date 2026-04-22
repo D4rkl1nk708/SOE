@@ -24,11 +24,17 @@
         "dailyGoalMinutes": 240,
         "onboardingCompleted": true,
         "aiApiKey": "AIzaSyCqJZxoqkZW0eDb03XrTaSzhXyhrUQDNjQ",
-        "aiProvider": "gemini"
+        "aiProvider": "gemini",
+        "exams": [],
+        "editalCycle": [],
+        "editalRows": [],
+        "mentorObservations": [
+          "2026-04-22: Aluno iniciou o contato. Painel zerado, aguardando definição de foco inicial."
+        ]
       },
       "createdAt": "2026-04-22T02:48:42.000Z",
-      "updatedAt": "2026-04-22T02:48:42.000Z",
-      "lastSignedIn": "2026-04-22T02:48:42.000Z"
+      "updatedAt": "2026-04-22T02:55:06.002Z",
+      "lastSignedIn": "2026-04-22T02:55:06.002Z"
     }
   ],
   "disciplines": [],

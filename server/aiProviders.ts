@@ -6,10 +6,10 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
-  "gemini-1.5-flash",
   "gemini-3-flash-preview",
-  "gemini-1.5-pro",
+  "gemini-1.5-flash",
   "gemini-3-pro-preview",
+  "gemini-1.5-pro",
   "gemini-2.0-flash",
   "gemini-1.5-flash-001",
   "gemini-1.5-pro-001",
@@ -44,8 +44,8 @@ export async function callGeminiWithFallback(
   }
 
   let lastError = "";
-  // Tentamos primeiro a versão estável (v1) e depois a v1beta
-  for (const apiVersion of ["v1", "v1beta"]) {
+  // Priorizamos v1beta pois é mais compatível com modelos novos e experimentais
+  for (const apiVersion of ["v1beta", "v1"]) {
     for (const model of GEMINI_MODELS) {
       try {
         const res = await fetch(
@@ -66,16 +66,17 @@ export async function callGeminiWithFallback(
           const msg = data.error.message ?? "Erro Gemini";
           const status = data.error.status || "";
           
-          if (res.status === 429 || status.includes("RESOURCE_EXHAUSTED") || msg.toLowerCase().includes("quota")) {
+          // Se o limite for EXATAMENTE 0, o Google costuma retornar 429 ou 403.
+          // Isso significa que o modelo não está disponível para este plano/região, 
+          // então devemos continuar tentando outros modelos na mesma chave.
+          const isLimitZero = msg.toLowerCase().includes("limit: 0") || msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("not supported");
+          
+          if (res.status === 429 && !isLimitZero) {
+            // Erro de cota real (excesso de uso), pula para a próxima chave
             throw new Error(`QUOTA_EXCEEDED: ${msg}`);
           }
 
-          const isUnavailable =
-            msg.toLowerCase().includes("not found") ||
-            msg.toLowerCase().includes("not supported") ||
-            res.status === 404;
-            
-          if (isUnavailable) {
+          if (isLimitZero || res.status === 404 || res.status === 403) {
             lastError = `[${model} @ ${apiVersion}] ${msg}`;
             continue;
           }
@@ -85,9 +86,7 @@ export async function callGeminiWithFallback(
         
         return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       } catch (e: any) {
-        if (e.message.includes("QUOTA_EXCEEDED") || e.message.toLowerCase().includes("quota") || e.message.toLowerCase().includes("exceeded")) {
-          throw e; 
-        }
+        if (e.message.includes("QUOTA_EXCEEDED")) throw e;
         lastError = e.message;
         continue;
       }
