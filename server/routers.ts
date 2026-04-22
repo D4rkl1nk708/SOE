@@ -504,7 +504,10 @@ export const appRouter = router({
             id: r.id,
             date: r.scheduledDate,
             topicName: topic?.name || "Assunto Removido",
+            disciplineName: discipline?.name || "Desconhecida",
             disciplineColor: discipline?.color || "#3b82f6",
+            topicId: topic?.id || 0,
+            disciplineId: discipline?.id || 0,
             type: r.type,
             completed: r.completed,
             link: r.link

@@ -37,8 +37,8 @@ export default function Calendar() {
   const schedule = useScheduleSettings(() => trpc.useUtils().dashboard.getStats.invalidate());
   const saveLinkMut = trpc.calendar.saveLink.useMutation({ onSuccess: () => toast.success("Link salvo!") });
 
-  const saveLink = (activityId: number, url: string) => {
-    saveLinkMut.mutate({ activityId, url });
+  const saveLink = (revisionId: number, link: string) => {
+    saveLinkMut.mutate({ revisionId, link });
   };
 
   const monthStart = startOfMonth(currentMonth);
@@ -49,8 +49,8 @@ export default function Calendar() {
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const { data: activities = [] } = trpc.calendar.getActivities.useQuery({
-    start: calendarStart.toISOString(),
-    end: calendarEnd.toISOString(),
+    startDate: calendarStart.toISOString().split('T')[0],
+    endDate: calendarEnd.toISOString().split('T')[0],
   });
 
   const getDayActivities = (day: Date) => activities.filter((a) => isSameDay(parseISO(a.date), day));

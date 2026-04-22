@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "dotenv/config"; // Restart trigger: 2026-04-22T15:55
 import os from "os";
 import path from "path";
 import fs from "fs";
@@ -655,7 +655,7 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
 
       let raw = "";
       if (finalProvider === "gemini") {
-        const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+        const GEMINI_MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
         for (const model of GEMINI_MODELS) {
           try {
             const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -766,7 +766,7 @@ Questão em análise:
 ${questionText}`;
 
       // Fallback entre modelos Gemini para contornar cotas esgotadas ou modelos indisponíveis
-      const GEMINI_MODELS_FALLBACK = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro"];
+      const GEMINI_MODELS_FALLBACK = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
       const callGeminiWithFallback = async (apiKey: string, prompt: string, maxOutputTokens = 2000): Promise<string> => {
         let lastError = "";
         for (const model of GEMINI_MODELS_FALLBACK) {

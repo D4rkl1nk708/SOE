@@ -6,13 +6,11 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
+  "gemini-3.1-flash-lite-preview",
   "gemini-3-flash-preview",
-  "gemini-1.5-flash",
-  "gemini-3-pro-preview",
-  "gemini-1.5-pro",
+  "gemini-2.5-flash",
   "gemini-2.0-flash",
-  "gemini-1.5-flash-001",
-  "gemini-1.5-pro-001",
+  "gemini-1.5-flash"
 ];
 
 interface GeminiErrorResponse {
@@ -45,11 +43,12 @@ export async function callGeminiWithFallback(
 
   let lastError = "";
   // Priorizamos v1beta pois é mais compatível com modelos novos e experimentais
-  for (const apiVersion of ["v1beta", "v1"]) {
+  // Usamos v1beta para máxima compatibilidade com modelos 1.5 e 2.0
+  for (const apiVersion of ["v1beta"]) {
     for (const model of GEMINI_MODELS) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

@@ -1,0 +1,11 @@
+
+> estudo_25_50_dias@4.4.8 dev
+> NODE_ENV=development tsx watch server/_core/index.ts
+
+Server running on http://0.0.0.0:3000/
+[AI Rotation] Falha com a chave AIzaSy... : Nenhum modelo Gemini disponível para esta chave. Último erro: [gemini-1.5-pro @ v1beta] models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+12:55:41 PM [tsx] change in ./server/aiProviders.ts Restarting...
+cServer running on http://0.0.0.0:3000/
+12:55:48 PM [vite] (client) page reload src/lib/aiHelpers.ts
+12:55:56 PM [tsx] change in ./server/_core/index.ts Restarting...
+cServer running on http://0.0.0.0:3000/
