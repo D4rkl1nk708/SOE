@@ -247,8 +247,30 @@ export default function MentorTab() {
                                     <p className="text-[9px] opacity-40 truncate">{r.disciplineName}</p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <TrendingDown size={14} className="text-rose-500" />
-                                    <span className="text-xs font-black text-rose-500">-{r.delta}pp</span>
+                                    <button 
+                                        onClick={() => {
+                                            if (!apiKey) { toast.error("Configure sua chave no perfil."); return; }
+                                            const topicName = r.topicName;
+                                            setMessages(prev => [...prev, { role: "user", content: `Gere um mnemônico para o tópico: ${topicName}` }]);
+                                            chatMut.mutate({ 
+                                                message: `Gere um mnemônico bizarro e inesquecível para o tópico "${topicName}" da disciplina "${r.disciplineName}". Foque no motivo da minha queda de desempenho.`, 
+                                                history: [], 
+                                                apiKey, 
+                                                provider 
+                                            });
+                                            setShowRegressions(false);
+                                        }}
+                                        className="p-2 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all"
+                                        title="Gerar Mnemônico"
+                                    >
+                                        <Wand2 size={12} />
+                                    </button>
+                                    <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-1.5">
+                                            <TrendingDown size={14} className="text-rose-500" />
+                                            <span className="text-xs font-black text-rose-500">-{r.delta}pp</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}

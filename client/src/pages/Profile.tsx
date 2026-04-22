@@ -21,6 +21,59 @@ const isElectronApp = typeof window !== "undefined" && !!(window as any).electro
 const isElectron = typeof window !== "undefined" && !!(window as any).electron?.dou;
 const isAndroid  = typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform?.();
 
+function AIHealthCheck({ apiKey, provider }: { apiKey: string, provider: string }) {
+  const testMut = trpc.mentor.testKey.useMutation();
+  const [report, setReport] = useState<any>(null);
+
+  const runTest = () => {
+    if (!apiKey) { toast.error("Insira uma chave primeiro."); return; }
+    toast.info("Iniciando varredura de modelos...");
+    testMut.mutate({ apiKey, provider }, {
+      onSuccess: (data) => setReport(data),
+      onError: (err) => toast.error("Falha crítica: " + err.message)
+    });
+  };
+
+  return (
+    <div className="flex-1 space-y-2">
+      <button onClick={runTest} disabled={testMut.isPending}
+              className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-white/10 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+        {testMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+        {testMut.isPending ? "Testando..." : "Testar Saúde da IA"}
+      </button>
+      
+      <AnimatePresence>
+        {report && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                      className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-2">
+            {report.details.map((d: any, i: number) => (
+              <div key={i} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono opacity-40">{d.keyPrefix}</span>
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${d.status === 'ok' ? 'text-[var(--accent-green)]' : 'text-rose-500'}`}>
+                    {d.status === 'ok' ? 'Ativa' : 'Falhou'}
+                  </span>
+                </div>
+                {d.models.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {d.models.map((m: string) => (
+                      <span key={m} className="px-1.5 py-0.5 rounded-md bg-[var(--primary)]/10 text-[var(--primary)] text-[8px] font-bold">
+                        {m.replace("gemini-", "")}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[8px] text-rose-500/60 leading-tight">{d.error?.slice(0, 50)}...</p>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const { theme, toggleTheme, colorTheme, setColorTheme } = useTheme();
   const [minimizeToTray, setMinimizeToTray] = useState<boolean>(true);
@@ -126,11 +179,12 @@ function SettingsTab() {
                         <option value="claude">Anthropic (Claude)</option>
                     </select>
                 </div>
-                <div className="flex items-end">
+                <div className="flex flex-col sm:flex-row gap-3">
                     <button onClick={handleSaveAI} disabled={updateSettings.isPending}
-                            className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95">
+                            className="flex-1 py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95">
                         {updateSettings.isPending ? "Salvando..." : "Confirmar Motor"}
                     </button>
+                    <AIHealthCheck apiKey={apiKey} provider={provider} />
                 </div>
             </div>
 

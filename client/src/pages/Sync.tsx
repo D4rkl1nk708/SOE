@@ -9,6 +9,7 @@ import {
   Zap, Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 const isAndroid = Capacitor.isNativePlatform();
 const isDesktop = !isAndroid;
@@ -209,6 +210,15 @@ export default function Sync() {
     });
   }, []);
 
+  const [delta, setDelta] = useState<{ local: any, remote: any } | null>(null);
+
+  const confirmImport = async (json: string) => {
+    const { localImportImportBackup } = await import("@/lib/localDb");
+    await localImportImportBackup({ json });
+    toast.success("Dados sincronizados!");
+    setTimeout(() => window.location.reload(), 800);
+  };
+
   const handlePull = useCallback(async () => {
     setPulling(true);
     try {
@@ -217,11 +227,25 @@ export default function Sync() {
       toast.info("Conectando ao PC...");
       const res = await nativeFetch(url, { method: "GET", headers: { "Accept": "application/json" }, timeoutMs: 15000 });
       if (res.status < 200 || res.status >= 300) throw new Error("Erro de conexão");
+      
       const json = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
-      const { localImportImportBackup } = await import("@/lib/localDb");
-      await localImportImportBackup({ json });
-      toast.success("Dados sincronizados!");
-      setTimeout(() => window.location.reload(), 800);
+      const remoteData = JSON.parse(json);
+      
+      // Delta Logic
+      const { localCalendarGetActivities } = await import("@/lib/localDb");
+      const localData = await localCalendarGetActivities({ startDate: "2000-01-01", endDate: "2099-12-31" });
+      
+      const remoteCount = (remoteData.revisions?.length || 0) + (remoteData.topics?.length || 0);
+      const localCount = (localData.revisions?.length || 0) + (localData.topics?.length || 0);
+
+      if (localCount > 0 && Math.abs(remoteCount - localCount) > 5) {
+        setDelta({ 
+          local: { revisions: localData.revisions?.length || 0, topics: localData.topics?.length || 0 },
+          remote: { revisions: remoteData.revisions?.length || 0, topics: remoteData.topics?.length || 0, json }
+        });
+      } else {
+        await confirmImport(json);
+      }
     } catch (e: any) {
       toast.error(e.message || "Erro na sincronização");
     } finally { setPulling(false); }
@@ -606,6 +630,54 @@ export default function Sync() {
           )}
         </div>
       </div>
+
+      {/* Delta Comparison Modal */}
+      <AnimatePresence>
+        {delta && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                        className="soe-card max-w-lg w-full p-8 space-y-8 shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)]">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30">
+                  <ShieldCheck className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>Conflito de Dados</h2>
+                  <p className="text-xs opacity-50">Detectamos volumes diferentes de estudo.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-2">Seu Dispositivo</p>
+                  <p className="text-lg font-black" style={{ color: "var(--app-fg)" }}>{delta.local.revisions} Revisões</p>
+                  <p className="text-[10px] opacity-40">{delta.local.topics} Tópicos</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-[var(--primary)]/10 border border-[var(--primary)]/20">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] mb-2">Backup Remoto</p>
+                  <p className="text-lg font-black text-[var(--primary)]">{delta.remote.revisions} Revisões</p>
+                  <p className="text-[10px] text-[var(--primary)] opacity-60">{delta.remote.topics} Tópicos</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button onClick={() => confirmImport(delta.remote.json)}
+                        className="w-full py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+                  Substituir pelos dados do PC
+                </button>
+                <button onClick={() => setDelta(null)}
+                        className="w-full py-4 rounded-2xl bg-white/5 text-white/40 font-black text-xs uppercase tracking-widest hover:text-white transition-all">
+                  Cancelar Importação
+                </button>
+              </div>
+
+              <p className="text-[9px] text-center opacity-30 leading-relaxed uppercase tracking-tighter">
+                Atenção: Ao confirmar, os dados locais deste celular serão APAGADOS<br />e substituídos integralmente pelo conteúdo do backup.
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

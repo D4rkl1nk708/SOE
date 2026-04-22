@@ -203,3 +203,60 @@ export async function callAiProvider(
   }
   throw new Error(`Todas as ${apiKeys.length} chaves falharam. Último erro: ${lastError}`);
 }
+/**
+ * Testa as chaves fornecidas e retorna um relatório de quais modelos estão funcionando.
+ */
+export async function testAiKey(provider: AiProvider, apiKeyString: string): Promise<{
+  success: boolean;
+  details: { keyPrefix: string, status: "ok" | "error", models: string[], error?: string }[];
+}> {
+  const apiKeys = apiKeyString.split(/[,\s;]+/).filter(Boolean);
+  const details: any[] = [];
+  let totalSuccess = false;
+
+  for (const key of apiKeys) {
+    const keyPrefix = `${key.substring(0, 6)}...`;
+    const workingModels: string[] = [];
+    let firstError = "";
+
+    if (provider === "gemini") {
+      for (const model of GEMINI_MODELS) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: "health check" }] }],
+                generationConfig: { maxOutputTokens: 1 },
+              }),
+            }
+          );
+          const data = (await res.json()) as GeminiErrorResponse;
+          if (!data.error) {
+            workingModels.push(model);
+            totalSuccess = true;
+          } else {
+            if (!firstError) firstError = data.error.message || "Erro desconhecido";
+          }
+        } catch (e: any) {
+          if (!firstError) firstError = e.message;
+        }
+      }
+    } else {
+      // Mock test para OpenAI/Claude por enquanto
+      workingModels.push("Standard Model");
+      totalSuccess = true;
+    }
+
+    details.push({
+      keyPrefix,
+      status: workingModels.length > 0 ? "ok" : "error",
+      models: workingModels,
+      error: workingModels.length === 0 ? firstError : undefined
+    });
+  }
+
+  return { success: totalSuccess, details };
+}

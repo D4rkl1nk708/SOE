@@ -1305,4 +1305,17 @@ Retorne um JSON:
       await storage.addConceptConfusion(ctx.user.id, input);
       return { success: true };
     }),
+  
+  /**
+   * Testa a validade das chaves de API configuradas.
+   */
+  testKey: protectedProcedure
+    .input(z.object({
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .mutation(async ({ input }) => {
+      const { testAiKey } = await import("./aiProviders");
+      return await testAiKey(input.provider, input.apiKey);
+    }),
 });
