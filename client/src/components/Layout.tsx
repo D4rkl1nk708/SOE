@@ -19,7 +19,7 @@ const NAV_GROUPS = [
     label: "Principal",
     items: [
       { path: "/",                 label: "Início",       icon: LayoutDashboard },
-      { path: "/question-session", label: "Questões",     icon: ListChecks },
+      { path: "/question-session", label: "Treinos",     icon: ListChecks },
       { path: "/mentor",           label: "IA",    icon: Sparkles },
     ],
   },
@@ -45,7 +45,7 @@ const NAV_GROUPS = [
 // Flat list for mobile bottom bar — only the most-used 4 items + "More"
 const MOBILE_PRIMARY = [
   { path: "/",                 label: "Início",    icon: LayoutDashboard },
-  { path: "/question-session", label: "Questões",  icon: ListChecks },
+  { path: "/question-session", label: "Treinos",  icon: ListChecks },
   { path: "/mentor",           label: "Mentor IA", icon: Sparkles },
   { path: "/calendar",         label: "Calendário",icon: CalendarDays },
 ];

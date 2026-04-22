@@ -1297,3 +1297,36 @@ Server running on http://0.0.0.0:3001/
 Server running on http://0.0.0.0:3001/
 5:02:48 PM [tsx] change in ./package.json Restarting...
 cServer running on http://0.0.0.0:3000/
+5:10:07 PM [tsx] change in ./server/routers.ts Restarting...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 1 error:
+/home/anon/Desktop/SOE/server/routers.ts:941:27: ERROR: Expected ";" but found "Falha"
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/tsx/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+5:10:33 PM [tsx] change in ./server/routers.ts Rerunning...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+5:11:46 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:15:17 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:19:13 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:22:10 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:22:45 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:23:15 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:30:00 PM [vite] (client) hmr update /src/pages/QuestionSession.tsx, /src/index.css
+5:31:42 PM [vite] (client) hmr update /src/components/Layout.tsx, /src/index.css
+5:33:56 PM [tsx] change in ./package.json Restarting...
+cPort 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/

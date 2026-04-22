@@ -6,7 +6,7 @@ import {
   ChevronLeft, CheckCircle2, XCircle, SkipForward, Globe,
   BookOpen, Save, BarChart2, AlertTriangle, Brain, BookMarked, Crosshair,
   RotateCcw, Play, CircleDot, Flag, Clock, ClipboardPaste, Trash2, ListChecks, ClipboardX,
-  PenLine, Timer, Search, Zap, ExternalLink, FileText, Camera, Image as ImageIcon, Send, Eye, Wand2, Plus, ArrowRight,
+  PenLine, Timer, Search, Zap, ExternalLink, FileText, Camera, Image as ImageIcon, Send, Eye, Wand2, Plus, ArrowRight, X, CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QuestionErrors from "./QuestionErrors";
@@ -279,7 +279,7 @@ export default function QuestionSession() {
   const TabNav = () => (
     <div className="flex gap-1 p-1.5 rounded-2xl bg-white/5 border border-white/10 w-full overflow-x-auto no-scrollbar">
       {[
-        { id: "session", label: "Questões", icon: ListChecks },
+        { id: "session", label: "Treinos", icon: ListChecks },
         { id: "browser", label: "Browser", icon: Globe },
         { id: "errors", label: "Erros", icon: ClipboardX },
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
@@ -1003,143 +1003,226 @@ function EssaysTab() {
     );
   }
 
+  const renderFeedback = (text: string) =>
+    text.split(/\n+/).filter(l => l.trim()).map((line, i) => {
+      const clean = line.replace(/^#{1,4}\s/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/^[-*] /, '');
+      if (line.startsWith('### ')) return <h3 key={i} className="text-base font-black text-[var(--primary)] mt-5 mb-1" dangerouslySetInnerHTML={{ __html: clean }} />;
+      if (line.startsWith('#### ')) return <h4 key={i} className="text-xs font-black uppercase opacity-50 mt-3 mb-1" dangerouslySetInnerHTML={{ __html: clean }} />;
+      if (line.match(/^[-*] /)) return <div key={i} className="flex gap-2 text-sm"><span className="text-[var(--primary)] shrink-0">▸</span><span dangerouslySetInnerHTML={{ __html: clean }} /></div>;
+      if (line.startsWith('> ')) return <blockquote key={i} className="border-l-2 border-[var(--primary)] pl-3 text-xs opacity-60 italic" dangerouslySetInnerHTML={{ __html: line.replace(/^> /, '') }} />;
+      return <p key={i} className="text-sm leading-relaxed opacity-80" dangerouslySetInnerHTML={{ __html: clean }} />;
+    });
+
+  const scoreColor = (s: number) => s >= 8 ? 'from-green-500 to-emerald-600' : s >= 6 ? 'from-yellow-500 to-orange-500' : 'from-red-500 to-rose-600';
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black uppercase tracking-tighter">Minhas Redações</h2>
-          <p className="text-xs opacity-50 font-bold">Corrija suas produções com inteligência artificial de banca.</p>
-        </div>
-        <button onClick={() => setIsCreating(true)} className="px-6 py-3 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
-          <Plus size={16} /> Nova Redação
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-3">
-          {essays.isLoading ? (
-             <div className="animate-pulse space-y-3">
-               {[1,2,3].map(i => <div key={i} className="h-20 bg-white/5 rounded-2xl" />)}
-             </div>
-          ) : essays.data?.length === 0 ? (
-            <div className="soe-card p-10 text-center space-y-3 opacity-30">
-              <FileText className="w-12 h-12 mx-auto" />
-              <p className="text-sm font-bold">Nenhuma redação ainda.</p>
-            </div>
-          ) : (
-            essays.data?.map(essay => (
-              <div key={essay.id} onClick={() => setSelectedEssay(essay)}
-                className={`soe-card p-4 cursor-pointer transition-all border-2 ${selectedEssay?.id === essay.id ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent hover:border-white/10'}`}>
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-1 overflow-hidden">
-                    <p className="text-[10px] font-black uppercase opacity-40">{essay.banca} • {new Date(essay.createdAt).toLocaleDateString()}</p>
-                    <h4 className="font-bold text-sm truncate">{essay.title}</h4>
-                    {essay.correction && (
-                      <div className="flex items-center gap-2">
-                        <div className="px-2 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] text-[10px] font-black">
-                          NOTA: {essay.correction.score}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(essay.id); }} className="p-2 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+    <>
+      {/* ── MODAL ─────────────────────────────── */}
+      {selectedEssay && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) setSelectedEssay(null); }}>
+          <div className="w-full max-w-4xl my-8 rounded-3xl bg-[#0f0f13] border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal header */}
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-white/5">
+              <div className="space-y-2 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-black uppercase">{selectedEssay.banca}</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${selectedEssay.status === 'corrected' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                    {selectedEssay.status === 'corrected' ? '✓ Corrigida' : selectedEssay.status === 'pending' ? '⏳ Processando' : '✏️ Rascunho'}
+                  </span>
+                  <span className="text-xs opacity-30">{new Date(selectedEssay.createdAt).toLocaleDateString('pt-BR')}</span>
                 </div>
+                <h2 className="text-xl font-black leading-tight">{selectedEssay.title}</h2>
               </div>
-            ))
-          )}
-        </div>
-
-        <div className="lg:col-span-8">
-          {!selectedEssay ? (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center soe-card p-10 opacity-20 border-dashed">
-               <Eye className="w-16 h-16 mb-4" />
-               <p className="font-bold">Selecione uma redação para ver a correção</p>
-            </div>
-          ) : (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-              <div className="soe-card p-8 space-y-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase">{selectedEssay.banca}</span>
-                      <span className="text-[10px] font-black uppercase opacity-40">{new Date(selectedEssay.createdAt).toLocaleString()}</span>
-                    </div>
-                    <h2 className="text-3xl font-black tracking-tighter leading-tight">{selectedEssay.title}</h2>
+              <div className="flex items-center gap-3 shrink-0">
+                {selectedEssay.correction && (
+                  <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${scoreColor(selectedEssay.correction.score)} flex flex-col items-center justify-center shadow-lg`}>
+                    <span className="text-3xl font-black leading-none">{selectedEssay.correction.score}</span>
+                    <span className="text-xs opacity-70 font-bold">/10</span>
                   </div>
-                  {selectedEssay.correction && (
-                    <div className="text-center p-4 rounded-3xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-shadow)] text-[var(--primary-foreground)] shadow-2xl">
-                      <p className="text-[10px] font-black uppercase opacity-60">Nota Final</p>
-                      <p className="text-5xl font-black">{selectedEssay.correction.score}</p>
+                )}
+                <button onClick={() => setSelectedEssay(null)} className="p-2 rounded-xl hover:bg-white/10 transition-colors"><X size={22} /></button>
+              </div>
+            </div>
+
+            {/* Modal body */}
+            <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+              {/* Loading state */}
+              {(selectedEssay.status === 'pending' || isAnalyzing) && (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <RotateCcw className="w-10 h-10 animate-spin text-[var(--primary)]" />
+                  <p className="font-bold text-sm animate-pulse">A IA está analisando sua redação...</p>
+                </div>
+              )}
+
+              {/* Request correction CTA */}
+              {!selectedEssay.correction && selectedEssay.status === 'draft' && !isAnalyzing && (
+                <button onClick={() => handleAnalyze(selectedEssay.id)}
+                  className="w-full py-8 rounded-2xl border-2 border-dashed border-[var(--primary)]/40 hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all flex flex-col items-center gap-3">
+                  <Wand2 className="w-10 h-10 text-[var(--primary)] opacity-60" />
+                  <span className="font-black text-sm uppercase tracking-widest">Solicitar Correção pela IA</span>
+                  <span className="text-xs opacity-40">Certifique-se de que há texto transcrito abaixo</span>
+                </button>
+              )}
+
+              {/* Grade breakdown */}
+              {selectedEssay.correction?.gradeBreakdown && (
+                <div className="space-y-4">
+                  <p className="text-sm font-black uppercase tracking-widest opacity-50">📊 Notas por Critério</p>
+                  {(() => {
+                    const entries = Object.entries(selectedEssay.correction.gradeBreakdown);
+                    const total = entries.reduce((s, [, v]) => s + Number(v), 0);
+                    const max = total <= 12 ? 2 : 10;
+                    return entries.map(([key, val]: [any, any]) => {
+                      const pct = Math.min(100, Math.round((Number(val) / max) * 100));
+                      const barColor = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-400' : 'bg-red-500';
+                      const just = (selectedEssay.correction as any).gradeJustification?.[key];
+                      return (
+                        <div key={key} className="space-y-1.5">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-base font-semibold">{key}</span>
+                            <span className="text-base font-black tabular-nums">{val}<span className="text-sm opacity-30">/{max}</span></span>
+                          </div>
+                          <div className="h-3 w-full rounded-full bg-white/10"><div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} /></div>
+                          {just && <p className="text-sm opacity-50 leading-relaxed">{just}</p>}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+
+              {/* Strengths + Plan */}
+              {selectedEssay.correction && ((selectedEssay.correction as any).strengths?.length > 0 || (selectedEssay.correction as any).improvementPlan?.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {(selectedEssay.correction as any).strengths?.length > 0 && (
+                    <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5 space-y-3">
+                      <p className="text-sm font-black uppercase text-green-400 tracking-widest">✅ Pontos Positivos</p>
+                      {(selectedEssay.correction as any).strengths.map((s: string, i: number) => (
+                        <div key={i} className="flex gap-3 text-sm leading-relaxed"><span className="text-green-400 shrink-0 mt-0.5 text-base">▸</span><span className="opacity-80">{s}</span></div>
+                      ))}
+                    </div>
+                  )}
+                  {(selectedEssay.correction as any).improvementPlan?.length > 0 && (
+                    <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 space-y-3">
+                      <p className="text-sm font-black uppercase text-blue-400 tracking-widest">🎯 Plano de Melhoria</p>
+                      {(selectedEssay.correction as any).improvementPlan.map((s: string, i: number) => (
+                        <div key={i} className="flex gap-3 text-sm leading-relaxed">
+                          <span className="shrink-0 w-5 h-5 rounded-full bg-blue-500/30 text-blue-400 flex items-center justify-center text-xs font-black mt-0.5">{i+1}</span>
+                          <span className="opacity-80">{s}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-[var(--primary)]">Texto Transcrito</h4>
-                    <div className="p-6 rounded-2xl bg-white/5 text-sm leading-relaxed whitespace-pre-wrap font-serif opacity-80 border border-white/5 max-h-[500px] overflow-y-auto">
-                      {selectedEssay.transcription}
+              {/* Errors */}
+              {selectedEssay.correction?.errors?.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-black uppercase tracking-widest text-red-400">⚠️ Erros ({selectedEssay.correction.errors.length})</p>
+                  {selectedEssay.correction.errors.map((err: any, i: number) => (
+                    <div key={i} className="rounded-xl bg-red-500/5 border border-red-500/15 p-4 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-400 font-black uppercase">{err.type}</span>
+                        {err.line && <span className="text-xs opacity-30">Linha {err.line}</span>}
+                      </div>
+                      <p className="text-sm leading-relaxed opacity-80">{err.description}</p>
+                      {err.suggestion && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs opacity-40 shrink-0 font-bold">✏️ Correção:</span>
+                          <span className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-lg font-bold">{err.suggestion}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-[var(--primary)]">Análise do Examinador (IA)</h4>
-                    {selectedEssay.status === "pending" || isAnalyzing ? (
-                      <div className="p-10 flex flex-col items-center justify-center gap-4 soe-card bg-white/5">
-                        <RotateCcw className="w-8 h-8 animate-spin text-[var(--primary)]" />
-                        <p className="text-xs font-bold animate-pulse">A IA está analisando sua redação...</p>
-                      </div>
-                    ) : selectedEssay.correction ? (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-2">
-                          {Object.entries(selectedEssay.correction.gradeBreakdown || {}).map(([key, val]: [any, any]) => (
-                            <div key={key} className="p-3 rounded-xl bg-white/5 border border-white/10">
-                              <p className="text-[8px] font-black uppercase opacity-40">{key}</p>
-                              <p className="text-sm font-black">{val}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-black prose-headings:tracking-tighter">
-                          <div dangerouslySetInnerHTML={{ __html: (selectedEssay.correction.feedback || "").replace(/\n/g, '<br/>') }} />
-                        </div>
-                        
-                        {selectedEssay.correction.errors?.length > 0 && (
-                          <div className="space-y-3">
-                            <h5 className="text-[10px] font-black uppercase opacity-40">Erros Identificados</h5>
-                            {selectedEssay.correction.errors.map((err: any, i: number) => (
-                              <div key={i} className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-black uppercase text-red-500">{err.type}</span>
-                                  {err.line && <span className="text-[10px] font-bold opacity-30">Linha {err.line}</span>}
-                                </div>
-                                <p className="text-xs font-bold">{err.description}</p>
-                                {err.suggestion && (
-                                  <div className="flex items-center gap-2 mt-2 text-[10px] font-black">
-                                    <span className="opacity-40 uppercase">Sugestão:</span>
-                                    <span className="text-green-500 bg-green-500/10 px-2 py-0.5 rounded">{err.suggestion}</span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <button onClick={() => handleAnalyze(selectedEssay.id)}
-                        className="w-full py-6 border-2 border-dashed border-white/10 rounded-3xl hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all flex flex-col items-center gap-3">
-                        <Wand2 className="w-8 h-8 opacity-20" />
-                        <span className="text-xs font-bold opacity-40 uppercase tracking-widest">Solicitar Correção IA</span>
-                      </button>
-                    )}
-                  </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Feedback */}
+              {selectedEssay.correction?.feedback && (
+                <div className="space-y-4 pt-3 border-t border-white/5">
+                  <p className="text-sm font-black uppercase tracking-widest opacity-50">📝 Parecer do Examinador</p>
+                  <div className="space-y-3">{renderFeedback(selectedEssay.correction.feedback)}</div>
+                </div>
+              )}
+
+              {/* Transcription */}
+              <div className="space-y-2 pt-3 border-t border-white/5">
+                <p className="text-sm font-black uppercase tracking-widest opacity-30">📄 Texto Transcrito</p>
+                <div className="rounded-xl bg-white/5 p-5 text-sm font-serif leading-relaxed opacity-60 whitespace-pre-wrap max-h-72 overflow-y-auto">
+                  {selectedEssay.transcription || <em className="opacity-40">Sem transcrição.</em>}
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Modal footer */}
+            <div className="p-5 border-t border-white/5 flex items-center justify-between gap-3">
+              <button onClick={() => handleDelete(selectedEssay.id)}
+                className="flex items-center gap-2 text-sm text-red-400 hover:bg-red-500/10 px-4 py-2.5 rounded-xl transition-colors font-bold">
+                <Trash2 size={16} /> Excluir
+              </button>
+              {!selectedEssay.correction && selectedEssay.status === 'draft' && !isAnalyzing && (
+                <button onClick={() => handleAnalyze(selectedEssay.id)}
+                  className="flex items-center gap-2 text-sm bg-[var(--primary)] text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest hover:opacity-90 transition-all">
+                  <Wand2 size={16} /> Corrigir com IA
+                </button>
+              )}
+              <button onClick={() => setSelectedEssay(null)} className="text-sm opacity-50 hover:opacity-100 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors">Fechar</button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* ── PAGE ─────────────────────────────── */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tighter">Minhas Redações</h2>
+            <p className="text-xs opacity-40 font-bold mt-0.5">Corrija suas produções com IA especialista em bancas.</p>
+          </div>
+          <button onClick={() => setIsCreating(true)} className="px-5 py-3 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+            <Plus size={15} /> Nova Redação
+          </button>
+        </div>
+
+        {essays.isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1,2,3].map(i => <div key={i} className="h-44 rounded-2xl bg-white/5 animate-pulse" />)}
+          </div>
+        ) : essays.data?.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4 opacity-20">
+            <FileText className="w-16 h-16" />
+            <p className="font-bold text-sm">Nenhuma redação ainda. Clique em "Nova Redação" para começar.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {essays.data?.map(essay => (
+              <div key={essay.id} onClick={() => setSelectedEssay(essay)}
+                className="group soe-card p-5 cursor-pointer hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/5 transition-all border border-transparent rounded-2xl space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/20 text-[var(--primary)] text-[9px] font-black uppercase">{essay.banca}</span>
+                    {essay.status === 'corrected' && <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[9px] font-black">✓ Corrigida</span>}
+                    {essay.status === 'draft' && <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/40 text-[9px] font-black">Rascunho</span>}
+                    {essay.status === 'pending' && <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-[9px] font-black">⏳ Processando</span>}
+                  </div>
+                  {essay.correction && (
+                    <div className={`shrink-0 w-10 h-10 rounded-full bg-gradient-to-br ${scoreColor(essay.correction.score)} flex items-center justify-center shadow-md`}>
+                      <span className="text-xs font-black">{essay.correction.score}</span>
+                    </div>
+                  )}
+                </div>
+                <h3 className="font-bold text-sm leading-snug line-clamp-2 group-hover:text-white transition-colors">{essay.title}</h3>
+                <div className="flex items-center justify-between text-[10px] opacity-30">
+                  <span>{new Date(essay.createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span className="flex items-center gap-1">Ver correção <ArrowRight size={10} /></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
+

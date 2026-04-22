@@ -869,40 +869,66 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
           throw new Error("A redação precisa ter uma transcrição (mínimo 10 caracteres) para ser analisada pela IA.");
         }
 
-        const prompt = `Você é um examinador experiente de redações para concursos públicos brasileiros, especialista na banca ${essay.banca}.
-Sua missão é corrigir a redação do aluno de forma cirúrgica, pedagógica e rigorosa, agindo como o motor de correção do site Glau.
+        const prompt = `Você é um examinador sênior de redações para concursos públicos brasileiros com 20 anos de experiência, especialista na banca ${essay.banca}.
+Sua avaliação deve ser tão detalhada, pedagógica e técnica quanto a de um professor particular de cursinho de elite.
 
-TEMA DA REDAÇÃO: ${essay.title}
-TEXTO DA REDAÇÃO:
+TEMA: ${essay.title}
+BANCA: ${essay.banca}
+TEXTO DO ALUNO:
 ---
 ${essay.transcription}
 ---
 
-INSTRUÇÕES DE CORREÇÃO:
-1. Analise o texto seguindo fielmente os critérios da banca ${essay.banca} (ex: CESPE foca em macro e microestrutura, FCC foca em argumentação, etc).
-2. Atribua uma nota de 0 a 10 para cada critério relevante e uma nota final.
-3. Se a banca for CESPE/Cebraspe, aplique a "diluição de erros" (Nota = NC - (K * NE / TotalLinhas)). Estime o número de linhas baseando-se no volume de texto (aprox. 10 palavras por linha).
-4. Identifique erros de gramática, concordância, coesão e argumentação.
-5. Para cada erro, indique o que está errado, por que está errado e dê uma sugestão de substituição exata.
-6. Forneça um feedback geral sobre o desempenho e pontos de melhora.
+CRITÉRIOS DE CORREÇÃO:
+1. Nota Global de 0 a 10 (uma casa decimal).
+2. Avalie cada critério com nota de 0 a 2.0 e uma justificativa de 1-2 linhas:
+   - Domínio do Tema e Argumentação
+   - Estrutura e Coesão Textual
+   - Norma Culta (gramática, concordância, pontuação, ortografia)
+   - Vocabulário e Registro Formal
+   - Conclusão e Proposta de Intervenção
+3. Se CESPE/Cebraspe: calcule a diluição de erros (NC - K×NE/TL) e explique o cálculo no feedback.
+4. Erros identificados: aponte cada erro com tipo, trecho exato entre aspas, por que é errado e sugestão de correção.
+5. Pontos positivos: liste ao menos 3 acertos reais e específicos do texto.
+6. Plano de melhoria: liste 5 ações concretas e mensuráveis para o aluno praticar.
+7. Feedback narrativo em Markdown rico usando ###, **negrito**, listas e > para citar trechos.
 
-REGRAS DE FORMATAÇÃO:
-- Retorne APENAS um JSON válido.
-- O campo "feedback" deve estar em Markdown elegante.
-- Estrutura do JSON esperado:
+ESTRUTURA JSON OBRIGATÓRIA (retorne APENAS o JSON, sem markdown externo):
 {
-  "score": 8.5,
-  "gradeBreakdown": { "Domínio do Tema": 4.5, "Gramática": 2.0, "Coesão": 2.0 },
+  "score": 7.5,
+  "gradeBreakdown": {
+    "Domínio do Tema e Argumentação": 1.5,
+    "Estrutura e Coesão Textual": 1.5,
+    "Norma Culta (Gramática)": 1.5,
+    "Vocabulário e Registro": 1.5,
+    "Conclusão/Proposta": 1.5
+  },
+  "gradeJustification": {
+    "Domínio do Tema e Argumentação": "O aluno demonstrou conhecimento do tema mas a argumentação ficou superficial...",
+    "Estrutura e Coesão Textual": "Boa organização em parágrafos, porém faltou transições entre as ideias..."
+  },
   "errors": [
-    { "type": "Gramática", "description": "Erro de concordância em 'as pessoa'", "suggestion": "as pessoas", "line": 5 }
+    { "type": "Gramática", "description": "Concordância verbal incorreta: 'as pessoa foram' deve ser 'as pessoas foram'", "suggestion": "as pessoas foram", "line": 3 }
   ],
-  "feedback": "### Análise Geral\\nSeu texto apresenta uma boa estrutura..."
+  "strengths": [
+    "Introdução bem contextualizada com dados relevantes",
+    "Uso adequado de conectivos argumentativos como 'ademais' e 'entretanto'",
+    "Proposta de intervenção concreta no parágrafo final"
+  ],
+  "improvementPlan": [
+    "Pratique 10 exercícios semanais de concordância verbal e nominal",
+    "Leia e analise 3 redações nota máxima da banca ${essay.banca} por semana",
+    "Reescreva seus parágrafos de desenvolvimento usando a estrutura: tese → argumento → exemplo → mini-conclusão",
+    "Amplie o repertório sociocultural lendo artigos de opinião de qualidade",
+    "Dedique 15 min/dia à revisão gramatical focada em regência verbal e nominal"
+  ],
+  "feedback": "### Parecer Geral do Examinador\\n\\nSua redação demonstra..."
 }
 
 Responda apenas o JSON.`;
 
         try {
-          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4000);
           const parsed = extractJSON(raw) as any;
           
           await storage.updateEssay(input.id, ctx.user.id, {

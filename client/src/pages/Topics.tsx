@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, BookMarked, Calendar, Search, Filter, X, BarChart2, Brain } from "lucide-react";
+import { Plus, Pencil, Trash2, BookMarked, Calendar, Search, Filter, X, BarChart2, Brain, BookOpen, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
