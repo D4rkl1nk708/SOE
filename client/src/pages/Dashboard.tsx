@@ -37,8 +37,11 @@ import {
 } from "@/hooks/useDashboard";
 import { ScheduleDialog } from "@/components/ScheduleDialog";
 
+import { RecommendationCard } from "@/components/RecommendationCard";
+
 // ─── widget IDs ─────────────────────────────────────────────────────────────
 const EXTRA_WIDGETS = [
+  { id: "recommendation", label: "Foco de Hoje (IA)" },
   { id: "mentorBriefing", label: "Briefing da IA" },
   { id: "heatmap",        label: "Histórico de Estudos" },
   { id: "dailyGoal",      label: "Meta Diária" },
@@ -122,6 +125,8 @@ export default function Dashboard() {
           <input ref={tec.fileInputRef} type="file" className="hidden" accept=".xlsx,.xls" onChange={tec.handleFileUpload} />
         </div>
       </div>
+
+      {widgets.showExtra("recommendation") && <RecommendationCard />}
 
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">

@@ -1,15 +1,51 @@
 import { trpc } from "@/lib/trpc";
-import { Brain, AlertCircle, ChevronRight, HelpCircle } from "lucide-react";
+import { Brain, AlertCircle, ChevronRight, HelpCircle, Sparkles, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+
+const API_KEY_STORAGE = "soe_mentor_api_key";
+const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function ConfusionMatrixWidget() {
   const { data: confusions, isLoading } = trpc.mentor.getConceptConfusions.useQuery();
   const [selected, setSelected] = useState<any>(null);
+  const [mnemonic, setMnemonic] = useState<{ text: string; explanation: string } | null>(null);
+
+  const [apiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? "");
+  const [provider] = useState<"claude" | "gemini" | "openai">(
+    () => (localStorage.getItem(API_PROVIDER_STORAGE) as any) ?? "gemini"
+  );
+
+  const generateMnemonic = trpc.mentor.generateMnemonicForConfusion.useMutation({
+    onSuccess: (data) => {
+      setMnemonic({ text: data.mnemonic, explanation: data.explanation });
+      toast.success("Mnemônico gerado com sucesso!");
+    },
+    onError: (err) => {
+      toast.error("Falha ao gerar mnemônico: " + err.message);
+    }
+  });
 
   if (isLoading || !confusions || confusions.length === 0) return null;
+
+  const handleGenerateMnemonic = () => {
+    if (!apiKey) {
+      toast.error("Configure sua API Key no Briefing da IA primeiro!");
+      return;
+    }
+    if (selected) {
+      generateMnemonic.mutate({
+        conceptA: selected.conceptA,
+        conceptB: selected.conceptB,
+        explanation: selected.explanation,
+        apiKey,
+        provider
+      });
+    }
+  };
 
   return (
     <div className="soe-card p-6 space-y-4">
@@ -32,7 +68,10 @@ export function ConfusionMatrixWidget() {
           <div 
             key={i} 
             className="group p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer"
-            onClick={() => setSelected(c)}
+            onClick={() => {
+              setSelected(c);
+              setMnemonic(null);
+            }}
           >
             <div className="flex justify-between items-start mb-2">
               <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{c.discipline || "Geral"}</span>
@@ -70,9 +109,37 @@ export function ConfusionMatrixWidget() {
             <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 text-sm leading-relaxed whitespace-pre-wrap">
               {selected?.explanation || "Aguardando diagnóstico detalhado do Mentor..."}
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setSelected(null)}>Fechar</Button>
-              <Button className="bg-purple-600 hover:bg-purple-700">Refazer questões deste tema</Button>
+
+            {mnemonic && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2 animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                  <Sparkles size={14} />
+                  Mnemônico Premium
+                </div>
+                <div className="text-lg font-black text-amber-200">
+                  {mnemonic.text}
+                </div>
+                <div className="text-xs opacity-70 italic">
+                  {mnemonic.explanation}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-white/5">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={handleGenerateMnemonic}
+                disabled={generateMnemonic.isPending}
+              >
+                {generateMnemonic.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                )}
+                {mnemonic ? "Gerar outro" : "Criar Mnemônico"}
+              </Button>
+              <Button className="bg-purple-600 hover:bg-purple-700">Refazer questões</Button>
             </div>
           </div>
         </DialogContent>

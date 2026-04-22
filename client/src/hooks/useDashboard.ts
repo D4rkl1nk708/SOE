@@ -335,7 +335,12 @@ export function useDashboardWidgets(settings: Record<string, unknown> | null | u
 
   useEffect(() => {
     const cfg = settings?.dashboardConfig as { extraWidgets?: string[] } | undefined;
-    if (cfg?.extraWidgets) setExtraWidgets(cfg.extraWidgets);
+    if (cfg?.extraWidgets) {
+      setExtraWidgets(cfg.extraWidgets);
+    } else {
+      // Default set for new users or legacy configs
+      setExtraWidgets(["recommendation", "mentorBriefing", "heatmap", "dailyGoal", "todayRevisions"]);
+    }
   }, [settings]);
 
   const saveExtraWidgets = useCallback((ew: string[]) => {

@@ -1211,6 +1211,88 @@ Mentor:`;
     }),
 
   /**
+   * Get Mentor Recommendation — O "Foco de Hoje" IA-Driven
+   */
+  getMentorRecommendation: protectedProcedure
+    .input(z.object({
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .query(async ({ ctx, input }) => {
+      const [rebalance, forgetting, weakFromSnap] = await Promise.all([
+        storage.getDisciplineRebalanceReport(ctx.user.id),
+        storage.getForgettingVelocityByDiscipline(ctx.user.id),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 75),
+      ]);
+
+      const prompt = `Você é o Mentor Estratégico SOE. Analise os dados de desempenho do aluno e gere uma recomendação ÚNICA e CIRÚRGICA de foco para hoje.
+      
+      DADOS:
+      - Desempenho por matéria (Rebalanceamento): ${JSON.stringify(rebalance.slice(0, 5))}
+      - Velocidade de Esquecimento: ${JSON.stringify(forgetting.slice(0, 5))}
+      - Tópicos Críticos no TEC: ${JSON.stringify(weakFromSnap.slice(0, 5))}
+      
+      INSTRUÇÕES:
+      1. Identifique a matéria onde o aproveitamento MAIS caiu nos últimos 7 dias ou onde o tempo sem estudo é crítico.
+      2. Gere uma recomendação em 1 frase curta e impactante.
+      3. Inclua o motivo baseado em dados (ex: "seu aproveitamento caiu 15%").
+      
+      Retorne um JSON:
+      {
+        "disciplineName": "Nome da Matéria",
+        "reason": "Explicação curta com números",
+        "action": "O que fazer exatamente (ex: Revisar Atos Administrativos)",
+        "priority": "alta" | "media"
+      }`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 400);
+        return extractJSON(raw) as { disciplineName: string; reason: string; action: string; priority: "alta" | "media" };
+      } catch (err: any) {
+        return {
+          disciplineName: "Geral",
+          reason: "Manutenção de constância",
+          action: "Continue com seu plano de revisões agendadas",
+          priority: "media" as const
+        };
+      }
+    }),
+
+  /**
+   * Gera Mnemônico Divertido/Bizarro/Spicy para uma confusão de conceitos
+   */
+  generateMnemonicForConfusion: protectedProcedure
+    .input(z.object({
+      conceptA: z.string(),
+      conceptB: z.string(),
+      explanation: z.string(),
+      apiKey: z.string().min(1),
+      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+    }))
+    .mutation(async ({ input }) => {
+      const prompt = `Você é um gênio na criação de mnemônicos ABSURDOS, BIZARROS e INESQUECÍVEIS para concurseiros.
+O aluno confunde "${input.conceptA}" com "${input.conceptB}".
+Explicação da confusão: ${input.explanation}
+
+TAREFA:
+Crie um mnemônico "Premium" (pode usar humor ácido, termos vulgares/baixo calão, contextos +18 ou situações bizarras se isso ajudar na memorização — o aluno deu permissão explícita para ser "sujo" se for mais eficiente).
+O objetivo é que ele NUNCA MAIS confunda esses dois conceitos.
+
+Retorne um JSON:
+{
+  "mnemonic": "O mnemônico em si (frase, acrônimo, historinha)",
+  "explanation": "Como aplicar esse mnemônico para diferenciar os conceitos"
+}`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 600);
+        return extractJSON(raw) as { mnemonic: string; explanation: string };
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar mnemônico: ${err.message}`);
+      }
+    }),
+  
+  /**
    * Save Concept Confusion — Salva uma nova confusão detectada
    */
   saveConceptConfusion: protectedProcedure
