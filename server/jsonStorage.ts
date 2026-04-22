@@ -213,6 +213,15 @@ export interface UserSettings {
   autoBackupEnabled?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
+  /** F31 - Matriz de Confusão Conceitual (Tópicos que o aluno confunde entre si) */
+  conceptConfusions?: Array<{
+    id: string;
+    conceptA: string;
+    conceptB: string;
+    explanation: string;
+    detectedAt: string;
+    occurrences: number;
+  }>;
 }
 
 export interface User {
@@ -1864,6 +1873,44 @@ export async function archiveFlashcard(id: number, userId: number, archived: boo
   if (index >= 0) {
     db.flashcards[index].archived = archived;
     db.flashcards[index].updatedAt = new Date().toISOString();
+    writeDatabase(db);
+  }
+}
+
+// ============ CONCEPT CONFUSIONS ============
+
+export async function getConceptConfusions(userId: number) {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  return user?.settings?.conceptConfusions || [];
+}
+
+export async function addConceptConfusion(userId: number, data: { conceptA: string, conceptB: string, explanation: string }) {
+  const db = readDatabase();
+  const index = db.users.findIndex((u) => u.id === userId);
+  if (index >= 0) {
+    const user = db.users[index];
+    if (!user.settings) user.settings = {} as any;
+    if (!user.settings.conceptConfusions) user.settings.conceptConfusions = [];
+    
+    const existing = user.settings.conceptConfusions.find(
+      c => (c.conceptA === data.conceptA && c.conceptB === data.conceptB) ||
+           (c.conceptA === data.conceptB && c.conceptB === data.conceptA)
+    );
+
+    if (existing) {
+      existing.occurrences++;
+      existing.explanation = data.explanation; // update with latest insight
+      existing.detectedAt = new Date().toISOString();
+    } else {
+      user.settings.conceptConfusions.push({
+        id: Math.random().toString(36).substr(2, 9),
+        ...data,
+        occurrences: 1,
+        detectedAt: new Date().toISOString()
+      });
+    }
+    
     writeDatabase(db);
   }
 }

@@ -9,8 +9,7 @@ const GEMINI_MODELS = [
   "gemini-1.5-flash",
   "gemini-1.5-flash-latest",
   "gemini-1.5-pro",
-  "gemini-2.0-flash-exp",
-  "gemini-2.0-flash",
+  "gemini-1.5-pro-latest",
 ];
 
 interface GeminiErrorResponse {
@@ -171,7 +170,8 @@ export async function callAiProvider(
   if (apiKeys.length === 0) throw new Error("Nenhuma API Key configurada.");
 
   let lastError = "";
-  for (const key of apiKeys) {
+  for (let i = 0; i < apiKeys.length; i++) {
+    const key = apiKeys[i];
     try {
       switch (provider) {
         case "gemini":
@@ -192,6 +192,10 @@ export async function callAiProvider(
       const isNotFound = err.message.toLowerCase().includes("not found") || err.message.toLowerCase().includes("not supported");
       
       if (apiKeys.length > 1 && (isQuota || isInvalid || isNotFound)) {
+        // Se houver próxima chave e for erro de cota, espera um pouco para não ser bloqueado por IP
+        if (i < apiKeys.length - 1 && isQuota) {
+          await new Promise(res => setTimeout(res, 500)); 
+        }
         continue; // Tenta a próxima chave
       }
       throw err; // Propaga o erro se for fatal ou única chave

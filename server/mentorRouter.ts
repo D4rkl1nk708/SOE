@@ -888,6 +888,11 @@ Sempre que você notar um padrão de comportamento, um erro recorrente de lógic
 [OBSERVATION]O aluno confunde Atos Compostos com Complexos por causa da estrutura de vontade.[/OBSERVATION]
 Isso é fundamental para sua "inteligência" de longo prazo. Gere no máximo 1 observação por resposta.
 
+Poder Mágico 4 (Detector de Confusão):
+Sempre que você notar que o aluno está trocando um conceito por outro (ex: confundindo Anulação com Revogação, ou Prescrição com Decadência), use:
+[CONFUSION]{"conceptA": "Anulação", "conceptB": "Revogação", "explanation": "O aluno acha que o Judiciário pode revogar atos por mérito."}[/CONFUSION]
+Isso ajudará a montar o mapa de pontos cegos dele.
+
 HISTÓRICO DA CONVERSA:
 ${transcript}
 
@@ -953,6 +958,17 @@ Mentor:`;
           if (obs) await storage.addMentorObservation(ctx.user.id, obs);
         }
         finalReply = finalReply.replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "").trim();
+        
+        // Extract and save Concept Confusion
+        const confRegex = /\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g;
+        let confMatch;
+        while ((confMatch = confRegex.exec(finalReply)) !== null) {
+          try {
+            const data = JSON.parse(confMatch[1]);
+            await storage.addConceptConfusion(ctx.user.id, data);
+          } catch(e) {}
+        }
+        finalReply = finalReply.replace(/\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g, "").trim();
         
         if (createdCount > 0) {
           finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} automaticamente para você! Estão na sua aba de Revisão)*`;
@@ -1184,5 +1200,27 @@ Mentor:`;
         await storage.archiveFlashcard(id, ctx.user.id, true);
       }
       return { success: true, archivedCount: input.cardIds.length };
+    }),
+
+  /**
+   * Get Concept Confusions — Retorna a matriz de confusão do aluno
+   */
+  getConceptConfusions: protectedProcedure
+    .query(async ({ ctx }) => {
+      return await storage.getConceptConfusions(ctx.user.id);
+    }),
+
+  /**
+   * Save Concept Confusion — Salva uma nova confusão detectada
+   */
+  saveConceptConfusion: protectedProcedure
+    .input(z.object({
+      conceptA: z.string(),
+      conceptB: z.string(),
+      explanation: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await storage.addConceptConfusion(ctx.user.id, input);
+      return { success: true };
     }),
 });
