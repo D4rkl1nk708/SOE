@@ -7,9 +7,12 @@ export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
   "gemini-1.5-flash",
-  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash-001",
+  "gemini-1.5-flash-002",
   "gemini-1.5-pro",
-  "gemini-1.5-pro-latest",
+  "gemini-1.5-pro-001",
+  "gemini-1.5-pro-002",
+  "gemini-2.0-flash-exp",
 ];
 
 interface GeminiErrorResponse {
@@ -41,54 +44,53 @@ export async function callGeminiWithFallback(
   }
 
   let lastError = "";
-  for (const model of GEMINI_MODELS) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { maxOutputTokens, temperature: 0.7 },
-          }),
-        }
-      );
-      
-      const data = (await res.json()) as GeminiErrorResponse;
-      
-      if (data.error) {
-        const msg = data.error.message ?? "Erro Gemini";
-        const status = data.error.status || "";
+  // Tentamos primeiro a versão estável (v1) e depois a v1beta
+  for (const apiVersion of ["v1", "v1beta"]) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: { maxOutputTokens, temperature: 0.7 },
+            }),
+          }
+        );
         
-        // Se for erro de COTA (429), lançamos um erro específico para trocar de CHAVE no callAiProvider
-        if (res.status === 429 || status.includes("RESOURCE_EXHAUSTED") || msg.toLowerCase().includes("quota")) {
-          throw new Error(`QUOTA_EXCEEDED: ${msg}`);
-        }
-
-        // Se o modelo não existe ou não é suportado, tentamos o próximo modelo da mesma chave
-        const isUnavailable =
-          msg.toLowerCase().includes("not found") ||
-          msg.toLowerCase().includes("not supported") ||
-          res.status === 404;
+        const data = (await res.json()) as GeminiErrorResponse;
+        
+        if (data.error) {
+          const msg = data.error.message ?? "Erro Gemini";
+          const status = data.error.status || "";
           
-        if (isUnavailable) {
-          lastError = `[${model}] ${msg}`;
-          continue;
+          if (res.status === 429 || status.includes("RESOURCE_EXHAUSTED") || msg.toLowerCase().includes("quota")) {
+            throw new Error(`QUOTA_EXCEEDED: ${msg}`);
+          }
+
+          const isUnavailable =
+            msg.toLowerCase().includes("not found") ||
+            msg.toLowerCase().includes("not supported") ||
+            res.status === 404;
+            
+          if (isUnavailable) {
+            lastError = `[${model} @ ${apiVersion}] ${msg}`;
+            continue;
+          }
+          
+          throw new Error(msg);
         }
         
-        throw new Error(msg);
+        return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      } catch (e: any) {
+        if (e.message.includes("QUOTA_EXCEEDED") || e.message.toLowerCase().includes("quota") || e.message.toLowerCase().includes("exceeded")) {
+          throw e; 
+        }
+        lastError = e.message;
+        continue;
       }
-      
-      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    } catch (e: any) {
-      // Se for erro de cota vindo do fetch ou do throw acima, repassa para trocar de chave
-      if (e.message.includes("QUOTA_EXCEEDED") || e.message.toLowerCase().includes("quota") || e.message.toLowerCase().includes("exceeded")) {
-        throw e; 
-      }
-      // Outros erros (ex: rede), tenta o próximo modelo
-      lastError = e.message;
-      continue;
     }
   }
   throw new Error(`Nenhum modelo Gemini disponível para esta chave. Último erro: ${lastError}`);
