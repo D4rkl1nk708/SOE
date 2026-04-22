@@ -493,6 +493,30 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         return storage.getCalendarData(ctx.user.id, input.startDate, input.endDate);
       }),
+    getActivities: protectedProcedure
+      .input(z.object({ startDate: z.string(), endDate: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const { revisions, topics, disciplines } = await storage.getCalendarData(ctx.user.id, input.startDate, input.endDate);
+        return revisions.map(r => {
+          const topic = topics.find(t => t.id === r.topicId);
+          const discipline = disciplines.find(d => d.id === topic?.disciplineId);
+          return {
+            id: r.id,
+            date: r.scheduledDate,
+            topicName: topic?.name || "Assunto Removido",
+            disciplineColor: discipline?.color || "#3b82f6",
+            type: r.type,
+            completed: r.completed,
+            link: r.link
+          };
+        });
+      }),
+    saveLink: protectedProcedure
+      .input(z.object({ revisionId: z.number(), link: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await storage.updateRevisionLink(input.revisionId, ctx.user.id, input.link);
+        return { success: true };
+      }),
   }),
   dashboard: router({
     getStats: protectedProcedure.query(async ({ ctx }) => {

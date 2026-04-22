@@ -32,6 +32,8 @@ import {
   localImportExportBackup,
   localImportImportBackup,
   localCalendarGetData,
+  localCalendarGetActivities,
+  localCalendarSaveLink,
   localDashboardGetStats,
   localMockExamList,
   localMockExamCreate,
@@ -59,6 +61,8 @@ import {
   localDiagnoseError,
   localProcessText,
   localGenerateFlashcardsFromText,
+  localGetConceptConfusions,
+  localSaveConceptConfusion,
 } from "./localDb";
 
 const PROCEDURES: Record<
@@ -95,6 +99,8 @@ const PROCEDURES: Record<
   "import.deleteCaderno": () => Promise.reject(new Error("Disponível apenas na versão web.")),
   "import.getPushToken": () => Promise.resolve({ token: null }),
   "calendar.getData": (i) => localCalendarGetData(i as { startDate: string; endDate: string }),
+  "calendar.getActivities": (i) => localCalendarGetActivities(i as any),
+  "calendar.saveLink": (i) => localCalendarSaveLink(i as any),
   "dashboard.getStats": () => localDashboardGetStats(),
   "dashboard.getWeeklyStats": () => localDashboardGetWeeklyStats(),
   "mockExam.list": () => localMockExamList(),

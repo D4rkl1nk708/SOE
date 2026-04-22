@@ -81,11 +81,32 @@ async function callClaude(apiKey: string, prompt: string, maxTokens = 1200): Pro
   return d.content?.[0]?.text || "";
 }
 
-export async function callAiProvider(provider: AiProvider, apiKey: string, prompt: string, maxTokens = 1200): Promise<string> {
-  if (provider === "gemini") return callGemini(apiKey, prompt, maxTokens);
-  if (provider === "openai") return callOpenAI(apiKey, prompt, maxTokens);
-  if (provider === "claude") return callClaude(apiKey, prompt, maxTokens);
-  throw new Error(`Provider inválido: ${provider}`);
+export async function callAiProvider(provider: AiProvider, apiKeyString: string, prompt: string, maxTokens = 1200): Promise<string> {
+  const apiKeys = apiKeyString.split(/[,\s;]+/).filter(Boolean);
+  if (apiKeys.length === 0) throw new Error("Nenhuma API Key configurada no perfil.");
+
+  let lastError = "";
+  for (let i = 0; i < apiKeys.length; i++) {
+    const key = apiKeys[i];
+    try {
+      if (provider === "gemini") return await callGemini(key, prompt, maxTokens);
+      if (provider === "openai") return await callOpenAI(key, prompt, maxTokens);
+      if (provider === "claude") return await callClaude(key, prompt, maxTokens);
+      throw new Error(`Provider inválido: ${provider}`);
+    } catch (err: any) {
+      lastError = err.message;
+      console.warn(`[AI Rotation] Falha com a chave ${key.substring(0, 6)}... : ${err.message}`);
+      
+      const isQuota = err.message.toLowerCase().includes("quota") || err.message.toLowerCase().includes("exceeded") || err.message.includes("429");
+      const isInvalid = err.message.toLowerCase().includes("invalid") || err.message.toLowerCase().includes("key") || err.message.includes("401");
+      
+      if (apiKeys.length > 1 && (isQuota || isInvalid)) {
+        continue; // Tenta a próxima chave
+      }
+      throw err;
+    }
+  }
+  throw new Error(`Todas as ${apiKeys.length} chaves falharam. Último erro: ${lastError}`);
 }
 
 export function extractJSON(text: string): any {

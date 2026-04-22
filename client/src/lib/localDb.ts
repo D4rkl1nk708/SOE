@@ -2,6 +2,8 @@
  * Camada de armazenamento local (IndexedDB) para o app rodar standalone no Android.
  * Replica a lógica do backend jsonStorage.
  */
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import Dexie, { type Table } from "dexie";
 import { buildSchedule, formatDateForDb, getScheduleParams } from "@shared/scheduling";
 import { callAiProvider, extractJSON, AiProvider } from "./aiHelpers";
@@ -29,6 +31,7 @@ interface Discipline {
   weight: number;
   order: number;
   studyTimeSeconds: number;
+  performance?: { questionsResolved: number; accuracy: number; correctCount: number; errorCount: number };
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +46,7 @@ interface Topic {
   notes: string | null;
   studyTimeSeconds: number;
   performance?: { questionsResolved: number; accuracy: number; correctCount: number; errorCount: number };
+  topicNotes?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +63,7 @@ interface Revision {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  link?: string;
 }
 
 interface MockExam {
@@ -93,6 +98,9 @@ interface Counters {
   mockExams: number;
   notes: number;
   questionErrors: number;
+  flashcards: number;
+  tecSnapshots: number;
+  conceptConfusions: number;
 }
 
 interface Flashcard {
@@ -129,19 +137,6 @@ interface TecSnapshot {
   totalErrors: number;
   overallAccuracy: number;
   topics: TecTopicSnapshot[];
-}
-
-interface Counters {
-  users: number;
-  disciplines: number;
-  topics: number;
-  revisions: number;
-  mockExams: number;
-  notes: number;
-  questionErrors: number;
-  flashcards: number;
-  tecSnapshots: number;
-  conceptConfusions: number;
 }
 
 interface QuestionError {
@@ -274,7 +269,7 @@ class LocalDb extends Dexie {
       extraCollections: "key",
       counters: "key",
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
-      conceptConfusions: "id, userId, disciplineId",
+      conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
     });
   }
 }
@@ -295,6 +290,7 @@ async function getCounters(): Promise<Counters> {
     questionErrors: m.questionErrors ?? 0,
     flashcards: m.flashcards ?? 0,
     tecSnapshots: m.tecSnapshots ?? 0,
+    conceptConfusions: m.conceptConfusions ?? 0,
   };
 }
 
@@ -309,6 +305,20 @@ const LOCAL_USER_ID = 1;
 
 async function ensureLocalUser(): Promise<User> {
   let u = await db.users.get(LOCAL_USER_ID);
+  
+  if (!u && Capacitor.isNativePlatform()) {
+    try {
+      const { value } = await Preferences.get({ key: "soe_user_backup" });
+      if (value) {
+        const backup = JSON.parse(value);
+        await db.users.put(backup);
+        u = backup;
+      }
+    } catch (e) {
+      console.warn("[LocalDb] Falha ao recuperar backup:", e);
+    }
+  }
+
   if (!u) {
     const settings = {
       theme: "light",
@@ -317,7 +327,7 @@ async function ensureLocalUser(): Promise<User> {
       editalCycle: [] as { id: string; title: string; durationMinutes: number; done: boolean }[],
       editalRows: [] as { id: string; discipline: string; topic: string; completed: boolean; notes?: string }[],
     };
-    await db.users.add({
+    u = {
       id: LOCAL_USER_ID,
       openId: "local-user",
       name: "Usuário Local",
@@ -328,9 +338,9 @@ async function ensureLocalUser(): Promise<User> {
       createdAt: now(),
       updatedAt: now(),
       lastSignedIn: now(),
-    });
+    };
+    await db.users.add(u);
     await db.counters.put({ key: "users", value: 1 });
-    u = (await db.users.get(LOCAL_USER_ID))!;
   }
   return u as User;
 }
@@ -343,6 +353,16 @@ export async function localUpdateSettings(input: Record<string, unknown>): Promi
   const u = await ensureLocalUser();
   const settings = { ...(u.settings as Record<string, unknown>), ...input };
   await db.users.update(LOCAL_USER_ID, { settings, updatedAt: now() });
+  
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const updatedUser = await db.users.get(LOCAL_USER_ID);
+      if (updatedUser) {
+        await Preferences.set({ key: "soe_user_backup", value: JSON.stringify(updatedUser) });
+      }
+    } catch (e) {}
+  }
+  
   return { success: true };
 }
 
@@ -619,6 +639,17 @@ export async function localImportImportBackup(input: { json: string }): Promise<
     const c = data.counters ?? {};
     for (const [k, v] of Object.entries(c)) await db.counters.put({ key: k, value: v as number });
   });
+
+  // Backup do usuário no Preferences para persistência entre updates
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const u = await db.users.get(LOCAL_USER_ID);
+      if (u) {
+        await Preferences.set({ key: "soe_user_backup", value: JSON.stringify(u) });
+      }
+    } catch (e) {}
+  }
+
   return { success: true };
 }
 
@@ -635,6 +666,31 @@ export async function localCalendarGetData(input: { startDate: string; endDate: 
   const topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
   const disciplines = await db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray();
   return { revisions, topics, disciplines };
+}
+
+export async function localCalendarGetActivities(input: { startDate: string; endDate: string }) {
+  const { revisions, topics, disciplines } = await localCalendarGetData(input);
+  return revisions.map(r => {
+    const topic = topics.find(t => t.id === r.topicId);
+    const discipline = disciplines.find(d => d.id === topic?.disciplineId);
+    return {
+      id: r.id,
+      date: r.scheduledDate,
+      topicName: topic?.name || "Assunto Removido",
+      disciplineColor: discipline?.color || "#3b82f6",
+      type: r.type,
+      completed: r.completed,
+      link: r.link
+    };
+  });
+}
+
+export async function localCalendarSaveLink(input: { revisionId: number; link: string }) {
+  const revision = await db.revisions.get(input.revisionId);
+  if (revision) {
+    await db.revisions.update(input.revisionId, { link: input.link });
+  }
+  return { success: true };
 }
 
 export async function localDashboardGetStats(): Promise<Record<string, unknown>> {
