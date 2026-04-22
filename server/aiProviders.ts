@@ -6,17 +6,15 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-pro",
   "gemini-2.0-flash-exp",
   "gemini-2.0-flash",
-  "gemini-1.5-pro-latest",
-  "gemini-1.5-pro",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash",
-  "gemini-1.0-pro",
 ];
 
 interface GeminiErrorResponse {
-  error?: { message?: string };
+  error?: { message?: string; code?: number; status?: string };
   candidates?: { content: { parts: { text: string }[] } }[];
 }
 
@@ -57,32 +55,44 @@ export async function callGeminiWithFallback(
           }),
         }
       );
+      
       const data = (await res.json()) as GeminiErrorResponse;
+      
       if (data.error) {
         const msg = data.error.message ?? "Erro Gemini";
+        const status = data.error.status || "";
+        
+        // Se for erro de COTA (429), lançamos um erro específico para trocar de CHAVE no callAiProvider
+        if (res.status === 429 || status.includes("RESOURCE_EXHAUSTED") || msg.toLowerCase().includes("quota")) {
+          throw new Error(`QUOTA_EXCEEDED: ${msg}`);
+        }
+
+        // Se o modelo não existe ou não é suportado, tentamos o próximo modelo da mesma chave
         const isUnavailable =
-          msg.toLowerCase().includes("quota") ||
-          msg.toLowerCase().includes("exceeded") ||
           msg.toLowerCase().includes("not found") ||
           msg.toLowerCase().includes("not supported") ||
-          res.status === 429 ||
           res.status === 404;
+          
         if (isUnavailable) {
           lastError = `[${model}] ${msg}`;
           continue;
         }
+        
         throw new Error(msg);
       }
+      
       return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     } catch (e: any) {
-      if (e.message.toLowerCase().includes("quota") || e.message.toLowerCase().includes("exceeded")) {
-        lastError = e.message;
-        continue;
+      // Se for erro de cota vindo do fetch ou do throw acima, repassa para trocar de chave
+      if (e.message.includes("QUOTA_EXCEEDED") || e.message.toLowerCase().includes("quota") || e.message.toLowerCase().includes("exceeded")) {
+        throw e; 
       }
-      throw e;
+      // Outros erros (ex: rede), tenta o próximo modelo
+      lastError = e.message;
+      continue;
     }
   }
-  throw new Error(`Nenhum modelo Gemini disponível ou sem cota. Último erro: ${lastError}`);
+  throw new Error(`Nenhum modelo Gemini disponível para esta chave. Último erro: ${lastError}`);
 }
 
 export async function callOpenAi(
