@@ -226,6 +226,8 @@ export interface UserSettings {
   autoBackupEnabled?: boolean;
   /** Foto de perfil em Base64 ou URL */
   profileImage?: string;
+  /** Preferência do Electron: Minimizar para a bandeja ao fechar a janela */
+  minimizeToTray?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
   /** F31 - Matriz de Confusão Conceitual (Tópicos que o aluno confunde entre si) */

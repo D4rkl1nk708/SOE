@@ -67,6 +67,10 @@ export function useAutoUpdate() {
 
             if (downloadUrl) {
               window.open(downloadUrl, "_blank");
+              // Opcional: fechar o app para evitar processos zumbis durante a instalação da nova versão
+              setTimeout(() => {
+                fetch("/api/quit", { method: "POST" }).catch(() => {});
+              }, 1000);
             }
           }
         }

@@ -1182,6 +1182,13 @@ ${questionText}`;
     } catch (e) { res.status(500).json({ error: String(e) }); }
   });
 
+  app.post("/api/quit", (_req, res) => {
+    res.json({ quitting: true });
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
+  });
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {

@@ -110,6 +110,10 @@ function SettingsTab() {
       setProvider(s.aiProvider || "gemini");
       setAutoBackupEnabled(s.autoBackupEnabled || false);
       setAutoBackupDir(s.autoBackupDir || "");
+      if (s.minimizeToTray !== undefined) {
+        setMinimizeToTray(s.minimizeToTray);
+        if (isElectronApp) (window as any).electron.tray.setPreference(s.minimizeToTray);
+      }
     }
   }, [stats?.settings]);
 
@@ -209,6 +213,28 @@ function SettingsTab() {
             <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">Sincronização em nuvem e preferências de execução.</p>
         </div>
         <div className="lg:col-span-2 space-y-6">
+            {isElectronApp && (
+              <label className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${minimizeToTray ? 'bg-primary/5 border-primary' : 'bg-white/5 border-white/5 opacity-50'}`}>
+                  <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${minimizeToTray ? 'bg-primary text-white shadow-lg' : 'bg-white/10 text-white/30'}`}>
+                          <Minimize2 size={20} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-widest">Execução em Segundo Plano</span>
+                        <p className="text-[9px] font-bold opacity-30 uppercase">Minimiza para a bandeja ao fechar</p>
+                      </div>
+                  </div>
+                  <input type="checkbox" checked={minimizeToTray} onChange={(e) => {
+                    const val = e.target.checked;
+                    handleTrayToggle(val);
+                    updateSettings.mutate({ minimizeToTray: val });
+                  }} className="hidden" />
+                  <div className={`w-12 h-6 rounded-full p-1 transition-all ${minimizeToTray ? 'bg-primary' : 'bg-white/10'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition-all ${minimizeToTray ? 'ml-6' : 'ml-0'}`} />
+                  </div>
+              </label>
+            )}
+
             <label className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${autoBackupEnabled ? 'bg-primary/5 border-primary' : 'bg-white/5 border-white/5 opacity-50'}`}>
                 <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${autoBackupEnabled ? 'bg-primary text-white shadow-lg' : 'bg-white/10 text-white/30'}`}>

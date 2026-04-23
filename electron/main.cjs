@@ -7,14 +7,30 @@ let apiProcess = null;
 let mainWindow = null;
 let tray = null;
 
-// ── Tray preference (default: minimize to tray) ───────────────────────────────
-let minimizeToTray = true;
+// ── Tray preference (default: close on exit) ───────────────────────────────
+let minimizeToTray = false;
 
 ipcMain.handle("get-tray-preference", () => minimizeToTray);
 ipcMain.handle("set-tray-preference", (_, value) => {
   minimizeToTray = Boolean(value);
   updateTrayMenu();
 });
+
+// ── Single Instance Lock ──────────────────────────────────────────────────────
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine, workingDirectory) => {
+    // Se o usuário tentar abrir outra instância, focamos na janela principal
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
 // Webviews e injeções manuais removidos a favor de carregar a Chrome Extension nativamente
 
 const fs = require("fs");
@@ -194,7 +210,9 @@ function startBundledServer() {
     const finish = (port) => { if (loaded) return; loaded = true; resolve(port); };
 
     apiProcess.stdout && apiProcess.stdout.on("data", (chunk) => {
-      const match = String(chunk).match(/Server running on http:\/\/localhost:(\d+)\//);
+      const output = String(chunk);
+      // Suporta tanto localhost quanto 0.0.0.0
+      const match = output.match(/Server running on http:\/\/(?:localhost|0\.0\.0\.0):(\d+)\//);
       if (match) finish(Number(match[1]));
     });
     apiProcess.stderr && apiProcess.stderr.on("data", (c) => console.error(String(c)));

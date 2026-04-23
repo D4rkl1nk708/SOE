@@ -81,6 +81,7 @@ export const appRouter = router({
           extraWidgets: z.array(z.string()).optional(),
         }).optional(),
         profileImage: z.string().optional(),
+        minimizeToTray: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input);
@@ -1205,6 +1206,7 @@ ${input.text.substring(0, 8000)}`;
         autoBackupEnabled: z.boolean().optional(),
         autoBackupDir: z.string().optional(),
         profileImage: z.string().optional(),
+        minimizeToTray: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input as Partial<import("./jsonStorage").UserSettings>);
