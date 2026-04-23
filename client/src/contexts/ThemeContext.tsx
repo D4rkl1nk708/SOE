@@ -57,6 +57,7 @@ function applyTheme(colorTheme: ColorTheme, darkMode: DarkMode) {
   // 2. Set color accent vars (inline style overrides any CSS cascade)
   const vars: Record<string, string> = {
     "--primary": primary,
+    "--primary-rgb": `${r}, ${g}, ${b}`,
     "--primary-foreground": fgOnPrimary,
     "--ring": primary,
     "--sidebar-primary": primary,

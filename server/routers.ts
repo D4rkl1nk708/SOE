@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
+import { labRouter } from "./labRouter";
 import { callAiProvider } from "./aiProviders";
 import { buildSchedule, formatDateForDb, getScheduleParams } from "../shared/scheduling";
 import {
@@ -79,6 +80,7 @@ export const appRouter = router({
           hiddenWidgets: z.array(z.string()).optional(),
           extraWidgets: z.array(z.string()).optional(),
         }).optional(),
+        profileImage: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input);
@@ -1202,6 +1204,7 @@ ${input.text.substring(0, 8000)}`;
         aiProvider: z.enum(["gemini", "openai", "claude"]).optional(),
         autoBackupEnabled: z.boolean().optional(),
         autoBackupDir: z.string().optional(),
+        profileImage: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input as Partial<import("./jsonStorage").UserSettings>);
@@ -1210,6 +1213,7 @@ ${input.text.substring(0, 8000)}`;
   }),
 
   mentor: mentorRouter,
+  lab: labRouter,
 
   history: router({
     get: protectedProcedure

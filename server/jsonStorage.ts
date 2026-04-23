@@ -224,6 +224,8 @@ export interface UserSettings {
   /** Sincronização em Nuvem Invisível: Diretório de auto-backup (para espelhar no Google Drive/Dropbox localmente) */
   autoBackupDir?: string;
   autoBackupEnabled?: boolean;
+  /** Foto de perfil em Base64 ou URL */
+  profileImage?: string;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
   /** F31 - Matriz de Confusão Conceitual (Tópicos que o aluno confunde entre si) */
@@ -1998,4 +2000,18 @@ export async function addConceptConfusion(userId: number, data: { conceptA: stri
     
     writeDatabase(db);
   }
+}
+
+export async function deleteQuestionsByContest(contest: string, userId: number): Promise<void> {
+  const db = readDatabase();
+  db.questionErrors = db.questionErrors.filter(q => q.userId !== userId || q.contest !== contest);
+  writeDatabase(db);
+}
+
+export async function checkExamIntegrated(contest: string, userId: number): Promise<boolean> {
+  const db = readDatabase();
+  return db.questionErrors.some(q => 
+    q.userId === userId && 
+    q.contest?.toLowerCase() === contest.toLowerCase()
+  );
 }

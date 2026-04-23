@@ -23,6 +23,7 @@ import Sync from "@/pages/Sync";
 import Profile from "@/pages/Profile";
 import QuestionSession from "@/pages/QuestionSession";
 import QuestionErrors from "@/pages/QuestionErrors";
+import Lab from "@/pages/Lab";
 import DisciplinesPage from "@/pages/DisciplinesPage";
 import StatisticsPage from "@/pages/StatisticsPage";
 import CienciaDosEstudos from "@/pages/CienciaDosEstudos";
@@ -66,6 +67,7 @@ function Router() {
       <Route path="/sync" component={Sync} />
       <Route path="/question-session" component={QuestionSession} />
       <Route path="/question-errors" component={QuestionErrors} />
+      <Route path="/lab" component={Lab} />
       <Route path="/profile" component={Profile} />
       <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
       <Route path="/intercalacao" component={IntercalacaoPlanner} />

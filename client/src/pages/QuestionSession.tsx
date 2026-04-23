@@ -7,7 +7,7 @@ import {
   BookOpen, Save, BarChart2, AlertTriangle, Brain, BookMarked, Crosshair,
   RotateCcw, Play, CircleDot, Flag, Clock, ClipboardPaste, Trash2, ListChecks, ClipboardX,
   PenLine, Timer, Search, Zap, ExternalLink, FileText, Camera, Image as ImageIcon, Send, Eye, Wand2, Plus, ArrowRight, X, CheckCircle,
-  Star, MessageSquare, Target
+  Star, MessageSquare, Target, FlaskConical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QuestionErrors from "./QuestionErrors";
@@ -249,33 +249,6 @@ export default function QuestionSession() {
   const wrongCount    = results.filter(r => !r.correct).length;
   const accuracy      = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
   const progress      = (currentIndex / totalQ) * 100;
-
-  if (showQuickPick && prefillTopicName) {
-    return (
-      <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[60vh] gap-5">
-        <div className="text-center space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider opacity-60">Sessão Agendada</p>
-          <h2 className="text-3xl font-black">{prefillTopicName}</h2>
-        </div>
-        <div className="w-full soe-card p-6 space-y-4">
-          <p className="text-sm font-bold text-center">Quantas questões na sessão?</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[5, 10, 15, 20, 30, 50].map(n => (
-              <button key={n} onClick={() => setTotalQ(n)}
-                className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'bg-white/5 opacity-50 hover:opacity-100'}`} style={{ color: "var(--app-fg)" }}>
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button onClick={() => setShowQuickPick(false)}
-          className="w-full py-3 rounded-xl text-sm font-black flex items-center gap-2 justify-center bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-transform">
-          <Play className="w-4 h-4 fill-[var(--primary-foreground)]" /> Iniciar Agora
-        </button>
-        <button onClick={() => navigate("/")} className="text-sm opacity-50 hover:opacity-100 transition-opacity">Cancelar</button>
-      </div>
-    );
-  }
 
   const TabNav = () => (
     <div className="flex gap-1 p-1.5 rounded-2xl bg-white/5 border border-white/10 w-full overflow-x-auto no-scrollbar">

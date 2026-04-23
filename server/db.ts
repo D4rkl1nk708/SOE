@@ -43,3 +43,7 @@ export const createRevisions = storage.createRevisions;
 export const markRevisionCompleted = storage.markRevisionCompleted;
 export const getCalendarData = storage.getCalendarData;
 export const getDashboardStats = storage.getDashboardStats;
+export const saveQuestionError = storage.saveQuestionError;
+export const getQuestionErrors = storage.getQuestionErrors;
+export const deleteQuestionsByContest = storage.deleteQuestionsByContest;
+export const checkExamIntegrated = storage.checkExamIntegrated;

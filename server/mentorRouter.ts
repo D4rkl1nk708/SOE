@@ -36,8 +36,18 @@ export function extractJSON(text: string): unknown {
                     .replace(/```\s?([\s\S]*?)```/g, '$1')
                     .trim();
 
-  const start = cleaned.indexOf("{");
-  if (start === -1) throw new Error("Nenhum objeto JSON encontrado.");
+  // Procura o início de um objeto ou array
+  const startBrace = cleaned.indexOf("{");
+  const startBracket = cleaned.indexOf("[");
+  let start = -1;
+
+  if (startBrace !== -1 && startBracket !== -1) {
+    start = Math.min(startBrace, startBracket);
+  } else {
+    start = startBrace !== -1 ? startBrace : startBracket;
+  }
+
+  if (start === -1) throw new Error("Nenhum dado JSON encontrado na resposta.");
   
   let jsonStr = cleaned.substring(start).trim();
 
