@@ -24,6 +24,7 @@ import { SleepWarning } from "@/components/SleepWarning";
 import { EmotionLogger } from "@/components/EmotionLogger";
 import { MentorBriefing } from "@/components/MentorBriefing";
 import { ConfusionMatrixWidget } from "@/components/ConfusionMatrixWidget";
+import { PlateauRadarWidget } from "@/components/PlateauRadarWidget";
 import {
   useExams,
   useScheduleSettings,
@@ -48,6 +49,7 @@ const EXTRA_WIDGETS = [
   { id: "todayRevisions", label: "Revisar Hoje" },
   { id: "quickActions",   label: "Ações Rápidas" },
   { id: "notes",          label: "Lembrete de Notas" },
+  { id: "plateauRadar",   label: "Radar de Estagnação" },
 ];
 
 export default function Dashboard() {
@@ -227,6 +229,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-6">
           {widgets.showExtra("mentorBriefing") && <MentorBriefing />}
+          {widgets.showExtra("plateauRadar") && <PlateauRadarWidget />}
           <ConfusionMatrixWidget />
         </div>
         <div className="lg:col-span-3 space-y-6">

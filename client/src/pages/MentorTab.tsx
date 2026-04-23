@@ -9,24 +9,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 function RenderText({ text }: { text: string }) {
   return (
-    <div className="leading-relaxed text-sm">
-      {text.split("\n").map((line, i) => {
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <div key={i} className={line.trim() === "" ? "h-4" : "mb-1"}>
-            {parts.map((p, j) =>
-              p.startsWith("**") && p.endsWith("**") ? (
-                <strong key={j} className="text-[var(--primary)] font-black">{p.slice(2, -2)}</strong>
-              ) : (
-                <span key={j} className="opacity-90">{p}</span>
-              )
-            )}
-          </div>
-        );
-      })}
+    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-xl">
+      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+        {text}
+      </ReactMarkdown>
     </div>
   );
 }

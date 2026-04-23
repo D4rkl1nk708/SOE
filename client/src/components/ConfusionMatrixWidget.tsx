@@ -13,6 +13,8 @@ export function ConfusionMatrixWidget() {
   const { data: confusions, isLoading } = trpc.mentor.getConceptConfusions.useQuery();
   const [selected, setSelected] = useState<any>(null);
   const [mnemonic, setMnemonic] = useState<{ text: string; explanation: string } | null>(null);
+  const [mockData, setMockData] = useState<any>(null);
+  const [mockAnswers, setMockAnswers] = useState<Record<number, string>>({});
 
   const [apiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? "");
   const [provider] = useState<"claude" | "gemini" | "openai">(
@@ -29,6 +31,17 @@ export function ConfusionMatrixWidget() {
     }
   });
 
+  const generateMock = trpc.mentor.generateMaliciousMock.useMutation({
+    onSuccess: (data) => {
+      setMockData(data);
+      setMockAnswers({});
+      toast.success("Simulador maldoso gerado!");
+    },
+    onError: (err) => {
+      toast.error("Falha ao gerar simulador: " + err.message);
+    }
+  });
+
   if (isLoading || !confusions || confusions.length === 0) return null;
 
   const handleGenerateMnemonic = () => {
@@ -38,6 +51,22 @@ export function ConfusionMatrixWidget() {
     }
     if (selected) {
       generateMnemonic.mutate({
+        conceptA: selected.conceptA,
+        conceptB: selected.conceptB,
+        explanation: selected.explanation,
+        apiKey,
+        provider
+      });
+    }
+  };
+
+  const handleGenerateMock = () => {
+    if (!apiKey) {
+      toast.error("Configure sua API Key no Briefing da IA primeiro!");
+      return;
+    }
+    if (selected) {
+      generateMock.mutate({
         conceptA: selected.conceptA,
         conceptB: selected.conceptB,
         explanation: selected.explanation,
@@ -125,6 +154,56 @@ export function ConfusionMatrixWidget() {
               </div>
             )}
 
+            {mockData && (
+              <div className="space-y-4 pt-4 border-t border-white/10 animate-in fade-in">
+                <h3 className="font-black text-rose-400 flex items-center gap-2 uppercase tracking-widest text-xs">
+                  <AlertCircle size={16} /> {mockData.mockTitle || "Simulador de Maldades"}
+                </h3>
+                <div className="space-y-6">
+                  {mockData.questions.map((q: any, qIdx: number) => {
+                    const answered = !!mockAnswers[qIdx];
+                    const correct = mockAnswers[qIdx] === q.correctAnswer;
+                    return (
+                      <div key={qIdx} className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                        <p className="text-sm font-bold leading-relaxed">{qIdx + 1}. {q.statement}</p>
+                        <div className="space-y-2">
+                          {q.alternatives.map((a: any) => {
+                            const isSelected = mockAnswers[qIdx] === a.letter;
+                            const isCorrect = a.letter === q.correctAnswer;
+                            let btnClass = "border-white/10 bg-white/5 hover:bg-white/10 text-left";
+                            if (answered) {
+                              if (isCorrect) btnClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
+                              else if (isSelected) btnClass = "border-rose-500/50 bg-rose-500/10 text-rose-400 line-through opacity-70";
+                              else btnClass = "border-white/5 bg-transparent opacity-30 text-left";
+                            } else if (isSelected) {
+                              btnClass = "border-purple-500 bg-purple-500/20";
+                            }
+                            return (
+                              <Button key={a.letter} variant="outline" className={`w-full justify-start h-auto py-3 px-4 whitespace-normal text-sm font-medium transition-all ${btnClass}`}
+                                onClick={() => !answered && setMockAnswers(prev => ({...prev, [qIdx]: a.letter}))} disabled={answered}>
+                                <span className="font-black mr-3 opacity-50">{a.letter})</span> {a.text}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        {answered && !correct && (
+                          <div className="mt-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex gap-2">
+                            <Brain className="w-4 h-4 shrink-0 mt-0.5" />
+                            <p><strong>Dica da IA:</strong> {q.hint}</p>
+                          </div>
+                        )}
+                        {answered && correct && (
+                          <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex gap-2 items-center">
+                            <Sparkles className="w-4 h-4" /> Resposta Perfeita! Você não caiu na pegadinha.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-white/5">
               <Button 
                 variant="outline" 
@@ -139,7 +218,18 @@ export function ConfusionMatrixWidget() {
                 )}
                 {mnemonic ? "Gerar outro" : "Criar Mnemônico"}
               </Button>
-              <Button className="bg-purple-600 hover:bg-purple-700">Refazer questões</Button>
+              <Button 
+                className="gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-900/50"
+                onClick={handleGenerateMock}
+                disabled={generateMock.isPending}
+              >
+                {generateMock.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                Simulador de Maldades
+              </Button>
             </div>
           </div>
         </DialogContent>

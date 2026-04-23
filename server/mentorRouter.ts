@@ -179,6 +179,100 @@ export const mentorRouter = router({
     return { weakTopics: weakTopics.slice(0, 20), weakDisciplines };
   }),
 
+  getPlateauedTopics: protectedProcedure.query(async ({ ctx }) => {
+    const [disciplines, topics, revisions, snapshots] = await Promise.all([
+      storage.getDisciplinesByUser(ctx.user.id),
+      storage.getTopicsByUser(ctx.user.id),
+      storage.getRevisionsByUser(ctx.user.id),
+      storage.getTecSnapshots(ctx.user.id, 1),
+    ]);
+
+    const completedRevisions = revisions.filter((r) => r.completed);
+
+    const plateaued = topics
+      .map((t) => {
+        const perf = t.performance;
+        const topicRevs = completedRevisions.filter((r) => r.topicId === t.id);
+        const accuracy = perf && perf.questionsResolved > 0 ? perf.correctCount / perf.questionsResolved : null;
+        
+        const disc = disciplines.find((d) => d.id === t.disciplineId);
+
+        return {
+          topicId: t.id,
+          topicName: t.name,
+          disciplineId: t.disciplineId,
+          disciplineName: disc?.name ?? "—",
+          accuracy: accuracy !== null ? Math.round(accuracy * 100) : null,
+          questionsResolved: perf?.questionsResolved ?? 0,
+          revisionCount: topicRevs.length,
+        };
+      })
+      .filter((t) => {
+        // Estagnação: Fez pelo menos 3 revisões OU 20 questões, e o acerto não passa de 65%
+        const isStuck = (t.revisionCount >= 3 || t.questionsResolved >= 20);
+        const isLow = t.accuracy !== null && t.accuracy <= 65;
+        return isStuck && isLow;
+      })
+      .sort((a, b) => (a.accuracy || 0) - (b.accuracy || 0));
+
+    return plateaued;
+  }),
+
+  generateBreakthroughDossier: protectedProcedure
+    .input(
+      z.object({
+        topicName: z.string(),
+        disciplineName: z.string(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const prompt = `Você é o Mentor Estratégico SOE. O aluno entrou em PLATÔ de aprendizado neste assunto:
+Disciplina: "${input.disciplineName}"
+Tópico: "${input.topicName}"
+
+Ele já revisou várias vezes e fez muitas questões, mas a taxa de acerto está travada abaixo de 65%. 
+A abordagem tradicional não está funcionando.
+
+Crie um "Dossiê de Desbloqueio" estruturado em JSON com a seguinte chave e formato:
+{
+  "dossier": [
+    {
+      "type": "analogy",
+      "title": "Analogia Fora da Caixa",
+      "content": "Explique o núcleo do conceito usando uma analogia cotidiana bizarra ou inusitada (ex: série de TV, futebol, culinária) para destravar o cérebro."
+    },
+    {
+      "type": "mnemonic",
+      "title": "Mnemônico de Resgate",
+      "content": "Um mnemônico simples e ridículo focado nas palavras-chave que a banca mais usa para enganar neste assunto."
+    },
+    {
+      "type": "feynman",
+      "title": "Desafio de Feynman",
+      "content": "Uma pergunta aberta, muito específica e conceitual sobre esse tópico, que obrigue o aluno a explicar com as próprias palavras sem usar jargão técnico."
+    }
+  ]
+}
+
+Responda APENAS o JSON válido.`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 1500);
+        let parsed: any;
+        try {
+          parsed = extractJSON(raw);
+        } catch (parseErr: any) {
+          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+        }
+        return parsed.dossier;
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar Dossiê: ${err.message}`);
+      }
+    }),
+
+
   /**
    * Insights Rápidos de Estatística — IA analisa os números e dá 1 linha de impacto
    */
@@ -221,6 +315,7 @@ export const mentorRouter = router({
     .input(
       z.object({
         apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -522,6 +617,60 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
         };
       } catch (err: any) {
         throw new Error(`Falha ao gerar questão: ${err.message}`);
+      }
+    }),
+
+  /**
+   * Simulador de Maldades da Banca — Gera 3 questões inéditas focadas num ponto cego
+   */
+  generateMaliciousMock: protectedProcedure
+    .input(
+      z.object({
+        conceptA: z.string(),
+        conceptB: z.string(),
+        explanation: z.string(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const prompt = `Você é um examinador "carrasco" de concursos públicos (estilo CEBRASPE / FGV).
+O aluno tem um Ponto Cego grave: ele confunde constantemente "${input.conceptA}" com "${input.conceptB}".
+Diagnóstico da confusão: "${input.explanation}"
+
+Sua missão é criar um MINISIMULADO com 3 questões de múltipla escolha INÉDITAS e difíceis.
+As questões devem focar EXATAMENTE nas exceções, pegadinhas e diferenças sutis entre esses dois conceitos. A ideia é tentar derrubar o aluno para forçá-lo a aprender.
+
+Retorne EXATAMENTE neste formato JSON:
+{
+  "mockTitle": "Simulador de Maldades: ...",
+  "questions": [
+    {
+      "statement": "enunciado da questão...",
+      "alternatives": [
+        {"letter": "A", "text": "..."},
+        {"letter": "B", "text": "..."},
+        {"letter": "C", "text": "..."},
+        {"letter": "D", "text": "..."},
+        {"letter": "E", "text": "..."}
+      ],
+      "correctAnswer": "letra correta",
+      "hint": "Dica maldosa de 1 linha caso ele erre"
+    }
+  ]
+}`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 1500);
+        let parsed: any;
+        try {
+          parsed = extractJSON(raw);
+        } catch (parseErr: any) {
+          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+        }
+        return parsed;
+      } catch (err: any) {
+        throw new Error(`Falha ao gerar Simulador de Maldades: ${err.message}`);
       }
     }),
 
@@ -1130,7 +1279,7 @@ Mentor:`;
     .mutation(async ({ ctx, input }) => {
       const [briefing, observations, weak] = await Promise.all([
         // Simulando a chamada interna para pegar o briefing do dia
-        this?.getDailyBriefing.mutate({ ctx, input: { ...input, apiKey: input.apiKey } } as any) as any,
+        Promise.resolve({ briefing: "" }),
         storage.getMentorObservations(ctx.user.id),
         storage.getWeakTopicsFromSnapshot(ctx.user.id, 65)
       ]);
