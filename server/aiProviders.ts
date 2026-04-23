@@ -6,11 +6,12 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
   "gemini-3.1-flash-lite-preview",
   "gemini-3-flash-preview",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash"
+  "gemini-2.5-flash"
 ];
 
 interface GeminiErrorResponse {
@@ -62,7 +63,10 @@ export async function callGeminiWithFallback(
         const data = (await res.json()) as GeminiErrorResponse;
         
         if (data.error) {
-          const msg = data.error.message ?? "Erro Gemini";
+          let msg = data.error.message ?? "Erro Gemini";
+          if (msg.includes("API key not valid") || msg.includes("expired") || data.error.status === "UNAUTHENTICATED") {
+            msg = "Chave API Gemini expirada ou inválida. Por favor, renove-a nas configurações.";
+          }
           const status = data.error.status || "";
           
           // Se o limite for EXATAMENTE 0, o Google costuma retornar 429 ou 403.

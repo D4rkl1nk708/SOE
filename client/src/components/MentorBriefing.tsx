@@ -32,10 +32,19 @@ const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function MentorBriefing() {
   const [, navigate] = useLocation();
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? "");
-  const [provider, setProvider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_STORAGE) as any) ?? "claude"
-  );
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const settings = stats?.settings as any;
+
+  const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState<"claude" | "gemini" | "openai">("gemini");
+  
+  useEffect(() => {
+    if (settings) {
+      setApiKey(settings.aiApiKey || "");
+      setProvider(settings.aiProvider || "gemini");
+    }
+  }, [settings]);
+
   const [showConfig, setShowConfig] = useState(false);
   const [briefingCache, setBriefingCache] = useState<{ text: string; date: string } | null>(() => {
     try {
@@ -54,6 +63,14 @@ export function MentorBriefing() {
     },
   });
 
+  const updateSettings = trpc.v10.updateV10Settings.useMutation({
+    onSuccess: () => {
+      toast.success("Configuração salva no seu perfil!");
+      setShowConfig(false);
+    },
+    onError: (err) => toast.error("Erro ao salvar: " + err.message)
+  });
+
   const today = new Date().toLocaleDateString("pt-BR");
   const isTodaysCached = briefingCache?.date === today;
 
@@ -63,9 +80,7 @@ export function MentorBriefing() {
   };
 
   const saveConfig = () => {
-    localStorage.setItem(API_KEY_STORAGE, apiKey);
-    localStorage.setItem(API_PROVIDER_STORAGE, provider);
-    setShowConfig(false);
+    updateSettings.mutate({ aiApiKey: apiKey, aiProvider: provider });
   };
 
   return (

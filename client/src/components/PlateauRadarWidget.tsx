@@ -10,14 +10,13 @@ const API_KEY_STORAGE = "soe_mentor_api_key";
 const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function PlateauRadarWidget() {
-  const { data: plateauedTopics, isLoading } = trpc.mentor.getPlateauedTopics.useQuery();
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
   const [selected, setSelected] = useState<any>(null);
   const [dossier, setDossier] = useState<any[] | null>(null);
 
-  const [apiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? "");
-  const [provider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_STORAGE) as any) ?? "gemini"
-  );
+  const settings = stats?.settings as any;
+  const apiKey = settings?.aiApiKey || "";
+  const provider = (settings?.aiProvider as any) || "gemini";
 
   const generateDossier = trpc.mentor.generateBreakthroughDossier.useMutation({
     onSuccess: (data) => {
@@ -25,7 +24,22 @@ export function PlateauRadarWidget() {
       toast.success("Dossiê de Desbloqueio gerado!");
     },
     onError: (err) => {
-      toast.error("Falha ao gerar dossiê: " + err.message);
+      const isExpired = err.message.toLowerCase().includes("expired") || err.message.toLowerCase().includes("key");
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <p>Falha ao gerar dossiê: {err.message}</p>
+          {isExpired && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="mt-2 text-xs font-black uppercase tracking-widest border-rose-500/50 text-rose-500"
+              onClick={() => window.location.hash = "#settings"}
+            >
+              Renovar Chave no Perfil
+            </Button>
+          )}
+        </div>
+      );
     }
   });
 
@@ -33,7 +47,8 @@ export function PlateauRadarWidget() {
 
   const handleGenerateDossier = () => {
     if (!apiKey) {
-      toast.error("Configure sua API Key no Briefing da IA primeiro!");
+      toast.error("Configure sua API Key na aba Sistema (Perfil) primeiro!");
+      window.location.hash = "#settings";
       return;
     }
     if (selected) {
