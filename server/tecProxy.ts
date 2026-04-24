@@ -233,7 +233,7 @@ router.all("*", async (req: any, res: any) => {
       // Reescrita de links para manter no proxy
       // 1. URLs absolutas do TEC e do CDN
       html = html.replace(
-        /https?:\/\/(?:www\.)?tecconcursos\.com\.br/g,
+        /https?:\/\/(?:www\.|m\.)?tecconcursos\.com\.br/g,
         "/api/tec-browser",
       );
       html = html.replace(
@@ -243,7 +243,7 @@ router.all("*", async (req: any, res: any) => {
 
       // 2. URLs relativas em atributos HTML — evita duplicar prefixo
       html = html.replace(
-        /((?:href|src|action)=")\/(?!api\/tec-browser|\/)/g,
+        /((?:href|src|action|data-url)=")\/(?!api\/tec-browser|\/)/g,
         "$1/api/tec-browser/",
       );
 

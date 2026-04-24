@@ -415,7 +415,7 @@ export default function Notes() {
               className="text-xl font-black tracking-tight"
               style={{ color: "var(--app-fg)" }}
             >
-              Notes
+              Anotações
             </h1>
             <button
               onClick={() => setIsCreating(true)}

@@ -1216,12 +1216,13 @@ function MobileTecBrowser({ pushToken }: { pushToken: string }) {
           </button>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-3 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+            className="p-3 bg-[var(--primary)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all"
           >
-            Fechar
+            Sair
           </button>
         </div>
       </div>
+
       <div className="flex-1 bg-white">
         <iframe
           name="TEC_MAIN_FRAME"

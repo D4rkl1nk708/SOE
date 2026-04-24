@@ -29,6 +29,8 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
+import { ChangelogModal } from "./ChangelogModal";
+import { FeaturesModal } from "./FeaturesModal";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { trpc } from "@/lib/trpc";
 
@@ -307,18 +309,44 @@ function Sidebar({
           )}
         </Link>
         {!collapsed && (
-          <div className="px-5 pt-4 flex items-center justify-between">
-            <span className="text-[10px] font-black opacity-20 tracking-widest uppercase">
-              Versão
-            </span>
-            <span className="text-[10px] font-mono opacity-20">
-              {typeof __APP_VERSION__ !== "undefined"
-                ? "v" + __APP_VERSION__
-                : ""}
-            </span>
+          <div className="px-5 pt-4 flex flex-col gap-2">
+            <button
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("soe-open-features"))
+              }
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary)]/10 to-transparent border border-[var(--primary)]/20 hover:border-[var(--primary)]/40 transition-all group mb-2"
+            >
+              <Sparkles
+                size={14}
+                className="text-[var(--primary)] group-hover:scale-125 transition-transform"
+              />
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white">
+                Recursos
+              </span>
+            </button>
+
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-black opacity-20 tracking-widest uppercase">
+                Versão
+              </span>
+              <button
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent("soe-open-changelog"))
+                }
+                className="text-[10px] font-mono opacity-20 hover:opacity-100 hover:text-[var(--primary)] transition-all cursor-pointer"
+                title="Ver novidades desta atualização"
+              >
+                {typeof __APP_VERSION__ !== "undefined"
+                  ? "v" + __APP_VERSION__
+                  : ""}
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      <ChangelogModal />
+      <FeaturesModal />
     </aside>
   );
 }

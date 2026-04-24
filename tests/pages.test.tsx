@@ -101,6 +101,7 @@ vi.mock("@/lib/trpc", () => ({
       generateMaliciousMock: { useMutation: () => ({ mutate: vi.fn() }) },
       transcribeSubjectiveEssay: { useMutation: () => ({ mutate: vi.fn() }) },
       analyzeSubjectiveEssay: { useMutation: () => ({ mutate: vi.fn() }) },
+      executeAction: { useMutation: () => ({ mutate: vi.fn() }) },
       testKey: { useMutation: () => ({ mutate: vi.fn() }) },
     },
     v10: {

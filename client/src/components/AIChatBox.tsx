@@ -2,16 +2,23 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Sparkles } from "lucide-react";
+import { Loader2, Send, User, Sparkles, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 
 /**
  * Message type matching server-side LLM Message interface
  */
+export type AIAction = {
+  type: "update_calendar" | "update_notes" | "update_topic" | "other";
+  description: string;
+  payload: any;
+};
+
 export type Message = {
   role: "system" | "user" | "assistant";
   content: string;
+  action?: AIAction;
 };
 
 export type AIChatBoxProps = {
@@ -57,6 +64,11 @@ export type AIChatBoxProps = {
    * Click to send directly
    */
   suggestedPrompts?: string[];
+
+  /**
+   * Callback when user accepts/rejects an AI action
+   */
+  onAction?: (action: AIAction, accepted: boolean) => void;
 };
 
 /**
@@ -119,6 +131,7 @@ export function AIChatBox({
   height = "600px",
   emptyStateMessage = "Start a conversation with AI",
   suggestedPrompts,
+  onAction,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -262,8 +275,46 @@ export function AIChatBox({
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="soe-prose max-w-none text-sm">
-                          <Streamdown>{message.content}</Streamdown>
+                        <div className="space-y-4">
+                          <div className="soe-prose max-w-none text-sm">
+                            <Streamdown>{message.content}</Streamdown>
+                          </div>
+
+                          {message.action && (
+                            <div className="mt-4 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Sparkles
+                                  size={14}
+                                  className="text-[var(--primary)]"
+                                />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                                  Proposta da IA
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-white/80 leading-relaxed">
+                                {message.action.description}
+                              </p>
+
+                              <div className="flex gap-2 pt-2">
+                                <button
+                                  onClick={() =>
+                                    onAction?.(message.action!, true)
+                                  }
+                                  className="flex-1 h-10 rounded-xl bg-[var(--primary)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)]/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Check size={14} strokeWidth={3} /> Aceitar
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    onAction?.(message.action!, false)
+                                  }
+                                  className="h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <X size={14} strokeWidth={3} /> Recusar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="whitespace-pre-wrap text-sm">

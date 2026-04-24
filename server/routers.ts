@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
+import { editalRouter } from "./editalRouter";
 import { labRouter } from "./labRouter";
 import { callAiProvider } from "./aiProviders";
 import {
@@ -33,6 +34,7 @@ import {
 
 export const appRouter = router({
   system: systemRouter,
+  edital: editalRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -235,6 +237,7 @@ export const appRouter = router({
           disciplineId: z.number(),
           studyDate: z.string().optional(),
           notes: z.string().optional(),
+          studyTimeSeconds: z.number().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -245,6 +248,7 @@ export const appRouter = router({
           name: input.name,
           studyDate,
           notes: input.notes || null,
+          studyTimeSeconds: input.studyTimeSeconds,
         });
         const settings = await storage.getUserSettings(ctx.user.id);
         const params = getScheduleParams(settings);

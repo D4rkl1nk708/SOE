@@ -14,9 +14,10 @@
   if (window.__SOE_INJECTED_V2__) return;
   
   // No modo proxy, o script é injetado em tudo que é HTML.
-  // Só queremos rodar no frame principal (definido no QuestionSession.tsx)
-  // Isso evita que iframes de rastreamento (GTM, Facebook) enviem dados duplicados.
-  if (window.name !== 'TEC_MAIN_FRAME') {
+  // Só queremos rodar no frame principal do TEC. 
+  // No mobile, o window.name pode sumir, então relaxamos a trava se houver indícios do SOE Proxy.
+  const isSoeProxy = window.__SOE_PROXY__ || document.documentElement.innerHTML.includes('soe-hud');
+  if (window.name !== 'TEC_MAIN_FRAME' && !isSoeProxy) {
     return;
   }
   
@@ -209,11 +210,13 @@
     try {
       const selMateria = document.querySelector(
         '[class*="materia"], [class*="disciplina"], [class*="subject"], ' +
-        '[data-materia], [data-disciplina], .question-subject'
+        '[data-materia], [data-disciplina], .question-subject, ' +
+        '.materia-area, .disciplina-info' // Mobile selectors
       );
       const selAssunto = document.querySelector(
         '[class*="assunto"], [class*="topico"], [class*="topic"], ' +
-        '[data-assunto], [data-topico], .question-topic'
+        '[data-assunto], [data-topico], .question-topic, ' +
+        '.assunto-area, .topico-info' // Mobile selectors
       );
       if (selMateria && selAssunto) {
         const disciplina = cleanBtns(selMateria.textContent || '');
@@ -303,9 +306,9 @@
     const questionId = headerMatch?.[1] || urlIdMatch?.[1] || domId || null;
 
     const acertoMatch = bodyText.match(/Você acertou!/i) ||
-                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"]');
+                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"], .q-status-correct, .text-success');
     const erroMatch   = bodyText.match(/Você errou!/i) ||
-                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"]');
+                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], .q-status-wrong, .text-danger');
 
     // If we can't find questionId at all, use URL as dedup key
     const dedupKey = questionId || location.href;

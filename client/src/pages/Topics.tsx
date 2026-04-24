@@ -75,7 +75,8 @@ export default function Topics() {
   const [formData, setFormData] = useState({
     name: "",
     disciplineId: 0,
-    studyDate: "",
+    studyDate: new Date().toISOString().split("T")[0],
+    studyTimeMinutes: 60,
     notes: "",
   });
   const [filters, setFilters] = useState({
@@ -107,7 +108,13 @@ export default function Topics() {
       utils.topic.list.invalidate();
       utils.dashboard.getStats.invalidate();
       setIsCreateOpen(false);
-      setFormData({ name: "", disciplineId: 0, studyDate: "", notes: "" });
+      setFormData({
+        name: "",
+        disciplineId: 0,
+        studyDate: "",
+        studyTimeMinutes: 60,
+        notes: "",
+      });
       toast.success(
         `Tema registrado! ${data.revisionsCreated} revisões agendadas.`,
       );
@@ -147,6 +154,7 @@ export default function Topics() {
       name: formData.name,
       disciplineId: formData.disciplineId,
       studyDate: formData.studyDate || undefined,
+      studyTimeSeconds: formData.studyTimeMinutes * 60,
       notes: formData.notes || undefined,
     });
     setPreTestDialog(null);
@@ -442,6 +450,39 @@ export default function Topics() {
                 }
                 className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                  Data do Estudo
+                </label>
+                <input
+                  type="date"
+                  value={formData.studyDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, studyDate: e.target.value })
+                  }
+                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all [color-scheme:dark]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                  Tempo (Minutos)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ex: 60"
+                  value={formData.studyTimeMinutes}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      studyTimeMinutes: Number(e.target.value),
+                    })
+                  }
+                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                />
+              </div>
             </div>
             <button
               onClick={handleCreate}

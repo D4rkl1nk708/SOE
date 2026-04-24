@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/18</span>
+                <span class='fraction'>0/17</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/18</span>
+                <span class='fraction'>0/17</span>
             </div>
         
             
@@ -104,18 +104,12 @@
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
 <a name='L41'></a><a href='#L41'>41</a>
-<a name='L42'></a><a href='#L42'>42</a>
-<a name='L43'></a><a href='#L43'>43</a>
-<a name='L44'></a><a href='#L44'>44</a>
-<a name='L45'></a><a href='#L45'>45</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L42'></a><a href='#L42'>42</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -155,16 +149,13 @@
 &nbsp;
 <span class="cstat-no" title="statement not covered" >test.describe("SOE Core Features", <span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
 <span class="cstat-no" title="statement not covered" >  test.beforeEach(<span class="fstat-no" title="function not covered" >async ({</span> page }) =&gt; {</span>
-    // Acessa a página inicial e garante que a aplicação carregou
-<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/");</span>
-<span class="cstat-no" title="statement not covered" >    await expect(page).toHaveTitle(/SOE/);</span>
-&nbsp;
-    // Aguarda o carregamento do ambiente local (by-pass da tela de login se for o caso)
+    // Acessa a página inicial com no-splash para agilizar os testes
+<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/?no-splash");</span>
 <span class="cstat-no" title="statement not covered" >    await page.waitForLoadState("networkidle");</span>
   });
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  test("Deve acessar o Perfil e abrir a aba do Sentinela", <span class="fstat-no" title="function not covered" >async ({</span> page }) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/profile#dou");</span>
+<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/profile?no-splash#dou");</span>
 <span class="cstat-no" title="statement not covered" >    await expect(</span>
       page.getByRole("heading", {
         name: /Monitoramento DOU|Configuração de Busca/i,
@@ -173,14 +164,14 @@
   });
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  test("Deve acessar as Anotações", <span class="fstat-no" title="function not covered" >async ({</span> page }) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/notes");</span>
+<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/notes?no-splash");</span>
 <span class="cstat-no" title="statement not covered" >    await expect(</span>
       page.getByRole("heading", { name: /Anotações|Notas/i }).first(),
     ).toBeVisible();
   });
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  test("Deve acessar o Analytics", <span class="fstat-no" title="function not covered" >async ({</span> page }) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/analytics");</span>
+<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/analytics?no-splash");</span>
     // Verifica se algum widget visual carregou (ex: Radar ou Gráficos)
 <span class="cstat-no" title="statement not covered" >    await expect(page).toHaveURL(/\/analytics/);</span>
   });
@@ -188,7 +179,7 @@
 <span class="cstat-no" title="statement not covered" >  test("Deve acessar o Simulado e ver a tela de configuração", <span class="fstat-no" title="function not covered" >async ({</span></span>
     page,
   }) =&gt; {
-<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/simulado");</span>
+<span class="cstat-no" title="statement not covered" >    await page.goto("http://localhost:3000/simulado?no-splash");</span>
 <span class="cstat-no" title="statement not covered" >    await expect(page.getByText(/Simulado Cronometrado/i)).toBeVisible();</span>
 <span class="cstat-no" title="statement not covered" >    await expect(</span>
       page.getByRole("button", { name: /Iniciar Simulado/i }),
@@ -202,7 +193,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T17:43:02.645Z
+                at 2026-04-24T21:56:15.558Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

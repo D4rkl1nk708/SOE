@@ -42,7 +42,8 @@ function Router() {
 
   // Auto-backup on app start (PC only — not Capacitor Android)
   useEffect(() => {
-    const isCapacitor = typeof window !== "undefined" &&
+    const isCapacitor =
+      typeof window !== "undefined" &&
       (window.location.protocol === "capacitor:" || !window.location.host);
     if (!isCapacitor) {
       fetch("/api/backup/auto", { method: "POST" }).catch(() => {});
@@ -86,7 +87,11 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
     const t1 = setTimeout(() => setPhase("hold"), 400);
     const t2 = setTimeout(() => setPhase("out"), 1800);
     const t3 = setTimeout(onDone, 2400);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, [onDone]);
 
   return (
@@ -99,84 +104,168 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #0a0a0a 100%)",
+        background:
+          "linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #0a0a0a 100%)",
         transition: "opacity 0.6s ease",
         opacity: phase === "out" ? 0 : 1,
         pointerEvents: phase === "out" ? "none" : "all",
       }}
     >
       {/* Animated background orbs */}
-      <div style={{
-        position: "absolute", width: 400, height: 400, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%)",
-        top: "10%", left: "50%", transform: "translateX(-50%)",
-        animation: "pulse-orb 3s ease-in-out infinite",
-      }} />
-      <div style={{
-        position: "absolute", width: 200, height: 200, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)",
-        bottom: "20%", right: "20%",
-        animation: "pulse-orb 4s ease-in-out infinite reverse",
-      }} />
+      <div
+        style={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%)",
+          top: "10%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          animation: "pulse-orb 3s ease-in-out infinite",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          width: 200,
+          height: 200,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(212,175,55,0.08) 0%, transparent 70%)",
+          bottom: "20%",
+          right: "20%",
+          animation: "pulse-orb 4s ease-in-out infinite reverse",
+        }}
+      />
 
       {/* Logo container */}
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 20,
-        transform: phase === "in" ? "translateY(20px)" : "translateY(0)",
-        opacity: phase === "in" ? 0 : 1,
-        transition: "all 0.5s cubic-bezier(0.34,1.56,0.64,1)",
-      }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 20,
+          transform: phase === "in" ? "translateY(20px)" : "translateY(0)",
+          opacity: phase === "in" ? 0 : 1,
+          transition: "all 0.5s cubic-bezier(0.34,1.56,0.64,1)",
+        }}
+      >
         {/* Icon */}
-        <div style={{
-          width: 96, height: 96, borderRadius: 28,
-          background: "linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #c49a2a 100%)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 0 60px rgba(212,175,55,0.4), 0 20px 40px rgba(0,0,0,0.5)",
-          position: "relative",
-        }}>
+        <div
+          style={{
+            width: 96,
+            height: 96,
+            borderRadius: 28,
+            background:
+              "linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #c49a2a 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow:
+              "0 0 60px rgba(212,175,55,0.4), 0 20px 40px rgba(0,0,0,0.5)",
+            position: "relative",
+          }}
+        >
           {/* Book icon — open book matching app icon */}
-          <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            width="52"
+            height="52"
+            viewBox="0 0 52 52"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             {/* Left page */}
-            <rect x="4" y="10" width="21" height="28" rx="1" stroke="#1a1a1a" strokeWidth="3" fill="none"/>
+            <rect
+              x="4"
+              y="10"
+              width="21"
+              height="28"
+              rx="1"
+              stroke="#1a1a1a"
+              strokeWidth="3"
+              fill="none"
+            />
             {/* Right page */}
-            <rect x="27" y="10" width="21" height="28" rx="1" stroke="#1a1a1a" strokeWidth="3" fill="none"/>
+            <rect
+              x="27"
+              y="10"
+              width="21"
+              height="28"
+              rx="1"
+              stroke="#1a1a1a"
+              strokeWidth="3"
+              fill="none"
+            />
             {/* Center binding tab */}
-            <rect x="23" y="38" width="6" height="5" rx="1" fill="#1a1a1a"/>
+            <rect x="23" y="38" width="6" height="5" rx="1" fill="#1a1a1a" />
           </svg>
           {/* Shine effect */}
-          <div style={{
-            position: "absolute", top: 8, left: 12, width: 20, height: 8, borderRadius: 10,
-            background: "rgba(255,255,255,0.35)", transform: "rotate(-20deg)",
-          }} />
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 12,
+              width: 20,
+              height: 8,
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.35)",
+              transform: "rotate(-20deg)",
+            }}
+          />
         </div>
 
         {/* Title */}
         <div style={{ textAlign: "center" }}>
-          <div style={{
-            fontSize: 52, fontWeight: 900, letterSpacing: "0.18em",
-            background: "linear-gradient(135deg, #d4af37 0%, #f5e070 50%, #c49a2a 100%)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            fontFamily: "system-ui, -apple-system, sans-serif",
-            textShadow: "none",
-          }}>SOE</div>
-          <div style={{
-            fontSize: 13, letterSpacing: "0.35em", textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)", marginTop: -4,
-            fontFamily: "system-ui, -apple-system, sans-serif",
-          }}>Estudos para Concursos</div>
+          <div
+            style={{
+              fontSize: 52,
+              fontWeight: 900,
+              letterSpacing: "0.18em",
+              background:
+                "linear-gradient(135deg, #d4af37 0%, #f5e070 50%, #c49a2a 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              textShadow: "none",
+            }}
+          >
+            SOE
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              letterSpacing: "0.35em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.45)",
+              marginTop: -4,
+              fontFamily: "system-ui, -apple-system, sans-serif",
+            }}
+          >
+            Estudos para Concursos
+          </div>
         </div>
 
         {/* Loading bar */}
-        <div style={{
-          width: 140, height: 2, borderRadius: 2,
-          background: "rgba(255,255,255,0.1)",
-          marginTop: 8, overflow: "hidden",
-        }}>
-          <div style={{
-            height: "100%", borderRadius: 2,
-            background: "linear-gradient(90deg, #d4af37, #f5e070)",
-            animation: "loading-bar 1.8s ease forwards",
-          }} />
+        <div
+          style={{
+            width: 140,
+            height: 2,
+            borderRadius: 2,
+            background: "rgba(255,255,255,0.1)",
+            marginTop: 8,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              borderRadius: 2,
+              background: "linear-gradient(90deg, #d4af37, #f5e070)",
+              animation: "loading-bar 1.8s ease forwards",
+            }}
+          />
         </div>
       </div>
 
@@ -197,7 +286,14 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 }
 
 function App() {
-  const [splashDone, setSplashDone] = useState(false);
+  const [splashDone, setSplashDone] = useState(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.location.search.includes("no-splash")
+    )
+      return true;
+    return false;
+  });
 
   return (
     <ErrorBoundary>

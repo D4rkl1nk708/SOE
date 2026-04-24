@@ -1265,72 +1265,42 @@ Mentor:`;
         let reply = await callAI(input.provider, input.apiKey, prompt, 1500);
         let finalReply = reply.trim();
 
+        const proposals: any[] = [];
+
         const flashcardRegex = /\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g;
         let match;
-        let createdCount = 0;
-
         while ((match = flashcardRegex.exec(finalReply)) !== null) {
           try {
             const data = JSON.parse(match[1]);
-            if (data.front && data.back && data.disciplineId) {
-              await storage.createFlashcard({
-                userId: ctx.user.id,
-                disciplineId: Number(data.disciplineId),
-                topicId: data.topicId ? Number(data.topicId) : undefined,
-                front: data.front,
-                back: data.back,
-              });
-              createdCount++;
-            }
-          } catch (e) {
-            console.error("Falha ao parsear flashcard gerado pela IA:", e);
-          }
+            proposals.push({
+              type: "create_flashcard",
+              description: `Criar flashcard: "${data.front}"`,
+              payload: data,
+            });
+          } catch (e) {}
         }
 
         const rescheduleRegex = /\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g;
         let reschedMatch;
-        let rescheduledCount = 0;
-
         while ((reschedMatch = rescheduleRegex.exec(finalReply)) !== null) {
           try {
             const data = JSON.parse(reschedMatch[1]);
-            if (data.topicId && data.newDate) {
-              const pendingRev = revisions.find(
-                (r) =>
-                  r.topicId === Number(data.topicId) &&
-                  !r.completed &&
-                  !r.ignored,
-              );
-              if (pendingRev) {
-                await storage.rescheduleRevision(
-                  pendingRev.id,
-                  ctx.user.id,
-                  data.newDate,
-                );
-                rescheduledCount++;
-              }
-            }
-          } catch (e) {
-            console.error("Falha ao parsear reagendamento gerado pela IA:", e);
-          }
+            const topic = topics.find((t) => t.id === Number(data.topicId));
+            proposals.push({
+              type: "reschedule_revision",
+              description: `Reagendar revisão de "${topic?.name || "Assunto " + data.topicId}" para ${data.newDate}`,
+              payload: data,
+            });
+          } catch (e) {}
         }
 
-        finalReply = finalReply
-          .replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "")
-          .trim();
-        finalReply = finalReply
-          .replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "")
-          .trim();
-
+        // Executa observações e confusões silenciosamente (sem perguntar ao usuário pois é interno da IA)
         const obsRegex = /\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g;
         let obsMatch;
         while ((obsMatch = obsRegex.exec(finalReply)) !== null) {
           const obs = obsMatch[1].trim();
           if (obs) await storage.addMentorObservation(ctx.user.id, obs);
         }
-        finalReply = finalReply
-          .replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "")
-          .trim();
 
         const confRegex = /\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g;
         let confMatch;
@@ -1340,23 +1310,68 @@ Mentor:`;
             await storage.addConceptConfusion(ctx.user.id, data);
           } catch (e) {}
         }
+
         finalReply = finalReply
+          .replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "")
+          .replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "")
+          .replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "")
           .replace(/\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g, "")
           .trim();
 
-        if (createdCount > 0) {
-          finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? "s" : ""} automaticamente para você! Estão na sua aba de Revisão)*`;
-        }
-        if (rescheduledCount > 0) {
-          finalReply += `\n\n📅 *(Reagendei ${rescheduledCount} revisão${rescheduledCount > 1 ? "ões" : ""} automaticamente para você!)*`;
-        }
-
-        return { reply: finalReply };
+        return { reply: finalReply, proposals };
       } catch (err: any) {
         throw new Error(
           `Falha no chat: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }),
+
+  executeAction: protectedProcedure
+    .input(
+      z.object({
+        type: z.string(),
+        payload: z.any(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.type === "create_flashcard") {
+        const { front, back, disciplineId, topicId } = input.payload;
+        await storage.createFlashcard({
+          userId: ctx.user.id,
+          disciplineId: Number(disciplineId),
+          topicId: topicId ? Number(topicId) : undefined,
+          front,
+          back,
+        });
+        return { success: true, message: "Flashcard criado com sucesso!" };
+      }
+
+      if (input.type === "reschedule_revision") {
+        const { topicId, newDate } = input.payload;
+        const revisions = await storage.getRevisionsByUser(ctx.user.id);
+        const pendingRev = revisions.find(
+          (r) => r.topicId === Number(topicId) && !r.completed && !r.ignored,
+        );
+        if (pendingRev) {
+          await storage.rescheduleRevision(pendingRev.id, ctx.user.id, newDate);
+          return { success: true, message: "Revisão reagendada!" };
+        }
+        throw new Error(
+          "Nenhuma revisão pendente encontrada para este tópico.",
+        );
+      }
+
+      if (input.type === "update_note") {
+        const { id, content, title } = input.payload;
+        if (id) {
+          await storage.updateNote(Number(id), ctx.user.id, { content, title });
+        } else {
+          await storage.createNote({ userId: ctx.user.id, title, content });
+        }
+        return { success: true, message: "Anotação atualizada!" };
+      }
+
+      return { success: false, message: "Tipo de ação desconhecido." };
     }),
 
   /**

@@ -834,6 +834,7 @@ export async function createTopic(data: {
   name: string;
   studyDate: string;
   notes: string | null;
+  studyTimeSeconds?: number;
 }): Promise<{ id: number }> {
   const db = readDatabase();
   db.counters.topics++;
@@ -851,7 +852,7 @@ export async function createTopic(data: {
     order: nextOrder,
     studyDate: data.studyDate,
     notes: data.notes,
-    studyTimeSeconds: 0,
+    studyTimeSeconds: data.studyTimeSeconds || 0,
     createdAt: now(),
     updatedAt: now(),
   };
@@ -1106,6 +1107,49 @@ export async function upsertNote(
     });
   }
   writeDatabase(db);
+}
+
+export async function createNote(data: {
+  userId: number;
+  title: string;
+  content: string;
+  disciplineId?: number;
+  topicId?: number;
+}): Promise<void> {
+  const db = readDatabase();
+  let discId = data.disciplineId;
+  if (!discId) {
+    const userDiscs = db.disciplines.filter((d) => d.userId === data.userId);
+    discId = userDiscs[0]?.id || 0;
+  }
+
+  db.counters.notes++;
+  db.notes.push({
+    id: db.counters.notes,
+    userId: data.userId,
+    disciplineId: discId,
+    topicId: data.topicId,
+    title: data.title,
+    content: data.content,
+    createdAt: now(),
+    updatedAt: now(),
+  });
+  writeDatabase(db);
+}
+
+export async function updateNote(
+  id: number,
+  userId: number,
+  data: Partial<
+    Pick<StudyNote, "title" | "content" | "disciplineId" | "topicId">
+  >,
+): Promise<void> {
+  const db = readDatabase();
+  const index = db.notes.findIndex((n) => n.id === id && n.userId === userId);
+  if (index >= 0) {
+    db.notes[index] = { ...db.notes[index], ...data, updatedAt: now() };
+    writeDatabase(db);
+  }
 }
 
 export async function deleteNote(id: number, userId: number): Promise<void> {
