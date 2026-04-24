@@ -19,6 +19,9 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
+    } else {
+      // Se o app está rodando mas não tem janela, criamos uma nova
+      createWindow("http://localhost:" + DEFAULT_PORT);
     }
   });
 
