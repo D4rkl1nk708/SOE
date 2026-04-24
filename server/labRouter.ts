@@ -1,7 +1,9 @@
 import { router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+const require = (typeof import.meta !== 'undefined' && import.meta.url) 
+  ? createRequire(import.meta.url) 
+  : (typeof __filename !== 'undefined' ? createRequire(require('url').pathToFileURL(__filename).href) : createRequire(process.cwd()));
 
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
