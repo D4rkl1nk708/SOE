@@ -6,6 +6,8 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
+import fs from "fs";
+import path from "path";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -16,7 +18,7 @@ async function callAI(
   apiKeyString: string,
   prompt: string,
   maxTokens = 1200,
-  imageBase64?: string
+  imageBase64?: string,
 ): Promise<string> {
   return callAiProvider(provider, apiKeyString, prompt, maxTokens, imageBase64);
 }
@@ -32,9 +34,10 @@ export function extractJSON(text: string): unknown {
   if (!text) throw new Error("Resposta da IA está vazia.");
 
   // 1. Limpeza inicial
-  let cleaned = text.replace(/```json\s?([\s\S]*?)```/g, '$1')
-                    .replace(/```\s?([\s\S]*?)```/g, '$1')
-                    .trim();
+  let cleaned = text
+    .replace(/```json\s?([\s\S]*?)```/g, "$1")
+    .replace(/```\s?([\s\S]*?)```/g, "$1")
+    .trim();
 
   // Procura o início de um objeto ou array
   const startBrace = cleaned.indexOf("{");
@@ -48,21 +51,24 @@ export function extractJSON(text: string): unknown {
   }
 
   if (start === -1) throw new Error("Nenhum dado JSON encontrado na resposta.");
-  
+
   let jsonStr = cleaned.substring(start).trim();
 
   // 2. Tenta o parse direto
-  try { return JSON.parse(jsonStr); } catch (e) {}
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {}
 
   // 3. Algoritmo de recuperação de JSON truncado
   // Tenta remover caracteres do final até que o JSON se torne válido (após fechar as estruturas)
   let current = jsonStr;
-  
+
   // Limpeza de caracteres que costumam quebrar o parse no final de truncamentos
   current = current.replace(/[,:\[\{\" \n\r\t]+$/, "");
 
   // Tentativa iterativa de fechamento
-  for (let i = 0; i < 100; i++) { // Limite de tentativas para evitar loop infinito
+  for (let i = 0; i < 100; i++) {
+    // Limite de tentativas para evitar loop infinito
     try {
       // Tenta fechar aspas se estiverem abertas
       let attempt = current;
@@ -75,8 +81,10 @@ export function extractJSON(text: string): unknown {
       const openBrackets = (attempt.match(/\[/g) || []).length;
       const closeBrackets = (attempt.match(/\]/g) || []).length;
 
-      if (openBrackets > closeBrackets) attempt += "]".repeat(openBrackets - closeBrackets);
-      if (openBraces > closeBraces) attempt += "}".repeat(openBraces - closeBraces);
+      if (openBrackets > closeBrackets)
+        attempt += "]".repeat(openBrackets - closeBrackets);
+      if (openBraces > closeBraces)
+        attempt += "}".repeat(openBraces - closeBraces);
 
       return JSON.parse(attempt);
     } catch (e) {
@@ -86,9 +94,9 @@ export function extractJSON(text: string): unknown {
         current.lastIndexOf(","),
         current.lastIndexOf("["),
         current.lastIndexOf("{"),
-        current.lastIndexOf(":")
+        current.lastIndexOf(":"),
       );
-      
+
       if (lastSpecial <= 0) break;
       current = current.substring(0, lastSpecial).trim();
       // Remove vírgulas ou dois pontos que sobraram no final
@@ -107,14 +115,15 @@ export const mentorRouter = router({
    * Retorna ranking de disciplinas/tópicos por vulnerabilidade
    */
   getWeakProfile: protectedProcedure.query(async ({ ctx }) => {
-    const [disciplines, topics, revisions, errors, rebalance, forgetting] = await Promise.all([
-      storage.getDisciplinesByUser(ctx.user.id),
-      storage.getTopicsByUser(ctx.user.id),
-      storage.getRevisionsByUser(ctx.user.id),
-      storage.getQuestionErrorsByUser(ctx.user.id, {}).then(r => r.items),
-      storage.getDisciplineRebalanceReport(ctx.user.id),
-      storage.getForgettingVelocityByDiscipline(ctx.user.id),
-    ]);
+    const [disciplines, topics, revisions, errors, rebalance, forgetting] =
+      await Promise.all([
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getRevisionsByUser(ctx.user.id),
+        storage.getQuestionErrorsByUser(ctx.user.id, {}).then((r) => r.items),
+        storage.getDisciplineRebalanceReport(ctx.user.id),
+        storage.getForgettingVelocityByDiscipline(ctx.user.id),
+      ]);
 
     const completedRevisions = revisions.filter((r) => r.completed);
 
@@ -157,34 +166,41 @@ export const mentorRouter = router({
           vulnerabilityScore: Math.round(score),
           revisionCount: topicRevs.length,
           lastRevision:
-            topicRevs.sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""))[0]
-              ?.completedAt ?? null,
+            topicRevs.sort((a, b) =>
+              (b.completedAt ?? "").localeCompare(a.completedAt ?? ""),
+            )[0]?.completedAt ?? null,
         };
       })
-      .filter((t) => t.questionsResolved > 0 || t.errorCount > 0 || t.revisionCount > 0)
+      .filter(
+        (t) =>
+          t.questionsResolved > 0 || t.errorCount > 0 || t.revisionCount > 0,
+      )
       .sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
 
     // Discipline-level aggregation
-    const weakDisciplines = disciplines.map((d) => {
-      const dTopics = weakTopics.filter((t) => t.disciplineId === d.id);
-      const rb = rebalance.find((r) => r.disciplineId === d.id);
-      const fv = forgetting.find((f) => f.disciplineId === d.id);
-      const avgScore =
-        dTopics.length > 0
-          ? dTopics.reduce((s, t) => s + t.vulnerabilityScore, 0) / dTopics.length
-          : 0;
-      return {
-        disciplineId: d.id,
-        name: d.name,
-        color: d.color,
-        avgVulnerabilityScore: Math.round(avgScore),
-        accuracy: rb?.accuracy ?? null,
-        questionsResolved: rb?.questionsResolved ?? 0,
-        forgettingVolatility: fv?.volatility ?? "low",
-        topicCount: dTopics.length,
-        topWorstTopics: dTopics.slice(0, 3),
-      };
-    }).sort((a, b) => b.avgVulnerabilityScore - a.avgVulnerabilityScore);
+    const weakDisciplines = disciplines
+      .map((d) => {
+        const dTopics = weakTopics.filter((t) => t.disciplineId === d.id);
+        const rb = rebalance.find((r) => r.disciplineId === d.id);
+        const fv = forgetting.find((f) => f.disciplineId === d.id);
+        const avgScore =
+          dTopics.length > 0
+            ? dTopics.reduce((s, t) => s + t.vulnerabilityScore, 0) /
+              dTopics.length
+            : 0;
+        return {
+          disciplineId: d.id,
+          name: d.name,
+          color: d.color,
+          avgVulnerabilityScore: Math.round(avgScore),
+          accuracy: rb?.accuracy ?? null,
+          questionsResolved: rb?.questionsResolved ?? 0,
+          forgettingVolatility: fv?.volatility ?? "low",
+          topicCount: dTopics.length,
+          topWorstTopics: dTopics.slice(0, 3),
+        };
+      })
+      .sort((a, b) => b.avgVulnerabilityScore - a.avgVulnerabilityScore);
 
     return { weakTopics: weakTopics.slice(0, 20), weakDisciplines };
   }),
@@ -203,8 +219,11 @@ export const mentorRouter = router({
       .map((t) => {
         const perf = t.performance;
         const topicRevs = completedRevisions.filter((r) => r.topicId === t.id);
-        const accuracy = perf && perf.questionsResolved > 0 ? perf.correctCount / perf.questionsResolved : null;
-        
+        const accuracy =
+          perf && perf.questionsResolved > 0
+            ? perf.correctCount / perf.questionsResolved
+            : null;
+
         const disc = disciplines.find((d) => d.id === t.disciplineId);
 
         return {
@@ -219,7 +238,7 @@ export const mentorRouter = router({
       })
       .filter((t) => {
         // Estagnação: Fez pelo menos 3 revisões OU 20 questões, e o acerto não passa de 65%
-        const isStuck = (t.revisionCount >= 3 || t.questionsResolved >= 20);
+        const isStuck = t.revisionCount >= 3 || t.questionsResolved >= 20;
         const isLow = t.accuracy !== null && t.accuracy <= 65;
         return isStuck && isLow;
       })
@@ -235,7 +254,7 @@ export const mentorRouter = router({
         disciplineName: z.string(),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const prompt = `Você é o Mentor Estratégico SOE. O aluno entrou em PLATÔ de aprendizado neste assunto:
@@ -274,14 +293,15 @@ Responda APENAS o JSON válido.`;
         try {
           parsed = extractJSON(raw);
         } catch (parseErr: any) {
-          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+          throw new Error(
+            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
+          );
         }
         return parsed.dossier;
       } catch (err: any) {
         throw new Error(`Falha ao gerar Dossiê: ${err.message}`);
       }
     }),
-
 
   /**
    * Insights Rápidos de Estatística — IA analisa os números e dá 1 linha de impacto
@@ -291,15 +311,29 @@ Responda APENAS o JSON válido.`;
       z.object({
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const stats = await storage.getDashboardStats(ctx.user.id);
-      const totalResolved = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
-      const totalCorrect = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.correctCount ?? 0), 0);
-      const overallAccuracy = totalResolved > 0 ? Math.round(totalCorrect / totalResolved * 100) : 0;
-      
-      const discList = (stats.disciplineStats ?? []).map(d => `${d.name}: ${d.performance?.accuracy ?? 0}% (${d.performance?.questionsResolved ?? 0}q)`).join(", ");
+      const totalResolved = (stats.disciplineStats ?? []).reduce(
+        (sum, d) => sum + (d.performance?.questionsResolved ?? 0),
+        0,
+      );
+      const totalCorrect = (stats.disciplineStats ?? []).reduce(
+        (sum, d) => sum + (d.performance?.correctCount ?? 0),
+        0,
+      );
+      const overallAccuracy =
+        totalResolved > 0
+          ? Math.round((totalCorrect / totalResolved) * 100)
+          : 0;
+
+      const discList = (stats.disciplineStats ?? [])
+        .map(
+          (d) =>
+            `${d.name}: ${d.performance?.accuracy ?? 0}% (${d.performance?.questionsResolved ?? 0}q)`,
+        )
+        .join(", ");
 
       const prompt = `Você é o Mentor SOE. Analise as estatísticas atuais do aluno e dê UM insight de 1 frase (máximo 25 palavras) que seja encorajador mas cirúrgico.
       
@@ -314,7 +348,10 @@ Responda APENAS o JSON válido.`;
         const insight = await callAI(input.provider, input.apiKey, prompt, 200);
         return { insight: insight.trim() };
       } catch (err: any) {
-        return { insight: "Continue focado na constância. O resultado vem com o tempo." };
+        return {
+          insight:
+            "Continue focado na constância. O resultado vem com o tempo.",
+        };
       }
     }),
 
@@ -326,15 +363,28 @@ Responda APENAS o JSON válido.`;
       z.object({
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [stats, revisions, disciplines, topics, errors, rebalance, snapshots, regressions, weakFromSnap, observationsResult] = await Promise.all([
+      const [
+        stats,
+        revisions,
+        disciplines,
+        topics,
+        errors,
+        rebalance,
+        snapshots,
+        regressions,
+        weakFromSnap,
+        observationsResult,
+      ] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
         storage.getRevisionsByUser(ctx.user.id),
         storage.getDisciplinesByUser(ctx.user.id),
         storage.getTopicsByUser(ctx.user.id),
-        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 50 }).then(r => r.items),
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, { limit: 50 })
+          .then((r) => r.items),
         storage.getDisciplineRebalanceReport(ctx.user.id),
         storage.getTecSnapshots(ctx.user.id, 2),
         storage.getTecRegressions(ctx.user.id, 5),
@@ -343,7 +393,6 @@ Responda APENAS o JSON válido.`;
       ]);
 
       const observations = observationsResult as string[];
-
 
       const todayRevisions = revisions.filter((r) => {
         if (r.completed || r.ignored) return false;
@@ -366,16 +415,27 @@ Responda APENAS o JSON válido.`;
         .filter((d) => d.questionsResolved > 0 && d.accuracy < 65)
         .sort((a, b) => a.accuracy - b.accuracy)
         .slice(0, 5)
-        .map((d) => `${d.name}: ${d.accuracy}% de acerto (${d.questionsResolved} questões)`);
+        .map(
+          (d) =>
+            `${d.name}: ${d.accuracy}% de acerto (${d.questionsResolved} questões)`,
+        );
 
       const recentErrors = errors.slice(0, 5).map((e) => {
         const d = disciplines.find((d) => d.id === e.disciplineId);
         return `${d?.name ?? ""}: ${e.errorOrigin ?? "erro"} — "${e.statement.slice(0, 80)}..."`;
       });
 
-      const totalQuestionsResolved = ((stats as { disciplineStats?: Array<{ performance?: { questionsResolved?: number } }> }).disciplineStats ?? []).reduce(
+      const totalQuestionsResolved = (
+        (
+          stats as {
+            disciplineStats?: Array<{
+              performance?: { questionsResolved?: number };
+            }>;
+          }
+        ).disciplineStats ?? []
+      ).reduce(
         (sum: number, d) => sum + (d.performance?.questionsResolved ?? 0),
-        0
+        0,
       );
 
       // ── Contexto TEC fresco ──────────────────────────────────────────────
@@ -394,7 +454,10 @@ Responda APENAS o JSON válido.`;
             ? `- Tópicos críticos (acerto < 65%, ≥5 questões):\n` +
               weakFromSnap
                 .slice(0, 6)
-                .map((t) => `  • ${t.disciplineName} > ${t.topicName}: ${t.accuracy}% (${t.errorCount} erros em ${t.questionsResolved} questões)`)
+                .map(
+                  (t) =>
+                    `  • ${t.disciplineName} > ${t.topicName}: ${t.accuracy}% (${t.errorCount} erros em ${t.questionsResolved} questões)`,
+                )
                 .join("\n")
             : "- Nenhum tópico crítico identificado no último snapshot")
         : "";
@@ -404,7 +467,10 @@ Responda APENAS o JSON válido.`;
           ? `\n\nREGRESSÕES DETECTADAS (tópicos que pioraram ≥5pp desde a penúltima importação):\n` +
             regressions
               .slice(0, 4)
-              .map((r) => `  ⚠ ${r.disciplineName} > ${r.topicName}: ${r.previousAccuracy}% → ${r.currentAccuracy}% (${r.delta}pp)`)
+              .map(
+                (r) =>
+                  `  ⚠ ${r.disciplineName} > ${r.topicName}: ${r.previousAccuracy}% → ${r.currentAccuracy}% (${r.delta}pp)`,
+              )
               .join("\n")
           : "";
 
@@ -442,7 +508,12 @@ Escreva o briefing no formato exato:
 Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
 
       try {
-        const briefing = await callAI(input.provider, input.apiKey, prompt, 800);
+        const briefing = await callAI(
+          input.provider,
+          input.apiKey,
+          prompt,
+          800,
+        );
         return {
           briefing,
           generatedAt: new Date().toISOString(),
@@ -463,23 +534,44 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
       z.object({
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [stats, weak, errors, disciplines, revisions, regressions] = await Promise.all([
-        storage.getDashboardStats(ctx.user.id),
-        storage.getWeakTopicsFromSnapshot(ctx.user.id),
-        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 20 }).then(r => r.items),
-        storage.getDisciplinesByUser(ctx.user.id),
-        storage.getRevisionsByUser(ctx.user.id),
-        storage.getTecRegressions(ctx.user.id, 5),
-      ]);
+      const [stats, weak, errors, disciplines, revisions, regressions] =
+        await Promise.all([
+          storage.getDashboardStats(ctx.user.id),
+          storage.getWeakTopicsFromSnapshot(ctx.user.id),
+          storage
+            .getQuestionErrorsByUser(ctx.user.id, { limit: 20 })
+            .then((r) => r.items),
+          storage.getDisciplinesByUser(ctx.user.id),
+          storage.getRevisionsByUser(ctx.user.id),
+          storage.getTecRegressions(ctx.user.id, 5),
+        ]);
 
-      const totalResolved = (stats.disciplineStats ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
-      const overallAcc = totalResolved > 0 ? Math.round((stats.disciplineStats ?? []).reduce((s, d) => s + (d.performance?.correctCount ?? 0), 0) / totalResolved * 100) : 0;
+      const totalResolved = (stats.disciplineStats ?? []).reduce(
+        (sum, d) => sum + (d.performance?.questionsResolved ?? 0),
+        0,
+      );
+      const overallAcc =
+        totalResolved > 0
+          ? Math.round(
+              ((stats.disciplineStats ?? []).reduce(
+                (s, d) => s + (d.performance?.correctCount ?? 0),
+                0,
+              ) /
+                totalResolved) *
+                100,
+            )
+          : 0;
 
-      const weakList = weak.slice(0, 10).map(t => `- ${t.disciplineName} > ${t.topicName}: ${t.accuracy}%`).join("\n");
-      const errorPatterns = errors.map(e => `- ${e.errorOrigin}: ${e.statement.substring(0, 100)}...`).join("\n");
+      const weakList = weak
+        .slice(0, 10)
+        .map((t) => `- ${t.disciplineName} > ${t.topicName}: ${t.accuracy}%`)
+        .join("\n");
+      const errorPatterns = errors
+        .map((e) => `- ${e.errorOrigin}: ${e.statement.substring(0, 100)}...`)
+        .join("\n");
 
       const prompt = `Você é o Mentor Estratégico SOE. Sua tarefa é analisar o perfil completo de um concurseiro e gerar um "Relatório de Guerra" profundo.
 
@@ -525,20 +617,22 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
               questionId: z.string(),
               correct: z.boolean(),
               errorOrigin: z.string().optional(),
-            })
+            }),
           )
           .default([]),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const [errors, disciplines, topics] = await Promise.all([
-        storage.getQuestionErrorsByUser(ctx.user.id, {
-          disciplineId: input.disciplineId,
-          ...(input.topicId ? { topicId: input.topicId } : {}),
-          limit: 200,
-        }).then(r => r.items),
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, {
+            disciplineId: input.disciplineId,
+            ...(input.topicId ? { topicId: input.topicId } : {}),
+            limit: 200,
+          })
+          .then((r) => r.items),
         storage.getDisciplinesByUser(ctx.user.id),
         storage.getTopicsByUser(ctx.user.id),
       ]);
@@ -548,13 +642,18 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
 
       const alreadyUsedIds = input.sessionHistory.map((h) => h.questionId);
       const availableFromBank = errors.filter(
-        (e) => e.correctAnswer && e.statement && !alreadyUsedIds.includes(String(e.id))
+        (e) =>
+          e.correctAnswer &&
+          e.statement &&
+          !alreadyUsedIds.includes(String(e.id)),
       );
 
       // Use bank question if available and difficulty matches
       if (availableFromBank.length > 0) {
         const pick =
-          availableFromBank[Math.floor(Math.random() * Math.min(availableFromBank.length, 5))];
+          availableFromBank[
+            Math.floor(Math.random() * Math.min(availableFromBank.length, 5))
+          ];
         return {
           source: "bank" as const,
           questionId: String(pick.id),
@@ -574,8 +673,8 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
         input.difficulty === "easy"
           ? "básica (conceito direto)"
           : input.difficulty === "hard"
-          ? "difícil (pegadinha ou exceção legal)"
-          : "intermediária (aplicação prática)";
+            ? "difícil (pegadinha ou exceção legal)"
+            : "intermediária (aplicação prática)";
 
       const recentMistakes = input.sessionHistory
         .filter((h) => !h.correct)
@@ -611,7 +710,9 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
         } catch (parseErr: any) {
           console.error("JSON parsing failed:", parseErr.message);
           console.error("Raw AI response:", raw);
-          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+          throw new Error(
+            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
+          );
         }
         return {
           source: "ai" as const,
@@ -641,7 +742,7 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
         explanation: z.string(),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const prompt = `Você é um examinador "carrasco" de concursos públicos (estilo CEBRASPE / FGV).
@@ -676,7 +777,9 @@ Retorne EXATAMENTE neste formato JSON:
         try {
           parsed = extractJSON(raw);
         } catch (parseErr: any) {
-          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+          throw new Error(
+            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
+          );
         }
         return parsed;
       } catch (err: any) {
@@ -691,21 +794,27 @@ Retorne EXATAMENTE neste formato JSON:
     .input(
       z.object({
         statement: z.string(),
-        alternatives: z.array(z.object({ letter: z.string(), text: z.string() })),
+        alternatives: z.array(
+          z.object({ letter: z.string(), text: z.string() }),
+        ),
         userAnswer: z.string(),
         correctAnswer: z.string(),
-        errorOrigin: z.enum(["attention", "forgetting", "theory", "trap"]).optional(),
+        errorOrigin: z
+          .enum(["attention", "forgetting", "theory", "trap"])
+          .optional(),
         disciplineName: z.string(),
         topicName: z.string(),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
-      })
+      }),
     )
     .mutation(async ({ ctx: _ctx, input }) => {
       const chosenText =
-        input.alternatives.find((a) => a.letter === input.userAnswer)?.text ?? "";
+        input.alternatives.find((a) => a.letter === input.userAnswer)?.text ??
+        "";
       const correctText =
-        input.alternatives.find((a) => a.letter === input.correctAnswer)?.text ?? "";
+        input.alternatives.find((a) => a.letter === input.correctAnswer)
+          ?.text ?? "";
 
       const prompt = `Você é o Mentor SOE — professor particular de concursos. O aluno acabou de errar uma questão na sessão adaptativa. Dê um diagnóstico CIRÚRGICO e IMEDIATO.
 
@@ -756,7 +865,9 @@ Responda em JSON exato (sem markdown):
         } catch (parseErr: any) {
           console.error("JSON parsing failed:", parseErr.message);
           console.error("Raw AI response:", raw);
-          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
+          throw new Error(
+            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
+          );
         }
         return {
           diagnosis: parsed.diagnosis ?? "",
@@ -780,7 +891,7 @@ Responda em JSON exato (sem markdown):
         correct: z.number(),
         wrong: z.number(),
         durationSeconds: z.number().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       if (input.topicId) {
@@ -790,16 +901,21 @@ Responda em JSON exato (sem markdown):
         });
       }
       if (input.durationSeconds && input.topicId) {
-        await storage.addTopicStudyTime(input.topicId, ctx.user.id, input.durationSeconds);
+        await storage.addTopicStudyTime(
+          input.topicId,
+          ctx.user.id,
+          input.durationSeconds,
+        );
       }
       const totalQ = input.correct + input.wrong;
-      const accuracy = totalQ > 0 ? Math.round((input.correct / totalQ) * 100) : 0;
+      const accuracy =
+        totalQ > 0 ? Math.round((input.correct / totalQ) * 100) : 0;
       await storage.logStudySession(
         ctx.user.id,
         new Date().getHours(),
         Math.round((input.durationSeconds ?? 0) / 60),
         accuracy,
-        input.disciplineId
+        input.disciplineId,
       );
       return { success: true };
     }),
@@ -834,8 +950,14 @@ Responda em JSON exato (sem markdown):
               overallAccuracy: previous.overallAccuracy,
             }
           : null,
-        deltaAccuracy: latest && previous ? latest.overallAccuracy - previous.overallAccuracy : null,
-        deltaQuestions: latest && previous ? latest.totalQuestions - previous.totalQuestions : null,
+        deltaAccuracy:
+          latest && previous
+            ? latest.overallAccuracy - previous.overallAccuracy
+            : null,
+        deltaQuestions:
+          latest && previous
+            ? latest.totalQuestions - previous.totalQuestions
+            : null,
       };
     }),
 
@@ -857,21 +979,26 @@ Responda em JSON exato (sem markdown):
         topicId: z.number(),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const [errors, topics, disciplines] = await Promise.all([
-        storage.getQuestionErrorsByUser(ctx.user.id, { topicId: input.topicId }).then(r => r.items),
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, { topicId: input.topicId })
+          .then((r) => r.items),
         storage.getTopicsByUser(ctx.user.id),
         storage.getDisciplinesByUser(ctx.user.id),
       ]);
 
-      const topic = topics.find(t => t.id === input.topicId);
+      const topic = topics.find((t) => t.id === input.topicId);
       if (!topic) throw new Error("Tópico não encontrado.");
 
-      const disc = disciplines.find(d => d.id === topic.disciplineId);
+      const disc = disciplines.find((d) => d.id === topic.disciplineId);
 
-      const errorTexts = errors.slice(0, 10).map(e => `${e.statement} (Gabarito: ${e.correctAnswer})`).join("\n");
+      const errorTexts = errors
+        .slice(0, 10)
+        .map((e) => `${e.statement} (Gabarito: ${e.correctAnswer})`)
+        .join("\n");
 
       const prompt = `Você é um gênio na criação de mnemônicos absurdos e inesquecíveis para concurseiros.
 O aluno tem errado recorrentemente questões do seguinte tema:
@@ -885,8 +1012,13 @@ Com base nesse padrão de erro ou nos conceitos dessas questões, crie UM mnemô
 Responda apenas com o mnemônico e uma breve explicação de 2 linhas.`;
 
       try {
-        const mnemonic = await callAI(input.provider, input.apiKey, prompt, 600);
-        
+        const mnemonic = await callAI(
+          input.provider,
+          input.apiKey,
+          prompt,
+          600,
+        );
+
         // Salva o mnemônico como uma anotação de sobrevivência no banco local
         const mantras = topic.topicNotes || [];
         mantras.push(mnemonic);
@@ -910,7 +1042,7 @@ Responda apenas com o mnemônico e uma breve explicação de 2 linhas.`;
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
         imageBase64: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const prompt = `Você é um assistente especializado em transcrição de textos manuscritos. 
@@ -921,9 +1053,15 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
 2. Não corrija erros gramaticais ou ortográficos (transcreva exatamente como escrito).
 3. Se houver palavras ilegíveis, use [ilegível].
 4. Responda APENAS com o texto transcrito, sem comentários, sem markdown, sem introduções.`;
-      
+
       try {
-        const transcription = await callAI(input.provider, input.apiKey, prompt, 1500, input.imageBase64);
+        const transcription = await callAI(
+          input.provider,
+          input.apiKey,
+          prompt,
+          1500,
+          input.imageBase64,
+        );
         return { transcription: transcription.trim() };
       } catch (err: any) {
         throw new Error(`Falha na transcrição IA: ${err.message}`);
@@ -937,20 +1075,18 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
         imageBase64: z.string(),
         prompt: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       try {
-        const raw = await callAI(input.provider, input.apiKey, input.prompt, 2000, input.imageBase64);
-        let parsed: any;
-        try {
-          parsed = extractJSON(raw);
-        } catch (parseErr: any) {
-          console.error("JSON parsing failed:", parseErr.message);
-          console.error("Raw AI response:", raw);
-          throw new Error(`Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`);
-        }
-        return parsed;
+        const raw = await callAI(
+          input.provider,
+          input.apiKey,
+          input.prompt,
+          2000,
+          input.imageBase64,
+        );
+        return extractJSON(raw);
       } catch (err: any) {
         throw new Error(`Falha na correção IA: ${err.message}`);
       }
@@ -960,57 +1096,120 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
     .input(
       z.object({
         message: z.string(),
-        history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
+        history: z.array(
+          z.object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string(),
+          }),
+        ),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      // gather basic stats to feed as context
-      const [stats, weak, errors, disciplines, revisions, notes, flashcards, topics, observationsResult] = await Promise.all([
+      const [
+        stats,
+        weak,
+        errors,
+        disciplines,
+        revisions,
+        notes,
+        flashcards,
+        topics,
+        observationsResult,
+        essays,
+      ] = await Promise.all([
         storage.getDashboardStats(ctx.user.id),
         storage.getWeakTopicsFromSnapshot(ctx.user.id, 65),
-        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 10 }).then(r => r.items),
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, { limit: 10 })
+          .then((r) => r.items),
         storage.getDisciplinesByUser(ctx.user.id),
         storage.getRevisionsByUser(ctx.user.id),
         storage.getNotesByUser(ctx.user.id),
         storage.getFlashcardsByUser(ctx.user.id),
         storage.getTopicsByUser(ctx.user.id),
-        storage.getMentorObservations(ctx.user.id)
+        storage.getMentorObservations(ctx.user.id),
+        storage.getEssaysByUser(ctx.user.id),
       ]);
-      
+
       const observations = observationsResult as string[];
 
-      
-      const totalResolved = ((stats as any).disciplineStats ?? []).reduce((sum: number, d: any) => sum + (d.performance?.questionsResolved ?? 0), 0);
-      
-      const weakStr = weak.length > 0 
-        ? weak.slice(0, 5).map(t => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`).join(", ")
-        : "Nenhum tópico crítico identificado.";
+      const storagePath = path.join(process.cwd(), "data", "mined_exams");
+      let minedExamsList: string[] = [];
+      if (fs.existsSync(storagePath)) {
+        minedExamsList = fs
+          .readdirSync(storagePath)
+          .filter((f) => f.endsWith(".json"));
+      }
 
-      const errorsStr = errors.length > 0
-        ? errors.map(e => {
-            const d = disciplines.find(d => d.id === e.disciplineId);
-            return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 150)}..." | Errou por: ${e.errorOrigin ?? "desconhecido"}`;
-          }).join("\n")
-        : "Nenhum erro registrado recentemente.";
+      const totalResolved = ((stats as any).disciplineStats ?? []).reduce(
+        (sum: number, d: any) => sum + (d.performance?.questionsResolved ?? 0),
+        0,
+      );
 
-      const revisionsStr = revisions.filter(r => !r.completed && !r.ignored).slice(0, 10).map(r => {
-         const t = topics.find(t => t.id === r.topicId);
-         return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
-      }).join("\n");
+      const weakStr =
+        weak.length > 0
+          ? weak
+              .slice(0, 5)
+              .map(
+                (t) => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`,
+              )
+              .join(", ")
+          : "Nenhum tópico crítico identificado.";
 
-      const notesStr = notes.slice(0, 5).map(n => `- Título: ${n.title} | Resumo: ${n.content.replace(/<[^>]+>/g, '').substring(0, 100)}...`).join("\n");
+      const errorsStr =
+        errors.length > 0
+          ? errors
+              .map((e) => {
+                const d = disciplines.find((d) => d.id === e.disciplineId);
+                return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 150)}..." | Errou por: ${e.errorOrigin ?? "desconhecido"}`;
+              })
+              .join("\n")
+          : "Nenhum erro registrado recentemente.";
+
+      const revisionsStr = revisions
+        .filter((r) => !r.completed && !r.ignored)
+        .slice(0, 10)
+        .map((r) => {
+          const t = topics.find((t) => t.id === r.topicId);
+          return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
+        })
+        .join("\n");
+
+      const notesStr = notes
+        .slice(0, 5)
+        .map(
+          (n) =>
+            `- Título: ${n.title} | Resumo: ${n.content.replace(/<[^>]+>/g, "").substring(0, 100)}...`,
+        )
+        .join("\n");
       const flashcardsCount = flashcards.length;
-      
-      const topicsStr = topics.sort((a, b) => b.studyDate.localeCompare(a.studyDate))
-                              .slice(0, 10)
-                              .map(t => `ID: ${t.id} | DiscID: ${t.disciplineId} | Nome: ${t.name}`).join("\n");
 
-      const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
-      
+      const topicsStr = topics
+        .sort((a, b) => b.studyDate.localeCompare(a.studyDate))
+        .slice(0, 10)
+        .map((t) => `ID: ${t.id} | DiscID: ${t.disciplineId} | Nome: ${t.name}`)
+        .join("\n");
+
+      const essaysStr = essays
+        .slice(0, 5)
+        .map(
+          (e) =>
+            `- ${e.title} (${e.status}): Nota ${e.correction?.score ?? "N/A"}`,
+        )
+        .join("\n");
+      const labStr =
+        minedExamsList.length > 0
+          ? minedExamsList.join(", ")
+          : "Nenhum arquivo no laboratório.";
+
+      const transcript = input.history
+        .map((m) => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`)
+        .join("\n\n");
+
       const prompt = `Você é o Mentor SOE — um professor particular de concursos e mentor de estudos focado em resultado.
-Você tem acesso completo e irrestrito ao sistema (SOE) do aluno, incluindo Calendário, Editais, Anotações, Flashcards, Estatísticas, Disciplinas e Questões.
+Você tem acesso completo e irrestrito ao sistema (SOE) do aluno, incluindo Calendário, Editais, Anotações, Flashcards, Estatísticas, Disciplinas, Questões, Redações (Subjetivas) e o Laboratório de Provas.
 
 DADOS COMPLETOS DO ALUNO HOJE:
 - Estatísticas: ${totalResolved} questões resolvidas no total.
@@ -1022,12 +1221,16 @@ ${revisionsStr || "Nenhuma revisão pendente."}
 - Anotações Recentes:
 ${notesStr || "Nenhuma anotação."}
 - Flashcards: ${flashcardsCount} flashcards salvos.
+- Redações/Subjetivas:
+${essaysStr || "Nenhuma redação registrada."}
+- Laboratório (Arquivos Minerados):
+${labStr}
 - Editais/Disciplinas (Tópicos em andamento):
 ${topicsStr || "Nenhum tópico em andamento."}
 - Memória Estratégica (Suas observações passadas sobre este aluno):
 ${observations.length > 0 ? observations.join("\n") : "Sem observações prévias."}
 
-Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, ou usar as questões erradas para testá-lo.
+Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, comentar sobre o desempenho nas redações ou sugerir a integração de provas do laboratório.
 Se o aluno pedir questões, gere-as focadas nos pontos fracos. Seja sempre direto, motivador e extremamente personalizado. Use markdown para negritos.
 
 🚨 ALERTA TEÓRICO: Analise ativamente as anotações recentes do aluno fornecidas acima. Se você notar qualquer erro conceitual grave, desatualização jurisprudencial ou legislativa, alerte-o imediatamente!
@@ -1040,7 +1243,7 @@ Se você não souber o disciplineId ou topicId correto, escolha o DiscID/ID do t
 Poder Mágico 2 (Agendamento de Revisões):
 Se o aluno pedir para adiar ou reagendar o estudo/revisão de alguma matéria, você pode fazer isso automaticamente por ele gerando o seguinte bloco no final da resposta:
 [RESCHEDULE]{"topicId": 123, "newDate": "YYYY-MM-DD"}[/RESCHEDULE]
-Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${new Date().toISOString().split('T')[0]}). Pode gerar vários blocos se necessário.
+Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${new Date().toISOString().split("T")[0]}). Pode gerar vários blocos se necessário.
 
 Poder Mágico 3 (Memória Estratégica):
 Sempre que você notar um padrão de comportamento, um erro recorrente de lógica ou uma evolução notável, salve uma observação curta (máx 15 palavras) para você mesmo ler no futuro usando:
@@ -1061,12 +1264,11 @@ Mentor:`;
       try {
         let reply = await callAI(input.provider, input.apiKey, prompt, 1500);
         let finalReply = reply.trim();
-        
-        // Extract and execute Flashcards
+
         const flashcardRegex = /\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g;
         let match;
         let createdCount = 0;
-        
+
         while ((match = flashcardRegex.exec(finalReply)) !== null) {
           try {
             const data = JSON.parse(match[1]);
@@ -1076,7 +1278,7 @@ Mentor:`;
                 disciplineId: Number(data.disciplineId),
                 topicId: data.topicId ? Number(data.topicId) : undefined,
                 front: data.front,
-                back: data.back
+                back: data.back,
               });
               createdCount++;
             }
@@ -1084,61 +1286,76 @@ Mentor:`;
             console.error("Falha ao parsear flashcard gerado pela IA:", e);
           }
         }
-        
-        // Extract and execute Reschedules
+
         const rescheduleRegex = /\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g;
         let reschedMatch;
         let rescheduledCount = 0;
-        
+
         while ((reschedMatch = rescheduleRegex.exec(finalReply)) !== null) {
           try {
             const data = JSON.parse(reschedMatch[1]);
             if (data.topicId && data.newDate) {
-              const pendingRev = revisions.find(r => r.topicId === Number(data.topicId) && !r.completed && !r.ignored);
+              const pendingRev = revisions.find(
+                (r) =>
+                  r.topicId === Number(data.topicId) &&
+                  !r.completed &&
+                  !r.ignored,
+              );
               if (pendingRev) {
-                 await storage.rescheduleRevision(pendingRev.id, ctx.user.id, data.newDate);
-                 rescheduledCount++;
+                await storage.rescheduleRevision(
+                  pendingRev.id,
+                  ctx.user.id,
+                  data.newDate,
+                );
+                rescheduledCount++;
               }
             }
           } catch (e) {
             console.error("Falha ao parsear reagendamento gerado pela IA:", e);
           }
         }
-        
-        // Remove tags from user view
-        finalReply = finalReply.replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "").trim();
-        finalReply = finalReply.replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "").trim();
-        
-        // Extract and save Observation
+
+        finalReply = finalReply
+          .replace(/\[FLASHCARD\]([\s\S]*?)\[\/FLASHCARD\]/g, "")
+          .trim();
+        finalReply = finalReply
+          .replace(/\[RESCHEDULE\]([\s\S]*?)\[\/RESCHEDULE\]/g, "")
+          .trim();
+
         const obsRegex = /\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g;
         let obsMatch;
         while ((obsMatch = obsRegex.exec(finalReply)) !== null) {
           const obs = obsMatch[1].trim();
           if (obs) await storage.addMentorObservation(ctx.user.id, obs);
         }
-        finalReply = finalReply.replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "").trim();
-        
-        // Extract and save Concept Confusion
+        finalReply = finalReply
+          .replace(/\[OBSERVATION\]([\s\S]*?)\[\/OBSERVATION\]/g, "")
+          .trim();
+
         const confRegex = /\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g;
         let confMatch;
         while ((confMatch = confRegex.exec(finalReply)) !== null) {
           try {
             const data = JSON.parse(confMatch[1]);
             await storage.addConceptConfusion(ctx.user.id, data);
-          } catch(e) {}
+          } catch (e) {}
         }
-        finalReply = finalReply.replace(/\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g, "").trim();
-        
+        finalReply = finalReply
+          .replace(/\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g, "")
+          .trim();
+
         if (createdCount > 0) {
-          finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} automaticamente para você! Estão na sua aba de Revisão)*`;
+          finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? "s" : ""} automaticamente para você! Estão na sua aba de Revisão)*`;
         }
         if (rescheduledCount > 0) {
-          finalReply += `\n\n📅 *(Reagendei ${rescheduledCount} revisão${rescheduledCount > 1 ? 'ões' : ''} automaticamente para você!)*`;
+          finalReply += `\n\n📅 *(Reagendei ${rescheduledCount} revisão${rescheduledCount > 1 ? "ões" : ""} automaticamente para você!)*`;
         }
 
         return { reply: finalReply };
       } catch (err: any) {
-        throw new Error(`Falha no chat: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(
+          `Falha no chat: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }),
 
@@ -1146,27 +1363,32 @@ Mentor:`;
    * Insights Neurais — Análise profunda de conexões entre matérias e detecção de "efeito platô"
    */
   getNeuralInsights: protectedProcedure
-    .input(z.object({
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const [stats, weak, errors, disciplines, revisions, notes, observations] = await Promise.all([
-        storage.getDashboardStats(ctx.user.id),
-        storage.getWeakTopicsFromSnapshot(ctx.user.id, 70),
-        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 30 }).then(r => r.items),
-        storage.getDisciplinesByUser(ctx.user.id),
-        storage.getRevisionsByUser(ctx.user.id),
-        storage.getNotesByUser(ctx.user.id),
-        storage.getMentorObservations(ctx.user.id),
-      ]);
+      const [stats, weak, errors, disciplines, revisions, notes, observations] =
+        await Promise.all([
+          storage.getDashboardStats(ctx.user.id),
+          storage.getWeakTopicsFromSnapshot(ctx.user.id, 70),
+          storage
+            .getQuestionErrorsByUser(ctx.user.id, { limit: 30 })
+            .then((r) => r.items),
+          storage.getDisciplinesByUser(ctx.user.id),
+          storage.getRevisionsByUser(ctx.user.id),
+          storage.getNotesByUser(ctx.user.id),
+          storage.getMentorObservations(ctx.user.id),
+        ]);
 
       const prompt = `Você é o Arquiteto de Aprendizagem SOE. Sua tarefa é realizar uma "Neuro-Análise" do perfil do aluno.
       
       DADOS:
       - Observações anteriores: ${observations.join(" | ")}
-      - Tópicos Críticos: ${weak.map(t => t.topicName).join(", ")}
-      - Erros Recentes: ${errors.map(e => e.errorOrigin).join(", ")}
+      - Tópicos Críticos: ${weak.map((t) => t.topicName).join(", ")}
+      - Erros Recentes: ${errors.map((e) => e.errorOrigin).join(", ")}
       
       OBJETIVO:
       Identifique conexões invisíveis entre as falhas do aluno. Por exemplo: "Você erra controle de constitucionalidade porque ainda tem lacunas em Teoria da Constituição".
@@ -1192,28 +1414,35 @@ Mentor:`;
    * Shadow Examiner — Gera uma sessão de "Stress" com questões focadas em derrubar o aluno
    */
   generateShadowSession: protectedProcedure
-    .input(z.object({
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-      count: z.number().default(5)
-    }))
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+        count: z.number().default(5),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const [observations, errors, weak] = await Promise.all([
         storage.getMentorObservations(ctx.user.id),
-        storage.getQuestionErrorsByUser(ctx.user.id, { limit: 20 }).then(r => r.items),
-        storage.getWeakTopicsFromSnapshot(ctx.user.id, 70)
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, { limit: 20 })
+          .then((r) => r.items),
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 70),
       ]);
 
       const prompt = `Você é o "Shadow Examiner" do SOE — seu objetivo é criar questões que TESTEM O LIMITE do aluno.
       
       CONTEXTO DE FALHAS DO ALUNO:
       - Observações do Mentor: ${observations.join(" | ")}
-      - Erros reais cometidos: ${errors.map(e => e.statement.substring(0, 100)).join("\n")}
+      - Erros reais cometidos: ${errors.map((e) => e.statement.substring(0, 100)).join("\n")}
       
       TAREFA:
       Gere ${input.count} questões inéditas de múltipla escolha. 
       Cada questão deve ser uma "pegadinha" ou explorar uma confusão de lógica que o aluno já demonstrou ter nas observações acima.
-      Foque nos temas: ${weak.slice(0, 3).map(t => t.topicName).join(", ")}.
+      Foque nos temas: ${weak
+        .slice(0, 3)
+        .map((t) => t.topicName)
+        .join(", ")}.
 
       Retorne um JSON com:
       {
@@ -1239,14 +1468,16 @@ Mentor:`;
    * Fact-Checker de Notas — Analisa anotações em busca de erros teóricos
    */
   verifyNoteAccuracy: protectedProcedure
-    .input(z.object({
-      noteId: z.number(),
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        noteId: z.number(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const notes = await storage.getNotesByUser(ctx.user.id);
-      const note = notes.find(n => n.id === input.noteId);
+      const note = notes.find((n) => n.id === input.noteId);
       if (!note) throw new Error("Nota não encontrada");
 
       const prompt = `Você é o Revisor Técnico SOE. Analise a seguinte anotação de estudo de um aluno concorseiro.
@@ -1282,16 +1513,18 @@ Mentor:`;
    * Audio-Mentor Script — Gera o roteiro narrativo para uma revisão em áudio
    */
   generateAudioReviewScript: protectedProcedure
-    .input(z.object({
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const [briefing, observations, weak] = await Promise.all([
         // Simulando a chamada interna para pegar o briefing do dia
         Promise.resolve({ briefing: "" }),
         storage.getMentorObservations(ctx.user.id),
-        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65)
+        storage.getWeakTopicsFromSnapshot(ctx.user.id, 65),
       ]);
 
       const prompt = `Você é um Professor Particular de alto nível gravando um áudio de 5 minutos para seu aluno.
@@ -1299,7 +1532,10 @@ Mentor:`;
       
       CONTEÚDO PARA ABORDAR:
       - Observações de padrões do aluno: ${observations.slice(-3).join(" | ")}
-      - Tópicos críticos: ${weak.slice(0, 2).map(t => t.topicName).join(" e ")}
+      - Tópicos críticos: ${weak
+        .slice(0, 2)
+        .map((t) => t.topicName)
+        .join(" e ")}
       
       ESTRUTURA DO ROTEIRO:
       1. Introdução rápida (E aí, pronto para o dia de hoje?).
@@ -1320,34 +1556,38 @@ Mentor:`;
   /**
    * Propose Flashcard Cleanup — Identifica flashcards de temas masterizados para arquivamento
    */
-  proposeFlashcardCleanup: protectedProcedure
-    .query(async ({ ctx }) => {
-      const [flashcards, topics] = await Promise.all([
-        storage.getFlashcardsByUser(ctx.user.id),
-        storage.getTopicsByUser(ctx.user.id)
-      ]);
+  proposeFlashcardCleanup: protectedProcedure.query(async ({ ctx }) => {
+    const [flashcards, topics] = await Promise.all([
+      storage.getFlashcardsByUser(ctx.user.id),
+      storage.getTopicsByUser(ctx.user.id),
+    ]);
 
-      const activeCards = flashcards.filter(f => !f.archived);
-      
-      const proposals = topics
-        .filter(t => t.performance && t.performance.questionsResolved > 20 && t.performance.accuracy > 92)
-        .map(t => {
-          const topicCards = activeCards.filter(f => f.topicId === t.id);
-          if (topicCards.length === 0) return null;
-          
-          return {
-            topicId: t.id,
-            topicName: t.name,
-            accuracy: t.performance!.accuracy,
-            questionCount: t.performance!.questionsResolved,
-            cardCount: topicCards.length,
-            cardIds: topicCards.map(f => f.id)
-          };
-        })
-        .filter(Boolean);
+    const activeCards = flashcards.filter((f) => !f.archived);
 
-      return { proposals };
-    }),
+    const proposals = topics
+      .filter(
+        (t) =>
+          t.performance &&
+          t.performance.questionsResolved > 20 &&
+          t.performance.accuracy > 92,
+      )
+      .map((t) => {
+        const topicCards = activeCards.filter((f) => f.topicId === t.id);
+        if (topicCards.length === 0) return null;
+
+        return {
+          topicId: t.id,
+          topicName: t.name,
+          accuracy: t.performance!.accuracy,
+          questionCount: t.performance!.questionsResolved,
+          cardCount: topicCards.length,
+          cardIds: topicCards.map((f) => f.id),
+        };
+      })
+      .filter(Boolean);
+
+    return { proposals };
+  }),
 
   /**
    * Execute Flashcard Cleanup — Arquiva os flashcards selecionados
@@ -1364,55 +1604,139 @@ Mentor:`;
   /**
    * Get Concept Confusions — Retorna a matriz de confusão do aluno
    */
-  getConceptConfusions: protectedProcedure
-    .query(async ({ ctx }) => {
-      return await storage.getConceptConfusions(ctx.user.id);
-    }),
+  getConceptConfusions: protectedProcedure.query(async ({ ctx }) => {
+    return await storage.getConceptConfusions(ctx.user.id);
+  }),
 
   /**
-   * Get Mentor Recommendation — O "Foco de Hoje" IA-Driven
+   * Get Mentor Recommendation — O "Foco de Hoje" IA-Driven (Premium v2)
    */
   getMentorRecommendation: protectedProcedure
-    .input(z.object({
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      const [rebalance, forgetting, weakFromSnap] = await Promise.all([
+      const [
+        rebalance,
+        forgetting,
+        weakFromSnap,
+        essays,
+        observations,
+        recentErrors,
+        notes,
+        flashcards,
+        regressions,
+        topics,
+        revisions,
+        disciplines,
+      ] = await Promise.all([
         storage.getDisciplineRebalanceReport(ctx.user.id),
         storage.getForgettingVelocityByDiscipline(ctx.user.id),
         storage.getWeakTopicsFromSnapshot(ctx.user.id, 75),
+        storage.getEssaysByUser(ctx.user.id),
+        storage.getMentorObservations(ctx.user.id),
+        storage
+          .getQuestionErrorsByUser(ctx.user.id, { limit: 15 })
+          .then((r) => r.items),
+        storage.getNotesByUser(ctx.user.id),
+        storage.getFlashcardsByUser(ctx.user.id),
+        storage.getTecRegressions(ctx.user.id, 5),
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getRevisionsByUser(ctx.user.id),
+        storage.getDisciplinesByUser(ctx.user.id),
       ]);
 
-      const prompt = `Você é o Mentor Estratégico SOE. Analise os dados de desempenho do aluno e gere uma recomendação ÚNICA e CIRÚRGICA de foco para hoje.
+      const plateaus = topics.filter((t) => {
+        const perf = t.performance;
+        if (!perf || perf.questionsResolved < 10) return false;
+        const accuracy = perf.correctCount / perf.questionsResolved;
+        const topicRevs = revisions.filter(
+          (r) => r.topicId === t.id && r.completed,
+        );
+        return (
+          accuracy < 0.65 &&
+          (perf.questionsResolved > 30 || topicRevs.length > 3)
+        );
+      });
+
+      // Check for pending mined exams (Laboratory)
+      const storagePath = path.join(process.cwd(), "data", "mined_exams");
+      let minedExamsCount = 0;
+      if (fs.existsSync(storagePath)) {
+        minedExamsCount = fs
+          .readdirSync(storagePath)
+          .filter((f) => f.endsWith(".json")).length;
+      }
+
+      const pendingEssays = essays.filter((e) => e.status !== "corrected");
+      const lowFlashcards = flashcards.filter((f) => f.interval <= 1).length;
+
+      const prompt = `Você é o Arquiteto Estratégico SOE. Sua missão é analisar a "Nuvem de Dados" do aluno e definir a AÇÃO MESTRE para hoje.
       
-      DADOS:
-      - Desempenho por matéria (Rebalanceamento): ${JSON.stringify(rebalance.slice(0, 5))}
-      - Velocidade de Esquecimento: ${JSON.stringify(forgetting.slice(0, 5))}
-      - Tópicos Críticos no TEC: ${JSON.stringify(weakFromSnap.slice(0, 5))}
+      DADOS BRUTOS:
+      - Rebalanceamento (Aproveitamento): ${JSON.stringify(rebalance.slice(0, 3))}
+      - Curva de Esquecimento (Crítica): ${JSON.stringify(forgetting.slice(0, 3))}
+      - Pontos Cegos (TEC): ${JSON.stringify(weakFromSnap.slice(0, 3))}
+      - Redações/Subjetivas: ${essays.length} totais, ${pendingEssays.length} pendentes de correção/escrita.
+      - Laboratório: ${minedExamsCount} provas mineradas aguardando integração/estudo.
+      - Memória do Mentor: ${observations.slice(-3).join(" | ")}
+      - Últimos Erros: ${recentErrors.map((e: any) => e.errorOrigin).join(", ")}
+      - Flashcards Vencendo: ${lowFlashcards}
+      - Regressões Detectadas: ${regressions.length > 0 ? regressions.map((r: any) => `${r.topicName} (-${r.accuracyDrop}%)`).join(", ") : "Nenhuma"}
+      - Assuntos Travados: ${plateaus.length > 0 ? plateaus.map((p: any) => p.topicName).join(", ") : "Nenhum"}
       
-      INSTRUÇÕES:
-      1. Identifique a matéria onde o aproveitamento MAIS caiu nos últimos 7 dias ou onde o tempo sem estudo é crítico.
-      2. Gere uma recomendação em 1 frase curta e impactante.
-      3. Inclua o motivo baseado em dados (ex: "seu aproveitamento caiu 15%").
+      CRITÉRIOS DE PRIORIDADE:
+      1. Se houver Redação pendente há muito tempo: PRIORIDADE MÁXIMA.
+      2. Se houver Regressão Crítica (queda brusca de acerto): PRIORIDADE ALTA.
+      3. Se a Velocidade de Esquecimento estiver alta em matéria peso 2: REVISÃO IMEDIATA.
+      4. Se houver Provas no Laboratório: Sugerir "Simulado de Stress".
       
-      Retorne um JSON:
+      Retorne um JSON (apenas o JSON):
       {
-        "disciplineName": "Nome da Matéria",
-        "reason": "Explicação curta com números",
-        "action": "O que fazer exatamente (ex: Revisar Atos Administrativos)",
-        "priority": "alta" | "media"
+        "disciplineName": "Matéria ou Área",
+        "reason": "O 'Porquê' técnico em 1 linha",
+        "strategy": "A explicação estratégica 'Premium' (2-3 linhas)",
+        "briefing": "Um resumo motivacional e estratégico de 1-2 frases sobre o seu estado geral hoje",
+        "action": "Chamada para ação curta",
+        "actionLabel": "Texto do botão",
+        "priority": "alta" | "media",
+        "contextTag": "Estatística rápida",
+        "strategicAnalogy": "Uma analogia 'suja' ou comum para o aluno entender a importância do foco de hoje (1 frase)"
       }`;
 
       try {
-        const raw = await callAI(input.provider, input.apiKey, prompt, 400);
-        return extractJSON(raw) as { disciplineName: string; reason: string; action: string; priority: "alta" | "media" };
+        const raw = await callAI(input.provider, input.apiKey, prompt, 600);
+        const parsed = extractJSON(raw) as any;
+        return {
+          disciplineName: parsed.disciplineName || "Geral",
+          diagnostic: parsed.diagnostic || "Análise de desempenho padrão.",
+          actionPlan:
+            parsed.actionPlan || "Siga seu cronograma de revisões agendadas.",
+          prediction:
+            parsed.prediction ||
+            "A falta de foco em temas base pode reduzir sua média geral.",
+          priority: (parsed.priority || "media") as "alta" | "media",
+          contextTag: parsed.contextTag || "Rotina de Estudos",
+          plateauCount: plateaus.length,
+          regressionCount: regressions.length,
+        };
       } catch (err: any) {
         return {
           disciplineName: "Geral",
           reason: "Manutenção de constância",
+          strategy:
+            "Não foi possível gerar uma recomendação personalizada no momento. Mantenha o foco nas suas revisões do dia.",
+          briefing:
+            "Mantenha o foco e a constância. O sucesso é a soma de pequenos esforços repetidos dia após dia.",
           action: "Continue com seu plano de revisões agendadas",
-          priority: "media" as const
+          actionLabel: "Começar Agora",
+          priority: "media" as const,
+          contextTag: "Modo Padrão",
+          plateauCount: 0,
+          regressionCount: 0,
         };
       }
     }),
@@ -1421,26 +1745,29 @@ Mentor:`;
    * Gera Mnemônico Divertido/Bizarro/Spicy para uma confusão de conceitos
    */
   generateMnemonicForConfusion: protectedProcedure
-    .input(z.object({
-      conceptA: z.string(),
-      conceptB: z.string(),
-      explanation: z.string(),
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        conceptA: z.string(),
+        conceptB: z.string(),
+        explanation: z.string(),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .mutation(async ({ input }) => {
       const prompt = `Você é um gênio na criação de mnemônicos ABSURDOS, BIZARROS e INESQUECÍVEIS para concurseiros.
 O aluno confunde "${input.conceptA}" com "${input.conceptB}".
 Explicação da confusão: ${input.explanation}
 
 TAREFA:
-Crie um mnemônico "Premium" (pode usar humor ácido, termos vulgares/baixo calão, contextos +18 ou situações bizarras se isso ajudar na memorização — o aluno deu permissão explícita para ser "sujo" se for mais eficiente).
+Crie um mnemônico "Premium" E uma "Analogia Suja/Comum" (pode usar humor ácido, termos vulgares/baixo calão, contextos +18 ou situações bizarras se isso ajudar na memorização — o aluno deu permissão explícita para ser "sujo" se for mais eficiente).
 O objetivo é que ele NUNCA MAIS confunda esses dois conceitos.
 
 Retorne um JSON:
 {
   "mnemonic": "O mnemônico em si (frase, acrônimo, historinha)",
-  "explanation": "Como aplicar esse mnemônico para diferenciar os conceitos"
+  "analogy": "Uma analogia suja ou comum de alto impacto",
+  "explanation": "Como aplicar esse mnemônico e analogia para diferenciar os conceitos"
 }`;
 
       try {
@@ -1450,29 +1777,99 @@ Retorne um JSON:
         throw new Error(`Falha ao gerar mnemônico: ${err.message}`);
       }
     }),
-  
+
   /**
    * Save Concept Confusion — Salva uma nova confusão detectada
    */
   saveConceptConfusion: protectedProcedure
-    .input(z.object({
-      conceptA: z.string(),
-      conceptB: z.string(),
-      explanation: z.string(),
-    }))
+    .input(
+      z.object({
+        conceptA: z.string(),
+        conceptB: z.string(),
+        explanation: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await storage.addConceptConfusion(ctx.user.id, input);
       return { success: true };
     }),
-  
+
+  /**
+   * Analisa uma sessão de questões recém-finalizada e gera um Post-Mortem estratégico.
+   */
+  analyzeStudySession: protectedProcedure
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+        topicName: z.string(),
+        disciplineName: z.string(),
+        accuracy: z.number(),
+        results: z.array(
+          z.object({
+            correct: z.boolean(),
+            errorOrigin: z
+              .enum(["attention", "forgetting", "theory", "trap"])
+              .nullable(),
+          }),
+        ),
+        totalQuestions: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const errorCounts = {
+        attention: input.results.filter((r) => r.errorOrigin === "attention")
+          .length,
+        forgetting: input.results.filter((r) => r.errorOrigin === "forgetting")
+          .length,
+        theory: input.results.filter((r) => r.errorOrigin === "theory").length,
+        trap: input.results.filter((r) => r.errorOrigin === "trap").length,
+      };
+
+      const prompt = `Você é um Mentor de Estudos de Elite (Arquiteto Estratégico).
+Analise o resultado desta sessão de questões e gere um "Dossiê Post-Mortem".
+
+DADOS DA SESSÃO:
+- Disciplina: ${input.disciplineName}
+- Tópico: ${input.topicName}
+- Aproveitamento: ${input.accuracy}% (${input.totalQuestions} questões)
+- Padrão de Erros:
+  • Atenção: ${errorCounts.attention}
+  • Esquecimento: ${errorCounts.forgetting}
+  • Falta de Base (Teoria): ${errorCounts.theory}
+  • Pegadinhas da Banca: ${errorCounts.trap}
+
+OBJETIVO:
+Seja ácido, direto e estratégico. Não use clichês.
+Explique por que o aluno errou e use uma "Analogia Suja" (bizarra, engraçada ou levemente inapropriada) para fixar a lógica.
+
+Retorne um JSON:
+{
+  "diagnosis": "Diagnóstico curto do padrão (ex: Você sabe a matéria mas está sendo engolido pela banca)",
+  "briefing": "O Post-Mortem detalhado (3-4 linhas) com a causa raiz",
+  "analogy": "Uma analogia comum ou 'suja' para o aluno nunca mais esquecer a regra (1-2 frases)",
+  "nextStep": "Ação imediata para amanhã (ex: Rever mapa mental de Atos Compostos)",
+  "tone": "alerta" | "incentivo" | "critico"
+}`;
+
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 500);
+        return extractJSON(raw) as any;
+      } catch (err: any) {
+        throw new Error("Falha ao gerar post-mortem: " + err.message);
+      }
+    }),
+
   /**
    * Testa a validade das chaves de API configuradas.
    */
   testKey: protectedProcedure
-    .input(z.object({
-      apiKey: z.string().min(1),
-      provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
-    }))
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
     .mutation(async ({ input }) => {
       const { testAiKey } = await import("./aiProviders");
       return await testAiKey(input.provider, input.apiKey);

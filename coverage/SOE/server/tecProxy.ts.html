@@ -348,7 +348,20 @@
 <a name='L283'></a><a href='#L283'>283</a>
 <a name='L284'></a><a href='#L284'>284</a>
 <a name='L285'></a><a href='#L285'>285</a>
-<a name='L286'></a><a href='#L286'>286</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -407,6 +420,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -467,7 +481,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -527,9 +540,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -543,6 +561,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -618,6 +638,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -691,11 +717,12 @@ const getTecScript = <span class="cstat-no" title="statement not covered" ><span
 // ── Sanitiza cookies recebidos do TEC para funcionar no contexto do proxy ─────
 // Remove flags Secure/SameSite que bloqueiam cookies via HTTP local
 const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(c</span>ookies: string[]): string[] =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >  return cookies.map(<span class="fstat-no" title="function not covered" >(c</span>ookie) =&gt;</span>
-<span class="cstat-no" title="statement not covered" >    cookie</span>
-      .replace(/;\s*Secure/gi, "")
-      .replace(/;\s*SameSite=(Strict|Lax|None)/gi, "; SameSite=Lax")
-      .replace(/;\s*Domain=[^;]*/gi, "") // Remove Domain para não conflitar com localhost
+<span class="cstat-no" title="statement not covered" >  return cookies.map(</span>
+<span class="fstat-no" title="function not covered" >    (c</span>ookie) =&gt;
+<span class="cstat-no" title="statement not covered" >      cookie</span>
+        .replace(/;\s*Secure/gi, "")
+        .replace(/;\s*SameSite=(Strict|Lax|None)/gi, "; SameSite=Lax")
+        .replace(/;\s*Domain=[^;]*/gi, ""), // Remove Domain para não conflitar com localhost
   );
 };
 &nbsp;
@@ -706,7 +733,7 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
   // Se não há ?url=, trata o path como caminho relativo no TEC
 <span class="cstat-no" title="statement not covered" >  if (!targetUrl) {</span>
     const relativePath = <span class="cstat-no" title="statement not covered" >req.path;</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    if (relativePath.startsWith("/cdn/")) {</span>
 <span class="cstat-no" title="statement not covered" >      targetUrl = "https://cdn.tecconcursos.com.br" + relativePath.substring(4);</span>
     } else {
@@ -743,8 +770,7 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
         req.headers["user-agent"] ||
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       Accept: req.headers.accept || "text/html,*/*",
-      "Accept-Language":
-        req.headers["accept-language"] || "pt-BR,pt;q=0.9",
+      "Accept-Language": req.headers["accept-language"] || "pt-BR,pt;q=0.9",
       Referer: targetUrl, // Dinâmico para não quebrar login
       Cookie: clientCookies,
       "Sec-Fetch-Dest": "document",
@@ -805,18 +831,23 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
 <span class="cstat-no" title="statement not covered" >        c</span>
           .replace(/Domain=[^;]+/gi, "") // Remove domínio original
           .replace(/Secure/gi, "") // Remove Secure
-          .replace(/SameSite=[^;]+/gi, "SameSite=Lax")
+          .replace(/SameSite=[^;]+/gi, "SameSite=Lax"),
       );
 <span class="cstat-no" title="statement not covered" >      res.setHeader("set-cookie", modifiedCookies);</span>
     }
 &nbsp;
     // ── Redirecionamento ────────────────────────────────────────────────────
-<span class="cstat-no" title="statement not covered" >    if (response.status &gt;= 300 &amp;&amp; response.status &lt; 400 &amp;&amp; response.headers.location) {</span>
+<span class="cstat-no" title="statement not covered" >    if (</span>
+      response.status &gt;= 300 &amp;&amp;
+      response.status &lt; 400 &amp;&amp;
+      response.headers.location
+    ) {
       let redirectUrl = <span class="cstat-no" title="statement not covered" >response.headers.location;</span>
 <span class="cstat-no" title="statement not covered" >      if (!redirectUrl.startsWith("http")) {</span>
-<span class="cstat-no" title="statement not covered" >        redirectUrl = new URL(redirectUrl, "https://www.tecconcursos.com.br").href;</span>
+<span class="cstat-no" title="statement not covered" >        redirectUrl = new URL(redirectUrl, "https://www.tecconcursos.com.br")</span>
+          .href;
       }
-      
+&nbsp;
 <span class="cstat-no" title="statement not covered" >      if (redirectUrl.includes("tecconcursos.com.br")) {</span>
         // Mantém no proxy
 <span class="cstat-no" title="statement not covered" >        redirectUrl = `/api/tec-browser/proxy?url=${encodeURIComponent(redirectUrl)}`;</span>
@@ -825,7 +856,9 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
     }
 &nbsp;
     let body = <span class="cstat-no" title="statement not covered" >Buffer.from(response.data);</span>
-    const contentType = <span class="cstat-no" title="statement not covered" >String(response.headers["content-type"] || "").toLowerCase();</span>
+    const contentType = <span class="cstat-no" title="statement not covered" >String(</span>
+      response.headers["content-type"] || "",
+    ).toLowerCase();
 &nbsp;
     // ── Injeção e Reescrita (HTML e CSS) ───────────────────────────────────
 <span class="cstat-no" title="statement not covered" >    if (contentType.includes("text/html")) {</span>
@@ -862,23 +895,23 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
       // 1. URLs absolutas do TEC e do CDN
 <span class="cstat-no" title="statement not covered" >      html = html.replace(</span>
         /https?:\/\/(?:www\.)?tecconcursos\.com\.br/g,
-        "/api/tec-browser"
+        "/api/tec-browser",
       );
 <span class="cstat-no" title="statement not covered" >      html = html.replace(</span>
         /https?:\/\/cdn\.tecconcursos\.com\.br/g,
-        "/api/tec-browser/cdn"
+        "/api/tec-browser/cdn",
       );
 &nbsp;
       // 2. URLs relativas em atributos HTML — evita duplicar prefixo
 <span class="cstat-no" title="statement not covered" >      html = html.replace(</span>
         /((?:href|src|action)=")\/(?!api\/tec-browser|\/)/g,
-        "$1/api/tec-browser/"
+        "$1/api/tec-browser/",
       );
 &nbsp;
       // 3. Meta refresh redirects
 <span class="cstat-no" title="statement not covered" >      html = html.replace(</span>
         /(&lt;meta[^&gt;]+content=["'][^"']*url=)https?:\/\/www\.tecconcursos\.com\.br/gi,
-        "$1/api/tec-browser"
+        "$1/api/tec-browser",
       );
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      res.send(html);</span>
@@ -887,7 +920,7 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
       // Reescrita de fontes no CSS para passar pelo proxy de CDN
 <span class="cstat-no" title="statement not covered" >      css = css.replace(</span>
         /https?:\/\/cdn\.tecconcursos\.com\.br/g,
-        "/api/tec-browser/cdn"
+        "/api/tec-browser/cdn",
       );
 <span class="cstat-no" title="statement not covered" >      res.send(css);</span>
     } else {
@@ -902,15 +935,21 @@ const sanitizeCookies = <span class="cstat-no" title="statement not covered" ><s
       (req.headers.accept &amp;&amp; req.headers.accept.includes("text/html"));
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    if (isHtmlRequest) {</span>
-<span class="cstat-no" title="statement not covered" >      res.status(500).send(</span>
-        "&lt;html&gt;&lt;body style='padding:40px;font-family:system-ui;text-align:center;background:#0f172a;color:white;height:100vh;box-sizing:border-box;'&gt;" +
-        "&lt;h1 style='color:#f87171;'&gt;Falha na Conexao&lt;/h1&gt;" +
-        "&lt;p style='opacity:0.7;'&gt;Nao foi possivel carregar o TEC Concursos atraves do tunel SOE.&lt;/p&gt;" +
-        "&lt;code style='display:block;padding:15px;background:#1e293b;border-radius:8px;margin:20px 0;word-break:break-all;'&gt;" + e.message + "&lt;/code&gt;" +
-        "&lt;button onclick='window.location.reload()' style='padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;'&gt;Tentar Novamente&lt;/button&gt;" +
-        "&lt;p style='margin-top:40px;font-size:12px;opacity:0.4;'&gt;URL: " + targetUrl + "&lt;/p&gt;" +
-        "&lt;/body&gt;&lt;/html&gt;"
-      );
+<span class="cstat-no" title="statement not covered" >      res</span>
+        .status(500)
+        .send(
+          "&lt;html&gt;&lt;body style='padding:40px;font-family:system-ui;text-align:center;background:#0f172a;color:white;height:100vh;box-sizing:border-box;'&gt;" +
+            "&lt;h1 style='color:#f87171;'&gt;Falha na Conexao&lt;/h1&gt;" +
+            "&lt;p style='opacity:0.7;'&gt;Nao foi possivel carregar o TEC Concursos atraves do tunel SOE.&lt;/p&gt;" +
+            "&lt;code style='display:block;padding:15px;background:#1e293b;border-radius:8px;margin:20px 0;word-break:break-all;'&gt;" +
+            e.message +
+            "&lt;/code&gt;" +
+            "&lt;button onclick='window.location.reload()' style='padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;'&gt;Tentar Novamente&lt;/button&gt;" +
+            "&lt;p style='margin-top:40px;font-size:12px;opacity:0.4;'&gt;URL: " +
+            targetUrl +
+            "&lt;/p&gt;" +
+            "&lt;/body&gt;&lt;/html&gt;",
+        );
     } else {
 <span class="cstat-no" title="statement not covered" >      res.status(500).send(e.message);</span>
     }
@@ -925,7 +964,7 @@ export default router;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T16:32:18.662Z
+                at 2026-04-24T17:43:02.645Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

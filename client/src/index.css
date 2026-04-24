@@ -175,13 +175,16 @@
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     background-color: var(--app-bg) !important;
     color: var(--app-fg) !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     letter-spacing: -0.374px;
   }
 
@@ -235,15 +238,21 @@
 
   /* ── Mobile Layout Fixes ── */
   @media (max-width: 640px) {
-    h1 { font-size: 2.25rem; }
-    h2 { font-size: 1.75rem; }
-    h3 { font-size: 1.25rem; }
-    
+    h1 {
+      font-size: 2.25rem;
+    }
+    h2 {
+      font-size: 1.75rem;
+    }
+    h3 {
+      font-size: 1.25rem;
+    }
+
     .soe-card {
       padding: 1rem !important;
       border-radius: 1.5rem !important;
     }
-    
+
     .btn-apple-primary {
       height: 3rem !important;
       font-size: 0.875rem !important;
@@ -293,13 +302,13 @@
   }
 }
 
-html { 
-  -webkit-tap-highlight-color: transparent; 
+html {
+  -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
   width: 100%;
 }
-* { 
-  -webkit-tap-highlight-color: transparent; 
+* {
+  -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
 
@@ -326,15 +335,39 @@ html {
 
 /* ── Scrollbar global invisível ─────────────────────────────────── */
 * {
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
 }
 *::-webkit-scrollbar {
-  display: none;                /* Chrome/Safari/Opera */
+  display: none; /* Chrome/Safari/Opera */
 }
 
-/* ── Font scale — controlada por JS via data-font no <html> ─────── */
-html[data-font="sm"]   { font-size: 13px; }
-html[data-font="md"]   { font-size: 15px; }
-html[data-font="lg"]   { font-size: 17px; }
-html[data-font="xl"]   { font-size: 19px; }
+/* ── Font scale — controlada dinamicamente via JS (FontSizeControl.tsx) ──── */
+html {
+  font-size: 15px;
+}
+/* ── Typography Polishing ─────────────────────────────────────── */
+.soe-prose {
+  line-height: 1.6;
+}
+.soe-prose p {
+  margin-bottom: 1.25rem;
+}
+.soe-prose h1,
+.soe-prose h2,
+.soe-prose h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 800;
+}
+.soe-prose ul,
+.soe-prose ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.25rem;
+}
+.soe-prose li {
+  margin-bottom: 0.5rem;
+}
+.soe-prose strong {
+  color: var(--primary);
+}

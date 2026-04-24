@@ -143,7 +143,8 @@ export function AIChatBox({
       // - user message: 40px (item height) + 16px (margin-top from space-y-4) = 56px
       // Note: margin-bottom is not counted because it naturally pushes the assistant message down
       const userMessageReservedHeight = 56;
-      const calculatedHeight = scrollAreaHeight - 32 - userMessageReservedHeight;
+      const calculatedHeight =
+        scrollAreaHeight - 32 - userMessageReservedHeight;
 
       setMinHeightForLastMessage(Math.max(0, calculatedHeight));
     }
@@ -152,14 +153,14 @@ export function AIChatBox({
   // Scroll to bottom helper function with smooth animation
   const scrollToBottom = () => {
     const viewport = scrollAreaRef.current?.querySelector(
-      '[data-radix-scroll-area-viewport]'
+      "[data-radix-scroll-area-viewport]",
     ) as HTMLDivElement;
 
     if (viewport) {
       requestAnimationFrame(() => {
         viewport.scrollTo({
           top: viewport.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
       });
     }
@@ -191,8 +192,8 @@ export function AIChatBox({
     <div
       ref={containerRef}
       className={cn(
-        "flex flex-col bg-card text-card-foreground rounded-lg border shadow-sm",
-        className
+        "flex flex-col glass-morphism rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden",
+        className,
       )}
       style={{ height }}
     >
@@ -207,13 +208,13 @@ export function AIChatBox({
               </div>
 
               {suggestedPrompts && suggestedPrompts.length > 0 && (
-                <div className="flex max-w-2xl flex-wrap justify-center gap-2">
+                <div className="flex max-w-2xl flex-wrap justify-center gap-3">
                   {suggestedPrompts.map((prompt, index) => (
                     <button
                       key={index}
                       onClick={() => onSendMessage(prompt)}
                       disabled={isLoading}
-                      className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      className="px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-widest transition-all hover:bg-white/10 hover:border-white/20 active:scale-95 disabled:opacity-50"
                     >
                       {prompt}
                     </button>
@@ -238,7 +239,7 @@ export function AIChatBox({
                       "flex gap-3",
                       message.role === "user"
                         ? "justify-end items-start"
-                        : "justify-start items-start"
+                        : "justify-start items-start",
                     )}
                     style={
                       shouldApplyMinHeight
@@ -257,11 +258,11 @@ export function AIChatBox({
                         "max-w-[80%] rounded-lg px-4 py-2.5",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          : "bg-muted text-foreground",
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <div className="soe-prose max-w-none text-sm">
                           <Streamdown>{message.content}</Streamdown>
                         </div>
                       ) : (
@@ -306,29 +307,31 @@ export function AIChatBox({
       <form
         ref={inputAreaRef}
         onSubmit={handleSubmit}
-        className="flex gap-2 p-4 border-t bg-background/50 items-end"
+        className="p-6 bg-white/[0.02] border-t border-white/5"
       >
-        <Textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="flex-1 max-h-32 resize-none min-h-9"
-          rows={1}
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!input.trim() || isLoading}
-          className="shrink-0 h-[38px] w-[38px]"
-        >
-          {isLoading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
-          )}
-        </Button>
+        <div className="relative flex items-center gap-3 bg-black/40 border border-white/10 rounded-[2rem] p-2 pl-6 focus-within:border-[var(--primary)] transition-all shadow-inner">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="flex-1 bg-transparent border-none focus-visible:ring-0 resize-none py-3 text-sm min-h-[44px] max-h-32 scrollbar-hide"
+            rows={1}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!input.trim() || isLoading}
+            className="w-12 h-12 rounded-[1.5rem] bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)]/20 hover:scale-105 active:scale-95 shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Send className="size-5" />
+            )}
+          </Button>
+        </div>
       </form>
     </div>
   );

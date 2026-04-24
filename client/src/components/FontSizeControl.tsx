@@ -1,62 +1,71 @@
 import { useState, useEffect } from "react";
+import { Minus, Plus, RefreshCw } from "lucide-react";
 
-type FontScale = "sm" | "md" | "lg" | "xl";
-const SIZES: FontScale[] = ["sm", "md", "lg", "xl"];
-const LABELS: Record<FontScale, string> = { sm: "Pequeno", md: "Normal", lg: "Grande", xl: "Maior" };
+const MIN_ZOOM = 80;
+const MAX_ZOOM = 200;
+const STEP = 10;
 
-function getStored(): FontScale {
-  return (localStorage.getItem("soe_font") as FontScale) || "md";
+function getStoredZoom(): number {
+  const saved = localStorage.getItem("soe_zoom_level");
+  return saved ? parseInt(saved, 10) : 100;
 }
 
-function apply(scale: FontScale) {
-  document.documentElement.setAttribute("data-font", scale);
-  localStorage.setItem("soe_font", scale);
+function applyZoom(level: number) {
+  // We apply the zoom to the root font-size.
+  // Base is 15px (as per current 'md' setting)
+  const baseSize = 15;
+  const newSize = (baseSize * level) / 100;
+  document.documentElement.style.fontSize = `${newSize}px`;
+  localStorage.setItem("soe_zoom_level", level.toString());
 }
 
 export function useFontScale() {
-  useEffect(() => { apply(getStored()); }, []);
+  useEffect(() => {
+    applyZoom(getStoredZoom());
+  }, []);
 }
 
 export function FontSizeControl() {
-  const [scale, setScale] = useState<FontScale>(getStored);
+  const [zoom, setZoom] = useState<number>(getStoredZoom);
 
-  const set = (s: FontScale) => {
-    setScale(s);
-    apply(s);
+  const update = (newZoom: number) => {
+    const clamped = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
+    setZoom(clamped);
+    applyZoom(clamped);
   };
 
-  const decrease = () => {
-    const i = SIZES.indexOf(scale);
-    if (i > 0) set(SIZES[i - 1]);
-  };
-
-  const increase = () => {
-    const i = SIZES.indexOf(scale);
-    if (i < SIZES.length - 1) set(SIZES[i + 1]);
-  };
-
-  const canDecrease = SIZES.indexOf(scale) > 0;
-  const canIncrease = SIZES.indexOf(scale) < SIZES.length - 1;
+  const increase = () => update(zoom + STEP);
+  const decrease = () => update(zoom - STEP);
+  const reset = () => update(100);
 
   return (
-    <div className="flex items-center gap-0.5" title={`Tamanho do texto: ${LABELS[scale]}`}>
+    <div
+      className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl px-2 py-1"
+      title={`Zoom do Sistema: ${zoom}%`}
+    >
       <button
         onClick={decrease}
-        disabled={!canDecrease}
-        className="p-1.5 rounded-lg hover:opacity-70 transition-opacity disabled:opacity-25"
-        style={{ color: "var(--muted-text)" }}
+        disabled={zoom <= MIN_ZOOM}
+        className="p-1 rounded-lg hover:bg-white/10 transition-all disabled:opacity-20"
         title="Diminuir texto"
       >
-        <span className="font-bold leading-none" style={{ fontSize: "11px" }}>A</span>
+        <Minus size={14} className="opacity-60" />
       </button>
+
+      <button
+        onClick={reset}
+        className="px-1 min-w-[3rem] text-[10px] font-black tabular-nums opacity-60 hover:opacity-100 transition-opacity"
+      >
+        {zoom}%
+      </button>
+
       <button
         onClick={increase}
-        disabled={!canIncrease}
-        className="p-1.5 rounded-lg hover:opacity-70 transition-opacity disabled:opacity-25"
-        style={{ color: "var(--muted-text)" }}
+        disabled={zoom >= MAX_ZOOM}
+        className="p-1 rounded-lg hover:bg-white/10 transition-all disabled:opacity-20"
         title="Aumentar texto"
       >
-        <span className="font-bold leading-none" style={{ fontSize: "15px" }}>A</span>
+        <Plus size={14} className="opacity-60" />
       </button>
     </div>
   );

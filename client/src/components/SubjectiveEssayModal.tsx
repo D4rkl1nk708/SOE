@@ -14,12 +14,29 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Camera, Upload, Crop, Send, X, ChevronLeft, CheckCircle2,
-  BookOpen, AlertCircle, Loader2, Trash2, ZoomIn, ZoomOut,
-  RotateCw, Edit3, FileText,
+  Camera,
+  Upload,
+  Crop,
+  Send,
+  X,
+  ChevronLeft,
+  CheckCircle2,
+  BookOpen,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Edit3,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { localSaveSubjectiveAnswer } from "@/lib/localDb";
@@ -28,18 +45,18 @@ import { trpc } from "@/lib/trpc";
 // ─── Bancas ──────────────────────────────────────────────────────────────────
 export const BANCAS = [
   { id: "CESPE/CEBRASPE", label: "CESPE / CEBRASPE" },
-  { id: "FGV",            label: "FGV" },
-  { id: "VUNESP",         label: "VUNESP" },
-  { id: "FCC",            label: "FCC" },
-  { id: "ESAF",           label: "ESAF" },
-  { id: "IADES",          label: "IADES" },
-  { id: "IDECAN",         label: "IDECAN" },
-  { id: "QUADRIX",        label: "QUADRIX" },
-  { id: "AOCP",           label: "AOCP" },
-  { id: "IBFC",           label: "IBFC" },
-  { id: "IBADE",          label: "IBADE" },
-  { id: "FUNRIO",         label: "FUNRIO" },
-  { id: "OUTRA",          label: "Outra / Não sei" },
+  { id: "FGV", label: "FGV" },
+  { id: "VUNESP", label: "VUNESP" },
+  { id: "FCC", label: "FCC" },
+  { id: "ESAF", label: "ESAF" },
+  { id: "IADES", label: "IADES" },
+  { id: "IDECAN", label: "IDECAN" },
+  { id: "QUADRIX", label: "QUADRIX" },
+  { id: "AOCP", label: "AOCP" },
+  { id: "IBFC", label: "IBFC" },
+  { id: "IBADE", label: "IBADE" },
+  { id: "FUNRIO", label: "FUNRIO" },
+  { id: "OUTRA", label: "Outra / Não sei" },
 ];
 
 function buildBancaPrompt(banca: string, text: string): string {
@@ -71,7 +88,7 @@ ${text}
 - Penalize erros graves de português conforme tabela CESPE (ortografia grave = -0,5; coesão ruim = -0,25 por ocorrência típica).
 - Escala: geralmente 0 a 10 pontos por item. Informe a nota em décimos.
 `,
-    "FGV": `
+    FGV: `
 **CRITÉRIOS ESPECÍFICOS FGV:**
 - FGV valoriza estrutura dissertativa clara: introdução, desenvolvimento, conclusão.
 - Avalie a profundidade da argumentação jurídica/técnica.
@@ -79,7 +96,7 @@ ${text}
 - Verifique se citações de lei/doutrina estão corretas (FGV exige precisão).
 - Escala: 0 a 10 ou 0 a 5 dependendo do certame. Indique a nota justificada.
 `,
-    "VUNESP": `
+    VUNESP: `
 **CRITÉRIOS ESPECÍFICOS VUNESP:**
 - VUNESP é rigorosa com linguagem formal e estrutura lógica.
 - Avalie se o candidato respondeu todos os subitens solicitados.
@@ -87,21 +104,21 @@ ${text}
 - Analise adequação vocabular ao cargo.
 - Escala geralmente 0 a 10. Indique nota decimal.
 `,
-    "FCC": `
+    FCC: `
 **CRITÉRIOS ESPECÍFICOS FCC:**
 - FCC valoriza conhecimento de legislação e doutrina majoritária.
 - Penalize ausência de fundamento legal quando a questão exige.
 - Avalie organização e objetividade.
 - Escala geralmente 0 a 10.
 `,
-    "ESAF": `
+    ESAF: `
 **CRITÉRIOS ESPECÍFICOS ESAF:**
 - ESAF é extremamente rigorosa com conteúdo técnico-administrativo.
 - Avalie domínio de conceitos de Direito Administrativo, Financeiro e Tributário conforme pertinente.
 - Penalize imprecisões mesmo que o candidato demonstre entendimento parcial.
 - Escala geralmente 0 a 10.
 `,
-    "OUTRA": `
+    OUTRA: `
 **CRITÉRIOS GENÉRICOS DE BANCA NÃO ESPECIFICADA:**
 - Aplique critérios gerais de correção de concurso público: coerência, coesão, domínio do conteúdo, linguagem formal.
 - Escala de 0 a 10. Indique nota e justificativa completa.
@@ -145,16 +162,33 @@ ${text}
 
 // ─── Crop canvas ─────────────────────────────────────────────────────────────
 interface CropState {
-  x: number; y: number; scale: number; rotation: number;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
 }
 
 function CropCanvas({
-  src, onCropped,
-}: { src: string; onCropped: (dataUrl: string) => void }) {
+  src,
+  onCropped,
+}: {
+  src: string;
+  onCropped: (dataUrl: string) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [crop, setCrop] = useState<CropState>({ x: 0, y: 0, scale: 1, rotation: 0 });
-  const dragRef = useRef<{ startX: number; startY: number; cropX: number; cropY: number } | null>(null);
+  const [crop, setCrop] = useState<CropState>({
+    x: 0,
+    y: 0,
+    scale: 1,
+    rotation: 0,
+  });
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    cropX: number;
+    cropY: number;
+  } | null>(null);
 
   useEffect(() => {
     const img = new Image();
@@ -170,39 +204,72 @@ function CropCanvas({
     const img = imgRef.current;
     if (!canvas || !img) return;
     const ctx = canvas.getContext("2d")!;
-    const W = canvas.width, H = canvas.height;
+    const W = canvas.width,
+      H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     ctx.translate(W / 2 + c.x, H / 2 + c.y);
     ctx.rotate((c.rotation * Math.PI) / 180);
     ctx.scale(c.scale, c.scale);
-    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const iw = img.naturalWidth,
+      ih = img.naturalHeight;
     const fit = Math.min(W / iw, H / ih);
     ctx.drawImage(img, (-iw * fit) / 2, (-ih * fit) / 2, iw * fit, ih * fit);
     ctx.restore();
   }, []);
 
-  useEffect(() => { draw(crop); }, [crop, draw]);
+  useEffect(() => {
+    draw(crop);
+  }, [crop, draw]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    dragRef.current = { startX: e.clientX, startY: e.clientY, cropX: crop.x, cropY: crop.y };
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      cropX: crop.x,
+      cropY: crop.y,
+    };
   };
   const onMouseMove = (e: React.MouseEvent) => {
     if (!dragRef.current) return;
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
-    setCrop(c => { const nc = { ...c, x: dragRef.current!.cropX + dx, y: dragRef.current!.cropY + dy }; draw(nc); return nc; });
+    setCrop((c) => {
+      const nc = {
+        ...c,
+        x: dragRef.current!.cropX + dx,
+        y: dragRef.current!.cropY + dy,
+      };
+      draw(nc);
+      return nc;
+    });
   };
-  const onMouseUp = () => { dragRef.current = null; };
+  const onMouseUp = () => {
+    dragRef.current = null;
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) dragRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, cropX: crop.x, cropY: crop.y };
+    if (e.touches.length === 1)
+      dragRef.current = {
+        startX: e.touches[0].clientX,
+        startY: e.touches[0].clientY,
+        cropX: crop.x,
+        cropY: crop.y,
+      };
   };
   const onTouchMove = (e: React.TouchEvent) => {
     if (!dragRef.current || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - dragRef.current.startX;
     const dy = e.touches[0].clientY - dragRef.current.startY;
-    setCrop(c => { const nc = { ...c, x: dragRef.current!.cropX + dx, y: dragRef.current!.cropY + dy }; draw(nc); return nc; });
+    setCrop((c) => {
+      const nc = {
+        ...c,
+        x: dragRef.current!.cropX + dx,
+        y: dragRef.current!.cropY + dy,
+      };
+      draw(nc);
+      return nc;
+    });
   };
 
   const confirm = () => {
@@ -218,7 +285,12 @@ function CropCanvas({
         width={360}
         height={280}
         className="rounded-xl border w-full cursor-grab active:cursor-grabbing"
-        style={{ border: "1px solid var(--card-border)", background: "#111", maxHeight: 280, objectFit: "contain" }}
+        style={{
+          border: "1px solid var(--card-border)",
+          background: "#111",
+          maxHeight: 280,
+          objectFit: "contain",
+        }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
@@ -228,25 +300,71 @@ function CropCanvas({
         onTouchEnd={onMouseUp}
       />
       <div className="flex items-center justify-center gap-2 flex-wrap">
-        <button onClick={() => setCrop(c => { const n = { ...c, scale: Math.max(0.3, c.scale - 0.15) }; draw(n); return n; })}
-          className="p-2 rounded-lg hover:opacity-70" style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+        <button
+          onClick={() =>
+            setCrop((c) => {
+              const n = { ...c, scale: Math.max(0.3, c.scale - 0.15) };
+              draw(n);
+              return n;
+            })
+          }
+          className="p-2 rounded-lg hover:opacity-70"
+          style={{
+            border: "1px solid var(--card-border)",
+            color: "var(--muted-text)",
+          }}
+        >
           <ZoomOut className="w-4 h-4" />
         </button>
-        <button onClick={() => setCrop(c => { const n = { ...c, scale: Math.min(4, c.scale + 0.15) }; draw(n); return n; })}
-          className="p-2 rounded-lg hover:opacity-70" style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+        <button
+          onClick={() =>
+            setCrop((c) => {
+              const n = { ...c, scale: Math.min(4, c.scale + 0.15) };
+              draw(n);
+              return n;
+            })
+          }
+          className="p-2 rounded-lg hover:opacity-70"
+          style={{
+            border: "1px solid var(--card-border)",
+            color: "var(--muted-text)",
+          }}
+        >
           <ZoomIn className="w-4 h-4" />
         </button>
-        <button onClick={() => setCrop(c => { const n = { ...c, rotation: (c.rotation + 90) % 360 }; draw(n); return n; })}
-          className="p-2 rounded-lg hover:opacity-70" style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+        <button
+          onClick={() =>
+            setCrop((c) => {
+              const n = { ...c, rotation: (c.rotation + 90) % 360 };
+              draw(n);
+              return n;
+            })
+          }
+          className="p-2 rounded-lg hover:opacity-70"
+          style={{
+            border: "1px solid var(--card-border)",
+            color: "var(--muted-text)",
+          }}
+        >
           <RotateCw className="w-4 h-4" />
         </button>
-        <button onClick={() => { setCrop({ x: 0, y: 0, scale: 1, rotation: 0 }); }}
-          className="px-3 py-2 rounded-lg text-xs hover:opacity-70" style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+        <button
+          onClick={() => {
+            setCrop({ x: 0, y: 0, scale: 1, rotation: 0 });
+          }}
+          className="px-3 py-2 rounded-lg text-xs hover:opacity-70"
+          style={{
+            border: "1px solid var(--card-border)",
+            color: "var(--muted-text)",
+          }}
+        >
           Resetar
         </button>
-        <button onClick={confirm}
+        <button
+          onClick={confirm}
           className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5"
-          style={{ background: "var(--primary)", color: "white" }}>
+          style={{ background: "var(--primary)", color: "white" }}
+        >
           <Crop className="w-4 h-4" /> Confirmar recorte
         </button>
       </div>
@@ -255,7 +373,14 @@ function CropCanvas({
 }
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
-type Step = "capture" | "crop" | "transcribing" | "review" | "banca" | "correcting" | "result";
+type Step =
+  | "capture"
+  | "crop"
+  | "transcribing"
+  | "review"
+  | "banca"
+  | "correcting"
+  | "result";
 
 interface Props {
   open: boolean;
@@ -269,7 +394,14 @@ interface Props {
 }
 
 export default function SubjectiveEssayModal({
-  open, onClose, revisionId, topicId, topicName, disciplineName, revisionLabel, onMarkCompleted,
+  open,
+  onClose,
+  revisionId,
+  topicId,
+  topicName,
+  disciplineName,
+  revisionLabel,
+  onMarkCompleted,
 }: Props) {
   const [step, setStep] = useState<Step>("capture");
   const [rawImage, setRawImage] = useState<string | null>(null);
@@ -284,12 +416,27 @@ export default function SubjectiveEssayModal({
     deducoes: { motivo: string; pontos: number }[];
     nota_final: number;
     parecer: string;
-    desvios?: { tipo: string; trecho_original: string; sugestao: string; explicacao: string }[];
-    estatisticas?: { caracteres: number; palavras: number; frases: number; paragrafos: number; conectivos: number; tempo_leitura_segundos: number; nivel_complexidade: string; };
+    desvios?: {
+      tipo: string;
+      trecho_original: string;
+      sugestao: string;
+      explicacao: string;
+    }[];
+    estatisticas?: {
+      caracteres: number;
+      palavras: number;
+      frases: number;
+      paragrafos: number;
+      conectivos: number;
+      tempo_leitura_segundos: number;
+      nivel_complexidade: string;
+    };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isMobile = typeof navigator !== "undefined" && /android|iphone|ipad/i.test(navigator.userAgent);
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /android|iphone|ipad/i.test(navigator.userAgent);
 
   const transcribeMut = trpc.mentor.transcribeSubjectiveEssay.useMutation();
   const analyzeMut = trpc.mentor.analyzeSubjectiveEssay.useMutation();
@@ -311,7 +458,7 @@ export default function SubjectiveEssayModal({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = (ev) => {
       setRawImage(ev.target?.result as string);
       setStep("crop");
     };
@@ -324,10 +471,13 @@ export default function SubjectiveEssayModal({
     setError(null);
     try {
       const savedKey = localStorage.getItem("soe_ai_apikey") || "";
-      const savedProvider = (localStorage.getItem("soe_ai_provider") as any) || "gemini";
+      const savedProvider =
+        (localStorage.getItem("soe_ai_provider") as any) || "gemini";
 
       if (!savedKey) {
-        throw new Error("Chave de API não configurada. Configure-a na aba 'Questões' > 'Subjetivas' ou no ícone de chave.");
+        throw new Error(
+          "Chave de API não configurada. Configure-a na aba 'Questões' > 'Subjetivas' ou no ícone de chave.",
+        );
       }
 
       const { transcription: text } = await transcribeMut.mutateAsync({
@@ -350,14 +500,15 @@ export default function SubjectiveEssayModal({
     setError(null);
     try {
       const savedKey = localStorage.getItem("soe_ai_apikey") || "";
-      const savedProvider = (localStorage.getItem("soe_ai_provider") as any) || "gemini";
+      const savedProvider =
+        (localStorage.getItem("soe_ai_provider") as any) || "gemini";
 
-      const parsed = await analyzeMut.mutateAsync({
+      const parsed = (await analyzeMut.mutateAsync({
         apiKey: savedKey,
         provider: savedProvider,
         imageBase64: croppedImage!,
         prompt: buildBancaPrompt(banca, transcription),
-      });
+      })) as any;
 
       setResult(parsed);
 
@@ -385,77 +536,137 @@ export default function SubjectiveEssayModal({
   };
 
   const scoreColor = (n: number) =>
-    n >= 8 ? "#16a34a" : n >= 6 ? "var(--gold)" : n >= 4 ? "#f97316" : "#dc2626";
+    n >= 8
+      ? "#16a34a"
+      : n >= 6
+        ? "var(--gold)"
+        : n >= 4
+          ? "#f97316"
+          : "#dc2626";
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         className="w-[96vw] max-w-lg"
-        style={{ maxHeight: "92vh", overflowY: "auto", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}
+        style={{
+          maxHeight: "92vh",
+          overflowY: "auto",
+          background: "var(--card-bg)",
+          border: "1px solid var(--card-border)",
+        }}
       >
         <DialogHeader>
-          <DialogTitle className="text-base font-bold flex items-center gap-2" style={{ color: "var(--app-fg)" }}>
+          <DialogTitle
+            className="text-base font-bold flex items-center gap-2"
+            style={{ color: "var(--app-fg)" }}
+          >
             <BookOpen className="w-4 h-4" style={{ color: "var(--gold)" }} />
             Correção de Resposta Subjetiva
           </DialogTitle>
-          <DialogDescription className="text-xs" style={{ color: "var(--muted-text)" }}>
+          <DialogDescription
+            className="text-xs"
+            style={{ color: "var(--muted-text)" }}
+          >
             {revisionLabel} · {topicName} · {disciplineName}
           </DialogDescription>
         </DialogHeader>
 
         {/* Step indicator */}
         <div className="flex items-center gap-1.5 text-[10px] font-medium py-1 overflow-x-auto no-scrollbar">
-          {(["capture", "crop", "review", "banca", "result"] as Step[]).map((s, i) => {
-            const labels = ["Foto", "Recorte", "Revisão", "Banca", "Resultado"];
-            const stepOrder = ["capture", "crop", "transcribing", "review", "banca", "correcting", "result"];
-            const stepIndex = stepOrder.indexOf(step);
-            const currentStepInLabels = ["capture", "crop", "review", "banca", "result"].indexOf(s);
-            
-            // Lógica simplificada para o indicador visual
-            let active = false;
-            let done = false;
-            
-            if (step === "transcribing" && s === "review") active = true;
-            else if (step === "correcting" && s === "banca") active = true;
-            else {
-              const labelIndex = ["capture", "crop", "review", "banca", "result"].indexOf(step as any);
-              if (labelIndex !== -1) {
-                active = currentStepInLabels === labelIndex;
-                done = currentStepInLabels < labelIndex;
-              } else {
-                // Se estiver em transcribing ou correcting, marca os anteriores como done
-                const virtualIndex = step === "transcribing" ? 2 : 4;
-                active = currentStepInLabels === virtualIndex;
-                done = currentStepInLabels < virtualIndex;
-              }
-            }
+          {(["capture", "crop", "review", "banca", "result"] as Step[]).map(
+            (s, i) => {
+              const labels = [
+                "Foto",
+                "Recorte",
+                "Revisão",
+                "Banca",
+                "Resultado",
+              ];
+              const stepOrder = [
+                "capture",
+                "crop",
+                "transcribing",
+                "review",
+                "banca",
+                "correcting",
+                "result",
+              ];
+              const stepIndex = stepOrder.indexOf(step);
+              const currentStepInLabels = [
+                "capture",
+                "crop",
+                "review",
+                "banca",
+                "result",
+              ].indexOf(s);
 
-            return (
-              <div key={s} className="flex items-center gap-1 flex-shrink-0">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px]"
-                  style={{
-                    background: done ? "#16a34a" : active ? "var(--primary)" : "var(--stat-bg)",
-                    color: done || active ? "white" : "var(--muted-text)",
-                    border: `1px solid ${done ? "#16a34a" : active ? "var(--primary)" : "var(--card-border)"}`,
-                  }}
-                >
-                  {done ? "✓" : i + 1}
+              // Lógica simplificada para o indicador visual
+              let active = false;
+              let done = false;
+
+              if (step === "transcribing" && s === "review") active = true;
+              else if (step === "correcting" && s === "banca") active = true;
+              else {
+                const labelIndex = [
+                  "capture",
+                  "crop",
+                  "review",
+                  "banca",
+                  "result",
+                ].indexOf(step as any);
+                if (labelIndex !== -1) {
+                  active = currentStepInLabels === labelIndex;
+                  done = currentStepInLabels < labelIndex;
+                } else {
+                  // Se estiver em transcribing ou correcting, marca os anteriores como done
+                  const virtualIndex = step === "transcribing" ? 2 : 4;
+                  active = currentStepInLabels === virtualIndex;
+                  done = currentStepInLabels < virtualIndex;
+                }
+              }
+
+              return (
+                <div key={s} className="flex items-center gap-1 flex-shrink-0">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px]"
+                    style={{
+                      background: done
+                        ? "#16a34a"
+                        : active
+                          ? "var(--primary)"
+                          : "var(--stat-bg)",
+                      color: done || active ? "white" : "var(--muted-text)",
+                      border: `1px solid ${done ? "#16a34a" : active ? "var(--primary)" : "var(--card-border)"}`,
+                    }}
+                  >
+                    {done ? "✓" : i + 1}
+                  </div>
+                  <span
+                    style={{
+                      color: active ? "var(--app-fg)" : "var(--muted-text)",
+                      opacity: active ? 1 : 0.6,
+                    }}
+                  >
+                    {labels[i]}
+                  </span>
+                  {i < 4 && (
+                    <div
+                      className="w-3 h-px"
+                      style={{ background: "var(--card-border)" }}
+                    />
+                  )}
                 </div>
-                <span style={{ color: active ? "var(--app-fg)" : "var(--muted-text)", opacity: active ? 1 : 0.6 }}>
-                  {labels[i]}
-                </span>
-                {i < 4 && <div className="w-3 h-px" style={{ background: "var(--card-border)" }} />}
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </div>
 
         {/* ── STEP: CAPTURE ── */}
         {step === "capture" && (
           <div className="flex flex-col gap-3 py-2">
             <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-              Tire uma foto da sua resposta escrita à mão ou faça upload de uma imagem.
+              Tire uma foto da sua resposta escrita à mão ou faça upload de uma
+              imagem.
             </p>
             <input
               ref={fileInputRef}
@@ -478,13 +689,20 @@ export default function SubjectiveEssayModal({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center justify-center gap-3 w-full py-6 rounded-2xl font-semibold text-base border-2 border-dashed"
-                style={{ borderColor: "var(--card-border)", color: "var(--muted-text)", background: "var(--stat-bg)" }}
+                style={{
+                  borderColor: "var(--card-border)",
+                  color: "var(--muted-text)",
+                  background: "var(--stat-bg)",
+                }}
               >
                 <Upload className="w-6 h-6" />
                 Fazer upload da imagem
               </button>
             )}
-            <p className="text-[11px] text-center" style={{ color: "var(--muted-text)" }}>
+            <p
+              className="text-[11px] text-center"
+              style={{ color: "var(--muted-text)" }}
+            >
               Certifique-se de que a escrita esteja legível e bem iluminada.
             </p>
           </div>
@@ -498,7 +716,10 @@ export default function SubjectiveEssayModal({
             </p>
             <CropCanvas src={rawImage} onCropped={handleCropped} />
             <button
-              onClick={() => { setStep("capture"); setRawImage(null); }}
+              onClick={() => {
+                setStep("capture");
+                setRawImage(null);
+              }}
               className="flex items-center gap-1.5 text-sm mx-auto hover:opacity-70"
               style={{ color: "var(--muted-text)" }}
             >
@@ -510,11 +731,20 @@ export default function SubjectiveEssayModal({
         {/* ── STEP: TRANSCRIBING ── */}
         {step === "transcribing" && (
           <div className="flex flex-col items-center gap-4 py-10">
-            <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--primary)" }} />
+            <Loader2
+              className="w-10 h-10 animate-spin"
+              style={{ color: "var(--primary)" }}
+            />
             <div className="text-center">
-              <p className="font-semibold" style={{ color: "var(--app-fg)" }}>Transcrevendo imagem…</p>
-              <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
-                A IA está convertendo sua escrita em texto.<br />
+              <p className="font-semibold" style={{ color: "var(--app-fg)" }}>
+                Transcrevendo imagem…
+              </p>
+              <p
+                className="text-sm mt-1"
+                style={{ color: "var(--muted-text)" }}
+              >
+                A IA está convertendo sua escrita em texto.
+                <br />
                 Isso permite que você revise antes da correção.
               </p>
             </div>
@@ -525,29 +755,47 @@ export default function SubjectiveEssayModal({
         {step === "review" && (
           <div className="flex flex-col gap-4 py-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold" style={{ color: "var(--app-fg)" }}>
+              <p
+                className="text-sm font-semibold"
+                style={{ color: "var(--app-fg)" }}
+              >
                 Revise a transcrição:
               </p>
-              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--stat-bg)", color: "var(--muted-text)" }}>
+              <span
+                className="text-[10px] px-2 py-0.5 rounded-full"
+                style={{
+                  background: "var(--stat-bg)",
+                  color: "var(--muted-text)",
+                }}
+              >
                 Edite se necessário
               </span>
             </div>
-            
+
             <div className="relative">
               <textarea
                 value={transcription}
                 onChange={(e) => setTranscription(e.target.value)}
                 className="w-full h-48 p-3 rounded-xl text-sm border focus:ring-2 focus:ring-primary outline-none transition-all"
-                style={{ background: "var(--stat-bg)", color: "var(--app-fg)", borderColor: "var(--card-border)" }}
+                style={{
+                  background: "var(--stat-bg)",
+                  color: "var(--app-fg)",
+                  borderColor: "var(--card-border)",
+                }}
                 placeholder="O texto transcrito aparecerá aqui..."
               />
               <Edit3 className="absolute bottom-3 right-3 w-4 h-4 opacity-30" />
             </div>
 
             <div className="flex gap-2">
-              <button onClick={() => setStep("crop")}
+              <button
+                onClick={() => setStep("crop")}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm hover:opacity-70"
-                style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+                style={{
+                  border: "1px solid var(--card-border)",
+                  color: "var(--muted-text)",
+                }}
+              >
                 <ChevronLeft className="w-4 h-4" /> Voltar
               </button>
               <button
@@ -555,7 +803,9 @@ export default function SubjectiveEssayModal({
                 disabled={!transcription.trim()}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
                 style={{
-                  background: transcription.trim() ? "var(--primary)" : "var(--stat-bg)",
+                  background: transcription.trim()
+                    ? "var(--primary)"
+                    : "var(--stat-bg)",
                   color: transcription.trim() ? "white" : "var(--muted-text)",
                 }}
               >
@@ -569,19 +819,26 @@ export default function SubjectiveEssayModal({
         {step === "banca" && (
           <div className="flex flex-col gap-4 py-2">
             <div>
-              <p className="text-sm font-semibold mb-2" style={{ color: "var(--app-fg)" }}>
+              <p
+                className="text-sm font-semibold mb-2"
+                style={{ color: "var(--app-fg)" }}
+              >
                 Selecione a banca examinadora:
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {BANCAS.map(b => (
+                {BANCAS.map((b) => (
                   <button
                     key={b.id}
                     onClick={() => setBanca(b.id)}
                     className="py-2.5 px-3 rounded-xl text-sm font-medium text-left transition-all"
                     style={{
                       border: `2px solid ${banca === b.id ? "var(--primary)" : "var(--card-border)"}`,
-                      background: banca === b.id ? "color-mix(in srgb, var(--primary) 10%, var(--stat-bg))" : "var(--stat-bg)",
-                      color: banca === b.id ? "var(--primary)" : "var(--app-fg)",
+                      background:
+                        banca === b.id
+                          ? "color-mix(in srgb, var(--primary) 10%, var(--stat-bg))"
+                          : "var(--stat-bg)",
+                      color:
+                        banca === b.id ? "var(--primary)" : "var(--app-fg)",
                     }}
                   >
                     {b.label}
@@ -591,16 +848,27 @@ export default function SubjectiveEssayModal({
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-xl p-3 text-sm" style={{ background: "color-mix(in srgb, #dc2626 10%, var(--stat-bg))", color: "#dc2626" }}>
+              <div
+                className="flex items-start gap-2 rounded-xl p-3 text-sm"
+                style={{
+                  background: "color-mix(in srgb, #dc2626 10%, var(--stat-bg))",
+                  color: "#dc2626",
+                }}
+              >
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 {error}
               </div>
             )}
 
             <div className="flex gap-2">
-              <button onClick={() => setStep("review")}
+              <button
+                onClick={() => setStep("review")}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm hover:opacity-70"
-                style={{ border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+                style={{
+                  border: "1px solid var(--card-border)",
+                  color: "var(--muted-text)",
+                }}
+              >
                 <ChevronLeft className="w-4 h-4" /> Voltar
               </button>
               <button
@@ -623,10 +891,18 @@ export default function SubjectiveEssayModal({
         {/* ── STEP: CORRECTING ── */}
         {step === "correcting" && (
           <div className="flex flex-col items-center gap-4 py-10">
-            <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--primary)" }} />
+            <Loader2
+              className="w-10 h-10 animate-spin"
+              style={{ color: "var(--primary)" }}
+            />
             <div className="text-center">
-              <p className="font-semibold" style={{ color: "var(--app-fg)" }}>Corrigindo sua resposta…</p>
-              <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
+              <p className="font-semibold" style={{ color: "var(--app-fg)" }}>
+                Corrigindo sua resposta…
+              </p>
+              <p
+                className="text-sm mt-1"
+                style={{ color: "var(--muted-text)" }}
+              >
                 A IA está avaliando seu texto como a banca {banca}.<br />
                 Isso pode levar alguns segundos.
               </p>
@@ -637,23 +913,50 @@ export default function SubjectiveEssayModal({
         {/* ── STEP: RESULT ── */}
         {step === "result" && result && (
           <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col items-center gap-2 py-4 rounded-2xl" style={{ background: "var(--stat-bg)" }}>
-              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>Nota Estimada</span>
-              <div className="text-5xl font-black" style={{ color: scoreColor(result.nota_final) }}>
+            <div
+              className="flex flex-col items-center gap-2 py-4 rounded-2xl"
+              style={{ background: "var(--stat-bg)" }}
+            >
+              <span
+                className="text-xs font-bold uppercase tracking-wider"
+                style={{ color: "var(--muted-text)" }}
+              >
+                Nota Estimada
+              </span>
+              <div
+                className="text-5xl font-black"
+                style={{ color: scoreColor(result.nota_final) }}
+              >
                 {result.nota_final.toFixed(1)}
               </div>
-              <span className="text-xs font-medium" style={{ color: "var(--muted-text)" }}>Banca {banca}</span>
+              <span
+                className="text-xs font-medium"
+                style={{ color: "var(--muted-text)" }}
+              >
+                Banca {banca}
+              </span>
             </div>
 
             <div className="space-y-4">
               <section>
-                <h4 className="text-sm font-bold flex items-center gap-2 mb-2" style={{ color: "var(--app-fg)" }}>
-                  <CheckCircle2 className="w-4 h-4 text-green-500" /> Pontos Positivos
+                <h4
+                  className="text-sm font-bold flex items-center gap-2 mb-2"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  <CheckCircle2 className="w-4 h-4 text-green-500" /> Pontos
+                  Positivos
                 </h4>
                 <ul className="space-y-1">
                   {result.pontos_positivos.map((p, i) => (
-                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: "var(--muted-text)" }}>
-                      <div className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: "var(--primary)" }} />
+                    <li
+                      key={i}
+                      className="text-xs flex items-start gap-2"
+                      style={{ color: "var(--muted-text)" }}
+                    >
+                      <div
+                        className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0"
+                        style={{ background: "var(--primary)" }}
+                      />
                       {p}
                     </li>
                   ))}
@@ -661,22 +964,49 @@ export default function SubjectiveEssayModal({
               </section>
 
               <section>
-                <h4 className="text-sm font-bold flex items-center gap-2 mb-2" style={{ color: "var(--app-fg)" }}>
-                  <AlertCircle className="w-4 h-4 text-orange-500" /> Erros e Melhorias
+                <h4
+                  className="text-sm font-bold flex items-center gap-2 mb-2"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  <AlertCircle className="w-4 h-4 text-orange-500" /> Erros e
+                  Melhorias
                 </h4>
                 <ul className="space-y-1">
                   {result.erros_encontrados.map((p, i) => (
-                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: "var(--muted-text)" }}>
-                      <div className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#dc2626" }} />
+                    <li
+                      key={i}
+                      className="text-xs flex items-start gap-2"
+                      style={{ color: "var(--muted-text)" }}
+                    >
+                      <div
+                        className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0"
+                        style={{ background: "#dc2626" }}
+                      />
                       {p}
                     </li>
                   ))}
                 </ul>
               </section>
 
-              <section className="p-3 rounded-xl border" style={{ borderColor: "var(--card-border)", background: "rgba(255,255,255,0.02)" }}>
-                <h4 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--muted-text)" }}>Parecer do Especialista</h4>
-                <p className="text-xs leading-relaxed" style={{ color: "var(--app-fg)" }}>{result.parecer}</p>
+              <section
+                className="p-3 rounded-xl border"
+                style={{
+                  borderColor: "var(--card-border)",
+                  background: "rgba(255,255,255,0.02)",
+                }}
+              >
+                <h4
+                  className="text-xs font-bold uppercase tracking-wider mb-2"
+                  style={{ color: "var(--muted-text)" }}
+                >
+                  Parecer do Especialista
+                </h4>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  {result.parecer}
+                </p>
               </section>
             </div>
 
