@@ -1,5 +1,22 @@
 const { ipcRenderer, webFrame } = require("electron");
 
+// ── FIX: jQuery Conflict ──────────────────────────────────────────────────
+// Removendo globais do Node.js do objeto window para que o jQuery (e outras libs)
+// do site do TEC não se confundam e carreguem corretamente no escopo global.
+if (typeof window !== "undefined") {
+  const _require = window.require;
+  const _module = window.module;
+  const _exports = window.exports;
+  
+  delete window.require;
+  delete window.module;
+  delete window.exports;
+  
+  // Opcional: disponibilizar o ipcRenderer de forma segura se necessário
+  // window.__SOE_IPC__ = ipcRenderer; 
+}
+
+
 // Relay from content.js (isolated window) -> React host
 window.addEventListener("message", (e) => {
   if (e.data && e.data._soe_internal) {
@@ -359,16 +376,18 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
           const now = Date.now();
           let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
           errorTimes = errorTimes.filter(t => now - t.time < 3 * 60 * 1000);
-          errorTimes.push({ time: now, subject: rows[0]?.assunto || assunto });
+          const currentSubject = rows[0]?.assunto || assunto;
+          errorTimes.push({ time: now, subject: currentSubject });
           sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
-          const sameErrors = errorTimes.filter(t => t.subject === (rows[0]?.assunto || assunto));
+          const sameErrors = errorTimes.filter(t => t.subject === currentSubject);
           if (sameErrors.length >= 3) {
-            showCompetenceIllusionSiren((rows[0]?.assunto || assunto), sameErrors.length);
+            showCompetenceIllusionSiren(currentSubject, sameErrors.length);
             sessionStorage.setItem('soe_error_times_v2', '[]');
           }
         } else {
           let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-          errorTimes = errorTimes.filter(t => t.subject !== (rows[0]?.assunto || assunto));
+          const currentSubject = rows[0]?.assunto || assunto;
+          errorTimes = errorTimes.filter(t => t.subject !== currentSubject);
           sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
         }
 

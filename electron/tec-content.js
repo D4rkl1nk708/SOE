@@ -12,13 +12,27 @@
   'use strict';
 
   if (window.__SOE_INJECTED_V2__) return;
+  
+  // No modo proxy, o script é injetado em tudo que é HTML.
+  // Só queremos rodar no frame principal (definido no QuestionSession.tsx)
+  // Isso evita que iframes de rastreamento (GTM, Facebook) enviem dados duplicados.
+  if (window.name !== 'TEC_MAIN_FRAME') {
+    return;
+  }
+  
   window.__SOE_INJECTED_V2__ = true;
 
   const CADERNO_ID = location.pathname.match(/\/cadernos\/(\d+)/)?.[1] || null;
 
   function debugLog(msg) {
-    console.log('[SOE DEBUG]', msg);
-    window.postMessage({ type: 'SOE_DEBUG_LOG', payload: { msg: `[${new Date().toISOString()}] ${msg}` }, _soe_internal: true }, '*');
+    // console.log('[SOE DEBUG]', msg);
+    /* 
+    window.postMessage({
+      type: 'SOE_DEBUG_LOG',
+      payload: { msg: `[${new Date().toISOString()}] ${msg}` },
+      _soe_internal: true,
+    }, '*');
+    */
   }
 
   debugLog('Script SOE v2.1 carregado. URL: ' + location.href + ' CadernoID: ' + CADERNO_ID);
@@ -318,15 +332,16 @@
 
           window.postMessage({
             type: 'SOE_TEC_INCREMENT_STATS',
-            payload: {
-              cadernoId: CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
-              cadernoUrl: location.href,
-              disciplina,
-              assunto,
-              correctAdd: isError ? 0 : 1,
-              errorAdd: isError ? 1 : 0,
-              timeSpentSeconds,
-            },
+              payload: {
+                cadernoId: CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
+                cadernoUrl: location.href,
+                disciplina,
+                assunto,
+                correctAdd: isError ? 0 : 1,
+                errorAdd: isError ? 1 : 0,
+                timeSpentSeconds,
+                dedupKey: dedupKey,
+              },
             _soe_internal: true,
           }, '*');
 
@@ -345,20 +360,20 @@
             const now = Date.now();
             let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
             errorTimes = errorTimes.filter(t => now - t.time < 3 * 60 * 1000);
-            errorTimes.push({ time: now, subject: rows[0].assunto });
+            const currentSubject = rows[0]?.assunto || assunto;
+            errorTimes.push({ time: now, subject: currentSubject });
             sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
-            const sameErrors = errorTimes.filter(t => t.subject === rows[0].assunto);
+            const sameErrors = errorTimes.filter(t => t.subject === currentSubject);
             if (sameErrors.length >= 3) {
-              showCompetenceIllusionSiren(rows[0].assunto, sameErrors.length);
+              showCompetenceIllusionSiren(currentSubject, sameErrors.length);
               sessionStorage.setItem('soe_error_times_v2', '[]');
             }
           } else {
             let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-            errorTimes = errorTimes.filter(t => t.subject !== rows[0].assunto);
+            const currentSubject = rows[0]?.assunto || assunto;
+            errorTimes = errorTimes.filter(t => t.subject !== currentSubject);
             sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
           }
-        }
-
         if (isError) {
           const wq = scrapeWrongQuestion(bodyText, document.body);
           if (wq && wq.statement) {
@@ -473,10 +488,21 @@
     }, '*');
   }
 
+  function fixUrl(url) {
+    if (!url) return url;
+    const s = url.toString();
+    // Se for relativa à raiz (começa com /) e não for do SOE, mandamos pro proxy
+    if (s.startsWith('/') && !s.startsWith('/api/tec') && !s.startsWith('/api/auth') && !s.startsWith('/api/topic')) {
+      return '/api/tec-browser' + s;
+    }
+    return url;
+  }
+
   // ─── Intercept fetch ──────────────────────────────────────────────────────
 
   const _fetch = window.fetch;
   window.fetch = async function (...args) {
+    if (args[0]) args[0] = fixUrl(args[0]);
     const response = await _fetch.apply(this, args);
     try {
       const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
@@ -516,8 +542,9 @@
   const _XHROpen = XMLHttpRequest.prototype.open;
   const _XHRSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    this._soe_url = url;
-    return _XHROpen.apply(this, [method, url, ...rest]);
+    const fixedUrl = fixUrl(url);
+    this._soe_url = fixedUrl;
+    return _XHROpen.apply(this, [method, fixedUrl, ...rest]);
   };
   XMLHttpRequest.prototype.send = function (...args) {
     this.addEventListener('load', function () {

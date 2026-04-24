@@ -71,7 +71,7 @@ export const appRouter = router({
             disciplineId: z.number(),
           })).optional(),
         }).optional(),
-        testIntervalDays: z.number().min(1).max(30).optional(),
+        testIntervalDays: z.number().min(0).max(30).optional(),
         revisionIntervalDays: z.number().min(0).max(365).optional(),
         revisionSecondPhaseDays: z.number().min(1).max(365).optional(),
         dailyGoalMinutes: z.number().min(0).max(1440).optional(),
@@ -515,6 +515,12 @@ export const appRouter = router({
             completed: r.completed,
             link: r.link
           };
+        }).sort((a, b) => {
+          // 1. Não completados primeiro
+          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+          // 2. Revisões antes de Testes
+          if (a.type !== b.type) return a.type === "revision" ? -1 : 1;
+          return 0;
         });
       }),
     saveLink: protectedProcedure
@@ -556,7 +562,7 @@ export const appRouter = router({
       return { minutes: await getTodayStudyMinutes(ctx.user.id) };
     }),
   }),
-    flashcard: router({
+  flashcard: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return storage.getFlashcardsByUser(ctx.user.id);
     }),
@@ -638,7 +644,7 @@ export const appRouter = router({
         const e = errors.find(err => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
-        const chosenText  = e.alternatives?.find(a => a.letter === e.userAnswer)?.text || "";
+        const chosenText = e.alternatives?.find(a => a.letter === e.userAnswer)?.text || "";
         const correctText = e.alternatives?.find(a => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor especialista em concursos públicos brasileiros.
@@ -938,12 +944,12 @@ Responda apenas o JSON.`;
         try {
           const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4000);
           const parsed = extractJSON(raw) as any;
-          
+
           await storage.updateEssay(input.id, ctx.user.id, {
             correction: parsed,
             status: "corrected"
           });
-          
+
           return parsed;
         } catch (err: unknown) {
           throw new Error(`Falha na correção da IA: ${err instanceof Error ? err.message : String(err)}`);
@@ -1066,7 +1072,7 @@ ${input.text.substring(0, 8000)}`;
           const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4096);
           const parsed = extractJSON(raw) as { front: string; back: string }[];
           if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Nenhum flashcard gerado.");
-          
+
           let createdCount = 0;
           for (const card of parsed) {
             if (card.front && card.back) {

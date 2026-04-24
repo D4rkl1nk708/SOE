@@ -32,6 +32,7 @@ export default function Calendar() {
   const [expandedLinkId, setExpandedLinkId] = useState<number | null>(null);
   const [savedLinks, setSavedLinks] = useState<Record<number, string>>(getLinks());
   const [linkDraft, setLinkDraft] = useState<Record<number, string>>({});
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   
   // Subjective Modal State
   const [subjectiveOpen, setSubjectiveOpen] = useState(false);
@@ -75,7 +76,7 @@ export default function Calendar() {
   const handleStudyNow = (topicId: number, topicName: string, disciplineId: number) => {
     sessionStorage.setItem("qs_prefill", JSON.stringify({ topicId, topicName, disciplineId, autoStart: true }));
     navigate("/question-session");
-    setSelectedDay(null);
+    setIsDayDetailOpen(false);
   };
 
   const toggleCompleted = (revisionId: number, current: boolean) => {
@@ -123,9 +124,9 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 gap-6 items-start">
         {/* Main Calendar View */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="space-y-4">
           <div className="soe-card overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.01]">
               <div className="flex items-center gap-2">
@@ -153,12 +154,12 @@ export default function Calendar() {
                 const isToday = isSameDay(day, new Date());
                 const isCurrentMonth = isSameMonth(day, monthStart);
 
-                return (
-                  <div key={day.toString()} onClick={() => setSelectedDay(day)}
-                    className={`min-h-[70px] md:min-h-[110px] p-2 border-r border-b border-white/5 transition-all cursor-pointer relative group
-                      ${!isCurrentMonth ? 'opacity-[0.15] bg-black/20' : 'hover:bg-white/[0.02]'}
-                      ${isSelected ? 'bg-[var(--primary-bg-subtle)] !opacity-100' : ''}
-                    `}>
+                  return (
+                    <div key={day.toString()} onClick={() => { setSelectedDay(day); setIsDayDetailOpen(true); }}
+                      className={`min-h-[100px] md:min-h-[140px] p-2 border-r border-b border-white/5 transition-all cursor-pointer relative group
+                        ${!isCurrentMonth ? 'opacity-[0.15] bg-black/20' : 'hover:bg-white/[0.02]'}
+                        ${isSelected ? 'bg-[var(--primary-bg-subtle)] !opacity-100' : ''}
+                      `}>
                     <span className={`text-[11px] font-black ${isToday ? 'text-[var(--primary)]' : isSelected ? 'text-[var(--primary)]' : 'opacity-40'}`}>
                       {format(day, "d")}
                     </span>
@@ -191,110 +192,110 @@ export default function Calendar() {
           </div>
         </div>
 
-        {/* Day Detail / Schedule Sidebar */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="soe-card p-6 min-h-[400px]">
-            {selectedDay ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-white/5">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Programação para</p>
-                    <h3 className="text-lg font-black">{format(selectedDay, "dd 'de' MMMM", { locale: ptBR })}</h3>
-                  </div>
-                  <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-[var(--primary)]">
-                    <CalendarDays size={20} />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {getDayActivities(selectedDay).length > 0 ? (
-                    getDayActivities(selectedDay).map((activity) => (
-                      <div key={activity.id} className={`p-5 rounded-2xl border transition-all group relative overflow-hidden ${activity.completed ? 'bg-white/[0.02] border-white/5 grayscale-[0.5] opacity-60' : 'bg-white/[0.03] border-white/10 hover:border-[var(--primary-border)]'}`}>
-                        {/* Background type label */}
-                        <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-white/5 text-[8px] font-black uppercase tracking-widest opacity-30">
-                          {activity.type === 'revision' ? 'Revisão' : activity.type === 'test' ? 'Teste' : 'Estudo'}
-                        </div>
-
-                        <div className="flex items-start gap-4">
-                          <button onClick={() => toggleCompleted(activity.id, activity.completed)}
-                            className={`mt-1 w-6 h-6 shrink-0 rounded-lg flex items-center justify-center border-2 transition-all ${activity.completed ? 'bg-[var(--accent-green)] border-[var(--accent-green)] text-white shadow-lg shadow-[var(--accent-green)]/20' : 'bg-white/5 border-white/10 hover:border-[var(--primary)]'}`}>
-                            {activity.completed && <Check size={14} />}
-                          </button>
-
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-40 block mb-1" style={{ color: activity.disciplineColor }}>
-                              {activity.disciplineName}
-                            </span>
-                            <h4 className={`text-xs font-black leading-tight mb-4 ${activity.completed ? 'line-through' : ''}`}>{activity.topicName}</h4>
-                            
-                            <div className="flex flex-wrap gap-2">
-                                <button onClick={() => handleStudyNow(activity.topicId, activity.topicName, activity.disciplineId)}
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:scale-105 transition-all">
-                                    <PlayCircle size={12} /> Treinar
-                                </button>
-                                
-                                <button onClick={() => handleOpenSubjective(activity)}
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                                    <Camera size={12} /> Foto
-                                </button>
-
-                                {activity.link && (
-                                    <a href={activity.link} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 text-[var(--accent-blue)] transition-all">
-                                        <LinkIcon size={12} /> TEC
-                                    </a>
-                                )}
-
-                                <button onClick={() => setExpandedLinkId(expandedLinkId === activity.id ? null : activity.id)}
-                                    className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
-                                    <Settings2 size={12} className="opacity-40" />
-                                </button>
-                            </div>
-
-                            {expandedLinkId === activity.id && (
-                                <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <p className="text-[9px] font-black uppercase tracking-widest opacity-30 mb-2">Link TEC Concursos</p>
-                                    <div className="flex gap-2">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Cole o link do caderno..."
-                                            value={linkDraft[activity.id] ?? activity.link ?? ""}
-                                            onChange={(e) => setLinkDraft(prev => ({ ...prev, [activity.id]: e.target.value }))}
-                                            className="flex-1 bg-white/5 border border-white/5 rounded-lg px-3 py-1.5 text-[10px] outline-none focus:border-[var(--primary)]"
-                                        />
-                                        <button onClick={() => {
-                                            const link = linkDraft[activity.id] ?? activity.link ?? "";
-                                            saveLink(activity.id, link);
-                                            setExpandedLinkId(null);
-                                        }} className="p-2 bg-[var(--primary)] text-white rounded-lg hover:opacity-80 transition-all">
-                                            <Check size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-20 text-center space-y-4">
-                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto opacity-20">
-                        <EyeOff size={24} />
-                      </div>
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-20">Nenhuma meta para este dia</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center opacity-20 py-20">
-                <CalendarDays size={48} className="mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-widest">Selecione um dia<br />para ver os detalhes</p>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
+
+      {/* Day Detail Modal */}
+      <Dialog open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
+        <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-2xl rounded-[2.5rem] p-0 overflow-hidden">
+          {selectedDay && (
+            <div className="flex flex-col h-[80vh] md:h-auto max-h-[90vh]">
+              <div className="p-8 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Programação para</p>
+                  <h3 className="text-2xl font-black">{format(selectedDay, "dd 'de' MMMM", { locale: ptBR })}</h3>
+                </div>
+                <div className="w-14 h-14 rounded-[1.5rem] bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] flex items-center justify-center text-[var(--primary)] shadow-xl shadow-[var(--primary-shadow)]">
+                  <CalendarDays size={28} />
+                </div>
+              </div>
+
+              <div className="p-8 overflow-y-auto space-y-4 custom-scrollbar">
+                {getDayActivities(selectedDay).length > 0 ? (
+                  getDayActivities(selectedDay).map((activity) => (
+                    <div key={activity.id} className={`p-6 rounded-3xl border transition-all group relative overflow-hidden ${activity.completed ? 'bg-white/[0.01] border-white/5 grayscale-[0.5] opacity-50' : 'bg-white/[0.03] border-white/10 hover:border-[var(--primary-border)] hover:bg-white/[0.05]'}`}>
+                      {/* Background type label */}
+                      <div className="absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl bg-white/5 text-[9px] font-black uppercase tracking-widest opacity-40">
+                        {activity.type === 'revision' ? 'Revisão' : activity.type === 'test' ? 'Teste' : 'Estudo'}
+                      </div>
+
+                      <div className="flex items-start gap-5">
+                        <button onClick={() => toggleCompleted(activity.id, activity.completed)}
+                          className={`mt-1 w-7 h-7 shrink-0 rounded-xl flex items-center justify-center border-2 transition-all ${activity.completed ? 'bg-[var(--accent-green)] border-[var(--accent-green)] text-white shadow-lg shadow-[var(--accent-green)]/20' : 'bg-white/5 border-white/10 hover:border-[var(--primary)]'}`}>
+                          {activity.completed && <Check size={16} />}
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-60 block mb-1.5" style={{ color: activity.disciplineColor }}>
+                            {activity.disciplineName}
+                          </span>
+                          <h4 className={`text-sm md:text-base font-black leading-snug mb-5 ${activity.completed ? 'line-through' : ''}`}>{activity.topicName}</h4>
+                          
+                          <div className="flex flex-wrap gap-3">
+                              <button onClick={() => handleStudyNow(activity.topicId, activity.topicName, activity.disciplineId)}
+                                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 transition-all">
+                                  <PlayCircle size={14} /> Treinar
+                              </button>
+                              
+                              <button onClick={() => handleOpenSubjective(activity)}
+                                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                                  <Camera size={14} /> Foto
+                              </button>
+
+                              {activity.link && (
+                                  <a href={activity.link} target="_blank" rel="noopener noreferrer"
+                                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 text-[var(--accent-blue)] transition-all">
+                                      <LinkIcon size={14} /> TEC
+                                  </a>
+                              )}
+
+                              <button onClick={() => setExpandedLinkId(expandedLinkId === activity.id ? null : activity.id)}
+                                  className="p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all ml-auto">
+                                  <Settings2 size={16} className="opacity-40" />
+                              </button>
+                          </div>
+
+                          {expandedLinkId === activity.id && (
+                              <div className="mt-4 p-4 rounded-2xl bg-black/40 border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-30 mb-2.5">Link TEC Concursos</p>
+                                  <div className="flex gap-2">
+                                      <input 
+                                          type="text" 
+                                          placeholder="Cole o link do caderno..."
+                                          value={linkDraft[activity.id] ?? activity.link ?? ""}
+                                          onChange={(e) => setLinkDraft(prev => ({ ...prev, [activity.id]: e.target.value }))}
+                                          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[11px] outline-none focus:border-[var(--primary)]"
+                                      />
+                                      <button onClick={() => {
+                                          const link = linkDraft[activity.id] ?? activity.link ?? "";
+                                          saveLinkMut.mutate({ revisionId: activity.id, link });
+                                          setExpandedLinkId(null);
+                                      }} className="p-3 bg-[var(--primary)] text-white rounded-xl hover:opacity-80 transition-all">
+                                          <Check size={18} />
+                                      </button>
+                                  </div>
+                              </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-24 text-center space-y-5">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto opacity-20">
+                      <EyeOff size={32} />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest opacity-30">Nenhuma meta para este dia</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 bg-white/[0.01] border-t border-white/5 flex justify-end">
+                  <Button variant="ghost" onClick={() => setIsDayDetailOpen(false)} className="rounded-2xl font-black uppercase text-[10px] tracking-widest opacity-60">Fechar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Configuration Modals */}
       <ScheduleDialog

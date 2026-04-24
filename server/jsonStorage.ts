@@ -969,7 +969,7 @@ export async function getDashboardStats(userId: number) {
   const topics = db.topics.filter(t => t.userId === userId);
   const revisions = db.revisions.filter(r => r.userId === userId);
   
-  const pendingRevisions = revisions.filter(r => !r.completed && !r.ignored && r.scheduledDate < now().split('T')[0]).length;
+  const pendingRevisions = revisions.filter(r => !r.completed && !r.ignored && r.type === "revision" && r.scheduledDate < now().split('T')[0]).length;
   const completedRevisions = revisions.filter(r => r.completed).length;
   
   return {

@@ -33,8 +33,9 @@ export function ScheduleDialog({
         <div className="space-y-5 py-4">
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Simulados (dias)</Label>
-            <Input type="number" min={1} max={30} placeholder="3" value={testInterval} onChange={e => setTestInterval(e.target.value)} 
+            <Input type="number" min={0} max={30} placeholder="3" value={testInterval} onChange={e => setTestInterval(e.target.value)} 
               className="rounded-xl bg-white/5 border-white/5 focus:border-[var(--primary-border)]" />
+            <p className="text-[10px] opacity-30 font-medium">0 = desativar simulados</p>
           </div>
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Revisão - Fase 1 (dias)</Label>

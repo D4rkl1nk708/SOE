@@ -139,10 +139,8 @@ export function TodayRevisions() {
             {todayRevisions.length}
           </span>
         </div>
-        <Link href="/revisions">
-          <a className="flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--accent-amber)" }}>
+        <Link href="/revisions" className="flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--accent-amber)" }}>
             Ver todas <ArrowRight className="h-3 w-3" />
-          </a>
         </Link>
       </div>
       <div className="space-y-1.5 max-h-40 overflow-y-auto">

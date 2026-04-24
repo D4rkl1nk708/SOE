@@ -69,7 +69,16 @@ async function startServer() {
 
   // OAuth callback under /api/oauth/callback
   // ── Proxy Diário Oficial da União (evita CORS no browser) ─────────────────
-  app.get("/api/dou-proxy", async (req: any, res: any) => {
+  // Route for capturing debug logs from the TEC content script
+  app.post("/api/_debug_log", (req: any, res: any) => {
+    const { msg } = req.body;
+    if (msg) {
+      // console.log(`[TEC CONTENT SCRIPT] ${msg}`);
+    }
+    res.json({ ok: true });
+  });
+
+  app.use("/api/dou-proxy", async (req: any, res: any) => {
     try {
       const name = req.query.name as string;
       if (!name || name.trim().length < 3) {
@@ -443,10 +452,9 @@ async function startServer() {
 // Tracker de alertas (User -> Topic -> Timestamps de erros)
   const userErrorTracker = new Map<number, Map<number, number[]>>();
 
-  /**
-   * POST /api/tec/increment
-   * Incrementa as estatísticas de um tópico (usado em tempo real quando resolve uma questão).
-   */
+  // Cache de deduplicação em memória (Key -> Timestamp)
+  const tecDedupCache = new Map<string, number>();
+
   app.post("/api/tec/increment", express.json({ limit: "2mb" }), async (req: any, res: any) => {
     try {
       const token = (req.headers["x-soe-token"] as string) || (req.query.token as string);
@@ -455,7 +463,22 @@ async function startServer() {
       const user = await storage.getUserByPushToken(token);
       if (!user) return res.status(401).json({ error: "Push Token inválido" });
 
-      const { cadernoId, cadernoUrl, disciplina: disciplinaName, assunto: assuntoName, correctAdd, errorAdd, timeSpentSeconds } = req.body;
+      const { cadernoId, cadernoUrl, disciplina: disciplinaName, assunto: assuntoName, correctAdd, errorAdd, timeSpentSeconds, dedupKey } = req.body;
+      
+      // Deduplicação básica: se a mesma questão for enviada em menos de 15s, ignora
+      if (dedupKey) {
+        const now = Date.now();
+        const lastSeen = tecDedupCache.get(dedupKey);
+        if (lastSeen && (now - lastSeen < 15000)) {
+           console.log(`[TEC SERVER] Deduplicando requisição para ${dedupKey}`);
+           return res.json({ ok: true, duplicated: true });
+        }
+        tecDedupCache.set(dedupKey, now);
+        
+        // Limpeza periódica do cache (opcional, aqui mantemos simples)
+        if (tecDedupCache.size > 1000) tecDedupCache.clear();
+      }
+
       if (!disciplinaName || !assuntoName) return res.status(400).json({ error: "Disciplina e Assunto obrigatórios" });
 
       const normalize = (s: string) => s ? s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim() : "";

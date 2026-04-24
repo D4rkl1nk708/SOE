@@ -715,11 +715,11 @@ function MobileTecBrowser({ pushToken }: { pushToken: string }) {
                             
                             if (data.blockPage) {
                                 toast.error(data.alertMessage, { duration: 8000, position: 'top-center' });
+                            } else if (!data.duplicated) {
+                                if (type === 'SOE_TEC_INCREMENT_STATS' || type === 'SOE_TEC_DATA') {
+                                    toast.success(`Progresso sincronizado!`, { position: 'bottom-center' });
+                                }
                             }
-                        }
-                        
-                        if (type === 'SOE_TEC_INCREMENT_STATS' || type === 'SOE_TEC_DATA') {
-                            toast.success(`Progresso sincronizado!`, { position: 'bottom-center' });
                         }
                     } catch (e) {
                         console.error("[Mobile Browser] Erro na requisição:", e);
@@ -766,7 +766,8 @@ function MobileTecBrowser({ pushToken }: { pushToken: string }) {
             </div>
             <div className="flex-1 bg-white">
                 <iframe 
-                    src={`/api/tec-browser/proxy?url=${encodeURIComponent('https://www.tecconcursos.com.br/questoes')}`}
+                    name="TEC_MAIN_FRAME"
+                    src={`/api/tec-browser/proxy?url=${encodeURIComponent('https://www.tecconcursos.com.br/')}`}
                     className="w-full h-full border-none"
                     title="TEC Browser Mobile"
                 />

@@ -157,7 +157,7 @@ function initApp() {
       }
     });
     
-    tecWindow.loadURL("https://www.tecconcursos.com.br/questoes");
+    tecWindow.loadURL("https://www.tecconcursos.com.br/");
   });
 
   ipcMain.on("soe-tec-message", async (event, data) => {

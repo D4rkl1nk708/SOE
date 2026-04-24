@@ -231,15 +231,13 @@ export function StudyTimer() {
 
           <div className="p-5 space-y-4">
             {notesCount > 0 && (
-              <Link href="/notes">
-                <a className="flex items-center gap-2 px-3 py-2 rounded-xl hover:opacity-80"
+              <Link href="/notes" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:opacity-80"
                   style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}
                   onClick={() => setIsOpen(false)}>
                   <PenLine className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--accent-amber)" }} />
                   <span className="text-xs" style={{ color: "var(--accent-amber)" }}>
                     {notesCount} anotaç{notesCount === 1 ? "ão" : "ões"} pendente{notesCount !== 1 ? "s" : ""}
                   </span>
-                </a>
               </Link>
             )}
 
