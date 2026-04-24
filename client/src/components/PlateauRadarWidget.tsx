@@ -11,6 +11,7 @@ const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function PlateauRadarWidget() {
   const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const { data: plateauedTopics, isLoading } = trpc.mentor.getPlateauedTopics.useQuery();
   const [selected, setSelected] = useState<any>(null);
   const [dossier, setDossier] = useState<any[] | null>(null);
 
