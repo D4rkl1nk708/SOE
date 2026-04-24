@@ -2,11 +2,30 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import {
-  QrCode, Smartphone, Monitor, RefreshCw, Download,
-  Upload, CheckCircle2, Wifi, AlertCircle, Clock, Database,
-  Camera, ArrowDownToLine, ArrowUpFromLine, X, RotateCw,
-  Cloud, HardDrive, ShieldCheck, Share2, Info, ChevronRight,
-  Zap, Globe
+  QrCode,
+  Smartphone,
+  Monitor,
+  RefreshCw,
+  Download,
+  Upload,
+  CheckCircle2,
+  Wifi,
+  AlertCircle,
+  Clock,
+  Database,
+  Camera,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  X,
+  RotateCw,
+  Cloud,
+  HardDrive,
+  ShieldCheck,
+  Share2,
+  Info,
+  ChevronRight,
+  Zap,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,26 +36,34 @@ const isDesktop = !isAndroid;
 // ── QR Code generator (utility remains the same, styling improved) ───────────
 async function getQRDataURL(text: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    if ((window as any).QRCode) { buildQR(text, resolve, reject); return; }
+    if ((window as any).QRCode) {
+      buildQR(text, resolve, reject);
+      return;
+    }
     const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
     script.onload = () => buildQR(text, resolve, reject);
     script.onerror = reject;
     document.body.appendChild(script);
   });
 }
-function buildQR(text: string, resolve: (s: string) => void, reject: (e: any) => void) {
+function buildQR(
+  text: string,
+  resolve: (s: string) => void,
+  reject: (e: any) => void,
+) {
   const div = document.createElement("div");
   div.style.display = "none";
   document.body.appendChild(div);
   try {
-    new (window as any).QRCode(div, { 
-      text, 
-      width: 240, 
-      height: 240, 
+    new (window as any).QRCode(div, {
+      text,
+      width: 240,
+      height: 240,
       colorDark: "#000000",
       colorLight: "#ffffff",
-      correctLevel: (window as any).QRCode.CorrectLevel.M 
+      correctLevel: (window as any).QRCode.CorrectLevel.M,
     });
     setTimeout(() => {
       const canvas = div.querySelector("canvas");
@@ -44,16 +71,21 @@ function buildQR(text: string, resolve: (s: string) => void, reject: (e: any) =>
       document.body.removeChild(div);
       resolve(canvas?.toDataURL("image/png") || img?.src || "");
     }, 200);
-  } catch (e) { document.body.removeChild(div); reject(e); }
+  } catch (e) {
+    document.body.removeChild(div);
+    reject(e);
+  }
 }
 
 // ── Native barcode scanner ───────────────────────────────────────────────────
 async function scanQRNative(): Promise<string | null> {
   try {
-    const { BarcodeScanner, BarcodeFormat } = await import("@capacitor-mlkit/barcode-scanning");
+    const { BarcodeScanner, BarcodeFormat } =
+      await import("@capacitor-mlkit/barcode-scanning");
 
     try {
-      const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+      const { available } =
+        await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
       if (!available) {
         await BarcodeScanner.installGoogleBarcodeScannerModule();
         toast("Instalando módulo de scanner...", { duration: 4000 });
@@ -67,7 +99,9 @@ async function scanQRNative(): Promise<string | null> {
       if (status === "granted" || status === "limited") {
         granted = true;
       } else if (status === "denied") {
-        toast.error("Permissão de câmera bloqueada. Habilite nas configurações.");
+        toast.error(
+          "Permissão de câmera bloqueada. Habilite nas configurações.",
+        );
         return null;
       } else {
         const { camera: newStatus } = await BarcodeScanner.requestPermissions();
@@ -89,10 +123,15 @@ async function scanQRNative(): Promise<string | null> {
       formats: [BarcodeFormat.QrCode],
     });
 
-    return barcodes.length > 0 ? barcodes[0].rawValue ?? null : null;
+    return barcodes.length > 0 ? (barcodes[0].rawValue ?? null) : null;
   } catch (e: any) {
     const msg = e?.message || String(e);
-    if (msg.includes("cancel") || msg.includes("Cancel") || msg.includes("dismiss")) return null;
+    if (
+      msg.includes("cancel") ||
+      msg.includes("Cancel") ||
+      msg.includes("dismiss")
+    )
+      return null;
     toast.error("Erro no scanner: " + msg);
     return null;
   }
@@ -127,7 +166,8 @@ export default function Sync() {
       const res = await fetch("/api/sync/info");
       const data = await res.json();
       setSyncInfo(data);
-      if (data.ips && data.ips.length > 0) setSelectedIp((prev) => prev || data.ips[0]);
+      if (data.ips && data.ips.length > 0)
+        setSelectedIp((prev) => prev || data.ips[0]);
     } catch {}
   }, []);
 
@@ -142,13 +182,18 @@ export default function Sync() {
       ]);
       setQrPullUrl(pull);
       setQrPushUrl(push);
-    } catch { toast.error("Erro ao gerar QR Codes"); }
-    finally { setQrLoading(false); }
+    } catch {
+      toast.error("Erro ao gerar QR Codes");
+    } finally {
+      setQrLoading(false);
+    }
   }, []);
 
   const runAutoBackup = useCallback(async () => {
     if (!isDesktop) return;
-    try { await fetch("/api/backup/auto", { method: "POST" }); } catch {}
+    try {
+      await fetch("/api/backup/auto", { method: "POST" });
+    } catch {}
   }, []);
 
   const fetchBackups = useCallback(async () => {
@@ -158,7 +203,10 @@ export default function Sync() {
       const res = await fetch("/api/backup/list");
       const data = await res.json();
       setBackups(data.backups || []);
-    } catch {} finally { setBackupLoading(false); }
+    } catch {
+    } finally {
+      setBackupLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -167,7 +215,9 @@ export default function Sync() {
     runAutoBackup();
   }, [fetchSyncInfo, fetchBackups, runAutoBackup]);
 
-  useEffect(() => { if (syncInfo && selectedIp) generateQRs(syncInfo, selectedIp); }, [syncInfo, selectedIp, generateQRs]);
+  useEffect(() => {
+    if (syncInfo && selectedIp) generateQRs(syncInfo, selectedIp);
+  }, [syncInfo, selectedIp, generateQRs]);
 
   const startListening = useCallback(() => {
     sseRef.current?.close();
@@ -184,33 +234,55 @@ export default function Sync() {
         fetchBackups();
       }
     };
-    es.onerror = () => { setWaitingReceive(false); es.close(); };
+    es.onerror = () => {
+      setWaitingReceive(false);
+      es.close();
+    };
   }, [fetchBackups]);
 
-  useEffect(() => () => { sseRef.current?.close(); }, []);
+  useEffect(
+    () => () => {
+      sseRef.current?.close();
+    },
+    [],
+  );
 
-  const nativeFetch = useCallback(async (
-    url: string,
-    options: { method?: string; headers?: Record<string, string>; data?: any; timeoutMs?: number }
-  ): Promise<{ status: number; data: any }> => {
-    const { CapacitorHttp } = await import("@capacitor/core");
-    const timeoutMs = options.timeoutMs ?? 20000;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
-      CapacitorHttp.request({
-        url,
-        method: options.method || "GET",
-        headers: options.headers || {},
-        data: options.data,
-        connectTimeout: timeoutMs,
-        readTimeout: timeoutMs,
-      })
-        .then((res: any) => { clearTimeout(timer); resolve({ status: res.status, data: res.data }); })
-        .catch((err: any) => { clearTimeout(timer); reject(err); });
-    });
-  }, []);
+  const nativeFetch = useCallback(
+    async (
+      url: string,
+      options: {
+        method?: string;
+        headers?: Record<string, string>;
+        data?: any;
+        timeoutMs?: number;
+      },
+    ): Promise<{ status: number; data: any }> => {
+      const { CapacitorHttp } = await import("@capacitor/core");
+      const timeoutMs = options.timeoutMs ?? 20000;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
+        CapacitorHttp.request({
+          url,
+          method: options.method || "GET",
+          headers: options.headers || {},
+          data: options.data,
+          connectTimeout: timeoutMs,
+          readTimeout: timeoutMs,
+        })
+          .then((res: any) => {
+            clearTimeout(timer);
+            resolve({ status: res.status, data: res.data });
+          })
+          .catch((err: any) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+    },
+    [],
+  );
 
-  const [delta, setDelta] = useState<{ local: any, remote: any } | null>(null);
+  const [delta, setDelta] = useState<{ local: any; remote: any } | null>(null);
 
   const confirmImport = async (json: string) => {
     const { localImportImportBackup } = await import("@/lib/localDb");
@@ -225,30 +297,50 @@ export default function Sync() {
       const url = await scanQRNative();
       if (!url) return;
       toast.info("Conectando ao PC...");
-      const res = await nativeFetch(url, { method: "GET", headers: { "Accept": "application/json" }, timeoutMs: 15000 });
-      if (res.status < 200 || res.status >= 300) throw new Error("Erro de conexão");
-      
-      const json = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+      const res = await nativeFetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        timeoutMs: 15000,
+      });
+      if (res.status < 200 || res.status >= 300)
+        throw new Error("Erro de conexão");
+
+      const json =
+        typeof res.data === "string" ? res.data : JSON.stringify(res.data);
       const remoteData = JSON.parse(json);
-      
+
       // Delta Logic
-      const { localCalendarGetActivities } = await import("@/lib/localDb");
-      const localData = await localCalendarGetActivities({ startDate: "2000-01-01", endDate: "2099-12-31" });
-      
-      const remoteCount = (remoteData.revisions?.length || 0) + (remoteData.topics?.length || 0);
-      const localCount = (localData.revisions?.length || 0) + (localData.topics?.length || 0);
+      const { localCalendarGetData } = await import("@/lib/localDb");
+      const localData = await localCalendarGetData({
+        startDate: "2000-01-01",
+        endDate: "2099-12-31",
+      });
+
+      const remoteCount =
+        (remoteData.revisions?.length || 0) + (remoteData.topics?.length || 0);
+      const localCount =
+        (localData.revisions?.length || 0) + (localData.topics?.length || 0);
 
       if (localCount > 0 && Math.abs(remoteCount - localCount) > 5) {
-        setDelta({ 
-          local: { revisions: localData.revisions?.length || 0, topics: localData.topics?.length || 0 },
-          remote: { revisions: remoteData.revisions?.length || 0, topics: remoteData.topics?.length || 0, json }
+        setDelta({
+          local: {
+            revisions: localData.revisions?.length || 0,
+            topics: localData.topics?.length || 0,
+          },
+          remote: {
+            revisions: remoteData.revisions?.length || 0,
+            topics: remoteData.topics?.length || 0,
+            json,
+          },
         });
       } else {
         await confirmImport(json);
       }
     } catch (e: any) {
       toast.error(e.message || "Erro na sincronização");
-    } finally { setPulling(false); }
+    } finally {
+      setPulling(false);
+    }
   }, [nativeFetch]);
 
   const handlePush = useCallback(async () => {
@@ -259,12 +351,20 @@ export default function Sync() {
       toast.info("Enviando dados...");
       const { localImportExportBackup } = await import("@/lib/localDb");
       const json = await localImportExportBackup();
-      const res = await nativeFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, data: json, timeoutMs: 20000 });
-      if (res.status < 200 || res.status >= 300) throw new Error("PC recusou conexão");
+      const res = await nativeFetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: json,
+        timeoutMs: 20000,
+      });
+      if (res.status < 200 || res.status >= 300)
+        throw new Error("PC recusou conexão");
       toast.success("Enviado com sucesso!");
     } catch (e: any) {
       toast.error(e.message || "Erro no envio");
-    } finally { setPushing(false); }
+    } finally {
+      setPushing(false);
+    }
   }, [nativeFetch]);
 
   const handleExportFile = async () => {
@@ -279,7 +379,9 @@ export default function Sync() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Backup pronto!");
-    } catch (e: any) { toast.error("Erro ao exportar"); }
+    } catch (e: any) {
+      toast.error("Erro ao exportar");
+    }
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,8 +394,12 @@ export default function Sync() {
       await localImportImportBackup({ json });
       toast.success("Importado!");
       setTimeout(() => window.location.reload(), 800);
-    } catch { toast.error("Arquivo inválido"); }
-    finally { setImportLoading(false); if (fileRef.current) fileRef.current.value = ""; }
+    } catch {
+      toast.error("Arquivo inválido");
+    } finally {
+      setImportLoading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   };
 
   const handleImportFromLink = async () => {
@@ -303,75 +409,130 @@ export default function Sync() {
       let fileId = "";
       const m1 = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
       const m2 = driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
-      fileId = m1 ? m1[1] : (m2 ? m2[1] : "");
+      fileId = m1 ? m1[1] : m2 ? m2[1] : "";
       if (!fileId) throw new Error("Link inválido");
 
-      const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+      const res = await fetch(
+        `https://drive.google.com/uc?export=download&id=${fileId}`,
+      );
       if (!res.ok) throw new Error("Acesso negado ao arquivo");
       const json = await res.text();
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
       toast.success("Sincronizado com a nuvem!");
       setTimeout(() => window.location.reload(), 800);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLinkImportLoading(false); setDriveUrl(""); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLinkImportLoading(false);
+      setDriveUrl("");
+    }
   };
 
-  const FlipQRCard = ({ 
-    title, subtitle, icon: Icon, iconColor, qrUrl, loading, footerAction
-  }: { 
-    title: string; subtitle: string; icon: any; iconColor: string; qrUrl: string; loading: boolean;
+  const FlipQRCard = ({
+    title,
+    subtitle,
+    icon: Icon,
+    iconColor,
+    qrUrl,
+    loading,
+    footerAction,
+  }: {
+    title: string;
+    subtitle: string;
+    icon: any;
+    iconColor: string;
+    qrUrl: string;
+    loading: boolean;
     footerAction?: React.ReactNode;
   }) => {
     const [flipped, setFlipped] = useState(false);
     return (
       <div className="w-full" style={{ perspective: "1000px" }}>
-        <div style={{
-          position: "relative", width: "100%", height: 380,
-          transformStyle: "preserve-3d",
-          transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-        }}>
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: 380,
+            transformStyle: "preserve-3d",
+            transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          }}
+        >
           {/* FRONT */}
           <div className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between border-2 border-transparent hover:border-[var(--primary-border)] transition-colors">
             <div className="flex items-center gap-2.5 w-full">
-              <div className="p-2 rounded-lg" style={{ background: `${iconColor}15` }}>
+              <div
+                className="p-2 rounded-lg"
+                style={{ background: `${iconColor}15` }}
+              >
                 <Icon size={18} style={{ color: iconColor }} />
               </div>
-              <span className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>{title}</span>
+              <span
+                className="font-black text-sm uppercase tracking-wider"
+                style={{ color: "var(--app-fg)" }}
+              >
+                {title}
+              </span>
             </div>
             <div className="w-full flex-1 my-4 rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-4 bg-white/[0.01]">
               <div className="relative">
                 <QrCode size={40} className="text-white/10" />
-                <Zap size={14} className="absolute -top-1 -right-1 text-[var(--primary)] animate-pulse" />
+                <Zap
+                  size={14}
+                  className="absolute -top-1 -right-1 text-[var(--primary)] animate-pulse"
+                />
               </div>
-              <p className="text-[10px] text-white/40 text-center mt-3 leading-relaxed">{subtitle}</p>
+              <p className="text-[10px] text-white/40 text-center mt-3 leading-relaxed">
+                {subtitle}
+              </p>
             </div>
             <button
               onClick={() => setFlipped(true)}
-              className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
               <RotateCw size={14} /> Revelar QR Code
             </button>
           </div>
 
           {/* BACK */}
-          <div className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between rotate-y-180" 
-               style={{ borderColor: `${iconColor}40`, background: "var(--stat-bg)" }}>
+          <div
+            className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between rotate-y-180"
+            style={{
+              borderColor: `${iconColor}40`,
+              background: "var(--stat-bg)",
+            }}
+          >
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2.5">
                 <Icon size={18} style={{ color: iconColor }} />
-                <span className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>{title}</span>
+                <span
+                  className="font-black text-sm uppercase tracking-wider"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  {title}
+                </span>
               </div>
-              <button onClick={() => setFlipped(false)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/20 hover:text-white">
+              <button
+                onClick={() => setFlipped(false)}
+                className="p-1.5 rounded-lg hover:bg-white/5 text-white/20 hover:text-white"
+              >
                 <X size={18} />
               </button>
             </div>
             <div className="flex-1 flex items-center justify-center w-full p-2">
               {loading ? (
-                <RefreshCw size={28} className="text-[var(--primary)] animate-spin opacity-40" />
+                <RefreshCw
+                  size={28}
+                  className="text-[var(--primary)] animate-spin opacity-40"
+                />
               ) : qrUrl ? (
                 <div className="p-2 bg-white rounded-xl shadow-2xl">
-                  <img src={qrUrl} alt="QR" className="w-40 h-40 md:w-44 md:h-44 block object-contain" />
+                  <img
+                    src={qrUrl}
+                    alt="QR"
+                    className="w-40 h-40 md:w-44 md:h-44 block object-contain"
+                  />
                 </div>
               ) : (
                 <AlertCircle size={28} className="text-rose-500/40" />
@@ -379,7 +540,9 @@ export default function Sync() {
             </div>
             <div className="w-full space-y-3">
               {footerAction}
-              <p className="text-[10px] text-center uppercase tracking-widest opacity-30 font-black">Escaneie com o App Mobile</p>
+              <p className="text-[10px] text-center uppercase tracking-widest opacity-30 font-black">
+                Escaneie com o App Mobile
+              </p>
             </div>
           </div>
         </div>
@@ -396,11 +559,18 @@ export default function Sync() {
             <RefreshCw className="w-6 h-6 text-[var(--primary)]" />
           </div>
           <div>
-            <h1 className="text-3xl font-black tracking-tight" style={{ color: "var(--app-fg)" }}>Sync & Backup</h1>
-            <p className="text-sm opacity-60">Sincronização em tempo real e segurança de dados.</p>
+            <h1
+              className="text-3xl font-black tracking-tight"
+              style={{ color: "var(--app-fg)" }}
+            >
+              Sync & Backup
+            </h1>
+            <p className="text-sm opacity-60">
+              Sincronização em tempo real e segurança de dados.
+            </p>
           </div>
         </div>
-        
+
         {/* Connection Status Badge */}
         <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 border border-white/5">
           <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
@@ -414,16 +584,23 @@ export default function Sync() {
         {/* Left Column: QR & Sync */}
         <div className="lg:col-span-8 space-y-8">
           <div className="soe-card p-8 relative overflow-hidden">
-             {/* Background decorative icon */}
+            {/* Background decorative icon */}
             <Smartphone className="absolute -right-8 -bottom-8 w-48 h-48 opacity-[0.02] -rotate-12 pointer-events-none" />
-            
+
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
                 <Wifi className="w-5 h-5 text-[var(--primary)]" />
               </div>
               <div>
-                <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Sincronização Direta</h2>
-                <p className="text-xs opacity-50">Transfira dados instantaneamente via Wi-Fi.</p>
+                <h2
+                  className="text-xl font-black"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  Sincronização Direta
+                </h2>
+                <p className="text-xs opacity-50">
+                  Transfira dados instantaneamente via Wi-Fi.
+                </p>
               </div>
             </div>
 
@@ -434,14 +611,21 @@ export default function Sync() {
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-4">
                       <Globe className="w-5 h-5 text-[var(--accent-blue, #3b82f6)]" />
                       <div className="flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Endereço Local</p>
-                        <code className="text-sm font-black">{selectedIp}:{syncInfo.port}</code>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                          Endereço Local
+                        </p>
+                        <code className="text-sm font-black">
+                          {selectedIp}:{syncInfo.port}
+                        </code>
                       </div>
                       {syncInfo.ips.length > 1 && (
                         <div className="flex gap-1.5">
-                          {syncInfo.ips.map(ip => (
-                            <button key={ip} onClick={() => setSelectedIp(ip)}
-                                    className={`w-2 h-2 rounded-full transition-all ${selectedIp === ip ? 'bg-[var(--primary)] scale-125' : 'bg-white/10'}`} />
+                          {syncInfo.ips.map((ip) => (
+                            <button
+                              key={ip}
+                              onClick={() => setSelectedIp(ip)}
+                              className={`w-2 h-2 rounded-full transition-all ${selectedIp === ip ? "bg-[var(--primary)] scale-125" : "bg-white/10"}`}
+                            />
                           ))}
                         </div>
                       )}
@@ -467,8 +651,13 @@ export default function Sync() {
                           <button
                             onClick={startListening}
                             disabled={waitingReceive}
-                            className={`w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${received ? 'bg-[var(--accent-green)] text-white border-[var(--accent-green)]' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10'}`}>
-                            {received ? "✓ Recebido" : waitingReceive ? "Aguardando..." : "Escutar Android"}
+                            className={`w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${received ? "bg-[var(--accent-green)] text-white border-[var(--accent-green)]" : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10"}`}
+                          >
+                            {received
+                              ? "✓ Recebido"
+                              : waitingReceive
+                                ? "Aguardando..."
+                                : "Escutar Android"}
                           </button>
                         }
                       />
@@ -477,7 +666,9 @@ export default function Sync() {
                 ) : (
                   <div className="p-12 text-center bg-white/5 rounded-[2rem] border-2 border-dashed border-white/10">
                     <Wifi size={40} className="mx-auto mb-4 opacity-20" />
-                    <p className="text-sm font-bold opacity-40">Sem rede Wi-Fi detectada.</p>
+                    <p className="text-sm font-bold opacity-40">
+                      Sem rede Wi-Fi detectada.
+                    </p>
                   </div>
                 )}
               </div>
@@ -487,29 +678,52 @@ export default function Sync() {
                   Abra o Dashboard no seu PC e aponte a câmera para os QR Codes.
                 </p>
                 <div className="grid gap-4">
-                  <button onClick={handlePull} disabled={pulling}
-                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all">
+                  <button
+                    onClick={handlePull}
+                    disabled={pulling}
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-[var(--primary-foreground)]/20 flex items-center justify-center">
-                        {pulling ? <RefreshCw className="animate-spin" /> : <ArrowDownToLine />}
+                        {pulling ? (
+                          <RefreshCw className="animate-spin" />
+                        ) : (
+                          <ArrowDownToLine />
+                        )}
                       </div>
                       <div className="text-left">
                         <p className="font-black text-lg">Baixar do PC</p>
-                        <p className="text-xs opacity-70">Importar dados do computador</p>
+                        <p className="text-xs opacity-70">
+                          Importar dados do computador
+                        </p>
                       </div>
                     </div>
                     <ChevronRight className="opacity-40 group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <button onClick={handlePush} disabled={pushing}
-                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all">
+                  <button
+                    onClick={handlePush}
+                    disabled={pushing}
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-[var(--primary-bg-subtle)] flex items-center justify-center text-[var(--primary)]">
-                        {pushing ? <RefreshCw className="animate-spin" /> : <ArrowUpFromLine />}
+                        {pushing ? (
+                          <RefreshCw className="animate-spin" />
+                        ) : (
+                          <ArrowUpFromLine />
+                        )}
                       </div>
                       <div className="text-left">
-                        <p className="font-black text-lg" style={{ color: "var(--app-fg)" }}>Enviar ao PC</p>
-                        <p className="text-xs opacity-50">Sincronizar progresso atual</p>
+                        <p
+                          className="font-black text-lg"
+                          style={{ color: "var(--app-fg)" }}
+                        >
+                          Enviar ao PC
+                        </p>
+                        <p className="text-xs opacity-50">
+                          Sincronizar progresso atual
+                        </p>
                       </div>
                     </div>
                     <ChevronRight className="opacity-20 group-hover:translate-x-1 transition-transform" />
@@ -518,7 +732,7 @@ export default function Sync() {
               </div>
             )}
           </div>
-          
+
           {/* Cloud Restoration */}
           <div className="soe-card p-8">
             <div className="flex items-center gap-3 mb-6">
@@ -526,11 +740,18 @@ export default function Sync() {
                 <Cloud className="w-5 h-5 text-sky-500" />
               </div>
               <div>
-                <h2 className="text-xl font-black" style={{ color: "var(--app-fg)" }}>Restauração em Nuvem</h2>
-                <p className="text-xs opacity-50">Importe backups compartilhados via link.</p>
+                <h2
+                  className="text-xl font-black"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  Restauração em Nuvem
+                </h2>
+                <p className="text-xs opacity-50">
+                  Importe backups compartilhados via link.
+                </p>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <input
                 type="text"
@@ -538,17 +759,30 @@ export default function Sync() {
                 value={driveUrl}
                 onChange={(e) => setDriveUrl(e.target.value)}
                 className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
-                style={{ background: "var(--input-bg)", border: "1px solid var(--card-border)", color: "var(--app-fg)" }}
+                style={{
+                  background: "var(--input-bg)",
+                  border: "1px solid var(--card-border)",
+                  color: "var(--app-fg)",
+                }}
               />
-              <button onClick={handleImportFromLink} disabled={linkImportLoading || !driveUrl}
-                className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2">
-                {linkImportLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}
+              <button
+                onClick={handleImportFromLink}
+                disabled={linkImportLoading || !driveUrl}
+                className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                {linkImportLoading ? (
+                  <RefreshCw className="animate-spin w-4 h-4" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
                 Importar
               </button>
             </div>
             <div className="mt-4 flex items-center gap-2 opacity-30">
               <ShieldCheck size={14} />
-              <p className="text-[10px] font-bold uppercase tracking-tighter">Conexão Segura SSL</p>
+              <p className="text-[10px] font-bold uppercase tracking-tighter">
+                Conexão Segura SSL
+              </p>
             </div>
           </div>
         </div>
@@ -561,21 +795,38 @@ export default function Sync() {
               <div className="w-10 h-10 rounded-xl bg-[var(--accent-amber)]/10 flex items-center justify-center">
                 <HardDrive className="w-5 h-5 text-[var(--accent-amber)]" />
               </div>
-              <h2 className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>Arquivo Local</h2>
+              <h2
+                className="font-black text-sm uppercase tracking-wider"
+                style={{ color: "var(--app-fg)" }}
+              >
+                Arquivo Local
+              </h2>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={handleExportFile}
-                className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+              <button
+                onClick={handleExportFile}
+                className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all"
+              >
                 <Share2 className="text-[var(--primary)]" />
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Exportar</span>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                  Exportar
+                </span>
               </button>
               <label className="cursor-pointer">
                 <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
                   <Upload className="text-[var(--accent-green)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{importLoading ? "Carregando" : "Importar"}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                    {importLoading ? "Carregando" : "Importar"}
+                  </span>
                 </div>
-                <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
               </label>
             </div>
           </div>
@@ -588,10 +839,20 @@ export default function Sync() {
                   <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
                     <Clock className="w-5 h-5 text-[var(--primary)]" />
                   </div>
-                  <h2 className="font-black text-sm uppercase tracking-wider" style={{ color: "var(--app-fg)" }}>Histórico</h2>
+                  <h2
+                    className="font-black text-sm uppercase tracking-wider"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    Histórico
+                  </h2>
                 </div>
-                <button onClick={() => { runAutoBackup(); fetchBackups(); }}
-                        className="p-2 rounded-lg hover:bg-white/5 text-white/30 transition-colors">
+                <button
+                  onClick={() => {
+                    runAutoBackup();
+                    fetchBackups();
+                  }}
+                  className="p-2 rounded-lg hover:bg-white/5 text-white/30 transition-colors"
+                >
                   <RotateCw size={16} />
                 </button>
               </div>
@@ -599,7 +860,10 @@ export default function Sync() {
               <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                 {backupLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />
+                    <div
+                      key={i}
+                      className="h-14 rounded-xl bg-white/5 animate-pulse"
+                    />
                   ))
                 ) : backups.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 opacity-20">
@@ -607,23 +871,35 @@ export default function Sync() {
                     <p className="text-xs font-bold mt-2">Sem backups</p>
                   </div>
                 ) : (
-                  backups.map(b => (
-                    <div key={b.name} className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all">
+                  backups.map((b) => (
+                    <div
+                      key={b.name}
+                      className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all"
+                    >
                       <div className="w-8 h-8 rounded-lg bg-[var(--accent-green)]/10 flex items-center justify-center text-[var(--accent-green)]">
                         <ShieldCheck size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">{b.date}</p>
-                        <p className="text-xs font-bold truncate" style={{ color: "var(--app-fg)" }}>{b.name}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                          {b.date}
+                        </p>
+                        <p
+                          className="text-xs font-bold truncate"
+                          style={{ color: "var(--app-fg)" }}
+                        >
+                          {b.name}
+                        </p>
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              
+
               <div className="mt-6 pt-6 border-t border-white/5">
                 <p className="text-[9px] font-black uppercase tracking-widest opacity-20 text-center leading-relaxed">
-                  Backups retidos por 30 dias<br />em ./userData/data/backups
+                  Backups retidos por 30 dias
+                  <br />
+                  em ./userData/data/backups
                 </p>
               </div>
             </div>
@@ -635,44 +911,76 @@ export default function Sync() {
       <AnimatePresence>
         {delta && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                        className="soe-card max-w-lg w-full p-8 space-y-8 shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)]">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="soe-card max-w-lg w-full p-8 space-y-8 shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)]"
+            >
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30">
                   <ShieldCheck className="w-6 h-6 text-amber-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-widest" style={{ color: "var(--app-fg)" }}>Conflito de Dados</h2>
-                  <p className="text-xs opacity-50">Detectamos volumes diferentes de estudo.</p>
+                  <h2
+                    className="text-xl font-black uppercase tracking-widest"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    Conflito de Dados
+                  </h2>
+                  <p className="text-xs opacity-50">
+                    Detectamos volumes diferentes de estudo.
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-2">Seu Dispositivo</p>
-                  <p className="text-lg font-black" style={{ color: "var(--app-fg)" }}>{delta.local.revisions} Revisões</p>
-                  <p className="text-[10px] opacity-40">{delta.local.topics} Tópicos</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-2">
+                    Seu Dispositivo
+                  </p>
+                  <p
+                    className="text-lg font-black"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    {delta.local.revisions} Revisões
+                  </p>
+                  <p className="text-[10px] opacity-40">
+                    {delta.local.topics} Tópicos
+                  </p>
                 </div>
                 <div className="p-4 rounded-2xl bg-[var(--primary)]/10 border border-[var(--primary)]/20">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] mb-2">Backup Remoto</p>
-                  <p className="text-lg font-black text-[var(--primary)]">{delta.remote.revisions} Revisões</p>
-                  <p className="text-[10px] text-[var(--primary)] opacity-60">{delta.remote.topics} Tópicos</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] mb-2">
+                    Backup Remoto
+                  </p>
+                  <p className="text-lg font-black text-[var(--primary)]">
+                    {delta.remote.revisions} Revisões
+                  </p>
+                  <p className="text-[10px] text-[var(--primary)] opacity-60">
+                    {delta.remote.topics} Tópicos
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <button onClick={() => confirmImport(delta.remote.json)}
-                        className="w-full py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all">
+                <button
+                  onClick={() => confirmImport(delta.remote.json)}
+                  className="w-full py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all"
+                >
                   Substituir pelos dados do PC
                 </button>
-                <button onClick={() => setDelta(null)}
-                        className="w-full py-4 rounded-2xl bg-white/5 text-white/40 font-black text-xs uppercase tracking-widest hover:text-white transition-all">
+                <button
+                  onClick={() => setDelta(null)}
+                  className="w-full py-4 rounded-2xl bg-white/5 text-white/40 font-black text-xs uppercase tracking-widest hover:text-white transition-all"
+                >
                   Cancelar Importação
                 </button>
               </div>
 
               <p className="text-[9px] text-center opacity-30 leading-relaxed uppercase tracking-tighter">
-                Atenção: Ao confirmar, os dados locais deste celular serão APAGADOS<br />e substituídos integralmente pelo conteúdo do backup.
+                Atenção: Ao confirmar, os dados locais deste celular serão
+                APAGADOS
+                <br />e substituídos integralmente pelo conteúdo do backup.
               </p>
             </motion.div>
           </div>

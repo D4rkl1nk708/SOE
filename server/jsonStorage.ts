@@ -27,19 +27,23 @@ function acquireWriteLock(fn: () => any) {
   });
 }
 
-async function runInTransaction<T>(fn: (db: Database) => T | Promise<T>): Promise<T> {
-  const result = await (_writeLock = _writeLock.then(async () => {
-    try {
-      const db = readDatabase();
-      const res = await fn(db);
-      // We don't call writeDatabase here because we want to be explicit, 
-      // but we could. For now, let's just make sure the callers use the db we give them.
-      return res;
-    } catch (err) {
-      console.error("[jsonStorage] Transaction error:", err);
-      throw err;
-    }
-  }).catch(() => {})); // prevent lock chain from breaking
+async function runInTransaction<T>(
+  fn: (db: Database) => T | Promise<T>,
+): Promise<T> {
+  const result = await (_writeLock = _writeLock
+    .then(async () => {
+      try {
+        const db = readDatabase();
+        const res = await fn(db);
+        // We don't call writeDatabase here because we want to be explicit,
+        // but we could. For now, let's just make sure the callers use the db we give them.
+        return res;
+      } catch (err) {
+        console.error("[jsonStorage] Transaction error:", err);
+        throw err;
+      }
+    })
+    .catch(() => {})); // prevent lock chain from breaking
   return result as T;
 }
 
@@ -85,14 +89,18 @@ export interface Topic {
     fastErrors?: number;
     slowErrors?: number;
     // History snapshots for R07/R09
-    history?: Array<{ date: string; accuracy: number; questionsResolved: number }>;
+    history?: Array<{
+      date: string;
+      accuracy: number;
+      questionsResolved: number;
+    }>;
     // TEC — dados enriquecidos de incidência e banca
-    incidencia?: number;           // 0.0–1.0 — percentual de incidência do assunto na banca/concurso
-    totalQuestoesBanca?: number;   // total de questões disponíveis no TEC para este assunto
-    bancaDominante?: string;       // banca com mais questões neste assunto (ex: "CESPE")
+    incidencia?: number; // 0.0–1.0 — percentual de incidência do assunto na banca/concurso
+    totalQuestoesBanca?: number; // total de questões disponíveis no TEC para este assunto
+    bancaDominante?: string; // banca com mais questões neste assunto (ex: "CESPE")
     bancaStats?: Record<string, { correct: number; wrong: number }>; // desempenho por banca
-    dificuldade?: number;          // 0.0–1.0 — dificuldade média do assunto no TEC
-    lastImportedAt?: string;       // ISO datetime da última importação TEC
+    dificuldade?: number; // 0.0–1.0 — dificuldade média do assunto no TEC
+    lastImportedAt?: string; // ISO datetime da última importação TEC
   };
   studyTimeSeconds: number;
   // R26 - Anotações de Sobrevivência (per-topic)
@@ -148,7 +156,12 @@ export interface UserSettings {
   examDate?: string;
   examName?: string;
   exams?: { id: string; name: string; date: string }[];
-  editalCycle?: { id: string; title: string; durationMinutes: number; done: boolean }[];
+  editalCycle?: {
+    id: string;
+    title: string;
+    durationMinutes: number;
+    done: boolean;
+  }[];
   editalRows?: {
     id: string;
     discipline: string;
@@ -156,13 +169,13 @@ export interface UserSettings {
     completed: boolean;
     notes?: string;
     // enriched fields from xlsx import
-    incidencia?: number;       // 0-1 percentage weight
-    quantidade?: number;       // absolute question count
-    acerto?: number;           // 0-1 hit rate
+    incidencia?: number; // 0-1 percentage weight
+    quantidade?: number; // absolute question count
+    acerto?: number; // 0-1 hit rate
     revisar?: boolean;
     avancar?: boolean;
     discursiva?: boolean;
-    isHeader?: boolean;        // first row of a discipline group
+    isHeader?: boolean; // first row of a discipline group
   }[];
   cycleConfig?: {
     type: "numbered" | "weekdays";
@@ -185,11 +198,21 @@ export interface UserSettings {
   /** Meta diária de estudo em minutos */
   dailyGoalMinutes?: number;
   /** Anotações globais do usuário - R26 */
-  topicNotes?: Array<{ id: string; topicPattern: string; text: string; triggeredCount: number }>;
+  topicNotes?: Array<{
+    id: string;
+    topicPattern: string;
+    text: string;
+    triggeredCount: number;
+  }>;
   /** Afinidade de banca - R18 */
   bancaStats?: Record<string, { correct: number; wrong: number }>;
   /** Medidor de fadiga - R28: questões por sessão registradas */
-  fatigueLog?: Array<{ date: string; questionsCount: number; hourOfDay: number; accuracy: number }>;
+  fatigueLog?: Array<{
+    date: string;
+    questionsCount: number;
+    hourOfDay: number;
+    accuracy: number;
+  }>;
   /** Metas de dopamina - R29 */
   gamificationPoints?: number;
   /** Dashboard widget visibility/order config */
@@ -207,7 +230,11 @@ export interface UserSettings {
   /** F10 - Horário de pico registrado (horas com melhor desempenho) */
   peakHours?: Array<{ hour: number; avgAccuracy: number; sessions: number }>;
   /** F15 - Registro de horário de encerramento de estudo (sono) */
-  sleepLog?: Array<{ date: string; endStudyHour: number; alertIssued: boolean }>;
+  sleepLog?: Array<{
+    date: string;
+    endStudyHour: number;
+    alertIssued: boolean;
+  }>;
   /** F07 - Timer intercalação: tempo máximo contínuo na mesma disciplina (min) */
   attentionAlertMinutes?: number; // padrão 45
   /** F08 - Feedback postergado: mostrar gabarito só no final do bloco */
@@ -215,7 +242,13 @@ export interface UserSettings {
   /** F16 - Modo pré-prova ativado automaticamente X dias antes */
   preExamDays?: number; // padrão 7
   /** F10 - Score de horário por sessão de estudo */
-  studySessionLog?: Array<{ date: string; hourStart: number; durationMin: number; accuracy: number; disciplineId?: number }>;
+  studySessionLog?: Array<{
+    date: string;
+    hourStart: number;
+    durationMin: number;
+    accuracy: number;
+    disciplineId?: number;
+  }>;
   /** Token secreto usado pelo userscript Tampermonkey para autenticar pushes em tempo real */
   pushToken?: string;
   /** Chaves de API de Inteligência Artificial cadastradas pelo usuário (para o Mentor SOE) */
@@ -263,9 +296,9 @@ export interface Flashcard {
   front: string;
   back: string;
   // spaced repetition state
-  interval: number;      // days until next review
-  easeFactor: number;    // SM-2 ease factor (default 2.5)
-  repetitions: number;   // times reviewed successfully
+  interval: number; // days until next review
+  easeFactor: number; // SM-2 ease factor (default 2.5)
+  repetitions: number; // times reviewed successfully
   nextReviewDate: string; // YYYY-MM-DD
   archived?: boolean;
   createdAt: string;
@@ -278,14 +311,14 @@ export interface QuestionError {
   topicId: number;
   disciplineId: number;
   // Parsed from TEC paste
-  questionId?: string;       // e.g. "#3872741"
-  banca?: string;            // e.g. "CEBRASPE (CESPE)"
+  questionId?: string; // e.g. "#3872741"
+  banca?: string; // e.g. "CEBRASPE (CESPE)"
   year?: number;
-  contest?: string;          // e.g. "Agente Fazendário Estadual (SEFAZ PR)/Administrador"
-  statement: string;         // full question statement
+  contest?: string; // e.g. "Agente Fazendário Estadual (SEFAZ PR)/Administrador"
+  statement: string; // full question statement
   alternatives: { letter: string; text: string }[];
-  userAnswer?: string;       // e.g. "B"
-  correctAnswer?: string;    // e.g. "C"
+  userAnswer?: string; // e.g. "B"
+  correctAnswer?: string; // e.g. "C"
   // Classification
   errorOrigin?: "attention" | "forgetting" | "theory" | "trap";
   // AI analysis saved per question
@@ -300,13 +333,20 @@ export interface QuestionError {
   // AI flashcard generated
   aiFlashcardGenerated?: boolean;
   resolution?: string; // NOVO: comentário da resolução importado do TEC
+  supportText?: string; // NOVO: texto de apoio da questão
+  source?: "manual" | "tec" | "mined"; // NOVO: origem da questão
   createdAt: string;
 }
 
 export interface EssayCorrection {
   score: number;
   feedback: string; // Markdown formatted feedback
-  errors: Array<{ type: string; description: string; suggestion?: string; line?: number }>;
+  errors: Array<{
+    type: string;
+    description: string;
+    suggestion?: string;
+    line?: number;
+  }>;
   gradeBreakdown: Record<string, number>; // e.g., { "Gramática": 2.0, "Coesão": 3.0 }
 }
 
@@ -413,17 +453,20 @@ function getEmptyDatabase(): Database {
 
 // Read database from file (uses in-memory cache when available)
 function fixEncoding(str: string): string {
-  if (typeof str !== 'string') return str;
+  if (typeof str !== "string") return str;
   try {
     let hasHigh = false;
     for (let i = 0; i < str.length; i++) {
-      if (str.charCodeAt(i) > 127) { hasHigh = true; break; }
+      if (str.charCodeAt(i) > 127) {
+        hasHigh = true;
+        break;
+      }
     }
     if (!hasHigh) return str;
     const bytes = Buffer.alloc(str.length);
     for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xff;
-    const fixed = bytes.toString('utf8');
-    if (!fixed.includes('\ufffd')) return fixed;
+    const fixed = bytes.toString("utf8");
+    if (!fixed.includes("\ufffd")) return fixed;
   } catch {}
   return str;
 }
@@ -454,18 +497,20 @@ function readDatabase(): Database {
       type RawRecord = Record<string, unknown>;
       // Migrate disciplines to have studyTimeSeconds
       db.disciplines = (db.disciplines as unknown as RawRecord[])
-        .map(d => ({
+        .map((d) => ({
           ...d,
           name: fixEncoding(d.name as string),
           studyTimeSeconds: (d.studyTimeSeconds as number) || 0,
+          weight: (d.weight as number) || 1,
+          order: (d.order as number) || 0,
         }))
         .sort((a, b) => (b.weight as number) - (a.weight as number))
         .map((d, idx) => ({
           ...d,
-          order: typeof d.order === "number" ? d.order : idx + 1,
+          order: d.order || idx + 1,
         })) as unknown as Discipline[];
       // Migrate topics to have studyTimeSeconds
-      db.topics = (db.topics as unknown as RawRecord[]).map(t => ({
+      db.topics = (db.topics as unknown as RawRecord[]).map((t) => ({
         ...t,
         name: fixEncoding(t.name as string),
         notes: t.notes ? fixEncoding(t.notes as string) : t.notes,
@@ -473,31 +518,48 @@ function readDatabase(): Database {
         order: typeof t.order === "number" ? t.order : Number(t.id),
       })) as unknown as Topic[];
       // Migrate settings to support exams and edital data
-      db.users = (db.users as unknown as RawRecord[]).map(u => {
-        const rawSettings = (u.settings as RawRecord) || { theme: "light", studyStreak: { current: 0, best: 0, lastStudyDate: null } };
+      db.users = (db.users as unknown as RawRecord[]).map((u) => {
+        const rawSettings = (u.settings as RawRecord) || {
+          theme: "light",
+          studyStreak: { current: 0, best: 0, lastStudyDate: null },
+        };
         const examsFromLegacy =
           rawSettings.examDate && rawSettings.examName
-            ? [{ id: "legacy-exam", name: rawSettings.examName as string, date: rawSettings.examDate as string }]
+            ? [
+                {
+                  id: "legacy-exam",
+                  name: rawSettings.examName as string,
+                  date: rawSettings.examDate as string,
+                },
+              ]
             : [];
         return {
           ...u,
           settings: {
             ...rawSettings,
-            exams: Array.isArray(rawSettings.exams) ? rawSettings.exams : examsFromLegacy,
-            editalCycle: Array.isArray(rawSettings.editalCycle) ? rawSettings.editalCycle : [],
-            editalRows: Array.isArray(rawSettings.editalRows) ? rawSettings.editalRows : [],
+            exams: Array.isArray(rawSettings.exams)
+              ? rawSettings.exams
+              : examsFromLegacy,
+            editalCycle: Array.isArray(rawSettings.editalCycle)
+              ? rawSettings.editalCycle
+              : [],
+            editalRows: Array.isArray(rawSettings.editalRows)
+              ? rawSettings.editalRows
+              : [],
           },
         };
       }) as unknown as User[];
       // Migrate revisions to have ignored field
-      db.revisions = (db.revisions as unknown as RawRecord[]).map(r => ({
+      db.revisions = (db.revisions as unknown as RawRecord[]).map((r) => ({
         ...r,
         ignored: (r.ignored as boolean) || false,
       })) as unknown as Revision[];
       // Persist encoding fixes back to disk (one-time migration)
       if (!db._encodingFixed) {
         db._encodingFixed = true;
-        try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8"); } catch {}
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+        } catch {}
       }
       _dbCache = db;
       return db;
@@ -520,11 +582,14 @@ function writeDatabase(db: Database): void {
   acquireWriteLock(() => {
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-      
+
       // AUTO-BACKUP (Sincronização em Nuvem Invisível -> via Google Drive local)
       if (db.users && db.users.length > 0) {
         const primaryUser = db.users[0];
-        if (primaryUser.settings?.autoBackupEnabled && primaryUser.settings.autoBackupDir) {
+        if (
+          primaryUser.settings?.autoBackupEnabled &&
+          primaryUser.settings.autoBackupDir
+        ) {
           try {
             const targetDir = primaryUser.settings.autoBackupDir;
             if (!fs.existsSync(targetDir)) {
@@ -553,13 +618,15 @@ function now(): string {
 
 // ============ USER OPERATIONS ============
 
-export async function upsertUser(userData: Partial<User> & { openId: string }): Promise<void> {
+export async function upsertUser(
+  userData: Partial<User> & { openId: string },
+): Promise<void> {
   const db = readDatabase();
   const existingIndex = db.users.findIndex((u) => u.openId === userData.openId);
 
   const defaultSettings: UserSettings = {
     theme: "light",
-    studyStreak: { current: 0, best: 0, lastStudyDate: null }
+    studyStreak: { current: 0, best: 0, lastStudyDate: null },
   };
 
   if (existingIndex >= 0) {
@@ -590,20 +657,27 @@ export async function upsertUser(userData: Partial<User> & { openId: string }): 
   writeDatabase(db);
 }
 
-export async function getUserByOpenId(openId: string): Promise<User | undefined> {
+export async function getUserByOpenId(
+  openId: string,
+): Promise<User | undefined> {
   const db = readDatabase();
   return db.users.find((u) => u.openId === openId);
 }
 
-export async function getUserSettings(userId: number): Promise<UserSettings | undefined> {
+export async function getUserSettings(
+  userId: number,
+): Promise<UserSettings | undefined> {
   const db = readDatabase();
   const user = db.users.find((u) => u.id === userId);
   return user?.settings;
 }
 
-export async function updateUserSettings(userId: number, settings: Partial<UserSettings>): Promise<void> {
+export async function updateUserSettings(
+  userId: number,
+  settings: Partial<UserSettings>,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.users.findIndex(u => u.id === userId);
+  const index = db.users.findIndex((u) => u.id === userId);
   if (index >= 0) {
     db.users[index].settings = { ...db.users[index].settings, ...settings };
     writeDatabase(db);
@@ -612,19 +686,26 @@ export async function updateUserSettings(userId: number, settings: Partial<UserS
 
 // ============ DISCIPLINE OPERATIONS ============
 
-export async function getDisciplinesByUser(userId: number): Promise<Discipline[]> {
+export async function getDisciplinesByUser(
+  userId: number,
+): Promise<Discipline[]> {
   const db = readDatabase();
   return db.disciplines
     .filter((d) => d.userId === userId)
     .sort((a, b) => {
-      const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
-      const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+      const orderA =
+        typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+      const orderB =
+        typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
       if (orderA !== orderB) return orderA - orderB;
       return b.weight - a.weight;
     });
 }
 
-export async function getDisciplineById(id: number, userId: number): Promise<Discipline | null> {
+export async function getDisciplineById(
+  id: number,
+  userId: number,
+): Promise<Discipline | null> {
   const db = readDatabase();
   return db.disciplines.find((d) => d.id === id && d.userId === userId) || null;
 }
@@ -637,9 +718,13 @@ export async function createDiscipline(data: {
 }): Promise<{ id: number }> {
   const db = readDatabase();
   db.counters.disciplines++;
-  const userDisciplines = db.disciplines.filter((d) => d.userId === data.userId);
-  const nextOrder = userDisciplines.length ? Math.max(...userDisciplines.map((d) => d.order || 0)) + 1 : 1;
-  
+  const userDisciplines = db.disciplines.filter(
+    (d) => d.userId === data.userId,
+  );
+  const nextOrder = userDisciplines.length
+    ? Math.max(...userDisciplines.map((d) => d.order || 0)) + 1
+    : 1;
+
   const newDiscipline: Discipline = {
     id: db.counters.disciplines,
     userId: data.userId,
@@ -651,21 +736,28 @@ export async function createDiscipline(data: {
     createdAt: now(),
     updatedAt: now(),
   };
-  
+
   db.disciplines.push(newDiscipline);
   writeDatabase(db);
-  
+
   return { id: newDiscipline.id };
 }
 
 export async function updateDiscipline(
   id: number,
   userId: number,
-  data: Partial<Pick<Discipline, "name" | "color" | "weight" | "order" | "performance" | "studyTimeSeconds">>
+  data: Partial<
+    Pick<
+      Discipline,
+      "name" | "color" | "weight" | "order" | "performance" | "studyTimeSeconds"
+    >
+  >,
 ): Promise<void> {
   const db = readDatabase();
-  const index = db.disciplines.findIndex((d) => d.id === id && d.userId === userId);
-  
+  const index = db.disciplines.findIndex(
+    (d) => d.id === id && d.userId === userId,
+  );
+
   if (index >= 0) {
     db.disciplines[index] = {
       ...db.disciplines[index],
@@ -676,13 +768,24 @@ export async function updateDiscipline(
   }
 }
 
-export async function deleteDiscipline(id: number, userId: number): Promise<void> {
+export async function deleteDiscipline(
+  id: number,
+  userId: number,
+): Promise<void> {
   const db = readDatabase();
-  const topicIds = db.topics.filter((t) => t.disciplineId === id && t.userId === userId).map((t) => t.id);
+  const topicIds = db.topics
+    .filter((t) => t.disciplineId === id && t.userId === userId)
+    .map((t) => t.id);
   db.revisions = db.revisions.filter((r) => !topicIds.includes(r.topicId));
-  db.topics = db.topics.filter((t) => t.disciplineId !== id || t.userId !== userId);
-  db.notes = db.notes.filter(n => n.disciplineId !== id || n.userId !== userId);
-  db.disciplines = db.disciplines.filter((d) => d.id !== id || d.userId !== userId);
+  db.topics = db.topics.filter(
+    (t) => t.disciplineId !== id || t.userId !== userId,
+  );
+  db.notes = db.notes.filter(
+    (n) => n.disciplineId !== id || n.userId !== userId,
+  );
+  db.disciplines = db.disciplines.filter(
+    (d) => d.id !== id || d.userId !== userId,
+  );
   writeDatabase(db);
 }
 
@@ -693,24 +796,34 @@ export interface TopicFilters {
   search?: string;
 }
 
-export async function getTopicsByUser(userId: number, filters?: TopicFilters): Promise<Topic[]> {
+export async function getTopicsByUser(
+  userId: number,
+  filters?: TopicFilters,
+): Promise<Topic[]> {
   const db = readDatabase();
   let topics = db.topics.filter((t) => t.userId === userId);
-  if (filters?.disciplineId) topics = topics.filter((t) => t.disciplineId === filters.disciplineId);
+  if (filters?.disciplineId)
+    topics = topics.filter((t) => t.disciplineId === filters.disciplineId);
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase();
     topics = topics.filter((t) => t.name.toLowerCase().includes(searchLower));
   }
   return topics.sort((a, b) => {
-    if (a.disciplineId !== b.disciplineId) return a.disciplineId - b.disciplineId;
-    const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
-    const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+    if (a.disciplineId !== b.disciplineId)
+      return a.disciplineId - b.disciplineId;
+    const orderA =
+      typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+    const orderB =
+      typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
     if (orderA !== orderB) return orderA - orderB;
     return b.studyDate.localeCompare(a.studyDate);
   });
 }
 
-export async function getTopicById(id: number, userId: number): Promise<Topic | null> {
+export async function getTopicById(
+  id: number,
+  userId: number,
+): Promise<Topic | null> {
   const db = readDatabase();
   return db.topics.find((t) => t.id === id && t.userId === userId) || null;
 }
@@ -724,8 +837,12 @@ export async function createTopic(data: {
 }): Promise<{ id: number }> {
   const db = readDatabase();
   db.counters.topics++;
-  const disciplineTopics = db.topics.filter((t) => t.userId === data.userId && t.disciplineId === data.disciplineId);
-  const nextOrder = disciplineTopics.length ? Math.max(...disciplineTopics.map((t) => t.order || 0)) + 1 : 1;
+  const disciplineTopics = db.topics.filter(
+    (t) => t.userId === data.userId && t.disciplineId === data.disciplineId,
+  );
+  const nextOrder = disciplineTopics.length
+    ? Math.max(...disciplineTopics.map((t) => t.order || 0)) + 1
+    : 1;
   const newTopic: Topic = {
     id: db.counters.topics,
     userId: data.userId,
@@ -743,11 +860,23 @@ export async function createTopic(data: {
   return { id: newTopic.id };
 }
 
-export type TopicUpdateData = Partial<Pick<Topic,
-  "name" | "disciplineId" | "notes" | "studyDate" | "studyTimeSeconds" | "topicNotes"
->>;
+export type TopicUpdateData = Partial<
+  Pick<
+    Topic,
+    | "name"
+    | "disciplineId"
+    | "notes"
+    | "studyDate"
+    | "studyTimeSeconds"
+    | "topicNotes"
+  >
+>;
 
-export async function updateTopic(id: number, userId: number, data: TopicUpdateData): Promise<void> {
+export async function updateTopic(
+  id: number,
+  userId: number,
+  data: TopicUpdateData,
+): Promise<void> {
   const db = readDatabase();
   const index = db.topics.findIndex((t) => t.id === id && t.userId === userId);
   if (index >= 0) {
@@ -759,7 +888,7 @@ export async function updateTopic(id: number, userId: number, data: TopicUpdateD
 export async function deleteTopic(id: number, userId: number): Promise<void> {
   const db = readDatabase();
   db.revisions = db.revisions.filter((r) => r.topicId !== id);
-  db.notes = db.notes.filter(n => n.topicId !== id);
+  db.notes = db.notes.filter((n) => n.topicId !== id);
   db.topics = db.topics.filter((t) => t.id !== id || t.userId !== userId);
   writeDatabase(db);
 }
@@ -772,13 +901,21 @@ export interface RevisionFilters {
   ignored?: boolean;
 }
 
-export async function getRevisionsByUser(userId: number, filters?: RevisionFilters): Promise<Revision[]> {
+export async function getRevisionsByUser(
+  userId: number,
+  filters?: RevisionFilters,
+): Promise<Revision[]> {
   const db = readDatabase();
   let revisions = db.revisions.filter((r) => r.userId === userId);
-  if (filters?.topicId) revisions = revisions.filter((r) => r.topicId === filters.topicId);
-  if (filters?.completed !== undefined) revisions = revisions.filter((r) => r.completed === filters.completed);
-  if (filters?.ignored !== undefined) revisions = revisions.filter((r) => r.ignored === filters.ignored);
-  return revisions.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  if (filters?.topicId)
+    revisions = revisions.filter((r) => r.topicId === filters.topicId);
+  if (filters?.completed !== undefined)
+    revisions = revisions.filter((r) => r.completed === filters.completed);
+  if (filters?.ignored !== undefined)
+    revisions = revisions.filter((r) => r.ignored === filters.ignored);
+  return revisions.sort((a, b) =>
+    a.scheduledDate.localeCompare(b.scheduledDate),
+  );
 }
 
 export interface RevisionInput {
@@ -790,7 +927,9 @@ export interface RevisionInput {
   completed?: boolean;
 }
 
-export async function createRevisions(revisionsData: RevisionInput[]): Promise<void> {
+export async function createRevisions(
+  revisionsData: RevisionInput[],
+): Promise<void> {
   if (revisionsData.length === 0) return;
   const db = readDatabase();
   // Batch all inserts before a single write — avoids N disk writes
@@ -813,9 +952,15 @@ export async function createRevisions(revisionsData: RevisionInput[]): Promise<v
   writeDatabase(db); // single write for all revisions
 }
 
-export async function markRevisionCompleted(id: number, userId: number, completed: boolean): Promise<void> {
+export async function markRevisionCompleted(
+  id: number,
+  userId: number,
+  completed: boolean,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
+  const index = db.revisions.findIndex(
+    (r) => r.id === id && r.userId === userId,
+  );
   if (index >= 0) {
     db.revisions[index].completed = completed;
     db.revisions[index].completedAt = completed ? now() : null;
@@ -824,9 +969,15 @@ export async function markRevisionCompleted(id: number, userId: number, complete
   }
 }
 
-export async function rescheduleRevision(id: number, userId: number, newDate: string): Promise<void> {
+export async function rescheduleRevision(
+  id: number,
+  userId: number,
+  newDate: string,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
+  const index = db.revisions.findIndex(
+    (r) => r.id === id && r.userId === userId,
+  );
   if (index >= 0) {
     db.revisions[index].scheduledDate = newDate;
     db.revisions[index].updatedAt = now();
@@ -834,9 +985,15 @@ export async function rescheduleRevision(id: number, userId: number, newDate: st
   }
 }
 
-export async function markRevisionIgnored(id: number, userId: number, ignored: boolean): Promise<void> {
+export async function markRevisionIgnored(
+  id: number,
+  userId: number,
+  ignored: boolean,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
+  const index = db.revisions.findIndex(
+    (r) => r.id === id && r.userId === userId,
+  );
   if (index >= 0) {
     db.revisions[index].ignored = ignored;
     db.revisions[index].updatedAt = now();
@@ -844,9 +1001,15 @@ export async function markRevisionIgnored(id: number, userId: number, ignored: b
   }
 }
 
-export async function updateRevisionLink(id: number, userId: number, link: string): Promise<void> {
+export async function updateRevisionLink(
+  id: number,
+  userId: number,
+  link: string,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
+  const index = db.revisions.findIndex(
+    (r) => r.id === id && r.userId === userId,
+  );
   if (index >= 0) {
     db.revisions[index].link = link;
     db.revisions[index].updatedAt = now();
@@ -858,10 +1021,14 @@ export async function updateRevisionLink(id: number, userId: number, link: strin
 
 export async function getMockExamsByUser(userId: number): Promise<MockExam[]> {
   const db = readDatabase();
-  return db.mockExams.filter(m => m.userId === userId).sort((a, b) => b.date.localeCompare(a.date));
+  return db.mockExams
+    .filter((m) => m.userId === userId)
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export async function createMockExam(data: Omit<MockExam, "id" | "createdAt">): Promise<MockExam> {
+export async function createMockExam(
+  data: Omit<MockExam, "id" | "createdAt">,
+): Promise<MockExam> {
   const db = readDatabase();
   db.counters.mockExams++;
   const newExam: MockExam = {
@@ -877,19 +1044,26 @@ export async function createMockExam(data: Omit<MockExam, "id" | "createdAt">): 
 export async function updateMockExam(
   id: number,
   userId: number,
-  data: Partial<Omit<MockExam, "id" | "userId" | "createdAt">>
+  data: Partial<Omit<MockExam, "id" | "userId" | "createdAt">>,
 ): Promise<void> {
   const db = readDatabase();
-  const index = db.mockExams.findIndex(m => m.id === id && m.userId === userId);
+  const index = db.mockExams.findIndex(
+    (m) => m.id === id && m.userId === userId,
+  );
   if (index >= 0) {
     db.mockExams[index] = { ...db.mockExams[index], ...data };
     writeDatabase(db);
   }
 }
 
-export async function deleteMockExam(id: number, userId: number): Promise<void> {
+export async function deleteMockExam(
+  id: number,
+  userId: number,
+): Promise<void> {
   const db = readDatabase();
-  db.mockExams = db.mockExams.filter(m => !(m.id === id && m.userId === userId));
+  db.mockExams = db.mockExams.filter(
+    (m) => !(m.id === id && m.userId === userId),
+  );
   writeDatabase(db);
 }
 
@@ -897,13 +1071,24 @@ export async function deleteMockExam(id: number, userId: number): Promise<void> 
 
 export async function getNotesByUser(userId: number): Promise<StudyNote[]> {
   const db = readDatabase();
-  return db.notes.filter(n => n.userId === userId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return db.notes
+    .filter((n) => n.userId === userId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export async function upsertNote(data: Partial<StudyNote> & { userId: number; disciplineId: number; title: string; content: string }): Promise<void> {
+export async function upsertNote(
+  data: Partial<StudyNote> & {
+    userId: number;
+    disciplineId: number;
+    title: string;
+    content: string;
+  },
+): Promise<void> {
   const db = readDatabase();
   if (data.id) {
-    const index = db.notes.findIndex(n => n.id === data.id && n.userId === data.userId);
+    const index = db.notes.findIndex(
+      (n) => n.id === data.id && n.userId === data.userId,
+    );
     if (index >= 0) {
       db.notes[index] = { ...db.notes[index], ...data, updatedAt: now() };
     }
@@ -925,7 +1110,7 @@ export async function upsertNote(data: Partial<StudyNote> & { userId: number; di
 
 export async function deleteNote(id: number, userId: number): Promise<void> {
   const db = readDatabase();
-  db.notes = db.notes.filter(n => n.id !== id || n.userId !== userId);
+  db.notes = db.notes.filter((n) => n.id !== id || n.userId !== userId);
   writeDatabase(db);
 }
 
@@ -952,45 +1137,80 @@ export async function importDatabase(jsonString: string): Promise<void> {
 
 // ============ CALENDAR & DASHBOARD DATA ============
 
-export async function getCalendarData(userId: number, startDate: string, endDate: string) {
+export async function getCalendarData(
+  userId: number,
+  startDate: string,
+  endDate: string,
+) {
   const db = readDatabase();
-  const revisions = db.revisions.filter(r => r.userId === userId && r.scheduledDate >= startDate && r.scheduledDate <= endDate && !r.ignored);
-  const topics = db.topics.filter(t => t.userId === userId);
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
+  const revisions = db.revisions.filter(
+    (r) =>
+      r.userId === userId &&
+      r.scheduledDate >= startDate &&
+      r.scheduledDate <= endDate &&
+      !r.ignored,
+  );
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
   return { revisions, topics, disciplines };
 }
 
 export async function getDashboardStats(userId: number) {
   const db = readDatabase();
-  const user = db.users.find(u => u.id === userId);
+  const user = db.users.find((u) => u.id === userId);
   const disciplines = db.disciplines
-    .filter(d => d.userId === userId)
-    .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
-  const topics = db.topics.filter(t => t.userId === userId);
-  const revisions = db.revisions.filter(r => r.userId === userId);
-  
-  const pendingRevisions = revisions.filter(r => !r.completed && !r.ignored && r.type === "revision" && r.scheduledDate < now().split('T')[0]).length;
-  const completedRevisions = revisions.filter(r => r.completed).length;
-  
+    .filter((d) => d.userId === userId)
+    .sort(
+      (a, b) =>
+        (a.order ?? Number.MAX_SAFE_INTEGER) -
+        (b.order ?? Number.MAX_SAFE_INTEGER),
+    );
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const revisions = db.revisions.filter((r) => r.userId === userId);
+
+  const pendingRevisions = revisions.filter(
+    (r) =>
+      !r.completed &&
+      !r.ignored &&
+      r.type === "revision" &&
+      r.scheduledDate < now().split("T")[0],
+  ).length;
+  const completedRevisions = revisions.filter((r) => r.completed).length;
+
   return {
     totalTopics: topics.length,
     totalDisciplines: disciplines.length,
     pendingRevisions,
     completedRevisions,
     settings: user?.settings,
-    disciplineStats: disciplines.map(d => {
-      const discTopics = topics.filter(t => t.disciplineId === d.id);
+    disciplineStats: disciplines.map((d) => {
+      const discTopics = topics.filter((t) => t.disciplineId === d.id);
       // Aggregate performance from topics (questions, accuracy, etc.)
-      const totalResolved = discTopics.reduce((sum, t) => sum + (t.performance?.questionsResolved || 0), 0);
-      const totalCorrect = discTopics.reduce((sum, t) => sum + (t.performance?.correctCount || 0), 0);
-      const totalError = discTopics.reduce((sum, t) => sum + (t.performance?.errorCount || 0), 0);
-      const aggPerformance = totalResolved > 0 ? {
-        questionsResolved: totalResolved,
-        accuracy: Math.round((totalCorrect / totalResolved) * 100),
-        correctCount: totalCorrect,
-        errorCount: totalError,
-      } : d.performance;
-      const studyTimeFromTopics = discTopics.reduce((sum, t) => sum + (t.studyTimeSeconds || 0), 0);
+      const totalResolved = discTopics.reduce(
+        (sum, t) => sum + (t.performance?.questionsResolved || 0),
+        0,
+      );
+      const totalCorrect = discTopics.reduce(
+        (sum, t) => sum + (t.performance?.correctCount || 0),
+        0,
+      );
+      const totalError = discTopics.reduce(
+        (sum, t) => sum + (t.performance?.errorCount || 0),
+        0,
+      );
+      const aggPerformance =
+        totalResolved > 0
+          ? {
+              questionsResolved: totalResolved,
+              accuracy: Math.round((totalCorrect / totalResolved) * 100),
+              correctCount: totalCorrect,
+              errorCount: totalError,
+            }
+          : d.performance;
+      const studyTimeFromTopics = discTopics.reduce(
+        (sum, t) => sum + (t.studyTimeSeconds || 0),
+        0,
+      );
       const studyTimeSeconds = studyTimeFromTopics || d.studyTimeSeconds || 0;
       return {
         disciplineId: d.id,
@@ -1000,38 +1220,52 @@ export async function getDashboardStats(userId: number) {
         performance: aggPerformance,
         studyTimeSeconds,
         topics: discTopics
-        .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
-        .map(t => {
-          const topicRevisions = revisions.filter(r => r.topicId === t.id);
-          const completedRevCount = topicRevisions.filter(r => r.completed).length;
-          return {
-            id: t.id,
-            name: t.name,
-            studyDate: t.studyDate,
-            studyTimeSeconds: t.studyTimeSeconds || 0,
-            completedRevisions: completedRevCount,
-            performance: t.performance,
-          };
-        })
+          .sort(
+            (a, b) =>
+              (a.order ?? Number.MAX_SAFE_INTEGER) -
+              (b.order ?? Number.MAX_SAFE_INTEGER),
+          )
+          .map((t) => {
+            const topicRevisions = revisions.filter((r) => r.topicId === t.id);
+            const completedRevCount = topicRevisions.filter(
+              (r) => r.completed,
+            ).length;
+            return {
+              id: t.id,
+              name: t.name,
+              studyDate: t.studyDate,
+              studyTimeSeconds: t.studyTimeSeconds || 0,
+              completedRevisions: completedRevCount,
+              performance: t.performance,
+            };
+          }),
       };
-    })
+    }),
   };
 }
 
 export async function updateTopicPerformance(
   topicId: number,
   userId: number,
-  data: { correctCount: number; errorCount: number }
+  data: { correctCount: number; errorCount: number },
 ): Promise<void> {
   const db = readDatabase();
-  const index = db.topics.findIndex(t => t.id === topicId && t.userId === userId);
+  const index = db.topics.findIndex(
+    (t) => t.id === topicId && t.userId === userId,
+  );
   if (index >= 0) {
-    const current = db.topics[index].performance || { questionsResolved: 0, accuracy: 0, correctCount: 0, errorCount: 0 };
+    const current = db.topics[index].performance || {
+      questionsResolved: 0,
+      accuracy: 0,
+      correctCount: 0,
+      errorCount: 0,
+    };
     const totalCorrect = current.correctCount + data.correctCount;
     const totalError = current.errorCount + data.errorCount;
     // questionsResolved is always derived from counts — never stored independently
     const totalResolved = totalCorrect + totalError;
-    const accuracy = totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * 100) : 0;
+    const accuracy =
+      totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * 100) : 0;
     db.topics[index] = {
       ...db.topics[index],
       performance: {
@@ -1066,21 +1300,30 @@ export interface TopicPerformanceData {
 export async function setTopicPerformance(
   topicId: number,
   userId: number,
-  data: TopicPerformanceData
+  data: TopicPerformanceData,
 ): Promise<void> {
   await runInTransaction((db) => {
-    const index = db.topics.findIndex((t) => t.id === topicId && t.userId === userId);
+    const index = db.topics.findIndex(
+      (t) => t.id === topicId && t.userId === userId,
+    );
     if (index < 0) return;
 
     const totalResolved = data.correctCount + data.errorCount;
-    const accuracy = totalResolved > 0 ? Math.round((data.correctCount / totalResolved) * 100) : 0;
+    const accuracy =
+      totalResolved > 0
+        ? Math.round((data.correctCount / totalResolved) * 100)
+        : 0;
     const prev = db.topics[index].performance;
     const today = now().split("T")[0];
 
     const prevHistory = (prev?.history ?? []).filter((h) => h.date !== today);
     const history = [
       ...prevHistory,
-      { date: today, accuracy: prev?.accuracy ?? 0, questionsResolved: prev?.questionsResolved ?? 0 },
+      {
+        date: today,
+        accuracy: prev?.accuracy ?? 0,
+        questionsResolved: prev?.questionsResolved ?? 0,
+      },
     ].slice(-30);
 
     db.topics[index] = {
@@ -1091,7 +1334,8 @@ export async function setTopicPerformance(
         correctCount: data.correctCount,
         errorCount: data.errorCount,
         errorByAttention: data.errorByAttention ?? prev?.errorByAttention ?? 0,
-        errorByForgetting: data.errorByForgetting ?? prev?.errorByForgetting ?? 0,
+        errorByForgetting:
+          data.errorByForgetting ?? prev?.errorByForgetting ?? 0,
         errorByTheory: data.errorByTheory ?? prev?.errorByTheory ?? 0,
         errorByTrap: data.errorByTrap ?? prev?.errorByTrap ?? 0,
         fastErrors: data.fastErrors ?? prev?.fastErrors ?? 0,
@@ -1110,22 +1354,41 @@ export async function setTopicPerformance(
   });
 }
 
-export async function updateTopicNotes(topicId: number, userId: number, mantras: string[]): Promise<void> {
+export async function updateTopicNotes(
+  topicId: number,
+  userId: number,
+  mantras: string[],
+): Promise<void> {
   const db = readDatabase();
-  const index = db.topics.findIndex(t => t.id === topicId && t.userId === userId);
+  const index = db.topics.findIndex(
+    (t) => t.id === topicId && t.userId === userId,
+  );
   if (index >= 0) {
-    db.topics[index] = { ...db.topics[index], topicNotes: mantras, updatedAt: now() };
+    db.topics[index] = {
+      ...db.topics[index],
+      topicNotes: mantras,
+      updatedAt: now(),
+    };
     writeDatabase(db);
   }
 }
 
-export async function reorderDisciplines(userId: number, orderedDisciplineIds: number[]): Promise<void> {
+export async function reorderDisciplines(
+  userId: number,
+  orderedDisciplineIds: number[],
+): Promise<void> {
   const db = readDatabase();
-  const userDisciplineIds = new Set(db.disciplines.filter((d) => d.userId === userId).map((d) => d.id));
-  const validOrdered = orderedDisciplineIds.filter((id) => userDisciplineIds.has(id));
+  const userDisciplineIds = new Set(
+    db.disciplines.filter((d) => d.userId === userId).map((d) => d.id),
+  );
+  const validOrdered = orderedDisciplineIds.filter((id) =>
+    userDisciplineIds.has(id),
+  );
 
   validOrdered.forEach((disciplineId, idx) => {
-    const discipline = db.disciplines.find((d) => d.id === disciplineId && d.userId === userId);
+    const discipline = db.disciplines.find(
+      (d) => d.id === disciplineId && d.userId === userId,
+    );
     if (discipline) {
       discipline.order = idx + 1;
       discipline.updatedAt = now();
@@ -1135,9 +1398,15 @@ export async function reorderDisciplines(userId: number, orderedDisciplineIds: n
   writeDatabase(db);
 }
 
-export async function addTopicStudyTime(topicId: number, userId: number, seconds: number): Promise<void> {
+export async function addTopicStudyTime(
+  topicId: number,
+  userId: number,
+  seconds: number,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.topics.findIndex(t => t.id === topicId && t.userId === userId);
+  const index = db.topics.findIndex(
+    (t) => t.id === topicId && t.userId === userId,
+  );
   if (index >= 0) {
     db.topics[index] = {
       ...db.topics[index],
@@ -1150,7 +1419,7 @@ export async function addTopicStudyTime(topicId: number, userId: number, seconds
 
 export async function resetAllTopicStats(userId: number): Promise<void> {
   const db = readDatabase();
-  db.topics = db.topics.map(t => {
+  db.topics = db.topics.map((t) => {
     if (t.userId !== userId) return t;
     return {
       ...t,
@@ -1174,15 +1443,26 @@ export async function resetAllTopicStats(userId: number): Promise<void> {
   writeDatabase(db);
 }
 
-export async function reorderTopics(userId: number, disciplineId: number, orderedTopicIds: number[]): Promise<void> {
+export async function reorderTopics(
+  userId: number,
+  disciplineId: number,
+  orderedTopicIds: number[],
+): Promise<void> {
   const db = readDatabase();
   const userTopicIds = new Set(
-    db.topics.filter((t) => t.userId === userId && t.disciplineId === disciplineId).map((t) => t.id)
+    db.topics
+      .filter((t) => t.userId === userId && t.disciplineId === disciplineId)
+      .map((t) => t.id),
   );
   const validOrdered = orderedTopicIds.filter((id) => userTopicIds.has(id));
 
   validOrdered.forEach((topicId, idx) => {
-    const topic = db.topics.find((t) => t.id === topicId && t.userId === userId && t.disciplineId === disciplineId);
+    const topic = db.topics.find(
+      (t) =>
+        t.id === topicId &&
+        t.userId === userId &&
+        t.disciplineId === disciplineId,
+    );
     if (topic) {
       topic.order = idx + 1;
       topic.updatedAt = now();
@@ -1193,13 +1473,29 @@ export async function reorderTopics(userId: number, disciplineId: number, ordere
 }
 
 export async function getWeeklyStats(userId: number): Promise<{
-  thisWeek: { topics: number; questions: number; correct: number; studySeconds: number };
-  lastWeek: { topics: number; questions: number; correct: number; studySeconds: number };
-  byDiscipline: Array<{ name: string; color: string; studySeconds: number; accuracy: number; questionsResolved: number }>;
+  thisWeek: {
+    topics: number;
+    questions: number;
+    correct: number;
+    studySeconds: number;
+  };
+  lastWeek: {
+    topics: number;
+    questions: number;
+    correct: number;
+    studySeconds: number;
+  };
+  byDiscipline: Array<{
+    name: string;
+    color: string;
+    studySeconds: number;
+    accuracy: number;
+    questionsResolved: number;
+  }>;
 }> {
   const db = readDatabase();
-  const topics = db.topics.filter(t => t.userId === userId);
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -1216,29 +1512,47 @@ export async function getWeeklyStats(userId: number): Promise<{
     return d >= from && d <= to;
   }
 
-  const thisWeekTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, weekStart, today));
-  const lastWeekTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, lastWeekStart, lastWeekEnd));
+  const thisWeekTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, weekStart, today),
+  );
+  const lastWeekTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, lastWeekStart, lastWeekEnd),
+  );
 
   const sumPerf = (ts: typeof topics) => ({
     topics: ts.length,
-    questions: ts.reduce((s, t) => s + (t.performance?.questionsResolved || 0), 0),
+    questions: ts.reduce(
+      (s, t) => s + (t.performance?.questionsResolved || 0),
+      0,
+    ),
     correct: ts.reduce((s, t) => s + (t.performance?.correctCount || 0), 0),
     studySeconds: ts.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0),
   });
 
-  const byDiscipline = disciplines.map(d => {
-    const discTopics = topics.filter(t => t.disciplineId === d.id);
-    const totalQ = discTopics.reduce((s, t) => s + (t.performance?.questionsResolved || 0), 0);
-    const totalC = discTopics.reduce((s, t) => s + (t.performance?.correctCount || 0), 0);
-    const secs = discTopics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0);
-    return {
-      name: d.name,
-      color: d.color,
-      studySeconds: secs,
-      accuracy: totalQ > 0 ? Math.round(totalC / totalQ * 100) : 0,
-      questionsResolved: totalQ,
-    };
-  }).filter(d => d.studySeconds > 0 || d.questionsResolved > 0);
+  const byDiscipline = disciplines
+    .map((d) => {
+      const discTopics = topics.filter((t) => t.disciplineId === d.id);
+      const totalQ = discTopics.reduce(
+        (s, t) => s + (t.performance?.questionsResolved || 0),
+        0,
+      );
+      const totalC = discTopics.reduce(
+        (s, t) => s + (t.performance?.correctCount || 0),
+        0,
+      );
+      const secs = discTopics.reduce(
+        (s, t) => s + (t.studyTimeSeconds || 0),
+        0,
+      );
+      return {
+        name: d.name,
+        color: d.color,
+        studySeconds: secs,
+        accuracy: totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0,
+        questionsResolved: totalQ,
+      };
+    })
+    .filter((d) => d.studySeconds > 0 || d.questionsResolved > 0);
 
   return {
     thisWeek: sumPerf(thisWeekTopics),
@@ -1248,91 +1562,177 @@ export async function getWeeklyStats(userId: number): Promise<{
 }
 
 // ── Comparativo de períodos ───────────────────────────────────────────────
-export async function getPeriodComparison(userId: number, days: number = 7): Promise<{
-  current: { topics: number; questions: number; correct: number; studySeconds: number; accuracy: number };
-  previous: { topics: number; questions: number; correct: number; studySeconds: number; accuracy: number };
-  disciplineDeltas: Array<{ name: string; color: string; accuracyDelta: number; timeDelta: number; currentAccuracy: number; prevAccuracy: number }>;
+export async function getPeriodComparison(
+  userId: number,
+  days: number = 7,
+): Promise<{
+  current: {
+    topics: number;
+    questions: number;
+    correct: number;
+    studySeconds: number;
+    accuracy: number;
+  };
+  previous: {
+    topics: number;
+    questions: number;
+    correct: number;
+    studySeconds: number;
+    accuracy: number;
+  };
+  disciplineDeltas: Array<{
+    name: string;
+    color: string;
+    accuracyDelta: number;
+    timeDelta: number;
+    currentAccuracy: number;
+    prevAccuracy: number;
+  }>;
 }> {
   const db = readDatabase();
-  const topics = db.topics.filter(t => t.userId === userId);
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
 
-  const today = new Date(); today.setHours(23, 59, 59, 999);
-  const curStart = new Date(today); curStart.setDate(today.getDate() - (days - 1)); curStart.setHours(0,0,0,0);
-  const prevEnd = new Date(curStart); prevEnd.setMilliseconds(-1);
-  const prevStart = new Date(prevEnd); prevStart.setDate(prevEnd.getDate() - (days - 1)); prevStart.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const curStart = new Date(today);
+  curStart.setDate(today.getDate() - (days - 1));
+  curStart.setHours(0, 0, 0, 0);
+  const prevEnd = new Date(curStart);
+  prevEnd.setMilliseconds(-1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevEnd.getDate() - (days - 1));
+  prevStart.setHours(0, 0, 0, 0);
 
   function inRange(dateStr: string, from: Date, to: Date) {
-    const d = new Date(dateStr); return d >= from && d <= to;
+    const d = new Date(dateStr);
+    return d >= from && d <= to;
   }
   function sumTopics(ts: typeof topics) {
-    const q = ts.reduce((s,t) => s + (t.performance?.questionsResolved||0), 0);
-    const c = ts.reduce((s,t) => s + (t.performance?.correctCount||0), 0);
+    const q = ts.reduce(
+      (s, t) => s + (t.performance?.questionsResolved || 0),
+      0,
+    );
+    const c = ts.reduce((s, t) => s + (t.performance?.correctCount || 0), 0);
     return {
       topics: ts.length,
-      questions: q, correct: c,
-      studySeconds: ts.reduce((s,t) => s + (t.studyTimeSeconds||0), 0),
-      accuracy: q > 0 ? Math.round(c/q*100) : 0,
+      questions: q,
+      correct: c,
+      studySeconds: ts.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0),
+      accuracy: q > 0 ? Math.round((c / q) * 100) : 0,
     };
   }
 
-  const curTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, curStart, today));
-  const prevTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, prevStart, prevEnd));
+  const curTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, curStart, today),
+  );
+  const prevTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, prevStart, prevEnd),
+  );
 
-  const disciplineDeltas = disciplines.map(d => {
-    const cur = curTopics.filter(t => t.disciplineId === d.id);
-    const prev = prevTopics.filter(t => t.disciplineId === d.id);
-    const curQ = cur.reduce((s,t) => s+(t.performance?.questionsResolved||0),0);
-    const curC = cur.reduce((s,t) => s+(t.performance?.correctCount||0),0);
-    const prevQ = prev.reduce((s,t) => s+(t.performance?.questionsResolved||0),0);
-    const prevC = prev.reduce((s,t) => s+(t.performance?.correctCount||0),0);
-    const curAcc = curQ > 0 ? Math.round(curC/curQ*100) : 0;
-    const prevAcc = prevQ > 0 ? Math.round(prevC/prevQ*100) : 0;
-    const curSecs = cur.reduce((s,t) => s+(t.studyTimeSeconds||0),0);
-    const prevSecs = prev.reduce((s,t) => s+(t.studyTimeSeconds||0),0);
-    return {
-      name: d.name, color: d.color,
-      accuracyDelta: curAcc - prevAcc,
-      timeDelta: curSecs - prevSecs,
-      currentAccuracy: curAcc, prevAccuracy: prevAcc,
-    };
-  }).filter(d => d.currentAccuracy > 0 || d.prevAccuracy > 0 || Math.abs(d.timeDelta) > 60);
+  const disciplineDeltas = disciplines
+    .map((d) => {
+      const cur = curTopics.filter((t) => t.disciplineId === d.id);
+      const prev = prevTopics.filter((t) => t.disciplineId === d.id);
+      const curQ = cur.reduce(
+        (s, t) => s + (t.performance?.questionsResolved || 0),
+        0,
+      );
+      const curC = cur.reduce(
+        (s, t) => s + (t.performance?.correctCount || 0),
+        0,
+      );
+      const prevQ = prev.reduce(
+        (s, t) => s + (t.performance?.questionsResolved || 0),
+        0,
+      );
+      const prevC = prev.reduce(
+        (s, t) => s + (t.performance?.correctCount || 0),
+        0,
+      );
+      const curAcc = curQ > 0 ? Math.round((curC / curQ) * 100) : 0;
+      const prevAcc = prevQ > 0 ? Math.round((prevC / prevQ) * 100) : 0;
+      const curSecs = cur.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0);
+      const prevSecs = prev.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0);
+      return {
+        name: d.name,
+        color: d.color,
+        accuracyDelta: curAcc - prevAcc,
+        timeDelta: curSecs - prevSecs,
+        currentAccuracy: curAcc,
+        prevAccuracy: prevAcc,
+      };
+    })
+    .filter(
+      (d) =>
+        d.currentAccuracy > 0 ||
+        d.prevAccuracy > 0 ||
+        Math.abs(d.timeDelta) > 60,
+    );
 
-  return { current: sumTopics(curTopics), previous: sumTopics(prevTopics), disciplineDeltas };
+  return {
+    current: sumTopics(curTopics),
+    previous: sumTopics(prevTopics),
+    disciplineDeltas,
+  };
 }
 
 // ── Disciplinas negligenciadas (notificações) ─────────────────────────────
-export async function getNeglectedDisciplines(userId: number, thresholdDays: number = 7): Promise<Array<{
-  name: string; daysSinceStudy: number; lastStudyDate: string | null;
-}>> {
+export async function getNeglectedDisciplines(
+  userId: number,
+  thresholdDays: number = 7,
+): Promise<
+  Array<{
+    name: string;
+    daysSinceStudy: number;
+    lastStudyDate: string | null;
+  }>
+> {
   const db = readDatabase();
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
-  const topics = db.topics.filter(t => t.userId === userId);
-  const today = new Date(); today.setHours(0,0,0,0);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  return disciplines.map(d => {
-    const discTopics = topics.filter(t => t.disciplineId === d.id);
-    if (discTopics.length === 0) return null;
-    const dates = discTopics
-      .map(t => t.createdAt || t.studyDate)
-      .filter(Boolean)
-      .sort()
-      .reverse();
-    const lastDate = dates[0] ? new Date(dates[0]) : null;
-    const daysSince = lastDate ? Math.floor((today.getTime() - lastDate.getTime()) / 86400000) : 999;
-    return { name: d.name, daysSinceStudy: daysSince, lastStudyDate: dates[0] || null };
-  }).filter((d): d is NonNullable<typeof d> => d !== null && d.daysSinceStudy >= thresholdDays)
+  return disciplines
+    .map((d) => {
+      const discTopics = topics.filter((t) => t.disciplineId === d.id);
+      if (discTopics.length === 0) return null;
+      const dates = discTopics
+        .map((t) => t.createdAt || t.studyDate)
+        .filter(Boolean)
+        .sort()
+        .reverse();
+      const lastDate = dates[0] ? new Date(dates[0]) : null;
+      const daysSince = lastDate
+        ? Math.floor((today.getTime() - lastDate.getTime()) / 86400000)
+        : 999;
+      return {
+        name: d.name,
+        daysSinceStudy: daysSince,
+        lastStudyDate: dates[0] || null,
+      };
+    })
+    .filter(
+      (d): d is NonNullable<typeof d> =>
+        d !== null && d.daysSinceStudy >= thresholdDays,
+    )
     .sort((a, b) => b.daysSinceStudy - a.daysSinceStudy);
 }
 
 // ============ STUDY HEATMAP ============
-export async function getStudyHeatmap(userId: number, months: number): Promise<{
-  date: string;
-  count: number;
-  minutes: number;
-}[]> {
+export async function getStudyHeatmap(
+  userId: number,
+  months: number,
+): Promise<
+  {
+    date: string;
+    count: number;
+    minutes: number;
+  }[]
+> {
   const db = readDatabase();
-  const topics = db.topics.filter(t => t.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
 
   // Build cutoff date
   const cutoff = new Date();
@@ -1361,14 +1761,20 @@ export async function getStudyHeatmap(userId: number, months: number): Promise<{
 }
 
 // ============ FLASHCARD OPERATIONS (SM-2 spaced repetition) ============
-export async function getFlashcardsByUser(userId: number): Promise<Flashcard[]> {
+export async function getFlashcardsByUser(
+  userId: number,
+): Promise<Flashcard[]> {
   const db = readDatabase();
-  return db.flashcards.filter(f => f.userId === userId);
+  return db.flashcards.filter((f) => f.userId === userId);
 }
 
 export async function createFlashcard(data: {
-  userId: number; disciplineId: number; topicId?: number; noteId?: number;
-  front: string; back: string;
+  userId: number;
+  disciplineId: number;
+  topicId?: number;
+  noteId?: number;
+  front: string;
+  back: string;
 }): Promise<Flashcard> {
   const db = readDatabase();
   db.counters.flashcards++;
@@ -1393,29 +1799,46 @@ export async function createFlashcard(data: {
   return card;
 }
 
-export async function updateFlashcard(id: number, userId: number, data: Partial<Pick<Flashcard, "front" | "back">>): Promise<void> {
+export async function updateFlashcard(
+  id: number,
+  userId: number,
+  data: Partial<Pick<Flashcard, "front" | "back">>,
+): Promise<void> {
   const db = readDatabase();
-  const idx = db.flashcards.findIndex(f => f.id === id && f.userId === userId);
+  const idx = db.flashcards.findIndex(
+    (f) => f.id === id && f.userId === userId,
+  );
   if (idx >= 0) {
     db.flashcards[idx] = { ...db.flashcards[idx], ...data, updatedAt: now() };
     writeDatabase(db);
   }
 }
 
-export async function deleteFlashcard(id: number, userId: number): Promise<void> {
+export async function deleteFlashcard(
+  id: number,
+  userId: number,
+): Promise<void> {
   const db = readDatabase();
-  db.flashcards = db.flashcards.filter(f => f.id !== id || f.userId !== userId);
+  db.flashcards = db.flashcards.filter(
+    (f) => f.id !== id || f.userId !== userId,
+  );
   writeDatabase(db);
 }
 
 // SM-2 algorithm: quality 0-5 (0-2 = fail, 3-5 = pass)
-export async function reviewFlashcard(id: number, userId: number, quality: number): Promise<Flashcard> {
+export async function reviewFlashcard(
+  id: number,
+  userId: number,
+  quality: number,
+): Promise<Flashcard> {
   const db = readDatabase();
-  const idx = db.flashcards.findIndex(f => f.id === id && f.userId === userId);
+  const idx = db.flashcards.findIndex(
+    (f) => f.id === id && f.userId === userId,
+  );
   if (idx < 0) throw new Error("Flashcard not found");
-  
+
   const card = { ...db.flashcards[idx] };
-  
+
   if (quality >= 3) {
     if (card.repetitions === 0) card.interval = 1;
     else if (card.repetitions === 1) card.interval = 6;
@@ -1425,14 +1848,17 @@ export async function reviewFlashcard(id: number, userId: number, quality: numbe
     card.repetitions = 0;
     card.interval = 1;
   }
-  
-  card.easeFactor = Math.max(1.3, card.easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  
+
+  card.easeFactor = Math.max(
+    1.3,
+    card.easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02),
+  );
+
   const next = new Date();
   next.setDate(next.getDate() + card.interval);
   card.nextReviewDate = next.toISOString().split("T")[0];
   card.updatedAt = now();
-  
+
   db.flashcards[idx] = card;
   writeDatabase(db);
   return card;
@@ -1442,12 +1868,18 @@ export async function reviewFlashcard(id: number, userId: number, quality: numbe
 export async function getTodayStudyMinutes(userId: number): Promise<number> {
   const db = readDatabase();
   const today = new Date().toISOString().split("T")[0];
-  const topics = db.topics.filter(t => t.userId === userId && t.updatedAt?.startsWith(today));
-  return Math.round(topics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0) / 60);
+  const topics = db.topics.filter(
+    (t) => t.userId === userId && t.updatedAt?.startsWith(today),
+  );
+  return Math.round(
+    topics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0) / 60,
+  );
 }
 
 // ============ QUESTION ERRORS ============
-export async function saveQuestionError(data: Omit<QuestionError, "id" | "createdAt">): Promise<QuestionError> {
+export async function saveQuestionError(
+  data: Omit<QuestionError, "id" | "createdAt">,
+): Promise<QuestionError> {
   return await runInTransaction((db) => {
     db.counters.questionErrors++;
     const record: QuestionError = {
@@ -1479,24 +1911,36 @@ export interface PaginatedResult<T> {
 
 export async function getQuestionErrorsByUser(
   userId: number,
-  opts?: QuestionErrorFilters
+  opts?: QuestionErrorFilters,
 ): Promise<PaginatedResult<QuestionError>> {
   const db = readDatabase();
   let errors = db.questionErrors.filter((e) => e.userId === userId);
   if (opts?.topicId) errors = errors.filter((e) => e.topicId === opts.topicId);
-  if (opts?.disciplineId) errors = errors.filter((e) => e.disciplineId === opts.disciplineId);
+  if (opts?.disciplineId)
+    errors = errors.filter((e) => e.disciplineId === opts.disciplineId);
   errors.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const total = errors.length;
   const limit = Math.min(opts?.limit ?? 50, 200);
   const offset = opts?.offset ?? 0;
   const items = errors.slice(offset, offset + limit);
-  return { items, total, hasMore: offset + limit < total, nextOffset: offset + limit };
+  return {
+    items,
+    total,
+    hasMore: offset + limit < total,
+    nextOffset: offset + limit,
+  };
 }
 
-export async function saveQuestionErrorAnalysis(id: number, userId: number, aiAnalysis: string): Promise<QuestionError | null> {
+export async function saveQuestionErrorAnalysis(
+  id: number,
+  userId: number,
+  aiAnalysis: string,
+): Promise<QuestionError | null> {
   const db = readDatabase();
-  const idx = db.questionErrors.findIndex(e => e.id === id && e.userId === userId);
+  const idx = db.questionErrors.findIndex(
+    (e) => e.id === id && e.userId === userId,
+  );
   if (idx === -1) return null;
   db.questionErrors[idx].aiAnalysis = aiAnalysis;
   db.questionErrors[idx].aiAnalyzedAt = now();
@@ -1504,9 +1948,15 @@ export async function saveQuestionErrorAnalysis(id: number, userId: number, aiAn
   return db.questionErrors[idx];
 }
 
-export async function saveQuestionErrorRevisionTip(id: number, userId: number, tip: string): Promise<QuestionError | null> {
+export async function saveQuestionErrorRevisionTip(
+  id: number,
+  userId: number,
+  tip: string,
+): Promise<QuestionError | null> {
   const db = readDatabase();
-  const idx = db.questionErrors.findIndex(e => e.id === id && e.userId === userId);
+  const idx = db.questionErrors.findIndex(
+    (e) => e.id === id && e.userId === userId,
+  );
   if (idx === -1) return null;
   db.questionErrors[idx].aiRevisionTip = tip;
   db.questionErrors[idx].aiRevisionTipAt = now();
@@ -1514,9 +1964,15 @@ export async function saveQuestionErrorRevisionTip(id: number, userId: number, t
   return db.questionErrors[idx];
 }
 
-export async function saveQuestionErrorSimilarQuestions(id: number, userId: number, similar: string): Promise<QuestionError | null> {
+export async function saveQuestionErrorSimilarQuestions(
+  id: number,
+  userId: number,
+  similar: string,
+): Promise<QuestionError | null> {
   const db = readDatabase();
-  const idx = db.questionErrors.findIndex(e => e.id === id && e.userId === userId);
+  const idx = db.questionErrors.findIndex(
+    (e) => e.id === id && e.userId === userId,
+  );
   if (idx === -1) return null;
   db.questionErrors[idx].aiSimilarQuestions = similar;
   db.questionErrors[idx].aiSimilarQuestionsAt = now();
@@ -1524,24 +1980,36 @@ export async function saveQuestionErrorSimilarQuestions(id: number, userId: numb
   return db.questionErrors[idx];
 }
 
-export async function markQuestionErrorFlashcardGenerated(id: number, userId: number): Promise<QuestionError | null> {
+export async function markQuestionErrorFlashcardGenerated(
+  id: number,
+  userId: number,
+): Promise<QuestionError | null> {
   const db = readDatabase();
-  const idx = db.questionErrors.findIndex(e => e.id === id && e.userId === userId);
+  const idx = db.questionErrors.findIndex(
+    (e) => e.id === id && e.userId === userId,
+  );
   if (idx === -1) return null;
   db.questionErrors[idx].aiFlashcardGenerated = true;
   writeDatabase(db);
   return db.questionErrors[idx];
 }
 
-export async function deleteQuestionError(id: number, userId: number): Promise<void> {
+export async function deleteQuestionError(
+  id: number,
+  userId: number,
+): Promise<void> {
   const db = readDatabase();
-  db.questionErrors = db.questionErrors.filter(e => !(e.id === id && e.userId === userId));
+  db.questionErrors = db.questionErrors.filter(
+    (e) => !(e.id === id && e.userId === userId),
+  );
   writeDatabase(db);
 }
 
 // ============ ESSAYS ============
 
-export async function saveEssay(data: Omit<Essay, "id" | "createdAt" | "updatedAt">): Promise<Essay> {
+export async function saveEssay(
+  data: Omit<Essay, "id" | "createdAt" | "updatedAt">,
+): Promise<Essay> {
   const db = readDatabase();
   db.counters.essays++;
   const record: Essay = {
@@ -1555,21 +2023,32 @@ export async function saveEssay(data: Omit<Essay, "id" | "createdAt" | "updatedA
   return record;
 }
 
-export async function getEssaysByUser(userId: number, disciplineId?: number): Promise<Essay[]> {
+export async function getEssaysByUser(
+  userId: number,
+  disciplineId?: number,
+): Promise<Essay[]> {
   const db = readDatabase();
   let items = db.essays.filter((e) => e.userId === userId);
-  if (disciplineId) items = items.filter(e => e.disciplineId === disciplineId);
+  if (disciplineId)
+    items = items.filter((e) => e.disciplineId === disciplineId);
   return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function getEssayById(id: number, userId: number): Promise<Essay | null> {
+export async function getEssayById(
+  id: number,
+  userId: number,
+): Promise<Essay | null> {
   const db = readDatabase();
   return db.essays.find((e) => e.id === id && e.userId === userId) || null;
 }
 
-export async function updateEssay(id: number, userId: number, data: Partial<Omit<Essay, "id" | "userId" | "createdAt">>): Promise<Essay | null> {
+export async function updateEssay(
+  id: number,
+  userId: number,
+  data: Partial<Omit<Essay, "id" | "userId" | "createdAt">>,
+): Promise<Essay | null> {
   const db = readDatabase();
-  const idx = db.essays.findIndex(e => e.id === id && e.userId === userId);
+  const idx = db.essays.findIndex((e) => e.id === id && e.userId === userId);
   if (idx === -1) return null;
   db.essays[idx] = { ...db.essays[idx], ...data, updatedAt: now() };
   writeDatabase(db);
@@ -1578,37 +2057,55 @@ export async function updateEssay(id: number, userId: number, data: Partial<Omit
 
 export async function deleteEssay(id: number, userId: number): Promise<void> {
   const db = readDatabase();
-  db.essays = db.essays.filter(e => !(e.id === id && e.userId === userId));
+  db.essays = db.essays.filter((e) => !(e.id === id && e.userId === userId));
   writeDatabase(db);
 }
 
 // ============ V10 NEW FEATURE STORAGE FUNCTIONS ============
 
 /** F04 - Save recall rating when user completes a revision */
-export async function saveRevisionRecallRating(id: number, userId: number, rating: 1|2|3|4|5, freeRecallText?: string): Promise<void> {
+export async function saveRevisionRecallRating(
+  id: number,
+  userId: number,
+  rating: 1 | 2 | 3 | 4 | 5,
+  freeRecallText?: string,
+): Promise<void> {
   const db = readDatabase();
-  const idx = db.revisions.findIndex(r => r.id === id && r.userId === userId);
+  const idx = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
   if (idx >= 0) {
     db.revisions[idx].recallRating = rating;
-    if (freeRecallText !== undefined) db.revisions[idx].freeRecallText = freeRecallText;
+    if (freeRecallText !== undefined)
+      db.revisions[idx].freeRecallText = freeRecallText;
     db.revisions[idx].updatedAt = now();
     writeDatabase(db);
   }
 }
 
 /** F03 - Check if a topic was revised too recently (less than minDays ago) */
-export async function getLastRevisionDate(topicId: number, userId: number): Promise<string | null> {
+export async function getLastRevisionDate(
+  topicId: number,
+  userId: number,
+): Promise<string | null> {
   const db = readDatabase();
   const completed = db.revisions
-    .filter(r => r.topicId === topicId && r.userId === userId && r.completed && r.completedAt)
-    .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
-  return completed[0]?.completedAt?.split('T')[0] || null;
+    .filter(
+      (r) =>
+        r.topicId === topicId &&
+        r.userId === userId &&
+        r.completed &&
+        r.completedAt,
+    )
+    .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
+  return completed[0]?.completedAt?.split("T")[0] || null;
 }
 
 /** F09 - Log emotion before study session */
-export async function logEmotion(userId: number, mood: 1|2|3|4|5): Promise<void> {
+export async function logEmotion(
+  userId: number,
+  mood: 1 | 2 | 3 | 4 | 5,
+): Promise<void> {
   const db = readDatabase();
-  const user = db.users.find(u => u.id === userId);
+  const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.emotionLog) user.settings.emotionLog = [];
   user.settings.emotionLog.push({
@@ -1617,31 +2114,41 @@ export async function logEmotion(userId: number, mood: 1|2|3|4|5): Promise<void>
     hourOfDay: new Date().getHours(),
   });
   // keep last 180 entries
-  if (user.settings.emotionLog.length > 180) user.settings.emotionLog = user.settings.emotionLog.slice(-180);
+  if (user.settings.emotionLog.length > 180)
+    user.settings.emotionLog = user.settings.emotionLog.slice(-180);
   writeDatabase(db);
 }
 
 /** F10 - Log study session for peak-hour analysis */
-export async function logStudySession(userId: number, hourStart: number, durationMin: number, accuracy: number, disciplineId?: number): Promise<void> {
+export async function logStudySession(
+  userId: number,
+  hourStart: number,
+  durationMin: number,
+  accuracy: number,
+  disciplineId?: number,
+): Promise<void> {
   const db = readDatabase();
-  const user = db.users.find(u => u.id === userId);
+  const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.studySessionLog) user.settings.studySessionLog = [];
   user.settings.studySessionLog.push({
-    date: now().split('T')[0],
+    date: now().split("T")[0],
     hourStart,
     durationMin,
     accuracy,
     disciplineId,
   });
-  if (user.settings.studySessionLog.length > 500) user.settings.studySessionLog = user.settings.studySessionLog.slice(-500);
+  if (user.settings.studySessionLog.length > 500)
+    user.settings.studySessionLog = user.settings.studySessionLog.slice(-500);
   writeDatabase(db);
 }
 
 /** F10 - Get peak hour analysis */
-export async function getPeakHoursAnalysis(userId: number): Promise<Array<{ hour: number; avgAccuracy: number; sessions: number }>> {
+export async function getPeakHoursAnalysis(
+  userId: number,
+): Promise<Array<{ hour: number; avgAccuracy: number; sessions: number }>> {
   const db = readDatabase();
-  const user = db.users.find(u => u.id === userId);
+  const user = db.users.find((u) => u.id === userId);
   const log = user?.settings?.studySessionLog || [];
   const hourMap: Record<number, { total: number; count: number }> = {};
   for (const s of log) {
@@ -1651,61 +2158,90 @@ export async function getPeakHoursAnalysis(userId: number): Promise<Array<{ hour
       hourMap[s.hourStart].count++;
     }
   }
-  return Object.entries(hourMap).map(([hour, data]) => ({
-    hour: parseInt(hour),
-    avgAccuracy: Math.round(data.total / data.count * 100) / 100,
-    sessions: data.count,
-  })).sort((a, b) => b.avgAccuracy - a.avgAccuracy);
+  return Object.entries(hourMap)
+    .map(([hour, data]) => ({
+      hour: parseInt(hour),
+      avgAccuracy: Math.round((data.total / data.count) * 100) / 100,
+      sessions: data.count,
+    }))
+    .sort((a, b) => b.avgAccuracy - a.avgAccuracy);
 }
 
 /** F15 - Log end of study time for sleep warning analysis */
-export async function logStudyEndTime(userId: number, endHour: number, alertIssued: boolean): Promise<void> {
+export async function logStudyEndTime(
+  userId: number,
+  endHour: number,
+  alertIssued: boolean,
+): Promise<void> {
   const db = readDatabase();
-  const user = db.users.find(u => u.id === userId);
+  const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.sleepLog) user.settings.sleepLog = [];
-  const today = now().split('T')[0];
-  const existing = user.settings.sleepLog.findIndex(s => s.date === today);
+  const today = now().split("T")[0];
+  const existing = user.settings.sleepLog.findIndex((s) => s.date === today);
   if (existing >= 0) {
-    user.settings.sleepLog[existing] = { date: today, endStudyHour: endHour, alertIssued };
+    user.settings.sleepLog[existing] = {
+      date: today,
+      endStudyHour: endHour,
+      alertIssued,
+    };
   } else {
-    user.settings.sleepLog.push({ date: today, endStudyHour: endHour, alertIssued });
+    user.settings.sleepLog.push({
+      date: today,
+      endStudyHour: endHour,
+      alertIssued,
+    });
   }
-  if (user.settings.sleepLog.length > 90) user.settings.sleepLog = user.settings.sleepLog.slice(-90);
+  if (user.settings.sleepLog.length > 90)
+    user.settings.sleepLog = user.settings.sleepLog.slice(-90);
   writeDatabase(db);
 }
 
 /** F17 - Get discipline rebalance report: time invested vs accuracy vs edital weight */
-export async function getDisciplineRebalanceReport(userId: number): Promise<Array<{
-  disciplineId: number;
-  name: string;
-  color: string;
-  studyTimeHours: number;
-  accuracy: number;
-  questionsResolved: number;
-  revisionsDone: number;
-  topicsCount: number;
-  editalWeight?: number;
-}>> {
+export async function getDisciplineRebalanceReport(userId: number): Promise<
+  Array<{
+    disciplineId: number;
+    name: string;
+    color: string;
+    studyTimeHours: number;
+    accuracy: number;
+    questionsResolved: number;
+    revisionsDone: number;
+    topicsCount: number;
+    editalWeight?: number;
+  }>
+> {
   const db = readDatabase();
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
-  const topics = db.topics.filter(t => t.userId === userId);
-  const revisions = db.revisions.filter(r => r.userId === userId && r.completed);
-  const user = db.users.find(u => u.id === userId);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const revisions = db.revisions.filter(
+    (r) => r.userId === userId && r.completed,
+  );
+  const user = db.users.find((u) => u.id === userId);
   const editalRows = user?.settings?.editalRows || [];
 
-  return disciplines.map(d => {
-    const dTopics = topics.filter(t => t.disciplineId === d.id);
-    const dRevisions = revisions.filter(r => dTopics.some(t => t.id === r.topicId));
-    const totalQ = dTopics.reduce((s, t) => s + (t.performance?.questionsResolved || 0), 0);
-    const totalC = dTopics.reduce((s, t) => s + (t.performance?.correctCount || 0), 0);
-    const editalEntry = editalRows.find(e => e.discipline?.toLowerCase().includes(d.name.toLowerCase()));
+  return disciplines.map((d) => {
+    const dTopics = topics.filter((t) => t.disciplineId === d.id);
+    const dRevisions = revisions.filter((r) =>
+      dTopics.some((t) => t.id === r.topicId),
+    );
+    const totalQ = dTopics.reduce(
+      (s, t) => s + (t.performance?.questionsResolved || 0),
+      0,
+    );
+    const totalC = dTopics.reduce(
+      (s, t) => s + (t.performance?.correctCount || 0),
+      0,
+    );
+    const editalEntry = editalRows.find((e) =>
+      e.discipline?.toLowerCase().includes(d.name.toLowerCase()),
+    );
     return {
       disciplineId: d.id,
       name: d.name,
       color: d.color,
       studyTimeHours: Math.round((d.studyTimeSeconds || 0) / 360) / 10,
-      accuracy: totalQ > 0 ? Math.round(totalC / totalQ * 100) : 0,
+      accuracy: totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0,
       questionsResolved: totalQ,
       revisionsDone: dRevisions.length,
       topicsCount: dTopics.length,
@@ -1715,29 +2251,44 @@ export async function getDisciplineRebalanceReport(userId: number): Promise<Arra
 }
 
 /** F19 - Forgetting velocity: compare recall ratings across revision numbers for each topic */
-export async function getForgettingVelocityByDiscipline(userId: number): Promise<Array<{
-  disciplineId: number;
-  disciplineName: string;
-  color: string;
-  avgRecallAt25: number | null;  // avg recall rating at revision 1-3
-  avgRecallAt50: number | null;  // avg recall rating at revision 6+
-  volatility: 'low' | 'medium' | 'high';
-  revisionCount: number;
-}>> {
+export async function getForgettingVelocityByDiscipline(
+  userId: number,
+): Promise<
+  Array<{
+    disciplineId: number;
+    disciplineName: string;
+    color: string;
+    avgRecallAt25: number | null; // avg recall rating at revision 1-3
+    avgRecallAt50: number | null; // avg recall rating at revision 6+
+    volatility: "low" | "medium" | "high";
+    revisionCount: number;
+  }>
+> {
   const db = readDatabase();
-  const disciplines = db.disciplines.filter(d => d.userId === userId);
-  const topics = db.topics.filter(t => t.userId === userId);
-  const revisions = db.revisions.filter(r => r.userId === userId && r.completed && r.recallRating !== undefined);
+  const disciplines = db.disciplines.filter((d) => d.userId === userId);
+  const topics = db.topics.filter((t) => t.userId === userId);
+  const revisions = db.revisions.filter(
+    (r) => r.userId === userId && r.completed && r.recallRating !== undefined,
+  );
 
-  return disciplines.map(d => {
-    const dTopics = topics.filter(t => t.disciplineId === d.id);
-    const dRevs = revisions.filter(r => dTopics.some(t => t.id === r.topicId));
-    const early = dRevs.filter(r => r.revisionNumber <= 3).map(r => r.recallRating as number);
-    const late = dRevs.filter(r => r.revisionNumber >= 6).map(r => r.recallRating as number);
-    const avgEarly = early.length > 0 ? early.reduce((a, b) => a + b, 0) / early.length : null;
-    const avgLate = late.length > 0 ? late.reduce((a, b) => a + b, 0) / late.length : null;
+  return disciplines.map((d) => {
+    const dTopics = topics.filter((t) => t.disciplineId === d.id);
+    const dRevs = revisions.filter((r) =>
+      dTopics.some((t) => t.id === r.topicId),
+    );
+    const early = dRevs
+      .filter((r) => r.revisionNumber <= 3)
+      .map((r) => r.recallRating as number);
+    const late = dRevs
+      .filter((r) => r.revisionNumber >= 6)
+      .map((r) => r.recallRating as number);
+    const avgEarly =
+      early.length > 0 ? early.reduce((a, b) => a + b, 0) / early.length : null;
+    const avgLate =
+      late.length > 0 ? late.reduce((a, b) => a + b, 0) / late.length : null;
     const drop = avgEarly !== null && avgLate !== null ? avgEarly - avgLate : 0;
-    const volatility: 'low' | 'medium' | 'high' = drop < 0.5 ? 'low' : drop < 1.5 ? 'medium' : 'high';
+    const volatility: "low" | "medium" | "high" =
+      drop < 0.5 ? "low" : drop < 1.5 ? "medium" : "high";
     return {
       disciplineId: d.id,
       disciplineName: d.name,
@@ -1753,7 +2304,10 @@ export async function getForgettingVelocityByDiscipline(userId: number): Promise
 // ============ TEC SNAPSHOTS — histórico de importações ============
 
 /** Salva um snapshot completo após importação TEC (XLSX ou scraping) */
-export async function saveTecSnapshot(userId: number, topics: TecTopicSnapshot[]): Promise<TecSnapshot> {
+export async function saveTecSnapshot(
+  userId: number,
+  topics: TecTopicSnapshot[],
+): Promise<TecSnapshot> {
   const db = readDatabase();
   db.counters.tecSnapshots++;
   const totalCorrect = topics.reduce((s, t) => s + t.correctCount, 0);
@@ -1766,34 +2320,44 @@ export async function saveTecSnapshot(userId: number, topics: TecTopicSnapshot[]
     totalQuestions,
     totalCorrect,
     totalErrors,
-    overallAccuracy: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
+    overallAccuracy:
+      totalQuestions > 0
+        ? Math.round((totalCorrect / totalQuestions) * 100)
+        : 0,
     topics,
   };
   if (!db.tecSnapshots) db.tecSnapshots = [];
   db.tecSnapshots.push(snapshot);
   // Keep max 60 snapshots per user
-  const userSnaps = db.tecSnapshots.filter(s => s.userId === userId);
+  const userSnaps = db.tecSnapshots.filter((s) => s.userId === userId);
   if (userSnaps.length > 60) {
-    const oldest = userSnaps.sort((a, b) => a.importedAt.localeCompare(b.importedAt)).slice(0, userSnaps.length - 60);
-    const oldestIds = new Set(oldest.map(s => s.id));
-    db.tecSnapshots = db.tecSnapshots.filter(s => !oldestIds.has(s.id));
+    const oldest = userSnaps
+      .sort((a, b) => a.importedAt.localeCompare(b.importedAt))
+      .slice(0, userSnaps.length - 60);
+    const oldestIds = new Set(oldest.map((s) => s.id));
+    db.tecSnapshots = db.tecSnapshots.filter((s) => !oldestIds.has(s.id));
   }
   writeDatabase(db);
   return snapshot;
 }
 
 /** Retorna os últimos N snapshots do usuário, mais recentes primeiro */
-export async function getTecSnapshots(userId: number, limit = 10): Promise<TecSnapshot[]> {
+export async function getTecSnapshots(
+  userId: number,
+  limit = 10,
+): Promise<TecSnapshot[]> {
   const db = readDatabase();
   if (!db.tecSnapshots) return [];
   return db.tecSnapshots
-    .filter(s => s.userId === userId)
+    .filter((s) => s.userId === userId)
     .sort((a, b) => b.importedAt.localeCompare(a.importedAt))
     .slice(0, limit);
 }
 
 /** Retorna o snapshot mais recente antes do atual (para comparação de delta) */
-export async function getPreviousTecSnapshot(userId: number): Promise<TecSnapshot | null> {
+export async function getPreviousTecSnapshot(
+  userId: number,
+): Promise<TecSnapshot | null> {
   const snaps = await getTecSnapshots(userId, 2);
   return snaps[1] || null;
 }
@@ -1802,14 +2366,19 @@ export async function getPreviousTecSnapshot(userId: number): Promise<TecSnapsho
  * Detecta regressões: tópicos que pioraram ≥ threshold pp entre o penúltimo e o último snapshot.
  * Retorna lista ordenada por queda de acerto (maior queda primeiro).
  */
-export async function getTecRegressions(userId: number, thresholdPp = 5): Promise<Array<{
-  topicName: string;
-  disciplineName: string;
-  previousAccuracy: number;
-  currentAccuracy: number;
-  delta: number;
-  currentErrors: number;
-}>> {
+export async function getTecRegressions(
+  userId: number,
+  thresholdPp = 5,
+): Promise<
+  Array<{
+    topicName: string;
+    disciplineName: string;
+    previousAccuracy: number;
+    currentAccuracy: number;
+    delta: number;
+    currentErrors: number;
+  }>
+> {
   const snaps = await getTecSnapshots(userId, 2);
   if (snaps.length < 2) return [];
   const [current, previous] = snaps;
@@ -1822,7 +2391,11 @@ export async function getTecRegressions(userId: number, thresholdPp = 5): Promis
     currentErrors: number;
   }> = [];
   for (const curTopic of current.topics) {
-    const prevTopic = previous.topics.find(t => t.topicName === curTopic.topicName && t.disciplineName === curTopic.disciplineName);
+    const prevTopic = previous.topics.find(
+      (t) =>
+        t.topicName === curTopic.topicName &&
+        t.disciplineName === curTopic.disciplineName,
+    );
     if (!prevTopic) continue;
     const delta = curTopic.accuracy - prevTopic.accuracy;
     if (delta <= -thresholdPp) {
@@ -1843,22 +2416,28 @@ export async function getTecRegressions(userId: number, thresholdPp = 5): Promis
  * Retorna os tópicos mais vulneráveis do último snapshot (acerto < threshold),
  * ordenados do pior para o melhor.
  */
-export async function getWeakTopicsFromSnapshot(userId: number, accuracyThreshold = 65): Promise<TecTopicSnapshot[]> {
+export async function getWeakTopicsFromSnapshot(
+  userId: number,
+  accuracyThreshold = 65,
+): Promise<TecTopicSnapshot[]> {
   const snaps = await getTecSnapshots(userId, 1);
   if (!snaps[0]) return [];
   return snaps[0].topics
-    .filter(t => t.accuracy < accuracyThreshold && t.questionsResolved >= 5)
+    .filter((t) => t.accuracy < accuracyThreshold && t.questionsResolved >= 5)
     .sort((a, b) => a.accuracy - b.accuracy);
 }
 
 // ============ CADERNOS TEC (tempo real via userscript) ============
 
-export async function saveCadernoTec(userId: number, caderno: CadernoTec): Promise<void> {
+export async function saveCadernoTec(
+  userId: number,
+  caderno: CadernoTec,
+): Promise<void> {
   const db = readDatabase();
   if (!db.cadernosTec) db.cadernosTec = {};
   if (!db.cadernosTec[userId]) db.cadernosTec[userId] = [];
   const existing = db.cadernosTec[userId].findIndex(
-    (c: CadernoTec) => c.cadernoId === caderno.cadernoId
+    (c: CadernoTec) => c.cadernoId === caderno.cadernoId,
   );
   if (existing >= 0) db.cadernosTec[userId][existing] = caderno;
   else db.cadernosTec[userId].push(caderno);
@@ -1868,15 +2447,18 @@ export async function saveCadernoTec(userId: number, caderno: CadernoTec): Promi
 export async function getCadernosTec(userId: number): Promise<CadernoTec[]> {
   const db = readDatabase();
   return (db.cadernosTec?.[userId] ?? []).sort(
-    (a, b) => new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime()
+    (a, b) => new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime(),
   );
 }
 
-export async function deleteCadernoTec(userId: number, cadernoId: string): Promise<void> {
+export async function deleteCadernoTec(
+  userId: number,
+  cadernoId: string,
+): Promise<void> {
   const db = readDatabase();
   if (!db.cadernosTec?.[userId]) return;
   db.cadernosTec[userId] = db.cadernosTec[userId].filter(
-    (c: CadernoTec) => c.cadernoId !== cadernoId
+    (c: CadernoTec) => c.cadernoId !== cadernoId,
   );
   writeDatabase(db);
 }
@@ -1885,7 +2467,6 @@ export async function deleteCadernoTec(userId: number, cadernoId: string): Promi
 function generateSecureToken(): string {
   // Node.js crypto — mais seguro que Math.random()
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { randomBytes } = require("crypto") as typeof import("crypto");
     return randomBytes(32).toString("hex");
   } catch {
@@ -1912,7 +2493,9 @@ export async function generatePushToken(userId: number): Promise<string> {
 }
 
 /** Busca usuário pelo push token. Retorna undefined se token inválido ou não encontrado. */
-export async function getUserByPushToken(token: string): Promise<User | undefined> {
+export async function getUserByPushToken(
+  token: string,
+): Promise<User | undefined> {
   if (!token || token.length < 16) return undefined; // rejeita tokens obviamente inválidos
   const db = readDatabase();
   return db.users.find((u) => u.settings?.pushToken === token);
@@ -1924,7 +2507,7 @@ export async function revokePushToken(userId: number): Promise<void> {
   const idx = db.users.findIndex((u) => u.id === userId);
   if (idx >= 0) {
     const { pushToken: _, ...rest } = db.users[idx].settings;
-    db.users[idx].settings = rest as typeof db.users[idx]["settings"];
+    db.users[idx].settings = rest as any;
     writeDatabase(db);
   }
 }
@@ -1936,29 +2519,41 @@ export async function getMentorObservations(userId: number): Promise<string[]> {
   return user?.settings?.mentorObservations || [];
 }
 
-export async function addMentorObservation(userId: number, observation: string): Promise<void> {
+export async function addMentorObservation(
+  userId: number,
+  observation: string,
+): Promise<void> {
   const db = readDatabase();
   const index = db.users.findIndex((u) => u.id === userId);
   if (index >= 0) {
     const user = db.users[index];
     if (!user.settings) user.settings = {} as any;
-    if (!user.settings.mentorObservations) user.settings.mentorObservations = [];
-    
+    if (!user.settings.mentorObservations)
+      user.settings.mentorObservations = [];
+
     // Keep only last 20 observations to prevent prompt bloating
-    user.settings.mentorObservations.push(`${new Date().toISOString().split('T')[0]}: ${observation}`);
+    user.settings.mentorObservations.push(
+      `${new Date().toISOString().split("T")[0]}: ${observation}`,
+    );
     if (user.settings.mentorObservations.length > 20) {
       user.settings.mentorObservations.shift();
     }
-    
+
     writeDatabase(db);
   }
 }
 
 // ============ FLASHCARD ARCHIVING ============
 
-export async function archiveFlashcard(id: number, userId: number, archived: boolean = true): Promise<void> {
+export async function archiveFlashcard(
+  id: number,
+  userId: number,
+  archived: boolean = true,
+): Promise<void> {
   const db = readDatabase();
-  const index = db.flashcards.findIndex((f) => f.id === id && f.userId === userId);
+  const index = db.flashcards.findIndex(
+    (f) => f.id === id && f.userId === userId,
+  );
   if (index >= 0) {
     db.flashcards[index].archived = archived;
     db.flashcards[index].updatedAt = new Date().toISOString();
@@ -1974,17 +2569,21 @@ export async function getConceptConfusions(userId: number) {
   return user?.settings?.conceptConfusions || [];
 }
 
-export async function addConceptConfusion(userId: number, data: { conceptA: string, conceptB: string, explanation: string }) {
+export async function addConceptConfusion(
+  userId: number,
+  data: { conceptA: string; conceptB: string; explanation: string },
+) {
   const db = readDatabase();
   const index = db.users.findIndex((u) => u.id === userId);
   if (index >= 0) {
     const user = db.users[index];
     if (!user.settings) user.settings = {} as any;
     if (!user.settings.conceptConfusions) user.settings.conceptConfusions = [];
-    
+
     const existing = user.settings.conceptConfusions.find(
-      c => (c.conceptA === data.conceptA && c.conceptB === data.conceptB) ||
-           (c.conceptA === data.conceptB && c.conceptB === data.conceptA)
+      (c) =>
+        (c.conceptA === data.conceptA && c.conceptB === data.conceptB) ||
+        (c.conceptA === data.conceptB && c.conceptB === data.conceptA),
     );
 
     if (existing) {
@@ -1996,24 +2595,32 @@ export async function addConceptConfusion(userId: number, data: { conceptA: stri
         id: Math.random().toString(36).substr(2, 9),
         ...data,
         occurrences: 1,
-        detectedAt: new Date().toISOString()
+        detectedAt: new Date().toISOString(),
       });
     }
-    
+
     writeDatabase(db);
   }
 }
 
-export async function deleteQuestionsByContest(contest: string, userId: number): Promise<void> {
+export async function deleteQuestionsByContest(
+  contest: string,
+  userId: number,
+): Promise<void> {
   const db = readDatabase();
-  db.questionErrors = db.questionErrors.filter(q => q.userId !== userId || q.contest !== contest);
+  db.questionErrors = db.questionErrors.filter(
+    (q) => q.userId !== userId || q.contest !== contest,
+  );
   writeDatabase(db);
 }
 
-export async function checkExamIntegrated(contest: string, userId: number): Promise<boolean> {
+export async function checkExamIntegrated(
+  contest: string,
+  userId: number,
+): Promise<boolean> {
   const db = readDatabase();
-  return db.questionErrors.some(q => 
-    q.userId === userId && 
-    q.contest?.toLowerCase() === contest.toLowerCase()
+  return db.questionErrors.some(
+    (q) =>
+      q.userId === userId && q.contest?.toLowerCase() === contest.toLowerCase(),
   );
 }

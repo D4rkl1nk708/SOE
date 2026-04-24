@@ -1,35 +1,54 @@
 import { trpc } from "@/lib/trpc";
-import { Brain, AlertCircle, ChevronRight, HelpCircle, Sparkles, Loader2 } from "lucide-react";
+import {
+  Brain,
+  AlertCircle,
+  ChevronRight,
+  HelpCircle,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const API_KEY_STORAGE = "soe_mentor_api_key";
 const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function ConfusionMatrixWidget() {
-  const { data: confusions, isLoading } = trpc.mentor.getConceptConfusions.useQuery();
+  const { data: confusions, isLoading } =
+    trpc.mentor.getConceptConfusions.useQuery();
   const [selected, setSelected] = useState<any>(null);
-  const [mnemonic, setMnemonic] = useState<{ text: string; explanation: string } | null>(null);
+  const [mnemonic, setMnemonic] = useState<{
+    text: string;
+    explanation: string;
+  } | null>(null);
   const [mockData, setMockData] = useState<any>(null);
   const [mockAnswers, setMockAnswers] = useState<Record<number, string>>({});
 
   const [apiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) ?? "");
   const [provider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_STORAGE) as any) ?? "gemini"
+    () => (localStorage.getItem(API_PROVIDER_STORAGE) as any) ?? "gemini",
   );
 
-  const generateMnemonic = trpc.mentor.generateMnemonicForConfusion.useMutation({
-    onSuccess: (data) => {
-      setMnemonic({ text: data.mnemonic, explanation: data.explanation });
-      toast.success("Mnemônico gerado com sucesso!");
+  const generateMnemonic = trpc.mentor.generateMnemonicForConfusion.useMutation(
+    {
+      onSuccess: (data) => {
+        setMnemonic({ text: data.mnemonic, explanation: data.explanation });
+        toast.success("Mnemônico gerado com sucesso!");
+      },
+      onError: (err) => {
+        toast.error("Falha ao gerar mnemônico: " + err.message);
+      },
     },
-    onError: (err) => {
-      toast.error("Falha ao gerar mnemônico: " + err.message);
-    }
-  });
+  );
 
   const generateMock = trpc.mentor.generateMaliciousMock.useMutation({
     onSuccess: (data) => {
@@ -39,7 +58,7 @@ export function ConfusionMatrixWidget() {
     },
     onError: (err) => {
       toast.error("Falha ao gerar simulador: " + err.message);
-    }
+    },
   });
 
   if (isLoading || !confusions || confusions.length === 0) return null;
@@ -55,7 +74,7 @@ export function ConfusionMatrixWidget() {
         conceptB: selected.conceptB,
         explanation: selected.explanation,
         apiKey,
-        provider
+        provider,
       });
     }
   };
@@ -71,7 +90,7 @@ export function ConfusionMatrixWidget() {
         conceptB: selected.conceptB,
         explanation: selected.explanation,
         apiKey,
-        provider
+        provider,
       });
     }
   };
@@ -81,9 +100,14 @@ export function ConfusionMatrixWidget() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5 text-purple-500" />
-          <h2 className="text-lg font-black tracking-tight">Matriz de Confusão</h2>
+          <h2 className="text-lg font-black tracking-tight">
+            Matriz de Confusão
+          </h2>
         </div>
-        <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20">
+        <Badge
+          variant="outline"
+          className="bg-purple-500/10 text-purple-500 border-purple-500/20"
+        >
           {confusions.length} Ponto(s) Cego(s)
         </Badge>
       </div>
@@ -94,8 +118,8 @@ export function ConfusionMatrixWidget() {
 
       <div className="grid gap-3">
         {confusions.slice(0, 3).map((c, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="group p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer"
             onClick={() => {
               setSelected(c);
@@ -103,9 +127,11 @@ export function ConfusionMatrixWidget() {
             }}
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{c.discipline || "Geral"}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                Geral
+              </span>
               <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-2 py-0.5 rounded-full">
-                {c.count}x detectado
+                {c.occurrences}x detectado
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -121,7 +147,10 @@ export function ConfusionMatrixWidget() {
       </div>
 
       {confusions.length > 3 && (
-        <Button variant="ghost" className="w-full text-xs opacity-50 hover:opacity-100">
+        <Button
+          variant="ghost"
+          className="w-full text-xs opacity-50 hover:opacity-100"
+        >
           Ver todos os pontos cegos
         </Button>
       )}
@@ -136,7 +165,8 @@ export function ConfusionMatrixWidget() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 text-sm leading-relaxed whitespace-pre-wrap">
-              {selected?.explanation || "Aguardando diagnóstico detalhado do Mentor..."}
+              {selected?.explanation ||
+                "Aguardando diagnóstico detalhado do Mentor..."}
             </div>
 
             {mnemonic && (
@@ -157,31 +187,58 @@ export function ConfusionMatrixWidget() {
             {mockData && (
               <div className="space-y-4 pt-4 border-t border-white/10 animate-in fade-in">
                 <h3 className="font-black text-rose-400 flex items-center gap-2 uppercase tracking-widest text-xs">
-                  <AlertCircle size={16} /> {mockData.mockTitle || "Simulador de Maldades"}
+                  <AlertCircle size={16} />{" "}
+                  {mockData.mockTitle || "Simulador de Maldades"}
                 </h3>
                 <div className="space-y-6">
                   {mockData.questions.map((q: any, qIdx: number) => {
                     const answered = !!mockAnswers[qIdx];
                     const correct = mockAnswers[qIdx] === q.correctAnswer;
                     return (
-                      <div key={qIdx} className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
-                        <p className="text-sm font-bold leading-relaxed">{qIdx + 1}. {q.statement}</p>
+                      <div
+                        key={qIdx}
+                        className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3"
+                      >
+                        <p className="text-sm font-bold leading-relaxed">
+                          {qIdx + 1}. {q.statement}
+                        </p>
                         <div className="space-y-2">
                           {q.alternatives.map((a: any) => {
                             const isSelected = mockAnswers[qIdx] === a.letter;
                             const isCorrect = a.letter === q.correctAnswer;
-                            let btnClass = "border-white/10 bg-white/5 hover:bg-white/10 text-left";
+                            let btnClass =
+                              "border-white/10 bg-white/5 hover:bg-white/10 text-left";
                             if (answered) {
-                              if (isCorrect) btnClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
-                              else if (isSelected) btnClass = "border-rose-500/50 bg-rose-500/10 text-rose-400 line-through opacity-70";
-                              else btnClass = "border-white/5 bg-transparent opacity-30 text-left";
+                              if (isCorrect)
+                                btnClass =
+                                  "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
+                              else if (isSelected)
+                                btnClass =
+                                  "border-rose-500/50 bg-rose-500/10 text-rose-400 line-through opacity-70";
+                              else
+                                btnClass =
+                                  "border-white/5 bg-transparent opacity-30 text-left";
                             } else if (isSelected) {
                               btnClass = "border-purple-500 bg-purple-500/20";
                             }
                             return (
-                              <Button key={a.letter} variant="outline" className={`w-full justify-start h-auto py-3 px-4 whitespace-normal text-sm font-medium transition-all ${btnClass}`}
-                                onClick={() => !answered && setMockAnswers(prev => ({...prev, [qIdx]: a.letter}))} disabled={answered}>
-                                <span className="font-black mr-3 opacity-50">{a.letter})</span> {a.text}
+                              <Button
+                                key={a.letter}
+                                variant="outline"
+                                className={`w-full justify-start h-auto py-3 px-4 whitespace-normal text-sm font-medium transition-all ${btnClass}`}
+                                onClick={() =>
+                                  !answered &&
+                                  setMockAnswers((prev) => ({
+                                    ...prev,
+                                    [qIdx]: a.letter,
+                                  }))
+                                }
+                                disabled={answered}
+                              >
+                                <span className="font-black mr-3 opacity-50">
+                                  {a.letter})
+                                </span>{" "}
+                                {a.text}
                               </Button>
                             );
                           })}
@@ -189,12 +246,15 @@ export function ConfusionMatrixWidget() {
                         {answered && !correct && (
                           <div className="mt-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex gap-2">
                             <Brain className="w-4 h-4 shrink-0 mt-0.5" />
-                            <p><strong>Dica da IA:</strong> {q.hint}</p>
+                            <p>
+                              <strong>Dica da IA:</strong> {q.hint}
+                            </p>
                           </div>
                         )}
                         {answered && correct && (
                           <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex gap-2 items-center">
-                            <Sparkles className="w-4 h-4" /> Resposta Perfeita! Você não caiu na pegadinha.
+                            <Sparkles className="w-4 h-4" /> Resposta Perfeita!
+                            Você não caiu na pegadinha.
                           </div>
                         )}
                       </div>
@@ -205,8 +265,8 @@ export function ConfusionMatrixWidget() {
             )}
 
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-white/5">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="gap-2"
                 onClick={handleGenerateMnemonic}
                 disabled={generateMnemonic.isPending}
@@ -218,7 +278,7 @@ export function ConfusionMatrixWidget() {
                 )}
                 {mnemonic ? "Gerar outro" : "Criar Mnemônico"}
               </Button>
-              <Button 
+              <Button
                 className="gap-2 bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-900/50"
                 onClick={handleGenerateMock}
                 disabled={generateMock.isPending}

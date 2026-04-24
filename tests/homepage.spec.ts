@@ -6,7 +6,8 @@ test("homepage has title and main elements", async ({ page }) => {
   // Check title
   await expect(page).toHaveTitle(/SOE/);
 
-  // Check for some main components
-  const sidebar = page.locator("nav");
+  // Check for main navigation elements
+  // We use .first() because the app has both desktop and mobile navs
+  const sidebar = page.locator("nav").first();
   await expect(sidebar).toBeVisible();
 });

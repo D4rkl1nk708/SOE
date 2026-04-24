@@ -56,11 +56,12 @@ const getTecScript = (): string => {
 // ── Sanitiza cookies recebidos do TEC para funcionar no contexto do proxy ─────
 // Remove flags Secure/SameSite que bloqueiam cookies via HTTP local
 const sanitizeCookies = (cookies: string[]): string[] => {
-  return cookies.map((cookie) =>
-    cookie
-      .replace(/;\s*Secure/gi, "")
-      .replace(/;\s*SameSite=(Strict|Lax|None)/gi, "; SameSite=Lax")
-      .replace(/;\s*Domain=[^;]*/gi, "") // Remove Domain para não conflitar com localhost
+  return cookies.map(
+    (cookie) =>
+      cookie
+        .replace(/;\s*Secure/gi, "")
+        .replace(/;\s*SameSite=(Strict|Lax|None)/gi, "; SameSite=Lax")
+        .replace(/;\s*Domain=[^;]*/gi, ""), // Remove Domain para não conflitar com localhost
   );
 };
 
@@ -71,7 +72,7 @@ router.all("*", async (req: any, res: any) => {
   // Se não há ?url=, trata o path como caminho relativo no TEC
   if (!targetUrl) {
     const relativePath = req.path;
-    
+
     if (relativePath.startsWith("/cdn/")) {
       targetUrl = "https://cdn.tecconcursos.com.br" + relativePath.substring(4);
     } else {
@@ -108,8 +109,7 @@ router.all("*", async (req: any, res: any) => {
         req.headers["user-agent"] ||
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       Accept: req.headers.accept || "text/html,*/*",
-      "Accept-Language":
-        req.headers["accept-language"] || "pt-BR,pt;q=0.9",
+      "Accept-Language": req.headers["accept-language"] || "pt-BR,pt;q=0.9",
       Referer: targetUrl, // Dinâmico para não quebrar login
       Cookie: clientCookies,
       "Sec-Fetch-Dest": "document",
@@ -170,18 +170,23 @@ router.all("*", async (req: any, res: any) => {
         c
           .replace(/Domain=[^;]+/gi, "") // Remove domínio original
           .replace(/Secure/gi, "") // Remove Secure
-          .replace(/SameSite=[^;]+/gi, "SameSite=Lax")
+          .replace(/SameSite=[^;]+/gi, "SameSite=Lax"),
       );
       res.setHeader("set-cookie", modifiedCookies);
     }
 
     // ── Redirecionamento ────────────────────────────────────────────────────
-    if (response.status >= 300 && response.status < 400 && response.headers.location) {
+    if (
+      response.status >= 300 &&
+      response.status < 400 &&
+      response.headers.location
+    ) {
       let redirectUrl = response.headers.location;
       if (!redirectUrl.startsWith("http")) {
-        redirectUrl = new URL(redirectUrl, "https://www.tecconcursos.com.br").href;
+        redirectUrl = new URL(redirectUrl, "https://www.tecconcursos.com.br")
+          .href;
       }
-      
+
       if (redirectUrl.includes("tecconcursos.com.br")) {
         // Mantém no proxy
         redirectUrl = `/api/tec-browser/proxy?url=${encodeURIComponent(redirectUrl)}`;
@@ -190,7 +195,9 @@ router.all("*", async (req: any, res: any) => {
     }
 
     let body = Buffer.from(response.data);
-    const contentType = (response.headers["content-type"] || "").toLowerCase();
+    const contentType = String(
+      response.headers["content-type"] || "",
+    ).toLowerCase();
 
     // ── Injeção e Reescrita (HTML e CSS) ───────────────────────────────────
     if (contentType.includes("text/html")) {
@@ -227,23 +234,23 @@ router.all("*", async (req: any, res: any) => {
       // 1. URLs absolutas do TEC e do CDN
       html = html.replace(
         /https?:\/\/(?:www\.)?tecconcursos\.com\.br/g,
-        "/api/tec-browser"
+        "/api/tec-browser",
       );
       html = html.replace(
         /https?:\/\/cdn\.tecconcursos\.com\.br/g,
-        "/api/tec-browser/cdn"
+        "/api/tec-browser/cdn",
       );
 
       // 2. URLs relativas em atributos HTML — evita duplicar prefixo
       html = html.replace(
         /((?:href|src|action)=")\/(?!api\/tec-browser|\/)/g,
-        "$1/api/tec-browser/"
+        "$1/api/tec-browser/",
       );
 
       // 3. Meta refresh redirects
       html = html.replace(
         /(<meta[^>]+content=["'][^"']*url=)https?:\/\/www\.tecconcursos\.com\.br/gi,
-        "$1/api/tec-browser"
+        "$1/api/tec-browser",
       );
 
       res.send(html);
@@ -252,7 +259,7 @@ router.all("*", async (req: any, res: any) => {
       // Reescrita de fontes no CSS para passar pelo proxy de CDN
       css = css.replace(
         /https?:\/\/cdn\.tecconcursos\.com\.br/g,
-        "/api/tec-browser/cdn"
+        "/api/tec-browser/cdn",
       );
       res.send(css);
     } else {
@@ -267,15 +274,21 @@ router.all("*", async (req: any, res: any) => {
       (req.headers.accept && req.headers.accept.includes("text/html"));
 
     if (isHtmlRequest) {
-      res.status(500).send(
-        "<html><body style='padding:40px;font-family:system-ui;text-align:center;background:#0f172a;color:white;height:100vh;box-sizing:border-box;'>" +
-        "<h1 style='color:#f87171;'>Falha na Conexao</h1>" +
-        "<p style='opacity:0.7;'>Nao foi possivel carregar o TEC Concursos atraves do tunel SOE.</p>" +
-        "<code style='display:block;padding:15px;background:#1e293b;border-radius:8px;margin:20px 0;word-break:break-all;'>" + e.message + "</code>" +
-        "<button onclick='window.location.reload()' style='padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;'>Tentar Novamente</button>" +
-        "<p style='margin-top:40px;font-size:12px;opacity:0.4;'>URL: " + targetUrl + "</p>" +
-        "</body></html>"
-      );
+      res
+        .status(500)
+        .send(
+          "<html><body style='padding:40px;font-family:system-ui;text-align:center;background:#0f172a;color:white;height:100vh;box-sizing:border-box;'>" +
+            "<h1 style='color:#f87171;'>Falha na Conexao</h1>" +
+            "<p style='opacity:0.7;'>Nao foi possivel carregar o TEC Concursos atraves do tunel SOE.</p>" +
+            "<code style='display:block;padding:15px;background:#1e293b;border-radius:8px;margin:20px 0;word-break:break-all;'>" +
+            e.message +
+            "</code>" +
+            "<button onclick='window.location.reload()' style='padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;'>Tentar Novamente</button>" +
+            "<p style='margin-top:40px;font-size:12px;opacity:0.4;'>URL: " +
+            targetUrl +
+            "</p>" +
+            "</body></html>",
+        );
     } else {
       res.status(500).send(e.message);
     }

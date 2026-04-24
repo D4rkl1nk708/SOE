@@ -7,7 +7,11 @@ import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
 import { labRouter } from "./labRouter";
 import { callAiProvider } from "./aiProviders";
-import { buildSchedule, formatDateForDb, getScheduleParams } from "../shared/scheduling";
+import {
+  buildSchedule,
+  formatDateForDb,
+  getScheduleParams,
+} from "../shared/scheduling";
 import {
   getDashboardStats,
   getWeeklyStats,
@@ -21,68 +25,94 @@ import {
   getTecRegressions,
   getWeakTopicsFromSnapshot,
 } from "./analyticsService";
-import { parseXlsxBuffer, parseHtml, processImportRows } from "./tecImportService";
+import {
+  parseXlsxBuffer,
+  parseHtml,
+  processImportRows,
+} from "./tecImportService";
 
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
     updateSettings: protectedProcedure
-      .input(z.object({
-        theme: z.enum(["light", "dark"]).optional(),
-        examDate: z.string().optional(),
-        examName: z.string().optional(),
-        exams: z.array(z.object({
-          id: z.string(),
-          name: z.string(),
-          date: z.string(),
-        })).optional(),
-        editalCycle: z.array(z.object({
-          id: z.string(),
-          title: z.string(),
-          durationMinutes: z.number().min(1),
-          done: z.boolean(),
-        })).optional(),
-        editalRows: z.array(z.object({
-          id: z.string(),
-          discipline: z.string(),
-          topic: z.string(),
-          completed: z.boolean(),
-          notes: z.string().optional(),
-          incidencia: z.number().optional(),
-          quantidade: z.number().optional(),
-          acerto: z.number().optional(),
-          revisar: z.boolean().optional(),
-          avancar: z.boolean().optional(),
-          discursiva: z.boolean().optional(),
-          isHeader: z.boolean().optional(),
-        })).optional(),
-        cycleConfig: z.object({
-          type: z.enum(["numbered", "weekdays"]),
-          count: z.number().min(1).max(7),
-          selectedDays: z.array(z.number()).optional(),
-          assignments: z.array(z.object({
-            cycleKey: z.string(),
-            disciplineId: z.number(),
-          })).optional(),
-        }).optional(),
-        testIntervalDays: z.number().min(0).max(30).optional(),
-        revisionIntervalDays: z.number().min(0).max(365).optional(),
-        revisionSecondPhaseDays: z.number().min(1).max(365).optional(),
-        dailyGoalMinutes: z.number().min(0).max(1440).optional(),
-        onboardingCompleted: z.boolean().optional(),
-        dashboardConfig: z.object({
-          hiddenWidgets: z.array(z.string()).optional(),
-          extraWidgets: z.array(z.string()).optional(),
-        }).optional(),
-        profileImage: z.string().optional(),
-        minimizeToTray: z.boolean().optional(),
-      }))
+      .input(
+        z.object({
+          theme: z.enum(["light", "dark"]).optional(),
+          examDate: z.string().optional(),
+          examName: z.string().optional(),
+          exams: z
+            .array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                date: z.string(),
+              }),
+            )
+            .optional(),
+          editalCycle: z
+            .array(
+              z.object({
+                id: z.string(),
+                title: z.string(),
+                durationMinutes: z.number().min(1),
+                done: z.boolean(),
+              }),
+            )
+            .optional(),
+          editalRows: z
+            .array(
+              z.object({
+                id: z.string(),
+                discipline: z.string(),
+                topic: z.string(),
+                completed: z.boolean(),
+                notes: z.string().optional(),
+                incidencia: z.number().optional(),
+                quantidade: z.number().optional(),
+                acerto: z.number().optional(),
+                revisar: z.boolean().optional(),
+                avancar: z.boolean().optional(),
+                discursiva: z.boolean().optional(),
+                isHeader: z.boolean().optional(),
+              }),
+            )
+            .optional(),
+          cycleConfig: z
+            .object({
+              type: z.enum(["numbered", "weekdays"]),
+              count: z.number().min(1).max(7),
+              selectedDays: z.array(z.number()).optional(),
+              assignments: z
+                .array(
+                  z.object({
+                    cycleKey: z.string(),
+                    disciplineId: z.number(),
+                  }),
+                )
+                .optional(),
+            })
+            .optional(),
+          testIntervalDays: z.number().min(0).max(30).optional(),
+          revisionIntervalDays: z.number().min(0).max(365).optional(),
+          revisionSecondPhaseDays: z.number().min(1).max(365).optional(),
+          dailyGoalMinutes: z.number().min(0).max(1440).optional(),
+          onboardingCompleted: z.boolean().optional(),
+          dashboardConfig: z
+            .object({
+              hiddenWidgets: z.array(z.string()).optional(),
+              extraWidgets: z.array(z.string()).optional(),
+            })
+            .optional(),
+          profileImage: z.string().optional(),
+          minimizeToTray: z.boolean().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         await storage.updateUserSettings(ctx.user.id, input);
         return { success: true };
@@ -94,18 +124,26 @@ export const appRouter = router({
       return settings?.exams || [];
     }),
     upsert: protectedProcedure
-      .input(z.object({
-        id: z.string().optional(),
-        name: z.string().min(1).max(255),
-        date: z.string().min(1),
-      }))
+      .input(
+        z.object({
+          id: z.string().optional(),
+          name: z.string().min(1).max(255),
+          date: z.string().min(1),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const settings = await storage.getUserSettings(ctx.user.id);
         const exams = settings?.exams || [];
-        const nextId = input.id || `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+        const nextId =
+          input.id ||
+          `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
         const exists = exams.some((e) => e.id === nextId);
         const updatedExams = exists
-          ? exams.map((e) => e.id === nextId ? { ...e, name: input.name, date: input.date } : e)
+          ? exams.map((e) =>
+              e.id === nextId
+                ? { ...e, name: input.name, date: input.date }
+                : e,
+            )
           : [...exams, { id: nextId, name: input.name, date: input.date }];
         await storage.updateUserSettings(ctx.user.id, { exams: updatedExams });
         return { success: true, id: nextId };
@@ -127,11 +165,16 @@ export const appRouter = router({
       return storage.getDisciplinesByUser(ctx.user.id);
     }),
     create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1).max(255),
-        color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default("#3B82F6"),
-        weight: z.number().min(1).max(10).default(1),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1).max(255),
+          color: z
+            .string()
+            .regex(/^#[0-9A-Fa-f]{6}$/)
+            .default("#3B82F6"),
+          weight: z.number().min(1).max(10).default(1),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         return storage.createDiscipline({
           userId: ctx.user.id,
@@ -141,13 +184,15 @@ export const appRouter = router({
         });
       }),
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        color: z.string().optional(),
-        weight: z.number().optional(),
-        studyTimeSeconds: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          color: z.string().optional(),
+          weight: z.number().optional(),
+          studyTimeSeconds: z.number().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         await storage.updateDiscipline(id, ctx.user.id, data);
@@ -170,19 +215,28 @@ export const appRouter = router({
   // ============ TOPIC PROCEDURES ============
   topic: router({
     list: protectedProcedure
-      .input(z.object({ disciplineId: z.number().optional(), search: z.string().optional() }).optional())
+      .input(
+        z
+          .object({
+            disciplineId: z.number().optional(),
+            search: z.string().optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
         const topics = await storage.getTopicsByUser(ctx.user.id, input);
         const disciplines = await storage.getDisciplinesByUser(ctx.user.id);
         return { topics, disciplines };
       }),
     create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1).max(500),
-        disciplineId: z.number(),
-        studyDate: z.string().optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1).max(500),
+          disciplineId: z.number(),
+          studyDate: z.string().optional(),
+          notes: z.string().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const studyDate = input.studyDate || formatDateForDb(new Date());
         const { id: topicId } = await storage.createTopic({
@@ -195,7 +249,7 @@ export const appRouter = router({
         const settings = await storage.getUserSettings(ctx.user.id);
         const params = getScheduleParams(settings);
         const activities = buildSchedule(new Date(studyDate), params);
-        const revisionRecords = activities.map(activity => ({
+        const revisionRecords = activities.map((activity) => ({
           userId: ctx.user.id,
           topicId,
           scheduledDate: formatDateForDb(activity.date),
@@ -213,30 +267,34 @@ export const appRouter = router({
         return { success: true };
       }),
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        disciplineId: z.number().optional(),
-        notes: z.string().optional(),
-        studyTimeSeconds: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          disciplineId: z.number().optional(),
+          notes: z.string().optional(),
+          studyTimeSeconds: z.number().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         await storage.updateTopic(id, ctx.user.id, data);
         return { success: true };
       }),
     setPerformance: protectedProcedure
-      .input(z.object({
-        topicId: z.number(),
-        correctCount: z.number().min(0),
-        errorCount: z.number().min(0),
-        errorByAttention: z.number().min(0).optional(),
-        errorByForgetting: z.number().min(0).optional(),
-        errorByTheory: z.number().min(0).optional(),
-        errorByTrap: z.number().min(0).optional(),
-        fastErrors: z.number().min(0).optional(),
-        slowErrors: z.number().min(0).optional(),
-      }))
+      .input(
+        z.object({
+          topicId: z.number(),
+          correctCount: z.number().min(0),
+          errorCount: z.number().min(0),
+          errorByAttention: z.number().min(0).optional(),
+          errorByForgetting: z.number().min(0).optional(),
+          errorByTheory: z.number().min(0).optional(),
+          errorByTrap: z.number().min(0).optional(),
+          fastErrors: z.number().min(0).optional(),
+          slowErrors: z.number().min(0).optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         await storage.setTopicPerformance(input.topicId, ctx.user.id, {
           correctCount: input.correctCount,
@@ -251,32 +309,47 @@ export const appRouter = router({
         return { success: true };
       }),
     updateTopicNotes: protectedProcedure
-      .input(z.object({
-        topicId: z.number(),
-        mantras: z.array(z.string()),
-      }))
+      .input(
+        z.object({
+          topicId: z.number(),
+          mantras: z.array(z.string()),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.updateTopicNotes(input.topicId, ctx.user.id, input.mantras);
+        await storage.updateTopicNotes(
+          input.topicId,
+          ctx.user.id,
+          input.mantras,
+        );
         return { success: true };
       }),
     reorder: protectedProcedure
-      .input(z.object({
-        disciplineId: z.number(),
-        orderedIds: z.array(z.number()),
-      }))
+      .input(
+        z.object({
+          disciplineId: z.number(),
+          orderedIds: z.array(z.number()),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.reorderTopics(ctx.user.id, input.disciplineId, input.orderedIds);
+        await storage.reorderTopics(
+          ctx.user.id,
+          input.disciplineId,
+          input.orderedIds,
+        );
         return { success: true };
       }),
-    resetAllStats: protectedProcedure
-      .mutation(async ({ ctx }) => {
-        await storage.resetAllTopicStats(ctx.user.id);
-        return { success: true };
-      }),
+    resetAllStats: protectedProcedure.mutation(async ({ ctx }) => {
+      await storage.resetAllTopicStats(ctx.user.id);
+      return { success: true };
+    }),
     addStudyTime: protectedProcedure
       .input(z.object({ topicId: z.number(), seconds: z.number().min(1) }))
       .mutation(async ({ ctx, input }) => {
-        await storage.addTopicStudyTime(input.topicId, ctx.user.id, input.seconds);
+        await storage.addTopicStudyTime(
+          input.topicId,
+          ctx.user.id,
+          input.seconds,
+        );
         return { success: true };
       }),
   }),
@@ -284,14 +357,25 @@ export const appRouter = router({
   // ============ REVISION PROCEDURES ============
   revision: router({
     list: protectedProcedure
-      .input(z.object({ completed: z.boolean().optional(), ignored: z.boolean().optional() }).optional())
+      .input(
+        z
+          .object({
+            completed: z.boolean().optional(),
+            ignored: z.boolean().optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
         return storage.getRevisionsByUser(ctx.user.id, input);
       }),
     markCompleted: protectedProcedure
       .input(z.object({ id: z.number(), completed: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
-        await storage.markRevisionCompleted(input.id, ctx.user.id, input.completed);
+        await storage.markRevisionCompleted(
+          input.id,
+          ctx.user.id,
+          input.completed,
+        );
         return { success: true };
       }),
     updateLink: protectedProcedure
@@ -325,7 +409,10 @@ export const appRouter = router({
           const result = await processImportRows(ctx.user.id, rows);
           return { success: true, ...result };
         } catch (error: unknown) {
-          throw new Error("Erro ao processar planilha: " + (error instanceof Error ? error.message : String(error)));
+          throw new Error(
+            "Erro ao processar planilha: " +
+              (error instanceof Error ? error.message : String(error)),
+          );
         }
       }),
     /**
@@ -337,25 +424,32 @@ export const appRouter = router({
         try {
           const resp = await fetch(input.url, {
             headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              "Accept": "text/html,application/xhtml+xml",
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              Accept: "text/html,application/xhtml+xml",
               "Accept-Language": "pt-BR,pt;q=0.9",
             },
           });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}: não foi possível acessar a URL fornecida`);
+          if (!resp.ok)
+            throw new Error(
+              `HTTP ${resp.status}: não foi possível acessar a URL fornecida`,
+            );
           const html = await resp.text();
           const rows = parseHtml(html);
           if (rows.length === 0) {
             throw new Error(
               "Não foi possível extrair dados da URL fornecida. " +
-              "Verifique se a URL é da página de Desempenho por Assunto do TEC Concursos e se você está logado. " +
-              "Dica: para páginas que requerem login, use a importação via XLSX."
+                "Verifique se a URL é da página de Desempenho por Assunto do TEC Concursos e se você está logado. " +
+                "Dica: para páginas que requerem login, use a importação via XLSX.",
             );
           }
           const result = await processImportRows(ctx.user.id, rows);
           return { success: true, rowsParsed: rows.length, ...result };
         } catch (error: unknown) {
-          throw new Error("Erro no scraping TEC: " + (error instanceof Error ? error.message : String(error)));
+          throw new Error(
+            "Erro no scraping TEC: " +
+              (error instanceof Error ? error.message : String(error)),
+          );
         }
       }),
     /**
@@ -422,36 +516,43 @@ export const appRouter = router({
       return storage.getMockExamsByUser(ctx.user.id);
     }),
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        date: z.string(),
-        correct: z.number(),
-        wrong: z.number(),
-        blank: z.number(),
-        totalQuestions: z.number(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          date: z.string(),
+          correct: z.number(),
+          wrong: z.number(),
+          blank: z.number(),
+          totalQuestions: z.number(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const score = input.correct - input.wrong;
         return storage.createMockExam({ ...input, userId: ctx.user.id, score });
       }),
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        date: z.string().optional(),
-        correct: z.number().optional(),
-        wrong: z.number().optional(),
-        blank: z.number().optional(),
-        totalQuestions: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          date: z.string().optional(),
+          correct: z.number().optional(),
+          wrong: z.number().optional(),
+          blank: z.number().optional(),
+          totalQuestions: z.number().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         // Fetch current exam to compute score correctly when only one field changes
         const exams = await storage.getMockExamsByUser(ctx.user.id);
-        const current = exams.find(e => e.id === id);
+        const current = exams.find((e) => e.id === id);
         const newCorrect = data.correct ?? current?.correct ?? 0;
         const newWrong = data.wrong ?? current?.wrong ?? 0;
-        await storage.updateMockExam(id, ctx.user.id, { ...data, score: newCorrect - newWrong });
+        await storage.updateMockExam(id, ctx.user.id, {
+          ...data,
+          score: newCorrect - newWrong,
+        });
         return { success: true };
       }),
     delete: protectedProcedure
@@ -468,21 +569,25 @@ export const appRouter = router({
       return storage.getNotesByUser(ctx.user.id);
     }),
     upsert: protectedProcedure
-      .input(z.object({
-        id: z.number().optional(),
-        disciplineId: z.number(),
-        topicId: z.number().optional(),
-        title: z.string(),
-        content: z.string(),
-      }))
+      .input(
+        z.object({
+          id: z.number().optional(),
+          disciplineId: z.number(),
+          topicId: z.number().optional(),
+          title: z.string(),
+          content: z.string(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         await storage.upsertNote({ ...input, userId: ctx.user.id });
         return { success: true };
       }),
     delete: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         await storage.deleteNote(input.id, ctx.user.id);
         return { success: true };
@@ -494,45 +599,66 @@ export const appRouter = router({
     getData: protectedProcedure
       .input(z.object({ startDate: z.string(), endDate: z.string() }))
       .query(async ({ ctx, input }) => {
-        return storage.getCalendarData(ctx.user.id, input.startDate, input.endDate);
+        return storage.getCalendarData(
+          ctx.user.id,
+          input.startDate,
+          input.endDate,
+        );
       }),
     getActivities: protectedProcedure
       .input(z.object({ startDate: z.string(), endDate: z.string() }))
       .query(async ({ ctx, input }) => {
-        const { revisions, topics, disciplines } = await storage.getCalendarData(ctx.user.id, input.startDate, input.endDate);
-        return revisions.map(r => {
-          const topic = topics.find(t => t.id === r.topicId);
-          const discipline = disciplines.find(d => d.id === topic?.disciplineId);
-          return {
-            id: r.id,
-            date: r.scheduledDate,
-            topicName: topic?.name || "Assunto Removido",
-            disciplineName: discipline?.name || "Desconhecida",
-            disciplineColor: discipline?.color || "#3b82f6",
-            topicId: topic?.id || 0,
-            disciplineId: discipline?.id || 0,
-            type: r.type,
-            completed: r.completed,
-            link: r.link
-          };
-        }).sort((a, b) => {
-          // 1. Não completados primeiro
-          if (a.completed !== b.completed) return a.completed ? 1 : -1;
-          // 2. Revisões antes de Testes
-          if (a.type !== b.type) return a.type === "revision" ? -1 : 1;
-          return 0;
-        });
+        const { revisions, topics, disciplines } =
+          await storage.getCalendarData(
+            ctx.user.id,
+            input.startDate,
+            input.endDate,
+          );
+        return revisions
+          .map((r) => {
+            const topic = topics.find((t) => t.id === r.topicId);
+            const discipline = disciplines.find(
+              (d) => d.id === topic?.disciplineId,
+            );
+            return {
+              id: r.id,
+              date: r.scheduledDate,
+              topicName: topic?.name || "Assunto Removido",
+              disciplineName: discipline?.name || "Desconhecida",
+              disciplineColor: discipline?.color || "#3b82f6",
+              topicId: topic?.id || 0,
+              disciplineId: discipline?.id || 0,
+              type: r.type,
+              completed: r.completed,
+              link: r.link,
+            };
+          })
+          .sort((a, b) => {
+            // 1. Não completados primeiro
+            if (a.completed !== b.completed) return a.completed ? 1 : -1;
+            // 2. Revisões antes de Testes
+            if (a.type !== b.type) return a.type === "revision" ? -1 : 1;
+            return 0;
+          });
       }),
     saveLink: protectedProcedure
       .input(z.object({ revisionId: z.number(), link: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        await storage.updateRevisionLink(input.revisionId, ctx.user.id, input.link);
+        await storage.updateRevisionLink(
+          input.revisionId,
+          ctx.user.id,
+          input.link,
+        );
         return { success: true };
       }),
     markCompleted: protectedProcedure
       .input(z.object({ revisionId: z.number(), completed: z.boolean() }))
       .mutation(async ({ ctx, input }) => {
-        await storage.markRevisionCompleted(input.revisionId, ctx.user.id, input.completed);
+        await storage.markRevisionCompleted(
+          input.revisionId,
+          ctx.user.id,
+          input.completed,
+        );
         return { success: true };
       }),
   }),
@@ -567,20 +693,31 @@ export const appRouter = router({
       return storage.getFlashcardsByUser(ctx.user.id);
     }),
     create: protectedProcedure
-      .input(z.object({
-        disciplineId: z.number(),
-        topicId: z.number().optional(),
-        noteId: z.number().optional(),
-        front: z.string().min(1),
-        back: z.string().min(1),
-      }))
+      .input(
+        z.object({
+          disciplineId: z.number(),
+          topicId: z.number().optional(),
+          noteId: z.number().optional(),
+          front: z.string().min(1),
+          back: z.string().min(1),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         return storage.createFlashcard({ ...input, userId: ctx.user.id });
       }),
     update: protectedProcedure
-      .input(z.object({ id: z.number(), front: z.string().optional(), back: z.string().optional() }))
+      .input(
+        z.object({
+          id: z.number(),
+          front: z.string().optional(),
+          back: z.string().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.updateFlashcard(input.id, ctx.user.id, { front: input.front, back: input.back });
+        await storage.updateFlashcard(input.id, ctx.user.id, {
+          front: input.front,
+          back: input.back,
+        });
         return { success: true };
       }),
     delete: protectedProcedure
@@ -598,30 +735,40 @@ export const appRouter = router({
 
   questionError: router({
     save: protectedProcedure
-      .input(z.object({
-        topicId: z.number(),
-        disciplineId: z.number(),
-        questionId: z.string().optional(),
-        banca: z.string().optional(),
-        year: z.number().optional(),
-        contest: z.string().optional(),
-        statement: z.string().min(1),
-        alternatives: z.array(z.object({ letter: z.string(), text: z.string() })),
-        userAnswer: z.string().optional(),
-        correctAnswer: z.string().optional(),
-        errorOrigin: z.enum(["attention", "forgetting", "theory", "trap"]).optional(),
-      }))
+      .input(
+        z.object({
+          topicId: z.number(),
+          disciplineId: z.number(),
+          questionId: z.string().optional(),
+          banca: z.string().optional(),
+          year: z.number().optional(),
+          contest: z.string().optional(),
+          statement: z.string().min(1),
+          alternatives: z.array(
+            z.object({ letter: z.string(), text: z.string() }),
+          ),
+          userAnswer: z.string().optional(),
+          correctAnswer: z.string().optional(),
+          errorOrigin: z
+            .enum(["attention", "forgetting", "theory", "trap"])
+            .optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         return storage.saveQuestionError({ ...input, userId: ctx.user.id });
       }),
 
     list: protectedProcedure
-      .input(z.object({
-        topicId: z.number().optional(),
-        disciplineId: z.number().optional(),
-        limit: z.number().min(1).max(200).optional(),
-        offset: z.number().min(0).optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            topicId: z.number().optional(),
+            disciplineId: z.number().optional(),
+            limit: z.number().min(1).max(200).optional(),
+            offset: z.number().min(0).optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
         return storage.getQuestionErrorsByUser(ctx.user.id, input ?? {});
       }),
@@ -634,18 +781,25 @@ export const appRouter = router({
       }),
 
     analyze: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        const { items: errors } = await storage.getQuestionErrorsByUser(ctx.user.id, { limit: 200 });
-        const e = errors.find(err => err.id === input.id);
+        const { items: errors } = await storage.getQuestionErrorsByUser(
+          ctx.user.id,
+          { limit: 200 },
+        );
+        const e = errors.find((err) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
-        const chosenText = e.alternatives?.find(a => a.letter === e.userAnswer)?.text || "";
-        const correctText = e.alternatives?.find(a => a.letter === e.correctAnswer)?.text || "";
+        const chosenText =
+          e.alternatives?.find((a) => a.letter === e.userAnswer)?.text || "";
+        const correctText =
+          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor especialista em concursos públicos brasileiros.
 
@@ -654,7 +808,7 @@ Analise a questão abaixo que o aluno errou e faça um diagnóstico cirúrgico e
 --- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---
 ${e.statement}
 
-${e.alternatives?.map(a => `${a.letter}) ${a.text}`).join("\n")}
+${e.alternatives?.map((a) => `${a.letter}) ${a.text}`).join("\n")}
 
 ${e.userAnswer ? `Aluno marcou: ${e.userAnswer}${chosenText ? ` — "${chosenText}"` : ""}` : ""}
 ${e.correctAnswer ? `Gabarito: ${e.correctAnswer}${correctText ? ` — "${correctText}"` : ""}` : ""}
@@ -671,27 +825,44 @@ Com base na questão acima, responda de forma direta e técnica:
 Responda em português, máximo 300 palavras. Sem introduções — vá direto ao diagnóstico.`;
 
         try {
-          const analysisText = await callAiProvider(input.provider, input.apiKey, prompt, 1024);
+          const analysisText = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            1024,
+          );
           if (!analysisText) throw new Error("Resposta vazia da IA.");
-          await storage.saveQuestionErrorAnalysis(input.id, ctx.user.id, analysisText);
+          await storage.saveQuestionErrorAnalysis(
+            input.id,
+            ctx.user.id,
+            analysisText,
+          );
           return { analysis: analysisText };
         } catch (err: unknown) {
-          throw new Error(`Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
 
     revisionTip: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        const { items: errors } = await storage.getQuestionErrorsByUser(ctx.user.id, { limit: 200 });
-        const e = errors.find(err => err.id === input.id);
+        const { items: errors } = await storage.getQuestionErrorsByUser(
+          ctx.user.id,
+          { limit: 200 },
+        );
+        const e = errors.find((err) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
-        const correctText = e.alternatives?.find(a => a.letter === e.correctAnswer)?.text || "";
+        const correctText =
+          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, escreva uma DICA DE REVISÃO curta e memorável.
 
@@ -707,24 +878,40 @@ Escreva uma dica de revisão com exatamente este formato:
     Sem limite de palavras, seja completo e didático. Sem introdução. Vá direto ao ponto.`;
 
         try {
-          const tip = await callAiProvider(input.provider, input.apiKey, prompt, 2048);
+          const tip = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            2048,
+          );
           if (!tip) throw new Error("Resposta vazia da IA.");
-          await storage.saveQuestionErrorRevisionTip(input.id, ctx.user.id, tip);
+          await storage.saveQuestionErrorRevisionTip(
+            input.id,
+            ctx.user.id,
+            tip,
+          );
           return { tip };
         } catch (err: unknown) {
-          throw new Error(`Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
 
     similarQuestions: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        const { items: errors } = await storage.getQuestionErrorsByUser(ctx.user.id, { limit: 200 });
-        const e = errors.find(err => err.id === input.id);
+        const { items: errors } = await storage.getQuestionErrorsByUser(
+          ctx.user.id,
+          { limit: 200 },
+        );
+        const e = errors.find((err) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo, sugira 3 questões similares que o aluno deveria buscar para praticar.
@@ -755,27 +942,44 @@ O que buscar no TEC: [termo de busca exato]
 Por que praticar: [1 linha]`;
 
         try {
-          const similar = await callAiProvider(input.provider, input.apiKey, prompt, 2048);
+          const similar = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            2048,
+          );
           if (!similar) throw new Error("Resposta vazia da IA.");
-          await storage.saveQuestionErrorSimilarQuestions(input.id, ctx.user.id, similar);
+          await storage.saveQuestionErrorSimilarQuestions(
+            input.id,
+            ctx.user.id,
+            similar,
+          );
           return { similar };
         } catch (err: unknown) {
-          throw new Error(`Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
 
     generateFlashcard: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        const { items: errors } = await storage.getQuestionErrorsByUser(ctx.user.id, { limit: 200 });
-        const e = errors.find(err => err.id === input.id);
+        const { items: errors } = await storage.getQuestionErrorsByUser(
+          ctx.user.id,
+          { limit: 200 },
+        );
+        const e = errors.find((err) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
-        const correctText = e.alternatives?.find(a => a.letter === e.correctAnswer)?.text || "";
+        const correctText =
+          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, crie UM flashcard para memorização.
 
@@ -786,17 +990,28 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
 {"front": "pergunta direta e objetiva que testa o conceito cobrado (máx 2 linhas)", "back": "resposta clara e completa com a regra ou distinção fundamental (máx 3 linhas)"}`;
 
         try {
-          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 512);
+          const raw = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            512,
+          );
           if (!raw) throw new Error("Resposta vazia da IA.");
           let parsed;
           try {
             parsed = extractJSON(raw) as { front: string; back: string };
           } catch (parseErr: unknown) {
-            console.error("JSON parsing failed for flashcard:", parseErr.message);
+            console.error(
+              "JSON parsing failed for flashcard:",
+              (parseErr as any).message,
+            );
             console.error("Raw AI response:", raw);
-            throw new Error(`Falha ao processar flashcard da IA: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. Resposta crua: ${raw.substring(0, 100)}...`);
+            throw new Error(
+              `Falha ao processar flashcard da IA: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}. Resposta crua: ${raw.substring(0, 100)}...`,
+            );
           }
-          if (!parsed.front || !parsed.back) throw new Error("Flashcard inválido gerado pela IA.");
+          if (!parsed.front || !parsed.back)
+            throw new Error("Flashcard inválido gerado pela IA.");
 
           // Salva o flashcard no banco
           await storage.createFlashcard({
@@ -806,10 +1021,15 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
             front: parsed.front,
             back: parsed.back,
           });
-          await storage.markQuestionErrorFlashcardGenerated(input.id, ctx.user.id);
+          await storage.markQuestionErrorFlashcardGenerated(
+            input.id,
+            ctx.user.id,
+          );
           return { front: parsed.front, back: parsed.back };
         } catch (err: unknown) {
-          throw new Error(`Falha ao gerar flashcard: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao gerar flashcard: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
   }),
@@ -821,40 +1041,55 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
         return storage.getEssaysByUser(ctx.user.id, input?.disciplineId);
       }),
     transcribe: protectedProcedure
-      .input(z.object({
-        image: z.string(), // base64
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          image: z.string(), // base64
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ input }) => {
-        const prompt = "Você é um especialista em OCR e transcrição de textos manuscritos. Transcreva EXATAMENTE o texto contido na imagem fornecida, mantendo parágrafos e pontuação originais. Retorne APENAS o texto limpo, sem introduções ou explicações.";
+        const prompt =
+          "Você é um especialista em OCR e transcrição de textos manuscritos. Transcreva EXATAMENTE o texto contido na imagem fornecida, mantendo parágrafos e pontuação originais. Retorne APENAS o texto limpo, sem introduções ou explicações.";
         try {
-          const result = await callAiProvider(input.provider, input.apiKey, prompt, 2048, input.image);
+          const result = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            2048,
+            input.image,
+          );
           return { transcription: result };
         } catch (err: unknown) {
-          throw new Error(`Falha na transcrição: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha na transcrição: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
     save: protectedProcedure
-      .input(z.object({
-        disciplineId: z.number(),
-        topicId: z.number().optional(),
-        title: z.string().min(1),
-        banca: z.string().min(1),
-        transcription: z.string().default(""),
-        originalImage: z.string().optional(),
-        status: z.enum(["draft", "pending", "corrected"]).default("draft"),
-      }))
+      .input(
+        z.object({
+          disciplineId: z.number(),
+          topicId: z.number().optional(),
+          title: z.string().min(1),
+          banca: z.string().min(1),
+          transcription: z.string().default(""),
+          originalImage: z.string().optional(),
+          status: z.enum(["draft", "pending", "corrected"]).default("draft"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         return storage.saveEssay({ ...input, userId: ctx.user.id });
       }),
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        title: z.string().optional(),
-        transcription: z.string().optional(),
-        status: z.enum(["draft", "pending", "corrected"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().optional(),
+          transcription: z.string().optional(),
+          status: z.enum(["draft", "pending", "corrected"]).optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         return storage.updateEssay(id, ctx.user.id, data);
@@ -866,16 +1101,20 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
         return { success: true };
       }),
     analyze: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const essay = await storage.getEssayById(input.id, ctx.user.id);
         if (!essay) throw new Error("Redação não encontrada.");
         if (!essay.transcription || essay.transcription.trim().length < 10) {
-          throw new Error("A redação precisa ter uma transcrição (mínimo 10 caracteres) para ser analisada pela IA.");
+          throw new Error(
+            "A redação precisa ter uma transcrição (mínimo 10 caracteres) para ser analisada pela IA.",
+          );
         }
 
         const prompt = `Você é um examinador sênior de redações para concursos públicos brasileiros com 20 anos de experiência, especialista na banca ${essay.banca}.
@@ -942,38 +1181,53 @@ ESTRUTURA JSON OBRIGATÓRIA (retorne APENAS o JSON, sem markdown externo):
 Responda apenas o JSON.`;
 
         try {
-          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4000);
+          const raw = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            4000,
+          );
           const parsed = extractJSON(raw) as any;
 
           await storage.updateEssay(input.id, ctx.user.id, {
             correction: parsed,
-            status: "corrected"
+            status: "corrected",
           });
 
           return parsed;
         } catch (err: unknown) {
-          throw new Error(`Falha na correção da IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha na correção da IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
   }),
 
   ai: router({
     analyzeErrors: protectedProcedure
-      .input(z.object({
-        topicId: z.number().optional(),
-        disciplineId: z.number().optional(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          topicId: z.number().optional(),
+          disciplineId: z.number().optional(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        const { items: errors } = await storage.getQuestionErrorsByUser(ctx.user.id, {
-          topicId: input.topicId,
-          disciplineId: input.disciplineId,
-          limit: 30,
-        });
+        const { items: errors } = await storage.getQuestionErrorsByUser(
+          ctx.user.id,
+          {
+            topicId: input.topicId,
+            disciplineId: input.disciplineId,
+            limit: 30,
+          },
+        );
 
         if (errors.length === 0) {
-          return { analysis: "Nenhuma questão registrada ainda. Registre questões erradas no Modo Questões para obter diagnóstico." };
+          return {
+            analysis:
+              "Nenhuma questão registrada ainda. Registre questões erradas no Modo Questões para obter diagnóstico.",
+          };
         }
 
         const grouped: Record<string, typeof errors> = {};
@@ -983,25 +1237,37 @@ Responda apenas o JSON.`;
           grouped[key].push(e);
         }
 
-        const sections = Object.entries(grouped).map(([, errs]) => {
-          const lines = errs.map(e => {
-            const chosen = e.userAnswer ? `Você marcou: ${e.userAnswer}` : "";
-            const correct = e.correctAnswer ? `Gabarito: ${e.correctAnswer}` : "";
-            const chosenText = e.alternatives.find(a => a.letter === e.userAnswer)?.text || "";
-            const correctText = e.alternatives.find(a => a.letter === e.correctAnswer)?.text || "";
-            const origin = e.errorOrigin ? `Tipo do erro: ${e.errorOrigin}` : "";
-            return [
-              `--- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---`,
-              e.statement,
-              e.alternatives.map(a => `${a.letter}) ${a.text}`).join("\n"),
-              chosen + (chosenText ? ` — "${chosenText}"` : ""),
-              correct + (correctText ? ` — "${correctText}"` : ""),
-              origin,
-            ].filter(Boolean).join("\n");
-          });
-          const topicId = errs[0]?.topicId;
-          return `=== TÓPICO ID ${topicId} (${errs.length} erro(s)) ===\n${lines.join("\n\n")}`;
-        }).join("\n\n");
+        const sections = Object.entries(grouped)
+          .map(([, errs]) => {
+            const lines = errs.map((e) => {
+              const chosen = e.userAnswer ? `Você marcou: ${e.userAnswer}` : "";
+              const correct = e.correctAnswer
+                ? `Gabarito: ${e.correctAnswer}`
+                : "";
+              const chosenText =
+                e.alternatives.find((a) => a.letter === e.userAnswer)?.text ||
+                "";
+              const correctText =
+                e.alternatives.find((a) => a.letter === e.correctAnswer)
+                  ?.text || "";
+              const origin = e.errorOrigin
+                ? `Tipo do erro: ${e.errorOrigin}`
+                : "";
+              return [
+                `--- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---`,
+                e.statement,
+                e.alternatives.map((a) => `${a.letter}) ${a.text}`).join("\n"),
+                chosen + (chosenText ? ` — "${chosenText}"` : ""),
+                correct + (correctText ? ` — "${correctText}"` : ""),
+                origin,
+              ]
+                .filter(Boolean)
+                .join("\n");
+            });
+            const topicId = errs[0]?.topicId;
+            return `=== TÓPICO ID ${topicId} (${errs.length} erro(s)) ===\n${lines.join("\n\n")}`;
+          })
+          .join("\n\n");
 
         const prompt = `Você é um professor especialista em concursos públicos brasileiros.
 
@@ -1022,44 +1288,66 @@ Com base nas questões acima, responda:
 Responda em português, de forma direta e técnica como um professor de cursinho. Máximo 500 palavras.`;
 
         try {
-          const analysis = await callAiProvider(input.provider, input.apiKey, prompt, 1024);
+          const analysis = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            1024,
+          );
           return { analysis };
         } catch (err: unknown) {
-          throw new Error(`Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao chamar IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
 
     processText: protectedProcedure
-      .input(z.object({
-        text: z.string(),
-        action: z.enum(["summarize", "improve", "explain", "autocomplete"]),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          text: z.string(),
+          action: z.enum(["summarize", "improve", "explain", "autocomplete"]),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ input }) => {
         let prompt = "";
-        if (input.action === "summarize") prompt = `Resuma o seguinte texto de forma concisa e em português:\n\n${input.text}`;
-        if (input.action === "improve") prompt = `Melhore a escrita do seguinte texto, corrigindo erros, tornando-o mais claro, coeso e em português:\n\n${input.text}`;
-        if (input.action === "explain") prompt = `Explique o seguinte texto de forma muito simples, como se fosse para um iniciante, em português:\n\n${input.text}`;
-        if (input.action === "autocomplete") prompt = `Continue o raciocínio do texto abaixo de forma natural, coerente e em português:\n\n${input.text}`;
+        if (input.action === "summarize")
+          prompt = `Resuma o seguinte texto de forma concisa e em português:\n\n${input.text}`;
+        if (input.action === "improve")
+          prompt = `Melhore a escrita do seguinte texto, corrigindo erros, tornando-o mais claro, coeso e em português:\n\n${input.text}`;
+        if (input.action === "explain")
+          prompt = `Explique o seguinte texto de forma muito simples, como se fosse para um iniciante, em português:\n\n${input.text}`;
+        if (input.action === "autocomplete")
+          prompt = `Continue o raciocínio do texto abaixo de forma natural, coerente e em português:\n\n${input.text}`;
 
         try {
-          const result = await callAiProvider(input.provider, input.apiKey, prompt, 2048);
+          const result = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            2048,
+          );
           return { result };
         } catch (err: unknown) {
-          throw new Error(`Falha ao processar texto com IA: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao processar texto com IA: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
 
     generateFlashcardsFromText: protectedProcedure
-      .input(z.object({
-        text: z.string(),
-        disciplineId: z.number(),
-        topicId: z.number().optional(),
-        noteId: z.number().optional(),
-        apiKey: z.string().min(1),
-        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
-      }))
+      .input(
+        z.object({
+          text: z.string(),
+          disciplineId: z.number(),
+          topicId: z.number().optional(),
+          noteId: z.number().optional(),
+          apiKey: z.string().min(1),
+          provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const prompt = `Você é um professor especialista. Leia o seguinte texto (resumo de estudos) e crie flashcards para os conceitos mais importantes.
 Retorne APENAS um JSON contendo uma lista (array) de objetos. Cada objeto deve ter os campos "front" (pergunta direta, máx 2 linhas) e "back" (resposta clara, máx 3 linhas).
@@ -1069,9 +1357,15 @@ Texto:
 ${input.text.substring(0, 8000)}`;
 
         try {
-          const raw = await callAiProvider(input.provider, input.apiKey, prompt, 4096);
+          const raw = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            4096,
+          );
           const parsed = extractJSON(raw) as { front: string; back: string }[];
-          if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Nenhum flashcard gerado.");
+          if (!Array.isArray(parsed) || parsed.length === 0)
+            throw new Error("Nenhum flashcard gerado.");
 
           let createdCount = 0;
           for (const card of parsed) {
@@ -1089,7 +1383,9 @@ ${input.text.substring(0, 8000)}`;
           }
           return { createdCount };
         } catch (err: unknown) {
-          throw new Error(`Falha ao gerar flashcards: ${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(
+            `Falha ao gerar flashcards: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
   }),
@@ -1097,125 +1393,200 @@ ${input.text.substring(0, 8000)}`;
   // ============ V10 NEW FEATURE ROUTES ============
   v10: router({
     saveRecallRating: protectedProcedure
-      .input(z.object({
-        revisionId: z.number(),
-        rating: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
-        freeRecallText: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          revisionId: z.number(),
+          rating: z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3),
+            z.literal(4),
+            z.literal(5),
+          ]),
+          freeRecallText: z.string().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.saveRevisionRecallRating(input.revisionId, ctx.user.id, input.rating, input.freeRecallText);
+        await storage.saveRevisionRecallRating(
+          input.revisionId,
+          ctx.user.id,
+          input.rating,
+          input.freeRecallText,
+        );
         return { success: true };
       }),
 
     checkEarlyRevision: protectedProcedure
       .input(z.object({ topicId: z.number(), minDays: z.number().default(3) }))
       .query(async ({ ctx, input }) => {
-        const lastDate = await storage.getLastRevisionDate(input.topicId, ctx.user.id);
+        const lastDate = await storage.getLastRevisionDate(
+          input.topicId,
+          ctx.user.id,
+        );
         if (!lastDate) return { tooEarly: false, daysSince: null };
-        const daysSince = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);
+        const daysSince = Math.floor(
+          (Date.now() - new Date(lastDate).getTime()) / 86400000,
+        );
         return { tooEarly: daysSince < input.minDays, daysSince };
       }),
 
     logEmotion: protectedProcedure
-      .input(z.object({ mood: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }))
+      .input(
+        z.object({
+          mood: z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3),
+            z.literal(4),
+            z.literal(5),
+          ]),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         await storage.logEmotion(ctx.user.id, input.mood);
         return { success: true };
       }),
 
-    getEmotionCorrelation: protectedProcedure
-      .query(async ({ ctx }) => {
-        const settings = await storage.getUserSettings(ctx.user.id);
-        const log = settings?.emotionLog ?? [];
-        const sessions = settings?.studySessionLog ?? [];
-        const correlations: Array<{ mood: number; avgAccuracy: number; count: number }> = [];
-        for (let mood = 1; mood <= 5; mood++) {
-          const moodDays = log.filter(e => e.mood === mood).map(e => e.date.split("T")[0]);
-          const accs = sessions.filter(s => moodDays.includes(s.date) && s.accuracy > 0).map(s => s.accuracy);
-          if (accs.length > 0) {
-            correlations.push({ mood, avgAccuracy: Math.round(accs.reduce((a, b) => a + b, 0) / accs.length * 100) / 100, count: accs.length });
-          }
+    getEmotionCorrelation: protectedProcedure.query(async ({ ctx }) => {
+      const settings = await storage.getUserSettings(ctx.user.id);
+      const log = settings?.emotionLog ?? [];
+      const sessions = settings?.studySessionLog ?? [];
+      const correlations: Array<{
+        mood: number;
+        avgAccuracy: number;
+        count: number;
+      }> = [];
+      for (let mood = 1; mood <= 5; mood++) {
+        const moodDays = log
+          .filter((e) => e.mood === mood)
+          .map((e) => e.date.split("T")[0]);
+        const accs = sessions
+          .filter((s) => moodDays.includes(s.date) && s.accuracy > 0)
+          .map((s) => s.accuracy);
+        if (accs.length > 0) {
+          correlations.push({
+            mood,
+            avgAccuracy:
+              Math.round(
+                (accs.reduce((a, b) => a + b, 0) / accs.length) * 100,
+              ) / 100,
+            count: accs.length,
+          });
         }
-        return correlations;
-      }),
+      }
+      return correlations;
+    }),
 
     logStudySession: protectedProcedure
-      .input(z.object({
-        hourStart: z.number().min(0).max(23),
-        durationMin: z.number().min(1),
-        accuracy: z.number().min(0).max(1),
-        disciplineId: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          hourStart: z.number().min(0).max(23),
+          durationMin: z.number().min(1),
+          accuracy: z.number().min(0).max(1),
+          disciplineId: z.number().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.logStudySession(ctx.user.id, input.hourStart, input.durationMin, input.accuracy, input.disciplineId);
+        await storage.logStudySession(
+          ctx.user.id,
+          input.hourStart,
+          input.durationMin,
+          input.accuracy,
+          input.disciplineId,
+        );
         return { success: true };
       }),
 
-    getPeakHours: protectedProcedure
-      .query(async ({ ctx }) => {
-        return getPeakHoursAnalysis(ctx.user.id);
-      }),
+    getPeakHours: protectedProcedure.query(async ({ ctx }) => {
+      return getPeakHoursAnalysis(ctx.user.id);
+    }),
 
     logStudyEnd: protectedProcedure
-      .input(z.object({ endHour: z.number().min(0).max(23), alertIssued: z.boolean() }))
+      .input(
+        z.object({
+          endHour: z.number().min(0).max(23),
+          alertIssued: z.boolean(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.logStudyEndTime(ctx.user.id, input.endHour, input.alertIssued);
+        await storage.logStudyEndTime(
+          ctx.user.id,
+          input.endHour,
+          input.alertIssued,
+        );
         return { success: true };
       }),
 
-    getDisciplineRebalance: protectedProcedure
-      .query(async ({ ctx }) => {
-        return getDisciplineRebalanceReport(ctx.user.id);
-      }),
+    getDisciplineRebalance: protectedProcedure.query(async ({ ctx }) => {
+      return getDisciplineRebalanceReport(ctx.user.id);
+    }),
 
-    getForgettingVelocity: protectedProcedure
-      .query(async ({ ctx }) => {
-        return getForgettingVelocityByDiscipline(ctx.user.id);
-      }),
+    getForgettingVelocity: protectedProcedure.query(async ({ ctx }) => {
+      return getForgettingVelocityByDiscipline(ctx.user.id);
+    }),
 
-    checkMassStudy: protectedProcedure
-      .query(async ({ ctx }) => {
-        const db_topics = await storage.getTopicsByUser(ctx.user.id);
-        const today = new Date().toISOString().split("T")[0];
-        const todayTopics = db_topics.filter(t => t.studyDate === today);
-        const countByDiscipline: Record<number, number> = {};
-        for (const t of todayTopics) {
-          countByDiscipline[t.disciplineId] = (countByDiscipline[t.disciplineId] || 0) + 1;
-        }
-        const flagged = Object.entries(countByDiscipline)
-          .filter(([_, count]) => count >= 4)
-          .map(([id, count]) => ({ disciplineId: parseInt(id), count }));
-        return { flagged };
-      }),
+    checkMassStudy: protectedProcedure.query(async ({ ctx }) => {
+      const db_topics = await storage.getTopicsByUser(ctx.user.id);
+      const today = new Date().toISOString().split("T")[0];
+      const todayTopics = db_topics.filter((t) => t.studyDate === today);
+      const countByDiscipline: Record<number, number> = {};
+      for (const t of todayTopics) {
+        countByDiscipline[t.disciplineId] =
+          (countByDiscipline[t.disciplineId] || 0) + 1;
+      }
+      const flagged = Object.entries(countByDiscipline)
+        .filter(([_, count]) => count >= 4)
+        .map(([id, count]) => ({ disciplineId: parseInt(id), count }));
+      return { flagged };
+    }),
 
-    getPreExamStatus: protectedProcedure
-      .query(async ({ ctx }) => {
-        const settings = await storage.getUserSettings(ctx.user.id);
-        const preExamDays = settings?.preExamDays ?? 7;
-        const exams = [...(settings?.exams || [])];
-        if (settings?.examDate) exams.push({ id: "main", name: settings.examName || "Concurso", date: settings.examDate });
-        type ExamWithDays = { id: string; name: string; date: string; daysLeft: number };
-        const upcoming: ExamWithDays[] = exams
-          .map(e => ({ ...e, daysLeft: Math.ceil((new Date(e.date).getTime() - Date.now()) / 86400000) }))
-          .filter(e => e.daysLeft >= 0 && e.daysLeft <= preExamDays)
-          .sort((a, b) => a.daysLeft - b.daysLeft);
-        return { active: upcoming.length > 0, exams: upcoming, preExamDays };
-      }),
+    getPreExamStatus: protectedProcedure.query(async ({ ctx }) => {
+      const settings = await storage.getUserSettings(ctx.user.id);
+      const preExamDays = settings?.preExamDays ?? 7;
+      const exams = [...(settings?.exams || [])];
+      if (settings?.examDate)
+        exams.push({
+          id: "main",
+          name: settings.examName || "Concurso",
+          date: settings.examDate,
+        });
+      type ExamWithDays = {
+        id: string;
+        name: string;
+        date: string;
+        daysLeft: number;
+      };
+      const upcoming: ExamWithDays[] = exams
+        .map((e) => ({
+          ...e,
+          daysLeft: Math.ceil(
+            (new Date(e.date).getTime() - Date.now()) / 86400000,
+          ),
+        }))
+        .filter((e) => e.daysLeft >= 0 && e.daysLeft <= preExamDays)
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+      return { active: upcoming.length > 0, exams: upcoming, preExamDays };
+    }),
 
     updateV10Settings: protectedProcedure
-      .input(z.object({
-        attentionAlertMinutes: z.number().min(5).max(180).optional(),
-        delayedFeedback: z.boolean().optional(),
-        preExamDays: z.number().min(1).max(60).optional(),
-        aiApiKey: z.string().optional(),
-        aiProvider: z.enum(["gemini", "openai", "claude"]).optional(),
-        autoBackupEnabled: z.boolean().optional(),
-        autoBackupDir: z.string().optional(),
-        profileImage: z.string().optional(),
-        minimizeToTray: z.boolean().optional(),
-      }))
+      .input(
+        z.object({
+          attentionAlertMinutes: z.number().min(5).max(180).optional(),
+          delayedFeedback: z.boolean().optional(),
+          preExamDays: z.number().min(1).max(60).optional(),
+          aiApiKey: z.string().optional(),
+          aiProvider: z.enum(["gemini", "openai", "claude"]).optional(),
+          autoBackupEnabled: z.boolean().optional(),
+          autoBackupDir: z.string().optional(),
+          profileImage: z.string().optional(),
+          minimizeToTray: z.boolean().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
-        await storage.updateUserSettings(ctx.user.id, input as Partial<import("./jsonStorage").UserSettings>);
+        await storage.updateUserSettings(
+          ctx.user.id,
+          input as Partial<import("./jsonStorage").UserSettings>,
+        );
         return { success: true };
       }),
   }),
@@ -1225,14 +1596,18 @@ ${input.text.substring(0, 8000)}`;
 
   history: router({
     get: protectedProcedure
-      .input(z.object({
-        disciplineId: z.number().optional(),
-        search: z.string().optional(),
-        type: z.enum(["revision", "test"]).optional(),
-        completed: z.boolean().optional(),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            disciplineId: z.number().optional(),
+            search: z.string().optional(),
+            type: z.enum(["revision", "test"]).optional(),
+            completed: z.boolean().optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
         const [revisions, topics, disciplines] = await Promise.all([
           storage.getRevisionsByUser(ctx.user.id),
@@ -1243,27 +1618,35 @@ ${input.text.substring(0, 8000)}`;
         let filtered = revisions;
 
         if (input?.completed !== undefined) {
-          filtered = filtered.filter(r => r.completed === input.completed);
+          filtered = filtered.filter((r) => r.completed === input.completed);
         }
         if (input?.type) {
-          filtered = filtered.filter(r => r.type === input.type);
+          filtered = filtered.filter((r) => r.type === input.type);
         }
         if (input?.startDate) {
-          filtered = filtered.filter(r => r.scheduledDate >= input.startDate!);
+          filtered = filtered.filter(
+            (r) => r.scheduledDate >= input.startDate!,
+          );
         }
         if (input?.endDate) {
-          filtered = filtered.filter(r => r.scheduledDate <= input.endDate!);
+          filtered = filtered.filter((r) => r.scheduledDate <= input.endDate!);
         }
         if (input?.disciplineId) {
-          const discTopicIds = new Set(topics.filter(t => t.disciplineId === input.disciplineId).map(t => t.id));
-          filtered = filtered.filter(r => discTopicIds.has(r.topicId));
+          const discTopicIds = new Set(
+            topics
+              .filter((t) => t.disciplineId === input.disciplineId)
+              .map((t) => t.id),
+          );
+          filtered = filtered.filter((r) => discTopicIds.has(r.topicId));
         }
         if (input?.search) {
           const q = input.search.toLowerCase();
           const matchingTopicIds = new Set(
-            topics.filter(t => t.name.toLowerCase().includes(q)).map(t => t.id)
+            topics
+              .filter((t) => t.name.toLowerCase().includes(q))
+              .map((t) => t.id),
           );
-          filtered = filtered.filter(r => matchingTopicIds.has(r.topicId));
+          filtered = filtered.filter((r) => matchingTopicIds.has(r.topicId));
         }
 
         return {
@@ -1274,13 +1657,17 @@ ${input.text.substring(0, 8000)}`;
       }),
   }),
 
-  exporter: router({
+  export: router({
     getSchedule: protectedProcedure
-      .input(z.object({
-        disciplineId: z.number().optional(),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            disciplineId: z.number().optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
         const [revisions, topics, disciplines] = await Promise.all([
           storage.getRevisionsByUser(ctx.user.id),
@@ -1291,29 +1678,39 @@ ${input.text.substring(0, 8000)}`;
         let filtered = revisions;
 
         if (input?.startDate) {
-          filtered = filtered.filter(r => r.scheduledDate >= input.startDate!);
+          filtered = filtered.filter(
+            (r) => r.scheduledDate >= input.startDate!,
+          );
         }
         if (input?.endDate) {
-          filtered = filtered.filter(r => r.scheduledDate <= input.endDate!);
+          filtered = filtered.filter((r) => r.scheduledDate <= input.endDate!);
         }
         if (input?.disciplineId) {
-          const discTopicIds = new Set(topics.filter(t => t.disciplineId === input.disciplineId).map(t => t.id));
-          filtered = filtered.filter(r => discTopicIds.has(r.topicId));
+          const discTopicIds = new Set(
+            topics
+              .filter((t) => t.disciplineId === input.disciplineId)
+              .map((t) => t.id),
+          );
+          filtered = filtered.filter((r) => discTopicIds.has(r.topicId));
         }
 
-        const schedule = filtered.map(r => {
-          const topic = topics.find(t => t.id === r.topicId);
-          const discipline = disciplines.find(d => d.id === topic?.disciplineId);
-          return {
-            date: r.scheduledDate,
-            type: r.type,
-            revisionNumber: r.revisionNumber,
-            topicName: topic?.name ?? "—",
-            disciplineName: discipline?.name ?? "—",
-            completed: r.completed,
-            ignored: r.ignored,
-          };
-        }).sort((a, b) => a.date.localeCompare(b.date));
+        const schedule = filtered
+          .map((r) => {
+            const topic = topics.find((t) => t.id === r.topicId);
+            const discipline = disciplines.find(
+              (d) => d.id === topic?.disciplineId,
+            );
+            return {
+              date: r.scheduledDate,
+              type: r.type,
+              revisionNumber: r.revisionNumber,
+              topicName: topic?.name ?? "—",
+              disciplineName: discipline?.name ?? "—",
+              completed: r.completed,
+              ignored: r.ignored,
+            };
+          })
+          .sort((a, b) => a.date.localeCompare(b.date));
 
         return { schedule };
       }),
