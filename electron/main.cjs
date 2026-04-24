@@ -1,4 +1,10 @@
 const { app, BrowserWindow, shell, ipcMain, Tray, Menu, Notification, nativeImage, session } = require("electron");
+
+// Fix: Disable setuid sandbox (requires root SUID bit which may not be set on all Linux systems)
+// This flag must be set before app is ready
+app.commandLine.appendSwitch("disable-setuid-sandbox");
+app.commandLine.appendSwitch("no-sandbox");
+
 const path = require("path");
 const { fork } = require("child_process");
 

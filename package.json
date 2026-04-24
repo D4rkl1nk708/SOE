@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "4.8.7",
+  "version": "4.9.0",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -143,6 +143,7 @@
   "build": {
     "appId": "com.soe.estudos",
     "productName": "SOE Estudos",
+    "afterPack": "./scripts/afterPack.cjs",
     "directories": {
       "output": "release"
     },
@@ -159,7 +160,8 @@
       "target": [
         "AppImage"
       ],
-      "category": "Education"
+      "category": "Education",
+      "executableArgs": ["--no-sandbox"]
     },
     "win": {
       "target": [
