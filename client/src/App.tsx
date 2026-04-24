@@ -33,6 +33,7 @@ import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
+import { GuidedTour } from "./components/GuidedTour";
 
 function Router() {
   useSmartNotifications();
@@ -304,6 +305,7 @@ function App() {
           <div style={{ visibility: splashDone ? "visible" : "hidden" }}>
             <Layout>
               <Router />
+              <GuidedTour />
             </Layout>
           </div>
         </TooltipProvider>

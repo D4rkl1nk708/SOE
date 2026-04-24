@@ -11,6 +11,39 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "5.1.0",
+    date: "24/04/2026",
+    title: "Navegação Tática & Tour de Descoberta",
+    categories: [
+      {
+        title: "🚀 Tour de Descoberta",
+        type: "feature",
+        items: [
+          "Novo Guided Tour 360°: Uma jornada completa pelas funcionalidades do SOE.",
+          "Motor de Spotlight Resiliente: Destaque visual infalível com suporte a navegação multi-página.",
+          "Fallback Inteligente: O tour nunca trava, permitindo pular etapas ou navegar livremente.",
+        ],
+      },
+      {
+        title: "🧠 Mentor de Elite",
+        type: "improvement",
+        items: [
+          "Recomendações Granulares: A IA agora analisa platôs, regressões e erros do TEC para sugerir ações reais.",
+          "Botão 'Recalcular Rota': Force uma nova análise tática do Mentor a qualquer momento.",
+          "Diagnósticos Técnicos: Chega de dicas genéricas; agora o Mentor diz exatamente onde você está perdendo pontos.",
+        ],
+      },
+      {
+        title: "🛠️ Robustez Visual",
+        type: "fix",
+        items: [
+          "Correção de bugs de renderização no destaque de elementos (black screen bug fix).",
+          "Ajuste de posicionamento automático de cards explicativos em telas menores.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.0.0",
     date: "24/04/2026",
     title: "Autonomia & Inteligência",

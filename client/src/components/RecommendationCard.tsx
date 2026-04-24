@@ -26,7 +26,9 @@ export function RecommendationCard() {
   const {
     data: rec,
     isLoading,
+    isRefetching,
     error,
+    refetch,
   } = trpc.mentor.getMentorRecommendation.useQuery(
     { apiKey, provider },
     {
@@ -73,11 +75,21 @@ export function RecommendationCard() {
             >
               <Target size={20} />
             </div>
-            <div className="flex flex-col">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">
-                Recomendação do Mentor
-              </h2>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col flex-1">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">
+                  Recomendação do Mentor
+                </h2>
+                <button
+                  onClick={() => refetch()}
+                  disabled={isRefetching}
+                  className={`p-1 hover:bg-white/5 rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
+                  title="Recalcular Rota"
+                >
+                  <Sparkles size={14} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs font-bold text-primary/60">
                   {rec.contextTag}
                 </span>
@@ -118,39 +130,39 @@ export function RecommendationCard() {
                 {rec.disciplineName}
               </span>
             </h3>
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-30">
-                  Diagnóstico Crítico
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
+                  <AlertCircle size={10} /> Diagnóstico Crítico
                 </p>
-                <p className="text-sm font-bold opacity-90 border-l-2 border-primary/20 pl-3 py-0.5">
+                <p className="text-sm font-bold opacity-90 border-l-2 border-primary/20 pl-3 py-1 bg-white/[0.02] rounded-r-lg">
                   {rec.diagnostic}
                 </p>
               </div>
 
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-30">
-                  Plano de Ação
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
+                  <TrendingDown size={10} /> Plano de Ação
                 </p>
-                <p className="text-sm opacity-80 leading-relaxed max-w-2xl bg-white/[0.03] p-3 rounded-xl border border-white/5">
+                <p className="text-sm opacity-80 leading-relaxed bg-primary/5 p-3 rounded-xl border border-primary/10 font-medium">
                   {rec.actionPlan}
                 </p>
               </div>
+            </div>
 
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500/50">
-                  Risco na Prova (Previsão)
-                </p>
-                <p className="text-[13px] font-medium text-rose-500/80 italic leading-relaxed">
-                  "{rec.prediction}"
-                </p>
-              </div>
+            <div className="mt-4 p-3 rounded-2xl bg-rose-500/[0.03] border border-rose-500/10">
+              <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/50 mb-1">
+                Risco na Prova (Previsão)
+              </p>
+              <p className="text-[12px] font-bold text-rose-500/80 italic leading-relaxed">
+                "{rec.prediction}"
+              </p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
-          <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner">
+          <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner group-hover:border-primary/30 transition-colors">
             <Clock size={16} className="opacity-40" />
             <span className="text-xs font-black uppercase tracking-widest opacity-60">
               Foco Imediato

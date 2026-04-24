@@ -158,6 +158,7 @@ function NavItem({
   return (
     <Link
       href={path}
+      id={`tour-nav-${path.replace("/", "") || "home"}`}
       title={collapsed ? label : undefined}
       className={`flex items-center gap-3 px-4 py-2.5 rounded-full transition-all duration-300 group ${collapsed ? "justify-center mx-1" : "mx-2"}`}
       style={
@@ -399,6 +400,15 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("soe-start-tour"))
+              }
+              className="p-2 rounded-xl text-primary active:scale-95 transition-all"
+              title="Iniciar Tour"
+            >
+              <Zap className="w-[22px] h-[22px]" />
+            </button>
             <SearchButton />
             <button
               onClick={toggleTheme}
@@ -478,6 +488,19 @@ export function Layout({ children }: { children: ReactNode }) {
               ) : (
                 <Sun className="w-4 h-4" />
               )}
+            </button>
+            <button
+              id="tour-trigger"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("soe-start-tour"))
+              }
+              className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all flex items-center gap-1.5"
+              title="Iniciar Tour Guiado"
+            >
+              <Zap size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline">
+                Tour
+              </span>
             </button>
             <Link
               href="/profile"

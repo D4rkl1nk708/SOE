@@ -152,7 +152,10 @@ function RichEditor({
       />
 
       {/* Premium Toolbar */}
-      <div className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-white/5 bg-white/[0.01] relative">
+      <div
+        id="tour-notes-toolbar"
+        className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-white/5 bg-white/[0.01] relative"
+      >
         <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth mask-fade-right pr-12">
           {toolbarGroups.map((group, gi) => (
             <Fragment key={gi}>
@@ -185,7 +188,10 @@ function RichEditor({
         </div>
 
         {/* AI Magic Button - Fixed on Right */}
-        <div className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 flex items-center pl-4 bg-gradient-to-l from-[var(--app-bg)] via-[var(--app-bg)] to-transparent">
+        <div
+          id="tour-notes-ai"
+          className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 flex items-center pl-4 bg-gradient-to-l from-[var(--app-bg)] via-[var(--app-bg)] to-transparent"
+        >
           <div className="relative">
             <button
               onMouseDown={(e) => {
@@ -407,6 +413,7 @@ export default function Notes() {
     <div className="flex h-[calc(100vh-10.5rem)] md:h-[calc(100vh-4rem)] -mx-3 -mb-3 md:-mx-6 md:-mb-6 overflow-hidden bg-[var(--app-bg)] relative">
       {/* Sidebar */}
       <div
+        id="tour-notes-sidebar"
         className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl transition-all`}
       >
         <div className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -425,7 +432,7 @@ export default function Notes() {
             </button>
           </div>
 
-          <div className="relative">
+          <div id="tour-notes-search" className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 opacity-20"
               size={14}

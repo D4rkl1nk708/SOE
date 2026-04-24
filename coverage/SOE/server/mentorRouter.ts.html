@@ -1950,12 +1950,7 @@
 <a name='L1885'></a><a href='#L1885'>1885</a>
 <a name='L1886'></a><a href='#L1886'>1886</a>
 <a name='L1887'></a><a href='#L1887'>1887</a>
-<a name='L1888'></a><a href='#L1888'>1888</a>
-<a name='L1889'></a><a href='#L1889'>1889</a>
-<a name='L1890'></a><a href='#L1890'>1890</a>
-<a name='L1891'></a><a href='#L1891'>1891</a>
-<a name='L1892'></a><a href='#L1892'>1892</a>
-<a name='L1893'></a><a href='#L1893'>1893</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1888'></a><a href='#L1888'>1888</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3651,12 +3646,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3679,13 +3669,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -5542,46 +5532,41 @@ Mentor:`;
       
       DADOS BRUTOS:
       - Rebalanceamento (Aproveitamento): ${JSON.stringify(rebalance.slice(0, 3))}
-      - Curva de Esquecimento (Crítica): ${JSON.stringify(forgetting.slice(0, 3))}
-      - Pontos Cegos (TEC): ${JSON.stringify(weakFromSnap.slice(0, 3))}
-      - Redações/Subjetivas: ${essays.length} totais, ${pendingEssays.length} pendentes de correção/escrita.
-      - Laboratório: ${minedExamsCount} provas mineradas aguardando integração/estudo.
-      - Memória do Mentor: ${observations.slice(-3).join(" | ")}
-      - Últimos Erros: ${recentErrors.map(<span class="fstat-no" title="function not covered" >(e</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >e.errorOrigin)</span>.join(", ")}
-      - Flashcards Vencendo: ${lowFlashcards}
-      - Regressões Detectadas: ${regressions.length &gt; 0 ? regressions.map(<span class="fstat-no" title="function not covered" >(r</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >`${r.topicName} (-${r.accuracyDrop}%)`)</span>.join(", ") : "Nenhuma"}
-      - Assuntos Travados: ${plateaus.length &gt; 0 ? plateaus.map(<span class="fstat-no" title="function not covered" >(p</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >p.topicName)</span>.join(", ") : "Nenhum"}
+      - Pontos Cegos (TEC): ${JSON.stringify(weakFromSnap.slice(0, 5))}
+      - Últimos Erros: ${recentErrors.map(<span class="fstat-no" title="function not covered" >(e</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >`${e.disciplineName} &gt; ${e.errorOrigin}`)</span>.join(", ")}
+      - Regressões Detectadas: ${regressions.length &gt; 0 ? regressions.map(<span class="fstat-no" title="function not covered" >(r</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >`${r.disciplineName} &gt; ${r.topicName} (-${r.accuracyDrop}%)`)</span>.join(", ") : "Nenhuma"}
+      - Temas em Platô (Estagnados): ${plateaus.length &gt; 0 ? plateaus.map(<span class="fstat-no" title="function not covered" >(p</span>: any) =&gt; <span class="cstat-no" title="statement not covered" >`${p.disciplineName} &gt; ${p.topicName} (${Math.round((p.performance?.correctCount / p.performance?.questionsResolved) * 100)}%)`)</span>.join(", ") : "Nenhum"}
+      - Observações de Longo Prazo: ${observations.slice(-3).join(" | ")}
       
       CRITÉRIOS DE PRIORIDADE:
-      1. Se houver Redação pendente há muito tempo: PRIORIDADE MÁXIMA.
-      2. Se houver Regressão Crítica (queda brusca de acerto): PRIORIDADE ALTA.
-      3. Se a Velocidade de Esquecimento estiver alta em matéria peso 2: REVISÃO IMEDIATA.
-      4. Se houver Provas no Laboratório: Sugerir "Simulado de Stress".
+      1. REGRESSÃO CRÍTICA (queda &gt;5%): PRIORIDADE MÁXIMA.
+      2. PLATÔ (acerto &lt;65% persistente): PRIORIDADE ALTA.
+      3. PONTOS CEGOS (TEC): PRIORIDADE ESTRATÉGICA.
+      
+      INSTRUÇÕES DE RESPOSTA:
+      - Seja um Mentor de Elite: use os nomes exatos das disciplinas e tópicos.
+      - O "diagnostic" deve ser um "esporro técnico": diga exatamente onde ele está falhando (ex: "Você despencou 10% em Controle de Constitucionalidade, focando demais em teoria e errando questões de base").
+      - O "actionPlan" deve ser uma tarefa de 15-30 min (ex: "Resolva 20 questões de Atos Administrativos focadas em 'Extinção'").
+      - O "prediction" deve ser o custo do erro (ex: "Esse assunto representa 15% da sua prova; ignorar isso hoje é aceitar a reprovação").
       
       Retorne um JSON (apenas o JSON):
       {
         "disciplineName": "Matéria ou Área",
-        "reason": "O 'Porquê' técnico em 1 linha",
-        "strategy": "A explicação estratégica 'Premium' (2-3 linhas)",
-        "briefing": "Um resumo motivacional e estratégico de 1-2 frases sobre o seu estado geral hoje",
-        "action": "Chamada para ação curta",
-        "actionLabel": "Texto do botão",
+        "diagnostic": "Análise técnica granular baseada nos dados fornecidos",
+        "actionPlan": "Passo a passo prático e imediato",
+        "prediction": "Risco real para a prova",
         "priority": "alta" | "media",
-        "contextTag": "Estatística rápida",
-        "strategicAnalogy": "Uma analogia 'suja' ou comum para o aluno entender a importância do foco de hoje (1 frase)"
+        "contextTag": "Estatística rápida"
       }`;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      try {</span>
-        const raw = <span class="cstat-no" title="statement not covered" >await callAI(input.provider, input.apiKey, prompt, 600);</span>
+        const raw = <span class="cstat-no" title="statement not covered" >await callAI(input.provider, input.apiKey, prompt, 800);</span>
         const parsed = <span class="cstat-no" title="statement not covered" >extractJSON(raw) as any;</span>
 <span class="cstat-no" title="statement not covered" >        return {</span>
           disciplineName: parsed.disciplineName || "Geral",
           diagnostic: parsed.diagnostic || "Análise de desempenho padrão.",
-          actionPlan:
-            parsed.actionPlan || "Siga seu cronograma de revisões agendadas.",
-          prediction:
-            parsed.prediction ||
-            "A falta de foco em temas base pode reduzir sua média geral.",
+          actionPlan: parsed.actionPlan || "Siga seu cronograma de revisões agendadas.",
+          prediction: parsed.prediction || "A falta de foco em temas base pode reduzir sua média geral.",
           priority: (parsed.priority || "media") as "alta" | "media",
           contextTag: parsed.contextTag || "Rotina de Estudos",
           plateauCount: plateaus.length,
@@ -5746,7 +5731,7 @@ Retorne um JSON:
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T21:56:15.558Z
+                at 2026-04-24T23:08:21.361Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

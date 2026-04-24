@@ -187,6 +187,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1
+            id="tour-dashboard-header"
             className="text-3xl font-black tracking-tight flex items-center gap-2.5"
             style={{ color: "var(--app-fg)" }}
           >
@@ -225,10 +226,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {widgets.showExtra("recommendation") && <RecommendationCard />}
+      {widgets.showExtra("recommendation") && (
+        <div id="tour-recommendation">
+          <RecommendationCard />
+        </div>
+      )}
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
+      <div
+        id="tour-stats-grid"
+        className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        <div
+          id="tour-accuracy-card"
+          className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group"
+        >
           <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <Trophy className="w-10 h-10 md:w-12 md:h-12" />
           </div>
@@ -251,7 +262,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
+        <div
+          id="tour-revisions-card"
+          className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group"
+        >
           <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12" />
           </div>
@@ -333,12 +347,12 @@ export default function Dashboard() {
       </div>
 
       {widgets.showExtra("heatmap") && (
-        <div className="soe-card p-6">
+        <div id="tour-heatmap" className="soe-card p-6">
           <StudyHeatmap logs={heatmapData as any} compact showStreakCard />
         </div>
       )}
 
-      <div className="soe-card overflow-hidden">
+      <div id="tour-disciplines" className="soe-card overflow-hidden">
         <div className="p-3 space-y-3">
           {drag.orderedStats.map((d) => (
             <div key={d.disciplineId}>
@@ -388,13 +402,27 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          {widgets.showExtra("plateauRadar") && <PlateauRadarWidget />}
-          <ConfusionMatrixWidget />
+          {widgets.showExtra("plateauRadar") && (
+            <div id="tour-plateau-radar">
+              <PlateauRadarWidget />
+            </div>
+          )}
+          <div id="tour-confusion-matrix">
+            <ConfusionMatrixWidget />
+          </div>
         </div>
         <div className="lg:col-span-3 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {widgets.showExtra("dailyGoal") && <DailyGoalWidget />}
-            {widgets.showExtra("todayRevisions") && <TodayRevisions />}
+            {widgets.showExtra("dailyGoal") && (
+              <div id="tour-daily-goal">
+                <DailyGoalWidget />
+              </div>
+            )}
+            {widgets.showExtra("todayRevisions") && (
+              <div id="tour-today-revisions">
+                <TodayRevisions />
+              </div>
+            )}
           </div>
         </div>
       </div>

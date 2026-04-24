@@ -1693,37 +1693,35 @@ Mentor:`;
       
       DADOS BRUTOS:
       - Rebalanceamento (Aproveitamento): ${JSON.stringify(rebalance.slice(0, 3))}
-      - Curva de Esquecimento (Crítica): ${JSON.stringify(forgetting.slice(0, 3))}
-      - Pontos Cegos (TEC): ${JSON.stringify(weakFromSnap.slice(0, 3))}
-      - Redações/Subjetivas: ${essays.length} totais, ${pendingEssays.length} pendentes de correção/escrita.
-      - Laboratório: ${minedExamsCount} provas mineradas aguardando integração/estudo.
-      - Memória do Mentor: ${observations.slice(-3).join(" | ")}
-      - Últimos Erros: ${recentErrors.map((e: any) => e.errorOrigin).join(", ")}
-      - Flashcards Vencendo: ${lowFlashcards}
-      - Regressões Detectadas: ${regressions.length > 0 ? regressions.map((r: any) => `${r.topicName} (-${r.accuracyDrop}%)`).join(", ") : "Nenhuma"}
-      - Assuntos Travados: ${plateaus.length > 0 ? plateaus.map((p: any) => p.topicName).join(", ") : "Nenhum"}
+      - Pontos Cegos (TEC): ${JSON.stringify(weakFromSnap.slice(0, 5))}
+      - Últimos Erros: ${recentErrors.map((e: any) => `${e.disciplineName} > ${e.errorOrigin}`).join(", ")}
+      - Regressões Detectadas: ${regressions.length > 0 ? regressions.map((r: any) => `${r.disciplineName} > ${r.topicName} (-${r.accuracyDrop}%)`).join(", ") : "Nenhuma"}
+      - Temas em Platô (Estagnados): ${plateaus.length > 0 ? plateaus.map((p: any) => `${p.disciplineName} > ${p.topicName} (${Math.round((p.performance?.correctCount / p.performance?.questionsResolved) * 100)}%)`).join(", ") : "Nenhum"}
+      - Observações de Longo Prazo: ${observations.slice(-3).join(" | ")}
       
       CRITÉRIOS DE PRIORIDADE:
-      1. Se houver Redação pendente há muito tempo: PRIORIDADE MÁXIMA.
-      2. Se houver Regressão Crítica (queda brusca de acerto): PRIORIDADE ALTA.
-      3. Se a Velocidade de Esquecimento estiver alta em matéria peso 2: REVISÃO IMEDIATA.
-      4. Se houver Provas no Laboratório: Sugerir "Simulado de Stress".
+      1. REGRESSÃO CRÍTICA (queda >5%): PRIORIDADE MÁXIMA.
+      2. PLATÔ (acerto <65% persistente): PRIORIDADE ALTA.
+      3. PONTOS CEGOS (TEC): PRIORIDADE ESTRATÉGICA.
+      
+      INSTRUÇÕES DE RESPOSTA:
+      - Seja um Mentor de Elite: use os nomes exatos das disciplinas e tópicos.
+      - O "diagnostic" deve ser um "esporro técnico": diga exatamente onde ele está falhando (ex: "Você despencou 10% em Controle de Constitucionalidade, focando demais em teoria e errando questões de base").
+      - O "actionPlan" deve ser uma tarefa de 15-30 min (ex: "Resolva 20 questões de Atos Administrativos focadas em 'Extinção'").
+      - O "prediction" deve ser o custo do erro (ex: "Esse assunto representa 15% da sua prova; ignorar isso hoje é aceitar a reprovação").
       
       Retorne um JSON (apenas o JSON):
       {
         "disciplineName": "Matéria ou Área",
-        "reason": "O 'Porquê' técnico em 1 linha",
-        "strategy": "A explicação estratégica 'Premium' (2-3 linhas)",
-        "briefing": "Um resumo motivacional e estratégico de 1-2 frases sobre o seu estado geral hoje",
-        "action": "Chamada para ação curta",
-        "actionLabel": "Texto do botão",
+        "diagnostic": "Análise técnica granular baseada nos dados fornecidos",
+        "actionPlan": "Passo a passo prático e imediato",
+        "prediction": "Risco real para a prova",
         "priority": "alta" | "media",
-        "contextTag": "Estatística rápida",
-        "strategicAnalogy": "Uma analogia 'suja' ou comum para o aluno entender a importância do foco de hoje (1 frase)"
+        "contextTag": "Estatística rápida"
       }`;
 
       try {
-        const raw = await callAI(input.provider, input.apiKey, prompt, 600);
+        const raw = await callAI(input.provider, input.apiKey, prompt, 800);
         const parsed = extractJSON(raw) as any;
         return {
           disciplineName: parsed.disciplineName || "Geral",
