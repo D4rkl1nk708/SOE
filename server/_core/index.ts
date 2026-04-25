@@ -12,6 +12,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import * as storage from "../jsonStorage";
 import tecProxy from "../tecProxy";
+import { normalizeString, isFuzzyMatch } from "../../shared/utils";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -360,15 +361,6 @@ async function startServer() {
           .json({ error: "Nenhum dado recebido no campo 'rows'" });
       }
 
-      const normalize = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9\s]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
       const fmtDate = (d: Date) => d.toISOString().split("T")[0];
 
       // Helpers reusados do fluxo XLSX
@@ -451,16 +443,8 @@ async function startServer() {
         const assuntoName = (row.assunto || "").trim();
         if (!assuntoName) continue;
 
-        const normDisc = normalize(discName);
-        const normAssunto = normalize(assuntoName);
-
         // Match or create discipline
-        let disc = disciplines.find((d) => {
-          const nd = normalize(d.name);
-          return (
-            nd === normDisc || nd.includes(normDisc) || normDisc.includes(nd)
-          );
-        });
+        let disc = disciplines.find((d) => isFuzzyMatch(d.name, discName));
         if (!disc) {
           const { id } = await storage.createDiscipline({
             userId: user.id,
@@ -475,7 +459,7 @@ async function startServer() {
         // Match or create topic
         let topic = topics.find(
           (t) =>
-            t.disciplineId === disc!.id && normalize(t.name) === normAssunto,
+            t.disciplineId === disc!.id && isFuzzyMatch(t.name, assuntoName),
         );
 
         if (topic) {
@@ -646,29 +630,10 @@ async function startServer() {
         if (!assuntoName)
           return res.status(400).json({ error: "Assunto obrigatório" });
 
-        const normalize = (s: string) =>
-          s
-            ? s
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9\s]/g, "")
-                .replace(/\s+/g, " ")
-                .trim()
-            : "";
-
         let disciplines = await storage.getDisciplinesByUser(user.id);
-        const normDisc = normalize(disciplinaName);
-        let disc = disciplines.find((d) => {
-          const nd = normalize(d.name);
-          return (
-            nd === normDisc ||
-            nd.includes(normDisc) ||
-            normDisc.includes(nd) ||
-            (nd.length > 5 && normDisc.includes(nd)) ||
-            (normDisc.length > 5 && nd.includes(normDisc))
-          );
-        });
+        let disc = disciplines.find((d) =>
+          isFuzzyMatch(d.name, disciplinaName),
+        );
 
         if (!disc) {
           const created = await storage.createDiscipline({
@@ -689,16 +654,10 @@ async function startServer() {
         }
 
         let topics = await storage.getTopicsByUser(user.id);
-        const normAssunto = normalize(assuntoName);
-        let topic = topics.find((t) => {
-          if (t.disciplineId !== disc!.id) return false;
-          const nt = normalize(t.name);
-          return (
-            nt === normAssunto ||
-            (nt.length > 5 && normAssunto.includes(nt)) ||
-            (normAssunto.length > 5 && nt.includes(normAssunto))
-          );
-        });
+        let topic = topics.find(
+          (t) =>
+            t.disciplineId === disc!.id && isFuzzyMatch(t.name, assuntoName),
+        );
 
         let topicId = 0;
         if (topic) {
@@ -818,30 +777,15 @@ async function startServer() {
         if (!statement)
           return res.status(400).json({ error: "Statement is required" });
 
-        // Match or create discipline and topic based on the names provided by the extension
-        const normalize = (s: string) =>
-          s
-            ? s
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9\s]/g, "")
-                .replace(/\s+/g, " ")
-                .trim()
-            : "";
-
         let disciplines = await storage.getDisciplinesByUser(user.id);
         let discId = disciplines[0]?.id; // fallback
-        let topId = undefined;
+        let topId: number | undefined = undefined;
 
+        // Match or create discipline and topic based on the names provided by the extension
         if (disciplinaName) {
-          const normDisc = normalize(disciplinaName);
-          let disc = disciplines.find((d) => {
-            const nd = normalize(d.name);
-            return (
-              nd === normDisc || nd.includes(normDisc) || normDisc.includes(nd)
-            );
-          });
+          let disc = disciplines.find((d) =>
+            isFuzzyMatch(d.name, disciplinaName),
+          );
           if (!disc) {
             const created = await storage.createDiscipline({
               userId: user.id,
@@ -856,16 +800,10 @@ async function startServer() {
           }
 
           if (assuntoName && discId) {
-            const normAssunto = normalize(assuntoName);
             let topics = await storage.getTopicsByUser(user.id);
             let topic = topics.find(
               (t) =>
-                t.disciplineId === discId &&
-                (normalize(t.name) === normAssunto ||
-                  (normalize(t.name).length > 10 &&
-                    normAssunto.includes(normalize(t.name))) ||
-                  (normAssunto.length > 10 &&
-                    normalize(t.name).includes(normAssunto))),
+                t.disciplineId === discId && isFuzzyMatch(t.name, assuntoName),
             );
             if (!topic) {
               const created = await storage.createTopic({
@@ -1077,28 +1015,13 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
         let survivalNotes = "";
         let topicObj = null;
         if (user && subject && discipline) {
-          const normalize = (s: string) =>
-            s
-              .toLowerCase()
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .replace(/[^a-z0-9\s]/g, "")
-              .replace(/\s+/g, " ")
-              .trim();
-          const normAss = normalize(subject);
-          const normDisc = normalize(discipline);
           const discs = await storage.getDisciplinesByUser(user.id);
-          const disc = discs.find((d) => {
-            const nd = normalize(d.name);
-            return (
-              nd === normDisc || nd.includes(normDisc) || normDisc.includes(nd)
-            );
-          });
+          const disc = discs.find((d) => isFuzzyMatch(d.name, discipline));
           if (disc) {
             const topics = await storage.getTopicsByUser(user.id);
             topicObj = topics.find(
               (t) =>
-                t.disciplineId === disc.id && normalize(t.name) === normAss,
+                t.disciplineId === disc.id && isFuzzyMatch(t.name, subject),
             );
             if (topicObj && topicObj.notes) {
               survivalNotes = topicObj.notes;
@@ -1348,23 +1271,12 @@ ${questionText}`;
           .status(400)
           .json({ ok: false, error: "assunto e banca obrigatórios" });
 
-      const normalize = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9\s]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
       const disciplines = await storage.getDisciplinesByUser(user.id);
       const topics = await storage.getTopicsByUser(user.id);
 
-      const disc = disciplines.find((d) => {
-        const nd = normalize(d.name);
-        const ni = normalize(disciplina || "");
-        return nd === ni || nd.includes(ni) || ni.includes(nd);
-      });
+      const disc = disciplines.find((d) =>
+        isFuzzyMatch(d.name, disciplina || ""),
+      );
       if (!disc)
         return res.json({
           ok: false,
@@ -1372,9 +1284,7 @@ ${questionText}`;
         });
 
       const topic = topics.find(
-        (t) =>
-          t.disciplineId === disc.id &&
-          normalize(t.name) === normalize(assunto),
+        (t) => t.disciplineId === disc.id && isFuzzyMatch(t.name, assunto),
       );
       if (!topic)
         return res.json({ ok: false, error: "Assunto não encontrado no SOE" });
