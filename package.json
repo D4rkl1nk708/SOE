@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",

@@ -91,6 +91,14 @@ function initApp() {
     });
 
     mainWindow.on("closed", () => { mainWindow = null; });
+    
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.key === "F12" && input.type === "keyDown") {
+        mainWindow.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+    });
+
     mainWindow.loadURL(url);
   }
 
@@ -173,6 +181,8 @@ function initApp() {
     else if (data.type === "SOE_TEC_BANCA_INCREMENT") endpoint = "/api/tec/banca-increment";
     else return;
 
+    console.log(`[ELECTRON] Proxying ${endpoint} (Token: ${token ? token.slice(0, 8) + "..." : "NULL"})`);
+
     try {
       const resp = await fetch(soeUrl + endpoint, {
         method: "POST",
@@ -180,10 +190,12 @@ function initApp() {
         body: JSON.stringify(data.payload),
       });
       const result = await resp.json();
+      console.log(`[ELECTRON] Proxy result for ${endpoint}:`, result ? "OK" : "ERROR");
       if (event.sender && !event.sender.isDestroyed()) {
         event.sender.send("soe-tec-reply", { type: data.type, messageId: data.messageId, response: { data: result } });
       }
     } catch (error) {
+      console.error(`[ELECTRON] Proxy failed for ${endpoint}:`, error.message);
       if (event.sender && !event.sender.isDestroyed()) {
         event.sender.send("soe-tec-reply", { type: data.type, messageId: data.messageId, error: error.message });
       }

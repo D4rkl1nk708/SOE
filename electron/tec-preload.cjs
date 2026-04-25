@@ -345,7 +345,11 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
 
         {
           const activeBanca = getActiveBanca();
-          console.log('[SOE v2] Incrementando stats para', assunto, '-', timeSpentSeconds, 's');
+          console.log('[SOE v2] Incrementando stats para', assunto, ' (Disciplina:', disciplina || 'NÃO ENCONTRADA', ') -', timeSpentSeconds, 's');
+          
+          if (!disciplina) {
+            console.warn('[SOE v2] ALERTA: Disciplina não identificada. O servidor pode rejeitar esta atualização.');
+          }
 
           window.postMessage({
             type: 'SOE_TEC_INCREMENT_STATS',

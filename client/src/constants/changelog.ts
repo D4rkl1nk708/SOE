@@ -11,6 +11,30 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "5.2.0",
+    date: "25/04/2026",
+    title: "Diagnóstico Tático & Rastreamento Resiliente",
+    categories: [
+      {
+        title: "🛠️ Diagnóstico Tático",
+        type: "feature",
+        items: [
+          "Ativação do DevTools (F12) no ambiente Electron para auditoria em tempo real do sistema.",
+          "Novo sistema de logs de proxy no processo principal para monitoramento de sincronização.",
+        ],
+      },
+      {
+        title: "📊 Rastreamento Resiliente",
+        type: "improvement",
+        items: [
+          "Algoritmo de Fuzzy Matching aprimorado: Contabilização inteligente de questões mesmo com divergências de nomes entre TEC e SOE.",
+          "Fallback de Disciplina: Registro garantido de progresso mesmo quando a disciplina não é detectada automaticamente.",
+          "Deduplicação de Requisições: Proteção contra registros duplicados em conexões instáveis.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.1.0",
     date: "24/04/2026",
     title: "Navegação Tática & Tour de Descoberta",

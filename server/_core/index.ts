@@ -321,20 +321,16 @@ async function startServer() {
       const token =
         (req.headers["x-soe-token"] as string) || (req.query.token as string);
       if (!token)
-        return res
-          .status(401)
-          .json({
-            error: "Header X-SOE-Token ausente ou query ?token= não informado",
-          });
+        return res.status(401).json({
+          error: "Header X-SOE-Token ausente ou query ?token= não informado",
+        });
 
       const user = await storage.getUserByPushToken(token);
       if (!user)
-        return res
-          .status(401)
-          .json({
-            error:
-              "Token inválido. Gere um novo token em: Mentor → Cadernos Tempo Real → Gerar Token.",
-          });
+        return res.status(401).json({
+          error:
+            "Token inválido. Gere um novo token em: Mentor → Cadernos Tempo Real → Gerar Token.",
+        });
 
       const {
         cadernoId,
@@ -619,13 +615,15 @@ async function startServer() {
         const {
           cadernoId,
           cadernoUrl,
-          disciplina: disciplinaName,
+          disciplina: rawDisciplina,
           assunto: assuntoName,
           correctAdd,
           errorAdd,
           timeSpentSeconds,
           dedupKey,
         } = req.body;
+
+        const disciplinaName = rawDisciplina || "TEC Concursos";
 
         // Deduplicação básica: se a mesma questão for enviada em menos de 15s, ignora
         if (dedupKey) {
@@ -638,15 +636,15 @@ async function startServer() {
             return res.json({ ok: true, duplicated: true });
           }
           tecDedupCache.set(dedupKey, now);
-
-          // Limpeza periódica do cache (opcional, aqui mantemos simples)
           if (tecDedupCache.size > 1000) tecDedupCache.clear();
         }
 
-        if (!disciplinaName || !assuntoName)
-          return res
-            .status(400)
-            .json({ error: "Disciplina e Assunto obrigatórios" });
+        console.log(
+          `[TEC SERVER] Incremento: ${assuntoName} [${disciplinaName}] (+${correctAdd}a, +${errorAdd}e, ${timeSpentSeconds}s)`,
+        );
+
+        if (!assuntoName)
+          return res.status(400).json({ error: "Assunto obrigatório" });
 
         const normalize = (s: string) =>
           s
@@ -692,13 +690,21 @@ async function startServer() {
 
         let topics = await storage.getTopicsByUser(user.id);
         const normAssunto = normalize(assuntoName);
-        let topic = topics.find(
-          (t) =>
-            t.disciplineId === disc!.id && normalize(t.name) === normAssunto,
-        );
-        let topicId = 0;
+        let topic = topics.find((t) => {
+          if (t.disciplineId !== disc!.id) return false;
+          const nt = normalize(t.name);
+          return (
+            nt === normAssunto ||
+            (nt.length > 5 && normAssunto.includes(nt)) ||
+            (normAssunto.length > 5 && nt.includes(normAssunto))
+          );
+        });
 
+        let topicId = 0;
         if (topic) {
+          console.log(
+            `[TEC SERVER] Topico encontrado: ${topic.name} (ID: ${topic.id})`,
+          );
           topicId = topic.id;
           const prevCorrect = topic.performance?.correctCount ?? 0;
           const prevErrors = topic.performance?.errorCount ?? 0;
@@ -1061,12 +1067,10 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
             : "openai";
 
         if (!apiKey) {
-          return res
-            .status(500)
-            .json({
-              error:
-                "❌ Chave de API da IA não configurada. Por favor, adicione sua chave Gemini ou OpenAI na aba Perfil > Configurações de IA no SOE Desktop.",
-            });
+          return res.status(500).json({
+            error:
+              "❌ Chave de API da IA não configurada. Por favor, adicione sua chave Gemini ou OpenAI na aba Perfil > Configurações de IA no SOE Desktop.",
+          });
         }
 
         // Memory fetch (procurar notas de sobrevivência)
