@@ -210,5 +210,6 @@
     ],
     "*.{json,css,md}": [
       "prettier --write"
+    ]
   }
 }

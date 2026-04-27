@@ -106,3 +106,36 @@ Error: Invalid package config /home/anon/Desktop/SOE/package.json.
 }
 
 Node.js v22.22.0
+5:54:11 PM [tsx] change in ./package.json Rerunning...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+Server running on http://0.0.0.0:3000/
+5:56:02 PM [tsx] change in ./server/db.ts Restarting...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [TransformError]: Transform failed with 6 errors:
+/home/anon/Desktop/SOE/server/db.ts:640:22: ERROR: Multiple exports with the same name "upsertNote"
+/home/anon/Desktop/SOE/server/db.ts:640:22: ERROR: The symbol "upsertNote" has already been declared
+/home/anon/Desktop/SOE/server/db.ts:665:22: ERROR: Multiple exports with the same name "getFlashcardsByUser"
+/home/anon/Desktop/SOE/server/db.ts:665:22: ERROR: The symbol "getFlashcardsByUser" has already been declared
+/home/anon/Desktop/SOE/server/db.ts:674:22: ERROR: Multiple exports with the same name "createFlashcard"
+...
+    at failureErrorWithLog (/home/anon/Desktop/SOE/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/anon/Desktop/SOE/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/anon/Desktop/SOE/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/anon/Desktop/SOE/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/anon/Desktop/SOE/node_modules/.pnpm/esbuild@0.27.7/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+
+Node.js v22.22.0
+5:57:18 PM [tsx] change in ./server/db.ts Rerunning...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Server running on http://0.0.0.0:3000/
+5:57:43 PM [tsx] change in ./server/db.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Server running on http://0.0.0.0:3000/

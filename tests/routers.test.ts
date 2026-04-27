@@ -1,9 +1,9 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "../server/routers";
-import * as storage from "../server/jsonStorage";
+import * as storage from "../server/db";
 
-vi.mock("../server/jsonStorage");
+vi.mock("../server/db");
 vi.mock("../server/analyticsService");
 vi.mock("../server/aiProviders");
 vi.mock("../server/tecImportService");
