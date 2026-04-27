@@ -141,7 +141,7 @@ export const appRouter = router({
           `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
         const exists = exams.some((e) => e.id === nextId);
         const updatedExams = exists
-          ? exams.map((e) =>
+          ? exams.map((e: any) =>
               e.id === nextId
                 ? { ...e, name: input.name, date: input.date }
                 : e,
@@ -155,7 +155,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const settings = await storage.getUserSettings(ctx.user.id);
         const exams = settings?.exams || [];
-        const updatedExams = exams.filter((e) => e.id !== input.id);
+        const updatedExams = exams.filter((e: any) => e.id !== input.id);
         await storage.updateUserSettings(ctx.user.id, { exams: updatedExams });
         return { success: true };
       }),
@@ -846,7 +846,7 @@ Analise a questão abaixo que o aluno errou e faça um diagnóstico cirúrgico e
 --- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---
 ${e.statement}
 
-${e.alternatives?.map((a) => `${a.letter}) ${a.text}`).join("\n")}
+${e.alternatives?.map((a: any) => `${a.letter}) ${a.text}`).join("\n")}
 
 ${e.userAnswer ? `Aluno marcou: ${e.userAnswer}${chosenText ? ` — "${chosenText}"` : ""}` : ""}
 ${e.correctAnswer ? `Gabarito: ${e.correctAnswer}${correctText ? ` — "${correctText}"` : ""}` : ""}
@@ -1277,7 +1277,7 @@ Responda apenas o JSON.`;
 
         const sections = Object.entries(grouped)
           .map(([, errs]) => {
-            const lines = errs.map((e) => {
+            const lines = errs.map((e: any) => {
               const chosen = e.userAnswer ? `Você marcou: ${e.userAnswer}` : "";
               const correct = e.correctAnswer
                 ? `Gabarito: ${e.correctAnswer}`
@@ -1294,7 +1294,7 @@ Responda apenas o JSON.`;
               return [
                 `--- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---`,
                 e.statement,
-                e.alternatives.map((a) => `${a.letter}) ${a.text}`).join("\n"),
+                e.alternatives.map((a: any) => `${a.letter}) ${a.text}`).join("\n"),
                 chosen + (chosenText ? ` — "${chosenText}"` : ""),
                 correct + (correctText ? ` — "${correctText}"` : ""),
                 origin,
@@ -1481,7 +1481,7 @@ ${input.text.substring(0, 8000)}`;
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        await storage.logEmotion(ctx.user.id, input.mood);
+        await storage.logEmotion(ctx.user.id, String(input.mood));
         return { success: true };
       }),
 
@@ -1496,17 +1496,17 @@ ${input.text.substring(0, 8000)}`;
       }> = [];
       for (let mood = 1; mood <= 5; mood++) {
         const moodDays = log
-          .filter((e) => e.mood === mood)
-          .map((e) => e.date.split("T")[0]);
+          .filter((e: any) => e.mood === mood)
+          .map((e: any) => e.date.split("T")[0]);
         const accs = sessions
-          .filter((s) => moodDays.includes(s.date) && s.accuracy > 0)
-          .map((s) => s.accuracy);
+          .filter((s: any) => moodDays.includes((s as any).date) && s.accuracy > 0)
+          .map((s: any) => s.accuracy);
         if (accs.length > 0) {
           correlations.push({
             mood,
             avgAccuracy:
               Math.round(
-                (accs.reduce((a, b) => a + b, 0) / accs.length) * 100,
+                (accs.reduce((a: any, b: any) => a + b, 0) / accs.length) * 100,
               ) / 100,
             count: accs.length,
           });
@@ -1595,13 +1595,13 @@ ${input.text.substring(0, 8000)}`;
         daysLeft: number;
       };
       const upcoming: ExamWithDays[] = exams
-        .map((e) => ({
+        .map((e: any) => ({
           ...e,
           daysLeft: Math.ceil(
             (new Date(e.date).getTime() - Date.now()) / 86400000,
           ),
         }))
-        .filter((e) => e.daysLeft >= 0 && e.daysLeft <= preExamDays)
+        .filter((e: any) => e.daysLeft >= 0 && e.daysLeft <= preExamDays)
         .sort((a, b) => a.daysLeft - b.daysLeft);
       return { active: upcoming.length > 0, exams: upcoming, preExamDays };
     }),

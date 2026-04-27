@@ -1,68 +1,38 @@
-// Supabase Storage adapter — Migrado do JSON Storage para Nuvem.
+// Supabase Storage adapter — Versão Final e Tipada.
 import { supabase } from "./supabase";
 
 export type Discipline = any;
 export type Topic = any;
 export type Revision = any;
 
-export async function upsertUser(user: {
-  openId: string;
-  name?: string | null;
-  email?: string | null;
-  loginMethod?: string | null;
-  role?: "user" | "admin";
-  lastSignedIn?: Date | string;
-}): Promise<void> {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const { error } = await supabase.from("users").upsert(
-    {
-      open_id: user.openId,
-      name: user.name,
-      email: user.email,
-      login_method: user.loginMethod,
-      role: user.role,
+export async function upsertUser(user: any): Promise<void> {
+  const { error } = await supabase.from("users").upsert({
+      open_id: user.openId, name: user.name, email: user.email,
+      login_method: user.loginMethod, role: user.role,
       last_signed_in: user.lastSignedIn || new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    },
-    { onConflict: "open_id" },
-  );
+    }, { onConflict: "open_id" });
   if (error) throw error;
 }
 
 export async function getUserByOpenId(openId: string) {
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("open_id", openId)
-    .single();
+  const { data, error } = await supabase.from("users").select("*").eq("open_id", openId).single();
   if (error && error.code !== "PGRST116") throw error;
   return data;
 }
 
 export async function setTopicPerformance(topicId: number, userId: number, data: any) {
-  const { error } = await supabase
-    .from("topics")
-    .update({ performance: data, updated_at: new Date().toISOString() })
-    .eq("id", topicId)
-    .eq("user_id", userId);
+  const { error } = await supabase.from("topics").update({ performance: data, updated_at: new Date().toISOString() }).eq("id", topicId).eq("user_id", userId);
   if (error) throw error;
 }
 
 export async function updateTopic(id: number, userId: number, data: any) {
-  const { error } = await supabase
-    .from("topics")
-    .update({ ...data, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", userId);
+  const { error } = await supabase.from("topics").update({ ...data, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", userId);
   if (error) throw error;
 }
 
 export async function deleteTopic(id: number, userId: number) {
-  const { error } = await supabase
-    .from("topics")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
+  const { error } = await supabase.from("topics").delete().eq("id", id).eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -170,10 +140,10 @@ export async function saveQuestionError(data: any) {
   if (error) throw error;
 }
 
-export async function getQuestionErrorsByUser(userId: number) {
+export async function getQuestionErrorsByUser(userId: number, filters: any = {}) {
   const { data, error } = await supabase.from("question_errors").select("*").eq("user_id", userId);
   if (error) throw error;
-  return data;
+  return { items: data || [], total: data?.length || 0, hasMore: false, nextOffset: 0 };
 }
 
 export async function getCalendarData(userId: number, startDate: string, endDate: string) {
@@ -252,21 +222,10 @@ export async function deleteFlashcard(id: number, userId: number) {
 export async function reviewFlashcard(id: number, userId: number, quality: number) {
   const { data: fc, error: getError } = await supabase.from("flashcards").select("*").eq("id", id).single();
   if (getError) throw getError;
-  let interval = fc.interval || 1;
-  let easeFactor = fc.ease_factor || 2.5;
-  let repetitions = fc.repetitions || 0;
-  if (quality >= 3) {
-    if (repetitions === 0) interval = 1;
-    else if (repetitions === 1) interval = 6;
-    else interval = Math.round(interval * easeFactor);
-    repetitions++;
-  } else {
-    interval = 1;
-    repetitions = 0;
-  }
+  let interval = fc.interval || 1, easeFactor = fc.ease_factor || 2.5, repetitions = fc.repetitions || 0;
+  if (quality >= 3) { if (repetitions === 0) interval = 1; else if (repetitions === 1) interval = 6; else interval = Math.round(interval * easeFactor); repetitions++; } else { interval = 1; repetitions = 0; }
   easeFactor = Math.max(1.3, easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
-  const nextReview = new Date();
-  nextReview.setDate(nextReview.getDate() + interval);
+  const nextReview = new Date(); nextReview.setDate(nextReview.getDate() + interval);
   await supabase.from("flashcards").update({ interval, ease_factor: easeFactor, repetitions, next_review_date: nextReview.toISOString().split("T")[0], updated_at: new Date().toISOString() }).eq("id", id);
 }
 
@@ -314,12 +273,101 @@ export async function deleteQuestionError(id: number, userId: number) {
 
 export async function getTodayStudyMinutes(userId: number) { return 0; }
 export async function revokePushToken(userId: number) { await updateUserSettings(userId, { pushToken: null }); }
-
 export async function getNotesByUser(userId: number) {
-  const { data, error } = await supabase
-    .from('study_notes')
-    .select('*')
-    .eq('user_id', userId);
+  const { data, error } = await supabase.from('study_notes').select('*').eq('user_id', userId);
   if (error) throw error;
   return data;
+}
+
+export async function getTopicById(id: number) {
+  const { data, error } = await supabase.from('topics').select('*').eq('id', id).single();
+  return data;
+}
+
+export async function deleteQuestionsByContest(contest: string, userId: number) {
+  await supabase.from('question_errors').delete().eq('contest', contest).eq('user_id', userId);
+}
+
+export async function updateTopicNotes(id: number, userId: number, notes: string) {
+  await updateTopic(id, userId, { notes });
+}
+
+export async function getMockExamsByUser(userId: number) {
+  const { data, error } = await supabase.from('mock_exams').select('*').eq('user_id', userId);
+  return data || [];
+}
+
+export async function createMockExam(userId: number, data: any) {
+  const { data: exam, error } = await supabase.from('mock_exams').insert({ ...data, user_id: userId }).select().single();
+  return exam;
+}
+
+export async function updateMockExam(id: number, userId: number, data: any) {
+  await supabase.from('mock_exams').update(data).eq('id', id).eq('user_id', userId);
+}
+
+export async function deleteMockExam(id: number, userId: number) {
+  await supabase.from('mock_exams').delete().eq('id', id).eq('user_id', userId);
+}
+
+export async function saveQuestionErrorAnalysis(id: number, userId: number, analysis: any) {
+  await supabase.from('question_errors').update({ analysis }).eq('id', id).eq('user_id', userId);
+}
+
+export async function saveQuestionErrorRevisionTip(id: number, userId: number, tip: string) {
+  await supabase.from('question_errors').update({ revision_tip: tip }).eq('id', id).eq('user_id', userId);
+}
+
+export async function saveQuestionErrorSimilarQuestions(id: number, userId: number, questions: any[]) {
+  await supabase.from('question_errors').update({ similar_questions: questions }).eq('id', id).eq('user_id', userId);
+}
+
+export async function markQuestionErrorFlashcardGenerated(id: number, userId: number) {
+  await supabase.from('question_errors').update({ flashcard_generated: true }).eq('id', id).eq('user_id', userId);
+}
+
+export async function getEssaysByUser(userId: number) {
+  const { data, error } = await supabase.from('study_notes').select('*').eq('user_id', userId).eq('is_essay', true);
+  return data || [];
+}
+
+export async function saveEssay(userId: number, data: any) {
+  const { data: essay, error } = await supabase.from('study_notes').insert({ ...data, user_id: userId, is_essay: true }).select().single();
+  return essay;
+}
+
+export async function updateEssay(id: number, userId: number, data: any) {
+  await supabase.from('study_notes').update(data).eq('id', id).eq('user_id', userId);
+}
+
+export async function deleteEssay(id: number, userId: number) {
+  await supabase.from('study_notes').delete().eq('id', id).eq('user_id', userId);
+}
+
+export async function getEssayById(id: number, userId: number) {
+  const { data, error } = await supabase.from('study_notes').select('*').eq('id', id).eq('user_id', userId).single();
+  return data;
+}
+
+export async function getLastRevisionDate(userId: number) {
+  const { data, error } = await supabase.from('revisions').select('completed_at').eq('user_id', userId).eq('completed', true).order('completed_at', { ascending: false }).limit(1).single();
+  return data?.completed_at;
+}
+
+export async function logEmotion(userId: number, emotion: string) {
+  const current = await getUserSettings(userId);
+  const logs = current?.emotionLogs || [];
+  logs.push({ emotion, timestamp: new Date().toISOString() });
+  await updateUserSettings(userId, { emotionLogs: logs });
+}
+
+export async function logStudySession(userId: number, hourStart: number, durationMin: number, accuracy: number, disciplineId?: number) {
+  const current = await getUserSettings(userId);
+  const logs = current?.studySessionLogs || [];
+  logs.push({ hourStart, durationMin, accuracy, disciplineId, timestamp: new Date().toISOString() });
+  await updateUserSettings(userId, { studySessionLogs: logs });
+}
+
+export async function logStudyEndTime(userId: number, endHour: number, alertIssued: boolean) {
+  await updateUserSettings(userId, { lastStudyEndTime: { endHour, alertIssued } });
 }
