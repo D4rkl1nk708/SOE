@@ -1601,12 +1601,12 @@ ${questionText}`;
     serveStatic(app);
   }
 
+  let port = parseInt(process.env.PORT || "3000");
   if (!process.env.VERCEL) {
-    const preferredPort = parseInt(process.env.PORT || "3000");
-    const port = await findAvailablePort(preferredPort);
-
-    if (port !== preferredPort) {
-      console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    const availablePort = await findAvailablePort(port);
+    if (availablePort !== port) {
+      console.log(`Port ${port} is busy, using port ${availablePort} instead`);
+      port = availablePort;
     }
 
     server.listen(port, "0.0.0.0", () => {
