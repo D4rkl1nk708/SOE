@@ -6,6 +6,6 @@ import { createApp } from "../server/_core/index";
 const appPromise = createApp();
 
 export default async (req: any, res: any) => {
-  const app = await appPromise;
+  const { app } = await appPromise;
   return app(req, res);
 };
