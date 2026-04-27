@@ -9,7 +9,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+import { serveStatic } from "./serveStatic";
 import * as storage from "../jsonStorage";
 import tecProxy from "../tecProxy";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
@@ -1595,10 +1595,21 @@ ${questionText}`;
     }, 500);
   });
 
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === "development" && !process.env.VERCEL) {
+    const viteMod = "./vite.js";
+    const { setupVite } = await import(viteMod);
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    const publicDir =
+      process.env.NODE_ENV === "development"
+        ? path.join(process.cwd(), "dist", "public")
+        : path.join(process.cwd(), "client", "public"); // default
+    serveStatic(
+      app,
+      process.env.VERCEL
+        ? path.join(process.cwd(), "dist", "public")
+        : publicDir,
+    );
   }
 
   let port = parseInt(process.env.PORT || "3000");
