@@ -240,6 +240,7 @@ export function useNotes() {
   // Sync editor content when active note changes
   useEffect(() => {
     if (activeNote) { setEditorContent(activeNote.content); }
+  }, [activeNote]);
 
   const saveNote = useCallback(async (content: string) => {
     if (!activeNote) return;
