@@ -1,7 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../jsonStorage";
-import { sdk } from "./sdk";
-import { ENV } from "./env";
+import { supabase } from "../supabase";
+import * as db from "../db";
 import * as storage from "../jsonStorage";
 
 // Default local user for offline mode (when OAuth is not configured)
@@ -18,29 +18,6 @@ const LOCAL_USER: User = {
   lastSignedIn: new Date().toISOString(),
 };
 
-// Check if running in local mode (no OAuth configured)
-function isLocalMode(): boolean {
-  return !ENV.oAuthServerUrl || !ENV.appId;
-}
-
-// Ensure local user exists in DB (only called once)
-let localUserEnsured = false;
-async function ensureLocalUser() {
-  if (localUserEnsured) return;
-  localUserEnsured = true;
-  try {
-    await storage.upsertUser({
-      openId: "local-user",
-      name: "Usuário Local",
-      email: "local@estudos.local",
-      loginMethod: "local",
-      role: "admin",
-    });
-  } catch (e) {
-    console.error("Error ensuring local user:", e);
-  }
-}
-
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
@@ -52,29 +29,87 @@ export async function createContext(
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
-  // In local mode, always use the local user
-  if (isLocalMode()) {
-    await ensureLocalUser();
-    // Get the actual user from DB to use their real ID
-    const dbUser = await storage.getUserByOpenId("local-user");
-    user = dbUser ? {
-      id: dbUser.id,
-      openId: dbUser.openId,
-      name: dbUser.name,
-      email: dbUser.email,
-      loginMethod: dbUser.loginMethod,
-      role: dbUser.role as "user" | "admin",
-      settings: dbUser.settings,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-      lastSignedIn: dbUser.lastSignedIn,
-    } : LOCAL_USER;
-  } else {
+  // Supabase Auth Integration
+  const authHeader = opts.req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
+    
+    if (authUser && !error) {
+      const dbUser = await db.getUserByOpenId(authUser.id);
+      if (dbUser) {
+        user = {
+          id: dbUser.id,
+          openId: dbUser.open_id,
+          name: dbUser.name,
+          email: dbUser.email,
+          loginMethod: dbUser.login_method,
+          role: dbUser.role as "user" | "admin",
+          settings: dbUser.settings,
+          createdAt: dbUser.created_at,
+          updatedAt: dbUser.updated_at,
+          lastSignedIn: dbUser.last_signed_in,
+        };
+      } else {
+        await db.upsertUser({
+          openId: authUser.id,
+          name: authUser.user_metadata?.full_name || authUser.email,
+          email: authUser.email,
+          loginMethod: "supabase",
+          role: "user",
+          lastSignedIn: new Date().toISOString()
+        });
+        const newDbUser = await db.getUserByOpenId(authUser.id);
+        if (newDbUser) {
+          user = {
+            id: newDbUser.id,
+            openId: newDbUser.open_id,
+            name: newDbUser.name,
+            email: newDbUser.email,
+            loginMethod: newDbUser.login_method,
+            role: newDbUser.role as "user" | "admin",
+            settings: newDbUser.settings,
+            createdAt: newDbUser.created_at,
+            updatedAt: newDbUser.updated_at,
+            lastSignedIn: newDbUser.last_signed_in,
+          };
+        }
+      }
+    }
+  }
+
+  // Fallback to local mode only in development
+  if (!user && process.env.NODE_ENV === "development" && !process.env.VERCEL) {
+    let dbUser;
     try {
-      user = await sdk.authenticateRequest(opts.req);
-    } catch (error) {
-      // Authentication is optional for public procedures.
-      user = null;
+      dbUser = await db.getUserByOpenId("local-user");
+    } catch(e) {}
+    
+    if (!dbUser) {
+      await db.upsertUser({
+        openId: "local-user",
+        name: "Usuário Local",
+        email: "local@estudos.local",
+        loginMethod: "local",
+        role: "admin",
+      });
+      dbUser = await db.getUserByOpenId("local-user");
+    }
+    if (dbUser) {
+      user = {
+        id: dbUser.id,
+        openId: dbUser.open_id,
+        name: dbUser.name,
+        email: dbUser.email,
+        loginMethod: dbUser.login_method,
+        role: dbUser.role as "user" | "admin",
+        settings: dbUser.settings,
+        createdAt: dbUser.created_at,
+        updatedAt: dbUser.updated_at,
+        lastSignedIn: dbUser.last_signed_in,
+      };
+    } else {
+      user = LOCAL_USER;
     }
   }
 

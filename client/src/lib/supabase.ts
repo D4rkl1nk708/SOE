@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    "[SUPABASE] Warning: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing in .env",
+    "[SUPABASE] Warning: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing in .env"
   );
 }
 

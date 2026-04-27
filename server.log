@@ -163,3 +163,52 @@ Server running on http://0.0.0.0:3000/
 6:07:42 PM [tsx] change in ./server/db.ts Restarting...
 c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
 Server running on http://0.0.0.0:3000/
+6:24:32 PM [tsx] change in ./server/supabase.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Server running on http://0.0.0.0:3000/
+6:35:14 PM [vite] (client) hmr update /src/pages/Calendar.tsx, /src/index.css
+6:35:14 PM [vite] (client) hmr update /src/index.css, /src/pages/Disciplines.tsx
+6:35:14 PM [vite] (client) hmr update /src/pages/Edital.tsx, /src/index.css
+6:35:14 PM [vite] (client) hmr update /src/pages/History.tsx, /src/index.css
+6:35:15 PM [vite] (client) hmr update /src/pages/IntercalacaoPlanner.tsx, /src/index.css
+6:35:15 PM [vite] (client) hmr update /src/pages/MockExams.tsx, /src/index.css
+6:35:15 PM [vite] (client) hmr update /src/pages/QuestionErrors.tsx, /src/index.css
+6:35:15 PM [vite] (client) hmr update /src/pages/Revisions.tsx, /src/index.css
+6:35:15 PM [vite] (client) hmr update /src/index.css, /src/pages/Statistics.tsx
+6:35:15 PM [tsx] change in ./server/supabase.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Server running on http://0.0.0.0:3000/
+6:47:11 PM [tsx] change in ./server/jsonStorage.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Server running on http://0.0.0.0:3000/
+6:48:27 PM [tsx] change in ./server/_core/index.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Server running on http://0.0.0.0:3000/
+6:48:42 PM [tsx] change in ./server/jsonStorage.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+Server running on http://0.0.0.0:3000/
+6:51:58 PM [tsx] change in ./server/_core/index.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Server running on http://0.0.0.0:3000/
+7:03:08 PM [tsx] change in ./server/_core/vite.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+Server running on http://0.0.0.0:3000/
+7:03:30 PM [tsx] change in ./server/_core/vite.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+Port 3000 is busy, using port 3001 instead
+Server running on http://0.0.0.0:3001/
+7:13:25 PM [tsx] change in ./server/_core/context.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Server running on http://0.0.0.0:3000/
+7:32:20 PM [vite] .env changed, restarting server...
+7:32:20 PM [vite] server restarted.
+7:52:11 PM [vite] (client) ✨ new dependencies optimized: @supabase/supabase-js
+7:52:11 PM [vite] (client) ✨ optimized dependencies changed. reloading
+7:58:04 PM [vite] (client) hmr update /src/pages/Login.tsx, /src/index.css
+8:04:19 PM [vite] (client) page reload src/lib/supabase.ts
+8:04:40 PM [vite] (client) page reload src/lib/supabase.ts
+8:05:03 PM [vite] (client) page reload src/lib/supabase.ts
+8:05:23 PM [vite] (client) page reload src/lib/supabase.ts
+8:14:34 PM [tsx] change in ./package.json Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+Server running on http://0.0.0.0:3000/

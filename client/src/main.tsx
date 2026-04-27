@@ -8,6 +8,7 @@ import { Capacitor } from "@capacitor/core";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import { createLocalLink } from "./lib/localLink";
+import { supabase } from "@/lib/supabase";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,13 @@ const trpcClient = trpc.createClient({
       false: httpBatchLink({
         url: trpcUrl,
         transformer: superjson,
+        headers: async () => {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          return {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          };
+        },
         fetch(input, init) {
           return globalThis.fetch(input, {
             ...(init ?? {}),

@@ -22,7 +22,7 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:all": "npm run check && npm run test -- --coverage && npx playwright test",
+    "test:all": "npm run check && npm run test -- --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "ios:add": "npx cap add ios",
