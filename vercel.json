@@ -1,6 +1,6 @@
 {
   "framework": "vite",
-  "public": true,
+  "outputDirectory": "dist/public",
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -8,7 +8,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/client/index.html"
+      "destination": "/index.html"
     }
   ]
 }
