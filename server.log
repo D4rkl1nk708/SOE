@@ -62,3 +62,27 @@ Server running on http://0.0.0.0:3000/
 5:44:34 PM [tsx] change in ./package.json Restarting...
 c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
 Server running on http://0.0.0.0:3000/
+5:46:44 PM [tsx] change in ./package.json Restarting...
+c◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+5:46:45 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
+Server running on http://0.0.0.0:3000/
+5:46:51 PM [tsx] change in ./package.json Restarting...
+cnode:internal/modules/package_json_reader:189
+  const result = modulesBinding.readPackageJSON(nearestParentPackageJSON);
+                                ^
+
+Error: Invalid package config /home/anon/Desktop/SOE/package.json.
+    at Object.getNearestParentPackageJSON (node:internal/modules/package_json_reader:189:33)
+    at trySelf (node:internal/modules/cjs/loader:599:33)
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1360:24)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at node:internal/modules/cjs/loader:1989:12 {
+  code: 'ERR_INVALID_PACKAGE_CONFIG'
+}
+
+Node.js v22.22.0
