@@ -8,7 +8,13 @@ app.commandLine.appendSwitch("no-sandbox");
 const path = require("path");
 const { fork } = require("child_process");
 
+// ── FIX: Handle EPIPE error ──────────────────────────────────────────────────
+// On Linux, if stdout is closed, console.log throws EPIPE. We must ignore it.
+process.stdout.on("error", (err) => { if (err.code === "EPIPE") return; });
+process.stderr.on("error", (err) => { if (err.code === "EPIPE") return; });
+
 const DEFAULT_PORT = 3000;
+let serverPort = DEFAULT_PORT;
 let apiProcess = null;
 let mainWindow = null;
 let tray = null;
@@ -170,7 +176,7 @@ function initApp() {
 
   ipcMain.on("soe-tec-message", async (event, data) => {
     const token = global.SOE_PUSH_TOKEN || "ELECTRON_MODE";
-    const soeUrl = "http://localhost:3000";
+    const soeUrl = `http://localhost:${serverPort}`;
     let endpoint = "";
     if (data.type === "SOE_TEC_DATA") endpoint = "/api/tec/caderno-push";
     else if (data.type === "SOE_TEC_INCREMENT_STATS") endpoint = "/api/tec/increment";
@@ -181,21 +187,36 @@ function initApp() {
     else if (data.type === "SOE_TEC_BANCA_INCREMENT") endpoint = "/api/tec/banca-increment";
     else return;
 
-    console.log(`[ELECTRON] Proxying ${endpoint} (Token: ${token ? token.slice(0, 8) + "..." : "NULL"})`);
+    try {
+      console.log(`[ELECTRON] Proxying ${endpoint} (Token: ${token ? token.slice(0, 8) + "..." : "NULL"})`);
+    } catch (e) { /* Ignore EPIPE */ }
 
     try {
+      // Add a 30s timeout to fetch
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const resp = await fetch(soeUrl + endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-SOE-Token": token },
         body: JSON.stringify(data.payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const result = await resp.json();
-      console.log(`[ELECTRON] Proxy result for ${endpoint}:`, result ? "OK" : "ERROR");
+      try {
+        console.log(`[ELECTRON] Proxy result for ${endpoint}:`, result ? "OK" : "ERROR");
+      } catch (e) { /* Ignore EPIPE */ }
+
       if (event.sender && !event.sender.isDestroyed()) {
         event.sender.send("soe-tec-reply", { type: data.type, messageId: data.messageId, response: { data: result } });
       }
     } catch (error) {
-      console.error(`[ELECTRON] Proxy failed for ${endpoint}:`, error.message);
+      try {
+        console.error(`[ELECTRON] Proxy failed for ${endpoint}:`, error.message);
+      } catch (e) { /* Ignore EPIPE */ }
+
       if (event.sender && !event.sender.isDestroyed()) {
         event.sender.send("soe-tec-reply", { type: data.type, messageId: data.messageId, error: error.message });
       }
@@ -224,7 +245,10 @@ function initApp() {
       apiProcess.stdout && apiProcess.stdout.on("data", (chunk) => {
         const output = String(chunk);
         const match = output.match(/Server running on http:\/\/(?:localhost|0\.0\.0\.0):(\d+)\//);
-        if (match) finish(Number(match[1]));
+        if (match) {
+          serverPort = Number(match[1]);
+          finish(serverPort);
+        }
       });
       apiProcess.on("exit", () => { if (!loaded) finish(DEFAULT_PORT); });
       setTimeout(() => finish(DEFAULT_PORT), 6000);

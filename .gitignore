@@ -19,3 +19,5 @@ yarn-error.log*
 data/
 playwright-report/
 test-results/
+coverage/
+server.log
