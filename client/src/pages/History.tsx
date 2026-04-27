@@ -2,24 +2,36 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { 
-  History as HistoryIcon, 
-  Search, 
-  Filter, 
-  Download, 
-  BookOpen, 
+import {
+  History as HistoryIcon,
+  Search,
+  Filter,
+  Download,
+  BookOpen,
   ClipboardCheck,
   Calendar,
   CheckCircle2,
   Circle,
   X,
-  FileText
+  FileText,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,11 +45,13 @@ export default function History() {
     startDate: "",
     endDate: "",
   });
-  const [activeTab, setActiveTab] = useState<"all" | "completed" | "pending">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "completed" | "pending">(
+    "all",
+  );
 
   const utils = trpc.useUtils();
   const { data: disciplines } = trpc.discipline.list.useQuery();
-  
+
   const queryFilters = useMemo(() => {
     const f: typeof filters = { ...filters };
     if (activeTab === "completed") f.completed = true;
@@ -45,7 +59,8 @@ export default function History() {
     return f;
   }, [filters, activeTab]);
 
-  const { data: historyData, isLoading } = trpc.history.get.useQuery(queryFilters);
+  const { data: historyData, isLoading } =
+    trpc.history.get.useQuery(queryFilters);
   const { data: exportData } = trpc.export.getSchedule.useQuery({
     disciplineId: filters.disciplineId,
     startDate: filters.startDate || undefined,
@@ -60,11 +75,11 @@ export default function History() {
     },
     onError: (error) => {
       toast.error("Erro: " + error.message);
-    }
+    },
   });
 
   const getDiscipline = (disciplineId: number) => {
-    return disciplines?.find(d => d.id === disciplineId);
+    return disciplines?.find((d: any) => d.id === disciplineId);
   };
 
   const getTopic = (topicId: number) => {
@@ -82,7 +97,12 @@ export default function History() {
     });
   };
 
-  const hasFilters = filters.disciplineId || filters.search || filters.type || filters.startDate || filters.endDate;
+  const hasFilters =
+    filters.disciplineId ||
+    filters.search ||
+    filters.type ||
+    filters.startDate ||
+    filters.endDate;
 
   const handleExport = () => {
     if (!exportData?.schedule.length) {
@@ -98,12 +118,12 @@ export default function History() {
       item.revisionNumber.toString(),
       item.topicName,
       item.disciplineName,
-      item.completed ? "Concluído" : "Pendente"
+      item.completed ? "Concluído" : "Pendente",
     ]);
 
     const csvContent = [
       headers.join(","),
-      ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))
+      ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(",")),
     ].join("\n");
 
     // Create and download file
@@ -123,11 +143,14 @@ export default function History() {
     }
 
     // Group by date
-    const groupedByDate = exportData.schedule.reduce((acc: any, item: any) => {
-      if (!acc[item.date]) acc[item.date] = [];
-      acc[item.date].push(item);
-      return acc;
-    }, {} as Record<string, typeof exportData.schedule>);
+    const groupedByDate = exportData.schedule.reduce(
+      (acc: any, item: any) => {
+        if (!acc[item.date]) acc[item.date] = [];
+        acc[item.date].push(item);
+        return acc;
+      },
+      {} as Record<string, typeof exportData.schedule>,
+    );
 
     // Create printable HTML
     const htmlContent = `
@@ -163,25 +186,33 @@ export default function History() {
           <span class="badge badge-test">Teste</span> Teste aleatório (a cada 3+ dias)
         </div>
 
-        ${Object.entries(groupedByDate).map(([date, activities]: any) => `
+        ${Object.entries(groupedByDate)
+          .map(
+            ([date, activities]: any) => `
           <div class="date-group">
             <div class="date-header">${format(parseISO(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</div>
-            ${activities.map((a: any) => `
-              <div class="activity ${a.type} ${a.completed ? 'completed' : ''}">
-                <span class="badge badge-${a.type}">${a.type === 'revision' ? 'Revisão' : 'Teste'} #${a.revisionNumber}</span>
+            ${activities
+              .map(
+                (a: any) => `
+              <div class="activity ${a.type} ${a.completed ? "completed" : ""}">
+                <span class="badge badge-${a.type}">${a.type === "revision" ? "Revisão" : "Teste"} #${a.revisionNumber}</span>
                 <strong>${a.topicName}</strong>
                 <span style="color: ${a.disciplineColor}; margin-left: 8px;">● ${a.disciplineName}</span>
-                ${a.completed ? ' (feito)' : ''}
+                ${a.completed ? " (feito)" : ""}
               </div>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </body>
       </html>
     `;
 
     // Open in new window for printing
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
@@ -194,19 +225,32 @@ export default function History() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-2.5" style={{ color: "var(--app-fg)" }}>
+          <h1
+            className="text-3xl font-black tracking-tight flex items-center gap-2.5"
+            style={{ color: "var(--app-fg)" }}
+          >
             <HistoryIcon className="h-7 w-7 text-[var(--primary)]" />
             Histórico
           </h1>
-          <p className="text-sm opacity-60">Linha do tempo de todas as suas atividades.</p>
+          <p className="text-sm opacity-60">
+            Linha do tempo de todas as suas atividades.
+          </p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest"
+          >
             <Download className="h-4 w-4 mr-2" />
             CSV
           </Button>
-          <Button variant="outline" onClick={handleExportPrintable} className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest">
+          <Button
+            variant="outline"
+            onClick={handleExportPrintable}
+            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest"
+          >
             <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -216,28 +260,36 @@ export default function History() {
       {/* Filters */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <div className="col-span-2 lg:col-span-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-30" />
-            <Input
-              placeholder="Buscar..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="pl-11 h-11 rounded-2xl bg-white/5 border-white/5"
-            />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-30" />
+          <Input
+            placeholder="Buscar..."
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            className="pl-11 h-11 rounded-2xl bg-white/5 border-white/5"
+          />
         </div>
-        
+
         <Select
           value={filters.disciplineId ? String(filters.disciplineId) : "all"}
-          onValueChange={(value) => setFilters({ ...filters, disciplineId: value === "all" ? undefined : Number(value) })}
+          onValueChange={(value) =>
+            setFilters({
+              ...filters,
+              disciplineId: value === "all" ? undefined : Number(value),
+            })
+          }
         >
           <SelectTrigger className="h-11 rounded-2xl bg-white/5 border-white/5">
             <SelectValue placeholder="Matéria" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            {disciplines?.map((d) => (
+            {disciplines?.map((d: any) => (
               <SelectItem key={d.id} value={String(d.id)}>
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: d.color }}
+                  />
                   {d.name}
                 </div>
               </SelectItem>
@@ -247,7 +299,13 @@ export default function History() {
 
         <Select
           value={filters.type || "all"}
-          onValueChange={(value) => setFilters({ ...filters, type: value === "all" ? undefined : value as "revision" | "test" })}
+          onValueChange={(value) =>
+            setFilters({
+              ...filters,
+              type:
+                value === "all" ? undefined : (value as "revision" | "test"),
+            })
+          }
         >
           <SelectTrigger className="h-11 rounded-2xl bg-white/5 border-white/5">
             <SelectValue placeholder="Tipo" />
@@ -262,7 +320,9 @@ export default function History() {
         <Input
           type="date"
           value={filters.startDate}
-          onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+          onChange={(e) =>
+            setFilters({ ...filters, startDate: e.target.value })
+          }
           className="h-11 rounded-2xl bg-white/5 border-white/5 text-[10px]"
         />
 
@@ -270,11 +330,18 @@ export default function History() {
           <Input
             type="date"
             value={filters.endDate}
-            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, endDate: e.target.value })
+            }
             className="flex-1 h-11 rounded-2xl bg-white/5 border-white/5 text-[10px]"
           />
           {hasFilters && (
-            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-11 w-11 rounded-2xl bg-white/5 border border-white/5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={clearFilters}
+              className="h-11 w-11 rounded-2xl bg-white/5 border border-white/5"
+            >
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -282,12 +349,17 @@ export default function History() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+      >
         <TabsList>
           <TabsTrigger value="all">
             Todas
             {historyData?.revisions && (
-              <Badge variant="secondary" className="ml-2">{historyData.revisions.length}</Badge>
+              <Badge variant="secondary" className="ml-2">
+                {historyData.revisions.length}
+              </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">
@@ -303,7 +375,7 @@ export default function History() {
         <TabsContent value={activeTab} className="mt-4">
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {[1, 2, 3, 4, 5].map((i: any) => (
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-4">
                     <div className="h-6 bg-muted rounded w-3/4" />
@@ -315,14 +387,20 @@ export default function History() {
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <HistoryIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhuma atividade encontrada</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  Nenhuma atividade encontrada
+                </h3>
                 <p className="text-muted-foreground text-center">
-                  {hasFilters 
+                  {hasFilters
                     ? "Tente ajustar os filtros de busca"
                     : "Registre temas de estudo para ver o histórico de atividades"}
                 </p>
                 {hasFilters && (
-                  <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={clearFilters}
+                  >
                     Limpar Filtros
                   </Button>
                 )}
@@ -332,43 +410,68 @@ export default function History() {
             <div className="space-y-2">
               {historyData.revisions.map((revision: any) => {
                 const topic = getTopic(revision.topicId);
-                const discipline = topic ? getDiscipline(topic.disciplineId) : null;
+                const discipline = topic
+                  ? getDiscipline(topic.disciplineId)
+                  : null;
 
                 return (
-                  <Card key={revision.id} className={revision.completed ? "opacity-70" : ""}>
+                  <Card
+                    key={revision.id}
+                    className={revision.completed ? "opacity-70" : ""}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <Checkbox
                           checked={revision.completed}
-                          onCheckedChange={() => markCompletedMutation.mutate({
-                            id: revision.id,
-                            completed: !revision.completed
-                          })}
+                          onCheckedChange={() =>
+                            markCompletedMutation.mutate({
+                              id: revision.id,
+                              completed: !revision.completed,
+                            })
+                          }
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <Badge
                               variant="outline"
-                              className={revision.type === "test" ? "badge-test" : "badge-revision"}
+                              className={
+                                revision.type === "test"
+                                  ? "badge-test"
+                                  : "badge-revision"
+                              }
                             >
                               {revision.type === "test" ? (
-                                <><ClipboardCheck className="h-3 w-3 mr-1" />Teste #{revision.revisionNumber}</>
+                                <>
+                                  <ClipboardCheck className="h-3 w-3 mr-1" />
+                                  Teste #{revision.revisionNumber}
+                                </>
                               ) : (
-                                <><BookOpen className="h-3 w-3 mr-1" />Revisão #{revision.revisionNumber}</>
+                                <>
+                                  <BookOpen className="h-3 w-3 mr-1" />
+                                  Revisão #{revision.revisionNumber}
+                                </>
                               )}
                             </Badge>
                             <span className="text-sm text-muted-foreground flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {format(parseISO(revision.scheduledDate), "dd/MM/yyyy")}
+                              {format(
+                                parseISO(revision.scheduledDate),
+                                "dd/MM/yyyy",
+                              )}
                             </span>
                             {revision.completed && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              <Badge
+                                variant="secondary"
+                                className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              >
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Concluído
                               </Badge>
                             )}
                           </div>
-                          <p className={`font-medium ${revision.completed ? "line-through" : ""}`}>
+                          <p
+                            className={`font-medium ${revision.completed ? "line-through" : ""}`}
+                          >
                             {topic?.name || "Tema desconhecido"}
                           </p>
                           {discipline && (
@@ -377,7 +480,9 @@ export default function History() {
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: discipline.color }}
                               />
-                              <span className="text-sm text-muted-foreground">{discipline.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {discipline.name}
+                              </span>
                             </div>
                           )}
                         </div>

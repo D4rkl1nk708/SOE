@@ -108,7 +108,7 @@ export default function Calendar() {
   });
 
   const getDayActivities = (day: Date) =>
-    activities.filter((a) => isSameDay(parseISO(a.date), day));
+    activities.filter((a: any) => isSameDay(parseISO(a.date), day));
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
@@ -223,18 +223,20 @@ export default function Calendar() {
             </div>
 
             <div className="grid grid-cols-7 border-b border-white/5 bg-white/[0.01]">
-              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"].map((d) => (
-                <div
-                  key={d}
-                  className="py-3 text-center text-[0.65rem] font-black uppercase tracking-widest opacity-20"
-                >
-                  {d}
-                </div>
-              ))}
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"].map(
+                (d: any) => (
+                  <div
+                    key={d}
+                    className="py-3 text-center text-[0.65rem] font-black uppercase tracking-widest opacity-20"
+                  >
+                    {d}
+                  </div>
+                ),
+              )}
             </div>
 
             <div className="grid grid-cols-7 auto-rows-fr">
-              {days.map((day, idx) => {
+              {days.map((day: any, idx: any) => {
                 const dayActivities = getDayActivities(day);
                 const isSelected = selectedDay && isSameDay(day, selectedDay);
                 const isToday = isSameDay(day, new Date());
@@ -267,7 +269,7 @@ export default function Calendar() {
                     <div className="mt-1 space-y-1">
                       {/* Desktop list */}
                       <div className="hidden md:block space-y-1">
-                        {dayActivities.slice(0, 3).map((a) => (
+                        {dayActivities.slice(0, 3).map((a: any) => (
                           <div
                             key={a.id}
                             className={`text-[0.6rem] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border flex items-center gap-1 
@@ -296,7 +298,7 @@ export default function Calendar() {
                       </div>
                       {/* Mobile dots */}
                       <div className="md:hidden flex flex-wrap gap-0.5">
-                        {dayActivities.map((a) => (
+                        {dayActivities.map((a: any) => (
                           <div
                             key={a.id}
                             className={`w-1.5 h-1.5 rounded-full ${a.completed ? "opacity-20" : ""}`}
@@ -354,7 +356,7 @@ export default function Calendar() {
                     {/* Vertical Timeline Line */}
                     <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
 
-                    {getDayActivities(selectedDay).map((activity) => {
+                    {getDayActivities(selectedDay).map((activity: any) => {
                       const isTest = activity.type === "test";
                       const isCompleted = activity.completed;
 

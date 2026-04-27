@@ -253,7 +253,7 @@ export const appRouter = router({
         const settings = await storage.getUserSettings(ctx.user.id);
         const params = getScheduleParams(settings);
         const activities = buildSchedule(new Date(studyDate), params);
-        const revisionRecords = activities.map((activity) => ({
+        const revisionRecords = activities.map((activity: any) => ({
           userId: ctx.user.id,
           topicId,
           scheduledDate: formatDateForDb(activity.date),
@@ -573,7 +573,7 @@ export const appRouter = router({
         const { id, ...data } = input;
         // Fetch current exam to compute score correctly when only one field changes
         const exams = await storage.getMockExamsByUser(ctx.user.id);
-        const current = exams.find((e) => e.id === id);
+        const current = exams.find((e: any) => e.id === id);
         const newCorrect = data.correct ?? current?.correct ?? 0;
         const newWrong = data.wrong ?? current?.wrong ?? 0;
         await storage.updateMockExam(id, ctx.user.id, {
@@ -642,10 +642,10 @@ export const appRouter = router({
             input.endDate,
           );
         return revisions
-          .map((r) => {
-            const topic = topics.find((t) => t.id === r.topicId);
+          .map((r: any) => {
+            const topic = topics.find((t: any) => t.id === r.topicId);
             const discipline = disciplines.find(
-              (d) => d.id === topic?.disciplineId,
+              (d: any) => d.id === topic?.disciplineId,
             );
             return {
               id: r.id,
@@ -660,7 +660,7 @@ export const appRouter = router({
               link: r.link,
             };
           })
-          .sort((a, b) => {
+          .sort((a: any, b: any) => {
             // 1. Não completados primeiro
             if (a.completed !== b.completed) return a.completed ? 1 : -1;
             // 2. Revisões antes de Testes
@@ -831,13 +831,15 @@ export const appRouter = router({
           ctx.user.id,
           { limit: 200 },
         );
-        const e = errors.find((err) => err.id === input.id);
+        const e = errors.find((err: any) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
         const chosenText =
-          e.alternatives?.find((a: any) => a.letter === e.userAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.userAnswer)?.text ||
+          "";
         const correctText =
-          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)
+            ?.text || "";
 
         const prompt = `Você é um professor especialista em concursos públicos brasileiros.
 
@@ -896,11 +898,12 @@ Responda em português, máximo 300 palavras. Sem introduções — vá direto a
           ctx.user.id,
           { limit: 200 },
         );
-        const e = errors.find((err) => err.id === input.id);
+        const e = errors.find((err: any) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
         const correctText =
-          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)
+            ?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, escreva uma DICA DE REVISÃO curta e memorável.
 
@@ -949,7 +952,7 @@ Escreva uma dica de revisão com exatamente este formato:
           ctx.user.id,
           { limit: 200 },
         );
-        const e = errors.find((err) => err.id === input.id);
+        const e = errors.find((err: any) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo, sugira 3 questões similares que o aluno deveria buscar para praticar.
@@ -1013,11 +1016,12 @@ Por que praticar: [1 linha]`;
           ctx.user.id,
           { limit: 200 },
         );
-        const e = errors.find((err) => err.id === input.id);
+        const e = errors.find((err: any) => err.id === input.id);
         if (!e) throw new Error("Questão não encontrada.");
 
         const correctText =
-          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)
+            ?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, crie UM flashcard para memorização.
 
@@ -1283,8 +1287,8 @@ Responda apenas o JSON.`;
                 ? `Gabarito: ${e.correctAnswer}`
                 : "";
               const chosenText =
-                e.alternatives.find((a: any) => a.letter === e.userAnswer)?.text ||
-                "";
+                e.alternatives.find((a: any) => a.letter === e.userAnswer)
+                  ?.text || "";
               const correctText =
                 e.alternatives.find((a: any) => a.letter === e.correctAnswer)
                   ?.text || "";
@@ -1294,7 +1298,9 @@ Responda apenas o JSON.`;
               return [
                 `--- Questão ${e.questionId || ""} (${e.banca || ""} ${e.year || ""}) ---`,
                 e.statement,
-                e.alternatives.map((a: any) => `${a.letter}) ${a.text}`).join("\n"),
+                e.alternatives
+                  .map((a: any) => `${a.letter}) ${a.text}`)
+                  .join("\n"),
                 chosen + (chosenText ? ` — "${chosenText}"` : ""),
                 correct + (correctText ? ` — "${correctText}"` : ""),
                 origin,
@@ -1499,7 +1505,9 @@ ${input.text.substring(0, 8000)}`;
           .filter((e: any) => e.mood === mood)
           .map((e: any) => e.date.split("T")[0]);
         const accs = sessions
-          .filter((s: any) => moodDays.includes((s as any).date) && s.accuracy > 0)
+          .filter(
+            (s: any) => moodDays.includes((s as any).date) && s.accuracy > 0,
+          )
           .map((s: any) => s.accuracy);
         if (accs.length > 0) {
           correlations.push({
@@ -1566,7 +1574,7 @@ ${input.text.substring(0, 8000)}`;
     checkMassStudy: protectedProcedure.query(async ({ ctx }) => {
       const db_topics = await storage.getTopicsByUser(ctx.user.id);
       const today = new Date().toISOString().split("T")[0];
-      const todayTopics = db_topics.filter((t) => t.studyDate === today);
+      const todayTopics = db_topics.filter((t: any) => t.studyDate === today);
       const countByDiscipline: Record<number, number> = {};
       for (const t of todayTopics) {
         countByDiscipline[t.disciplineId] =
@@ -1602,7 +1610,7 @@ ${input.text.substring(0, 8000)}`;
           ),
         }))
         .filter((e: any) => e.daysLeft >= 0 && e.daysLeft <= preExamDays)
-        .sort((a, b) => a.daysLeft - b.daysLeft);
+        .sort((a: any, b: any) => a.daysLeft - b.daysLeft);
       return { active: upcoming.length > 0, exams: upcoming, preExamDays };
     }),
 
@@ -1656,35 +1664,41 @@ ${input.text.substring(0, 8000)}`;
         let filtered = revisions;
 
         if (input?.completed !== undefined) {
-          filtered = filtered.filter((r) => r.completed === input.completed);
+          filtered = filtered.filter(
+            (r: any) => r.completed === input.completed,
+          );
         }
         if (input?.type) {
-          filtered = filtered.filter((r) => r.type === input.type);
+          filtered = filtered.filter((r: any) => r.type === input.type);
         }
         if (input?.startDate) {
           filtered = filtered.filter(
-            (r) => r.scheduledDate >= input.startDate!,
+            (r: any) => r.scheduledDate >= input.startDate!,
           );
         }
         if (input?.endDate) {
-          filtered = filtered.filter((r) => r.scheduledDate <= input.endDate!);
+          filtered = filtered.filter(
+            (r: any) => r.scheduledDate <= input.endDate!,
+          );
         }
         if (input?.disciplineId) {
           const discTopicIds = new Set(
             topics
-              .filter((t) => t.disciplineId === input.disciplineId)
-              .map((t) => t.id),
+              .filter((t: any) => t.disciplineId === input.disciplineId)
+              .map((t: any) => t.id),
           );
-          filtered = filtered.filter((r) => discTopicIds.has(r.topicId));
+          filtered = filtered.filter((r: any) => discTopicIds.has(r.topicId));
         }
         if (input?.search) {
           const q = input.search.toLowerCase();
           const matchingTopicIds = new Set(
             topics
-              .filter((t) => t.name.toLowerCase().includes(q))
-              .map((t) => t.id),
+              .filter((t: any) => t.name.toLowerCase().includes(q))
+              .map((t: any) => t.id),
           );
-          filtered = filtered.filter((r) => matchingTopicIds.has(r.topicId));
+          filtered = filtered.filter((r: any) =>
+            matchingTopicIds.has(r.topicId),
+          );
         }
 
         return {
@@ -1717,26 +1731,28 @@ ${input.text.substring(0, 8000)}`;
 
         if (input?.startDate) {
           filtered = filtered.filter(
-            (r) => r.scheduledDate >= input.startDate!,
+            (r: any) => r.scheduledDate >= input.startDate!,
           );
         }
         if (input?.endDate) {
-          filtered = filtered.filter((r) => r.scheduledDate <= input.endDate!);
+          filtered = filtered.filter(
+            (r: any) => r.scheduledDate <= input.endDate!,
+          );
         }
         if (input?.disciplineId) {
           const discTopicIds = new Set(
             topics
-              .filter((t) => t.disciplineId === input.disciplineId)
-              .map((t) => t.id),
+              .filter((t: any) => t.disciplineId === input.disciplineId)
+              .map((t: any) => t.id),
           );
-          filtered = filtered.filter((r) => discTopicIds.has(r.topicId));
+          filtered = filtered.filter((r: any) => discTopicIds.has(r.topicId));
         }
 
         const schedule = filtered
-          .map((r) => {
-            const topic = topics.find((t) => t.id === r.topicId);
+          .map((r: any) => {
+            const topic = topics.find((t: any) => t.id === r.topicId);
             const discipline = disciplines.find(
-              (d) => d.id === topic?.disciplineId,
+              (d: any) => d.id === topic?.disciplineId,
             );
             return {
               date: r.scheduledDate,
@@ -1748,7 +1764,7 @@ ${input.text.substring(0, 8000)}`;
               ignored: r.ignored,
             };
           })
-          .sort((a, b) => a.date.localeCompare(b.date));
+          .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
         return { schedule };
       }),

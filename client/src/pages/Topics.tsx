@@ -172,7 +172,7 @@ export default function Topics() {
   };
 
   const getDiscipline = (id: number) =>
-    disciplinesData?.find((d) => d.id === id);
+    disciplinesData?.find((d: any) => d.id === id);
   const clearFilters = () =>
     setFilters({ disciplineId: undefined, search: "" });
 
@@ -226,7 +226,7 @@ export default function Topics() {
           className="h-14 px-6 rounded-2xl bg-white/[0.02] border border-white/5 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all"
         >
           <option value="">Todas as Disciplinas</option>
-          {disciplinesData?.map((d) => (
+          {disciplinesData?.map((d: any) => (
             <option key={d.id} value={d.id} className="bg-slate-900">
               {d.name}
             </option>
@@ -261,7 +261,7 @@ export default function Topics() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {topicsData?.topics.map((topic) => {
+            {topicsData?.topics.map((topic: any) => {
               const discipline = getDiscipline(topic.disciplineId);
               const accuracy = (topic as any).performance?.accuracy || 0;
 
@@ -426,7 +426,7 @@ export default function Topics() {
                   <SelectValue placeholder="Selecione a matéria..." />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-white/10 bg-[var(--app-bg)]">
-                  {disciplinesData?.map((d) => (
+                  {disciplinesData?.map((d: any) => (
                     <SelectItem
                       key={d.id}
                       value={String(d.id)}
