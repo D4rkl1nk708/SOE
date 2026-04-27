@@ -2,6 +2,7 @@ import { getLoginUrl, isLocalMode } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabase";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -31,8 +32,7 @@ export function useAuth(options?: UseAuthOptions) {
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
-    // In local mode, we don't need to fetch from server
-    enabled: !localMode,
+    enabled: true, // Always fetch to get Supabase user
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -49,6 +49,7 @@ export function useAuth(options?: UseAuthOptions) {
     }
     
     try {
+      await supabase.auth.signOut();
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
       if (
@@ -65,8 +66,8 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils, localMode]);
 
   const state = useMemo(() => {
-    // In local mode, always return the local user
-    if (localMode) {
+    // In local mode, fallback to local user ONLY if not in production and not authenticated
+    if (localMode && !meQuery.data && import.meta.env.DEV) {
       return {
         user: LOCAL_USER,
         loading: false,

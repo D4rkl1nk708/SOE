@@ -1,10 +1,15 @@
 import { test, expect } from "@playwright/test";
 
+// Credenciais de teste (usuário já criado no Supabase)
+const TEST_EMAIL = "test@gmail.com";
+const TEST_PASSWORD = "6482";
+
 test.describe("SOE Core Features", () => {
   test.beforeEach(async ({ page }) => {
-    // Acessa a página inicial com no-splash para agilizar os testes
-    await page.goto("http://localhost:3000/?no-splash");
-    await page.waitForLoadState("domcontentloaded");
+    // Faz login via bypass de teste (localhost apenas)
+    await page.goto("http://localhost:3000/login?no-splash&test=true");
+    // Aguarda redirecionamento para fora do login
+    await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 10000 });
   });
 
   test("Deve acessar o Perfil e abrir a aba do Sentinela", async ({ page }) => {
@@ -25,7 +30,6 @@ test.describe("SOE Core Features", () => {
 
   test("Deve acessar o Analytics", async ({ page }) => {
     await page.goto("http://localhost:3000/analytics?no-splash");
-    // Verifica se algum widget visual carregou (ex: Radar ou Gráficos)
     await expect(page).toHaveURL(/\/analytics/);
   });
 

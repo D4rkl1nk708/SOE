@@ -34,8 +34,11 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { GuidedTour } from "./components/GuidedTour";
+import { useAuth } from "./_core/hooks/useAuth";
+import Login from "@/pages/Login";
 
 function Router() {
+  const { isAuthenticated } = useAuth();
   useSmartNotifications();
   useNotifications();
   useDiarioOficial();
@@ -51,31 +54,48 @@ function Router() {
     }
   }, []);
 
+  // Se já estiver logado e tentar acessar /login, manda para home
+  useEffect(() => {
+    if (isAuthenticated && window.location.pathname === "/login") {
+      window.location.href = "/";
+    }
+  }, [isAuthenticated]);
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/disciplines" component={DisciplinesPage} />
-      <Route path="/topics" component={Topics} />
-      <Route path="/revisions" component={Revisions} />
-      <Route path="/statistics" component={StatisticsPage} />
-      <Route path="/calendar" component={Calendar} />
-      <Route path="/mock-exams" component={MockExams} />
-      <Route path="/notes" component={Notes} />
-      <Route path="/flashcards" component={Flashcards} />
-      <Route path="/simulado" component={Simulado} />
-      <Route path="/topic-stats" component={TopicStats} />
-      <Route path="/edital" component={Edital} />
-      <Route path="/history" component={History} />
-      <Route path="/sync" component={Sync} />
-      <Route path="/question-session" component={QuestionSession} />
-      <Route path="/question-errors" component={QuestionErrors} />
-      <Route path="/lab" component={Lab} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
-      <Route path="/intercalacao" component={IntercalacaoPlanner} />
-      <Route path="/mentor" component={MentorTab} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
+      {/* Public route — no layout */}
+      <Route path="/login" component={Login} />
+
+      {/* Protected routes — inside Layout */}
+      <Route path="/">
+        <Layout>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/disciplines" component={DisciplinesPage} />
+            <Route path="/topics" component={Topics} />
+            <Route path="/revisions" component={Revisions} />
+            <Route path="/statistics" component={StatisticsPage} />
+            <Route path="/calendar" component={Calendar} />
+            <Route path="/mock-exams" component={MockExams} />
+            <Route path="/notes" component={Notes} />
+            <Route path="/flashcards" component={Flashcards} />
+            <Route path="/simulado" component={Simulado} />
+            <Route path="/topic-stats" component={TopicStats} />
+            <Route path="/edital" component={Edital} />
+            <Route path="/history" component={History} />
+            <Route path="/sync" component={Sync} />
+            <Route path="/question-session" component={QuestionSession} />
+            <Route path="/question-errors" component={QuestionErrors} />
+            <Route path="/lab" component={Lab} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
+            <Route path="/intercalacao" component={IntercalacaoPlanner} />
+            <Route path="/mentor" component={MentorTab} />
+            <Route component={NotFound} />
+          </Switch>
+          <GuidedTour />
+        </Layout>
+      </Route>
     </Switch>
   );
 }
@@ -296,18 +316,55 @@ function App() {
     return false;
   });
 
+  const { loading, isAuthenticated } = useAuth({ redirectOnUnauthenticated: true, redirectPath: "/login" });
+
+  if (!splashDone) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster position="top-right" richColors />
+            <SplashScreen onDone={() => setSplashDone(true)} />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  if (loading) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster position="top-right" richColors />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  // SE NÃO ESTIVER LOGADO: mostra APENAS o login, sem Router/Layout
+  if (!isAuthenticated) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster position="top-right" richColors />
+            <Login />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  // USUÁRIO LOGADO: mostra o Router completo com rotas protegidas
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <TooltipProvider>
           <Toaster position="top-right" richColors />
-          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-          <div style={{ visibility: splashDone ? "visible" : "hidden" }}>
-            <Layout>
-              <Router />
-              <GuidedTour />
-            </Layout>
-          </div>
+          <Router />
+          <GuidedTour />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
