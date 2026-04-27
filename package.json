@@ -29,7 +29,7 @@
     "ios:sync": "npm run build:clean && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "ios:build": "npm run build:clean && npx cap sync ios && npx cap open ios",
-    "android:build:nosync": "npm run build:clean && mkdir -p android/app/src/main/assets/public/ && cp -r dist/public/* android/app/src/main/assets/public/ && cd android && ./gradlew assembleDebug",
+    "android:build:nosync": "npm run build:clean && mkdir -p android/app/src/main/assets/public/ && cp -r dist/public/* android/app/src/main/assets/public/ && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
