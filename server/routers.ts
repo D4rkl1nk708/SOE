@@ -400,6 +400,29 @@ export const appRouter = router({
         await storage.rescheduleRevision(input.id, ctx.user.id, input.newDate);
         return { success: true };
       }),
+    saveRecallRating: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          rating: z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3),
+            z.literal(4),
+            z.literal(5),
+          ]),
+          freeRecallText: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await storage.saveRevisionRecallRating(
+          input.id,
+          ctx.user.id,
+          input.rating,
+          input.freeRecallText,
+        );
+        return { success: true };
+      }),
   }),
 
   // ============ IMPORT PROCEDURES ============
@@ -734,6 +757,17 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), quality: z.number().min(0).max(5) }))
       .mutation(async ({ ctx, input }) => {
         return storage.reviewFlashcard(input.id, ctx.user.id, input.quality);
+      }),
+    archive: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          archived: z.boolean().default(true),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await storage.archiveFlashcard(input.id, ctx.user.id, input.archived);
+        return { success: true };
       }),
   }),
 

@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">10.59% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/151</span>
+                <span class='fraction'>16/151</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">6.1% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/131</span>
+                <span class='fraction'>8/131</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">16% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>4/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.59% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/127</span>
+                <span class='fraction'>16/127</span>
             </div>
         
             
@@ -378,24 +378,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -405,13 +405,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -663,7 +663,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -686,24 +686,24 @@
 import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 &nbsp;
-const STORAGE_KEY_NAME     = <span class="cstat-no" title="statement not covered" >"dou_monitor_name";</span>
-const STORAGE_KEY_SEEN     = <span class="cstat-no" title="statement not covered" >"dou_monitor_seen_ids";</span>
-const STORAGE_KEY_LAST     = <span class="cstat-no" title="statement not covered" >"dou_monitor_last_check";</span>
-const STORAGE_KEY_INTERVAL = <span class="cstat-no" title="statement not covered" >"dou_monitor_interval_minutes";</span>
-const DEFAULT_INTERVAL_MS  = <span class="cstat-no" title="statement not covered" >2 * 60 * 60 * 1000;</span>
-const isAndroid            = <span class="cstat-no" title="statement not covered" >Capacitor.isNativePlatform();</span>
-const isElectron           = <span class="cstat-no" title="statement not covered" >typeof window !== "undefined" &amp;&amp; !!(window as any).electron;</span>
-const canFetchDirect       = <span class="cstat-no" title="statement not covered" >isAndroid || isElectron;</span>
+const STORAGE_KEY_NAME     = "dou_monitor_name";
+const STORAGE_KEY_SEEN     = "dou_monitor_seen_ids";
+const STORAGE_KEY_LAST     = "dou_monitor_last_check";
+const STORAGE_KEY_INTERVAL = "dou_monitor_interval_minutes";
+const DEFAULT_INTERVAL_MS  = 2 * 60 * 60 * 1000;
+const isAndroid            = Capacitor.isNativePlatform();
+const isElectron           = typeof window !== "undefined" &amp;&amp; !!(window as any).electron;
+const canFetchDirect       = isAndroid || isElectron;
 &nbsp;
-export const DEFAULT_INTERVAL_MINUTES = <span class="cstat-no" title="statement not covered" >120;</span>
-export const MIN_INTERVAL_MINUTES     = <span class="cstat-no" title="statement not covered" >15;</span>
-export const MAX_INTERVAL_MINUTES     = <span class="cstat-no" title="statement not covered" >480;</span>
+export const DEFAULT_INTERVAL_MINUTES = 120;
+export const MIN_INTERVAL_MINUTES     = 15;
+export const MAX_INTERVAL_MINUTES     = 480;
 &nbsp;
 export function <span class="fstat-no" title="function not covered" >saveDOUInterval(m</span>inutes: number) {
 <span class="cstat-no" title="statement not covered" >  localStorage.setItem(STORAGE_KEY_INTERVAL, String(minutes));</span>
 }
-export function <span class="fstat-no" title="function not covered" >getDOUInterval(): number {</span>
-<span class="cstat-no" title="statement not covered" >  return parseInt(localStorage.getItem(STORAGE_KEY_INTERVAL) ?? String(DEFAULT_INTERVAL_MINUTES));</span>
+export function getDOUInterval(): number {
+  return parseInt(localStorage.getItem(STORAGE_KEY_INTERVAL) ?? String(DEFAULT_INTERVAL_MINUTES));
 }
 &nbsp;
 /** Salva o nome completo que será monitorado */
@@ -712,14 +712,14 @@ export function <span class="fstat-no" title="function not covered" >saveDOUName
 }
 &nbsp;
 /** Recupera o nome salvo */
-export function <span class="fstat-no" title="function not covered" >getDOUName(): string {</span>
-<span class="cstat-no" title="statement not covered" >  return localStorage.getItem(STORAGE_KEY_NAME) ?? "";</span>
+export function getDOUName(): string {
+  return localStorage.getItem(STORAGE_KEY_NAME) ?? "";
 }
 &nbsp;
 /** Monta a URL de busca do DOU */
-function <span class="fstat-no" title="function not covered" >buildSearchURL(n</span>ame: string): string {
-  const encoded = <span class="cstat-no" title="statement not covered" >encodeURIComponent(`"${name}"`);</span>
-<span class="cstat-no" title="statement not covered" >  return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&amp;s=todos&amp;exactDate=all&amp;sortType=0`;</span>
+function buildSearchURL(name: string): string {
+  const encoded = encodeURIComponent(`"${name}"`);
+  return `https://www.in.gov.br/consulta/-/buscar/dou?q=${encoded}&amp;s=todos&amp;exactDate=all&amp;sortType=0`;
 }
 &nbsp;
 /** Faz a busca no DOU.
@@ -970,8 +970,8 @@ export async function <span class="fstat-no" title="function not covered" >check
 }
 &nbsp;
 // ── API usada pela UI do Perfil ───────────────────────────────────────────────
-export async function <span class="fstat-no" title="function not covered" >douGetConfig() {</span>
-<span class="cstat-no" title="statement not covered" >  return {</span>
+export async function douGetConfig() {
+  return {
     name: getDOUName(),
     intervalMinutes: getDOUInterval(),
     lastCheck: localStorage.getItem(STORAGE_KEY_LAST),
@@ -994,7 +994,7 @@ export async function <span class="fstat-no" title="function not covered" >douCh
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T23:08:21.361Z
+                at 2026-04-27T01:06:25.270Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

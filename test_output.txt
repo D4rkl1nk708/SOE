@@ -1,0 +1,103 @@
+
+> estudo_25_50_dias@5.2.0 test
+> vitest run tests/jsonStorage.integration.test.ts tests/mentor.test.ts
+
+▲ [WARNING] Duplicate key "pnpm" in object literal [duplicate-object-key]
+
+    package.json:151:4:
+      151 │     "pnpm": "^10.15.1",
+          ╵     ~~~~~~
+
+  The original key "pnpm" is here:
+
+    package.json:146:4:
+      146 │     "pnpm": "^10.15.1",
+          ╵     ~~~~~~
+
+
+ RUN  v4.1.5 /home/anon/Desktop/SOE
+
+ ✓ tests/mentor.test.ts (6 tests) 6ms
+ ❯ tests/jsonStorage.integration.test.ts (4 tests | 4 failed) 722ms
+     × should create and retrieve a user 143ms
+     × should handle disciplines and topics 167ms
+     × should update performance correctly 261ms
+     × should handle revisions 150ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should create and retrieve a user
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/jsonStorage.integration.test.ts:35:27
+     33|     const retrieved = await storage.getUserByOpenId("user-123");
+     34|     expect(retrieved?.name).toBe("Test User");
+     35|     expect(retrieved?.id).toBe(1);
+       |                           ^
+     36|
+     37|     const byToken = await storage.getUserByPushToken("token-123");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should handle disciplines and topics
+AssertionError: expected undefined to be 'Mathematics' // Object.is equality
+
+- Expected:
+"Mathematics"
+
++ Received:
+undefined
+
+ ❯ tests/jsonStorage.integration.test.ts:52:23
+     50|     });
+     51|
+     52|     expect(disc.name).toBe("Mathematics");
+       |                       ^
+     53|
+     54|     const topic = await storage.createTopic({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should update performance correctly
+AssertionError: expected undefined to be 10 // Object.is equality
+
+- Expected:
+10
+
++ Received:
+undefined
+
+ ❯ tests/jsonStorage.integration.test.ts:83:52
+     81|
+     82|     const updatedTopic = (await storage.getTopicsByUser(user.id))[0];
+     83|     expect(updatedTopic.performance?.correctCount).toBe(10);
+       |                                                    ^
+     84|     expect(updatedTopic.performance?.errorCount).toBe(2);
+     85|     expect(updatedTopic.performance?.accuracy).toBe(Math.round((10 / 1…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should handle revisions
+AssertionError: expected 0 to be greater than 0
+ ❯ tests/jsonStorage.integration.test.ts:97:30
+     95|
+     96|     const revisions = await storage.getRevisionsByUser(user.id);
+     97|     expect(revisions.length).toBeGreaterThan(0);
+       |                              ^
+     98|     const rid = revisions[0].id;
+     99|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  4 failed | 6 passed (10)
+   Start at  21:59:33
+   Duration  1.01s (transform 325ms, setup 0ms, import 424ms, tests 728ms, environment 0ms)
+

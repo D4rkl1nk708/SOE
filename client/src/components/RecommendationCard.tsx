@@ -135,18 +135,22 @@ export function RecommendationCard() {
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
                   <AlertCircle size={10} /> Diagnóstico Crítico
                 </p>
-                <p className="text-sm font-bold opacity-90 border-l-2 border-primary/20 pl-3 py-1 bg-white/[0.02] rounded-r-lg">
-                  {rec.diagnostic}
-                </p>
+                <div className="border-l-2 border-primary/20 pl-3 py-2.5 bg-white/[0.02] rounded-r-lg min-h-[4rem] flex items-center w-full">
+                  <p className="text-sm font-bold opacity-90 whitespace-normal break-words leading-relaxed w-full">
+                    {rec.diagnostic}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
                   <TrendingDown size={10} /> Plano de Ação
                 </p>
-                <p className="text-sm opacity-80 leading-relaxed bg-primary/5 p-3 rounded-xl border border-primary/10 font-medium">
-                  {rec.actionPlan}
-                </p>
+                <div className="bg-primary/5 p-3 rounded-xl border border-primary/10 min-h-[4rem] flex items-center w-full">
+                  <p className="text-sm opacity-80 leading-relaxed font-medium w-full">
+                    {rec.actionPlan}
+                  </p>
+                </div>
               </div>
             </div>
 

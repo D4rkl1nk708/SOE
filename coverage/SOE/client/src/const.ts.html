@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">28.57% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/21</span>
+                <span class='fraction'>6/21</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">40% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/10</span>
+                <span class='fraction'>4/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>1/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">30% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/20</span>
+                <span class='fraction'>6/20</span>
             </div>
         
             
@@ -105,17 +105,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -133,17 +133,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 &nbsp;
 // Generate login URL at runtime so redirect URI reflects the current origin.
 // Returns empty string if OAuth is not configured (local mode)
-export const getLoginUrl = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+export const getLoginUrl = <span class="fstat-no" title="function not covered" >() =&gt; {</span>
   const oauthPortalUrl = <span class="cstat-no" title="statement not covered" >import.meta.env.VITE_OAUTH_PORTAL_URL;</span>
   const appId = <span class="cstat-no" title="statement not covered" >import.meta.env.VITE_APP_ID;</span>
   
@@ -171,11 +171,11 @@ export const getLoginUrl = <span class="cstat-no" title="statement not covered" 
 import { Capacitor } from "@capacitor/core";
 &nbsp;
 // Check if running in local mode (no OAuth configured, or app standalone no Android/iOS)
-export const isLocalMode = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >  if (typeof Capacitor !== "undefined" &amp;&amp; Capacitor.isNativePlatform?.()) <span class="cstat-no" title="statement not covered" >return true;</span></span>
-  const oauthPortalUrl = <span class="cstat-no" title="statement not covered" >import.meta.env.VITE_OAUTH_PORTAL_URL;</span>
-  const appId = <span class="cstat-no" title="statement not covered" >import.meta.env.VITE_APP_ID;</span>
-<span class="cstat-no" title="statement not covered" >  return !oauthPortalUrl || !appId;</span>
+export const isLocalMode = () =&gt; {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof Capacitor !== "undefined" &amp;&amp; Capacitor.isNativePlatform?.()) <span class="cstat-no" title="statement not covered" >return true;</span>
+  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
+  const appId = import.meta.env.VITE_APP_ID;
+  return !oauthPortalUrl || <span class="branch-1 cbranch-no" title="branch not covered" >!appId;</span>
 };
 &nbsp;</pre></td></tr></table></pre>
 
@@ -184,7 +184,7 @@ export const isLocalMode = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T23:08:21.361Z
+                at 2026-04-27T01:06:25.270Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

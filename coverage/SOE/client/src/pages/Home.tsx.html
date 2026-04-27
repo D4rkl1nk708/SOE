@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">69.23% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>9/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">43.63% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/55</span>
+                <span class='fraction'>24/55</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">33.33% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>2/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">69.23% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>9/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line medium'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -340,7 +340,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -359,19 +359,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -578,13 +578,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 &nbsp;
-function <span class="fstat-no" title="function not covered" >StatCard({</span>
+function StatCard({
   title,
   value,
   subtitle,
   icon: Icon,
-  valueClass = <span class="branch-0 cbranch-no" title="branch not covered" >"",</span>
-  loading = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
+  valueClass = "",
+  loading = false,
 }: {
   title: string;
   value: number | string;
@@ -593,7 +593,7 @@ function <span class="fstat-no" title="function not covered" >StatCard({</span>
   valueClass?: string;
   loading?: boolean;
 }) {
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;Card&gt;
       &lt;CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"&gt;
         &lt;CardTitle className="text-sm font-medium"&gt;{title}&lt;/CardTitle&gt;
@@ -601,7 +601,7 @@ function <span class="fstat-no" title="function not covered" >StatCard({</span>
       &lt;/CardHeader&gt;
       &lt;CardContent&gt;
         {loading ? (
-          &lt;Skeleton className="h-8 w-16 mb-1" /&gt;
+<span class="branch-0 cbranch-no" title="branch not covered" >          &lt;Skeleton className="h-8 w-16 mb-1" /&gt;</span>
         ) : (
           &lt;div className={`text-2xl font-bold ${valueClass}`}&gt;{value}&lt;/div&gt;
         )}
@@ -611,44 +611,44 @@ function <span class="fstat-no" title="function not covered" >StatCard({</span>
   );
 }
 &nbsp;
-export default function <span class="fstat-no" title="function not covered" >Home() {</span>
-  const { data: stats, isLoading } = <span class="cstat-no" title="statement not covered" >trpc.dashboard.getStats.useQuery();</span>
+export default function Home() {
+  const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >today = new Date().toISOString().split("T")[0];</span>
-  const streak = <span class="cstat-no" title="statement not covered" >stats?.settings?.studyStreak;</span>
-  const examDate = <span class="cstat-no" title="statement not covered" >stats?.settings?.exams?.[0]?.date;</span>
-  const examName = <span class="cstat-no" title="statement not covered" >stats?.settings?.exams?.[0]?.name;</span>
-  const daysUntilExam = <span class="cstat-no" title="statement not covered" >examDate</span>
-    ? Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000)
+  const today = new Date().toISOString().split("T")[0];
+  const streak = stats?.settings?.studyStreak;
+  const examDate = stats?.settings?.exams?.[0]?.date;
+  const examName = stats?.settings?.exams?.[0]?.name;
+  const daysUntilExam = examDate
+    ? <span class="branch-0 cbranch-no" title="branch not covered" >Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000)</span>
     : null;
 &nbsp;
-  const hasData = <span class="cstat-no" title="statement not covered" >!isLoading &amp;&amp; (stats?.totalTopics ?? 0) &gt; 0;</span>
+  const hasData = !isLoading &amp;&amp; (stats?.totalTopics ?? <span class="branch-1 cbranch-no" title="branch not covered" >0) &gt; 0</span>;
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;div className="space-y-6"&gt;
       {/* Welcome / Exam Banner */}
       &lt;div className="bg-gradient-to-r from-primary to-accent rounded-lg p-6 text-primary-foreground"&gt;
         &lt;div className="flex items-start justify-between gap-4"&gt;
           &lt;div&gt;
             &lt;h1 className="text-3xl font-bold mb-1"&gt;
-              {hasData ? "Bom estudo! 💪" : "Bem-vindo ao SOE!"}
+              {hasData ? "Bom estudo! 💪" : <span class="branch-1 cbranch-no" title="branch not covered" >"Bem-vindo ao SOE!"}</span>
             &lt;/h1&gt;
             &lt;p className="text-lg opacity-90"&gt;
               {hasData
                 ? `Você tem ${stats!.pendingRevisions} revisão(ões) pendente(s) hoje.`
-                : "Organize seus estudos com o método 25+50, acompanhe seu progresso e alcance seus objetivos"}
+                : <span class="branch-1 cbranch-no" title="branch not covered" >"Organize seus estudos com o método 25+50, acompanhe seu progresso e alcance seus objetivos"}</span>
             &lt;/p&gt;
           &lt;/div&gt;
-          {streak &amp;&amp; streak.current &gt; 0 &amp;&amp; (
-            &lt;div className="flex-shrink-0 bg-white/20 rounded-lg px-4 py-2 flex flex-col items-center"&gt;
+          {streak &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >streak.current &gt; 0 &amp;&amp; (</span>
+<span class="branch-2 cbranch-no" title="branch not covered" >            &lt;div className="flex-shrink-0 bg-white/20 rounded-lg px-4 py-2 flex flex-col items-center"&gt;</span>
               &lt;Flame className="h-6 w-6 mb-1" /&gt;
               &lt;span className="text-2xl font-bold leading-none"&gt;{streak.current}&lt;/span&gt;
               &lt;span className="text-xs opacity-80"&gt;dias seguidos&lt;/span&gt;
             &lt;/div&gt;
           )}
         &lt;/div&gt;
-        {daysUntilExam !== null &amp;&amp; daysUntilExam &gt;= 0 &amp;&amp; (
-          &lt;div className="mt-3 bg-white/15 rounded-md px-3 py-2 flex items-center gap-2 text-sm"&gt;
+        {daysUntilExam !== null &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >daysUntilExam &gt;= 0 &amp;&amp; (</span>
+<span class="branch-2 cbranch-no" title="branch not covered" >          &lt;div className="mt-3 bg-white/15 rounded-md px-3 py-2 flex items-center gap-2 text-sm"&gt;</span>
             &lt;Calendar className="h-4 w-4 flex-shrink-0" /&gt;
             &lt;span&gt;
               &lt;strong&gt;{examName}&lt;/strong&gt; em{" "}
@@ -663,7 +663,7 @@ export default function <span class="fstat-no" title="function not covered" >Hom
       &lt;div className="grid grid-cols-2 md:grid-cols-4 gap-4"&gt;
         &lt;StatCard
           title="Temas Estudados"
-          value={stats?.totalTopics ?? 0}
+          value={stats?.totalTopics ?? <span class="branch-1 cbranch-no" title="branch not covered" >0}</span>
           subtitle="temas registrados"
           icon={BookOpen}
           loading={isLoading}
@@ -677,17 +677,17 @@ export default function <span class="fstat-no" title="function not covered" >Hom
         /&gt;
         &lt;StatCard
           title="Pendentes"
-          value={stats?.pendingRevisions ?? 0}
+          value={stats?.pendingRevisions ?? <span class="branch-1 cbranch-no" title="branch not covered" >0}</span>
           subtitle="revisões/testes atrasados"
           icon={Clock}
           valueClass={
-            (stats?.pendingRevisions ?? 0) &gt; 0 ? "text-amber-600" : "text-green-600"
+            (stats?.pendingRevisions ?? <span class="branch-1 cbranch-no" title="branch not covered" >0) &gt; 0</span> ? "text-amber-600" : <span class="branch-1 cbranch-no" title="branch not covered" >"text-green-600"</span>
           }
           loading={isLoading}
         /&gt;
         &lt;StatCard
           title="Concluídos"
-          value={stats?.completedRevisions ?? 0}
+          value={stats?.completedRevisions ?? <span class="branch-1 cbranch-no" title="branch not covered" >0}</span>
           subtitle="atividades realizadas"
           icon={CheckCircle2}
           valueClass="text-green-600"
@@ -697,7 +697,7 @@ export default function <span class="fstat-no" title="function not covered" >Hom
 &nbsp;
       {/* Discipline Overview — shown only when there's data */}
       {hasData &amp;&amp; (stats?.disciplineStats?.length ?? 0) &gt; 0 &amp;&amp; (
-        &lt;Card&gt;
+<span class="branch-2 cbranch-no" title="branch not covered" >        &lt;Card&gt;</span>
           &lt;CardHeader&gt;
             &lt;CardTitle className="flex items-center gap-2"&gt;
               &lt;TrendingUp className="h-5 w-5 text-primary" /&gt;
@@ -751,7 +751,7 @@ export default function <span class="fstat-no" title="function not covered" >Hom
           &lt;CardDescription&gt;
             {hasData
               ? "Acesse as áreas mais usadas do sistema"
-              : "Comece criando uma disciplina e registrando seus temas de estudo"}
+              : <span class="branch-1 cbranch-no" title="branch not covered" >"Comece criando uma disciplina e registrando seus temas de estudo"}</span>
           &lt;/CardDescription&gt;
         &lt;/CardHeader&gt;
         &lt;CardContent className="flex flex-wrap gap-3"&gt;
@@ -779,7 +779,7 @@ export default function <span class="fstat-no" title="function not covered" >Hom
 &nbsp;
       {/* Getting Started — shown only for new users */}
       {!hasData &amp;&amp; (
-        &lt;Card&gt;
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;Card&gt;</span>
           &lt;CardHeader&gt;
             &lt;CardTitle&gt;Como Começar&lt;/CardTitle&gt;
           &lt;/CardHeader&gt;
@@ -829,7 +829,7 @@ export default function <span class="fstat-no" title="function not covered" >Hom
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T23:08:21.361Z
+                at 2026-04-27T01:06:25.270Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

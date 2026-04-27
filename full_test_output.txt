@@ -1,0 +1,60 @@
+
+> estudo_25_50_dias@5.2.0 test
+> vitest run tests/jsonStorage.integration.test.ts
+
+▲ [WARNING] Duplicate key "pnpm" in object literal [duplicate-object-key]
+
+    package.json:151:4:
+      151 │     "pnpm": "^10.15.1",
+          ╵     ~~~~~~
+
+  The original key "pnpm" is here:
+
+    package.json:146:4:
+      146 │     "pnpm": "^10.15.1",
+          ╵     ~~~~~~
+
+
+ RUN  v4.1.5 /home/anon/Desktop/SOE
+
+ ❯ tests/jsonStorage.integration.test.ts (7 tests | 2 failed) 22ms
+     ✓ should create and retrieve a user 4ms
+     ✓ should handle disciplines and topics 3ms
+     ✓ should update performance correctly 2ms
+     ✓ should handle revisions 1ms
+     ✓ should calculate dashboard stats correctly 2ms
+     × should handle notes CRUD 4ms
+     × should handle question errors 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should handle notes CRUD
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ tests/jsonStorage.integration.test.ts:157:35
+    155|     expect(notes[0].title).toBe("My Note");
+    156|
+    157|     await storage.updateNote(note.id, user.id, { title: "Updated Title…
+       |                                   ^
+    158|     notes = await storage.getNotesByUser(user.id);
+    159|     expect(notes[0].title).toBe("Updated Title");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/jsonStorage.integration.test.ts > jsonStorage Integration Tests > should handle question errors
+AssertionError: expected { …(4) } to have property 'length'
+ ❯ tests/jsonStorage.integration.test.ts:183:20
+    181|
+    182|     const errors = await storage.getQuestionErrorsByUser(user.id);
+    183|     expect(errors).toHaveLength(1);
+       |                    ^
+    184|     expect(errors[0].questionId).toBe("#123");
+    185|     expect(errors[0].errorOrigin).toBe("attention");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  22:05:38
+   Duration  271ms (transform 111ms, setup 0ms, import 131ms, tests 22ms, environment 0ms)
+

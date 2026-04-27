@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">34.61% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/26</span>
+                <span class='fraction'>9/26</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">9.09% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>1/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">14.28% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>1/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">34.61% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/26</span>
+                <span class='fraction'>9/26</span>
             </div>
         
             
@@ -173,6 +173,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -181,18 +190,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -202,7 +202,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -214,11 +214,11 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -247,20 +247,20 @@ export interface UseCompositionOptions&lt;
 &nbsp;
 type TimerResponse = ReturnType&lt;typeof setTimeout&gt;;
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >useComposition&lt;</span>
+export function useComposition&lt;
   T extends HTMLInputElement | HTMLTextAreaElement = HTMLInputElement,
-&gt;(options: UseCompositionOptions&lt;T&gt; = <span class="branch-0 cbranch-no" title="branch not covered" >{}): UseCompositionReturn&lt;T&gt; {</span>
+&gt;(options: UseCompositionOptions&lt;T&gt; = {}): UseCompositionReturn&lt;T&gt; {
   const {
     onKeyDown: originalOnKeyDown,
     onCompositionStart: originalOnCompositionStart,
     onCompositionEnd: originalOnCompositionEnd,
-  } = <span class="cstat-no" title="statement not covered" >options;</span>
+  } = options;
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >c = useRef(false);</span>
-  const <span class="cstat-no" title="statement not covered" >timer = useRef&lt;TimerResponse | null&gt;(null);</span>
-  const <span class="cstat-no" title="statement not covered" >timer2 = useRef&lt;TimerResponse | null&gt;(null);</span>
+  const c = useRef(false);
+  const timer = useRef&lt;TimerResponse | null&gt;(null);
+  const timer2 = useRef&lt;TimerResponse | null&gt;(null);
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >onCompositionStart = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.CompositionEvent&lt;T&gt;) =&gt; {</span>
+  const onCompositionStart = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.CompositionEvent&lt;T&gt;) =&gt; {
 <span class="cstat-no" title="statement not covered" >    if (timer.current) {</span>
 <span class="cstat-no" title="statement not covered" >      clearTimeout(timer.current);</span>
 <span class="cstat-no" title="statement not covered" >      timer.current = null;</span>
@@ -273,7 +273,7 @@ export function <span class="fstat-no" title="function not covered" >useComposit
 <span class="cstat-no" title="statement not covered" >    originalOnCompositionStart?.(e);</span>
   });
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >onCompositionEnd = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.CompositionEvent&lt;T&gt;) =&gt; {</span>
+  const onCompositionEnd = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.CompositionEvent&lt;T&gt;) =&gt; {
     // 使用两层 setTimeout 来处理 Safari 浏览器中 compositionEnd 先于 onKeyDown 触发的问题
 <span class="cstat-no" title="statement not covered" >    timer.current = setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
 <span class="cstat-no" title="statement not covered" >      timer2.current = setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
@@ -283,7 +283,7 @@ export function <span class="fstat-no" title="function not covered" >useComposit
 <span class="cstat-no" title="statement not covered" >    originalOnCompositionEnd?.(e);</span>
   });
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >onKeyDown = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.KeyboardEvent&lt;T&gt;) =&gt; {</span>
+  const onKeyDown = usePersistFn(<span class="fstat-no" title="function not covered" >(e</span>: React.KeyboardEvent&lt;T&gt;) =&gt; {
     // 在 composition 状态下，阻止 ESC 和 Enter（非 shift+Enter）事件的冒泡
 <span class="cstat-no" title="statement not covered" >    if (</span>
       c.current &amp;&amp;
@@ -295,11 +295,11 @@ export function <span class="fstat-no" title="function not covered" >useComposit
 <span class="cstat-no" title="statement not covered" >    originalOnKeyDown?.(e);</span>
   });
 &nbsp;
-  const <span class="cstat-no" title="statement not covered" >isComposing = usePersistFn(<span class="fstat-no" title="function not covered" >() =&gt; {</span></span>
+  const isComposing = usePersistFn(<span class="fstat-no" title="function not covered" >() =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    return c.current;</span>
   });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return {</span>
+  return {
     onCompositionStart,
     onCompositionEnd,
     onKeyDown,
@@ -313,7 +313,7 @@ export function <span class="fstat-no" title="function not covered" >useComposit
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T23:08:21.361Z
+                at 2026-04-27T01:06:25.270Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

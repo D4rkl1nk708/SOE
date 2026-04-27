@@ -2,7 +2,16 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Data directory for JSON files
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+let DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
+let DB_FILE = path.join(DATA_DIR, "database.json");
+
+export function setDataDir(newDir: string) {
+  DATA_DIR = newDir;
+  DB_FILE = path.join(DATA_DIR, "database.json");
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -14,6 +23,10 @@ if (!fs.existsSync(DATA_DIR)) {
 // Invalidated on every write so reads always reflect the latest state.
 let _dbCache: Database | null = null;
 let _dbCacheVersion = 0; // bumped on every write
+export function resetCache() {
+  _dbCache = null;
+  _dbCacheVersion = 0;
+}
 
 let _writeLock: Promise<any> = Promise.resolve();
 
@@ -419,8 +432,6 @@ interface Database {
     tecSnapshots: number;
   };
 }
-
-const DB_FILE = path.join(DATA_DIR, "database.json");
 
 // Initialize empty database
 function getEmptyDatabase(): Database {

@@ -6,6 +6,21 @@ import MentorSession from "@/pages/MentorSession";
 import MentorTab from "@/pages/MentorTab";
 import Dashboard from "@/pages/Dashboard";
 import QuestionSession from "@/pages/QuestionSession";
+import Lab from "@/pages/Lab";
+import Sync from "@/pages/Sync";
+import Profile from "@/pages/Profile";
+import Topics from "@/pages/Topics";
+import Revisions from "@/pages/Revisions";
+import Notes from "@/pages/Notes";
+import Simulado from "@/pages/Simulado";
+import Home from "@/pages/Home";
+import QuestionErrors from "@/pages/QuestionErrors";
+import MockExams from "@/pages/MockExams";
+import Edital from "@/pages/Edital";
+import Flashcards from "@/pages/Flashcards";
+import Calendar from "@/pages/Calendar";
+import Disciplines from "@/pages/Disciplines";
+import History from "@/pages/History";
 
 // Mock matchMedia to prevent jsdom errors
 Object.defineProperty(window, "matchMedia", {
@@ -58,115 +73,165 @@ const MOCK_REVISIONS = [];
 const MOCK_NOTES = [];
 const MOCK_EXAMS = [];
 const MOCK_HEATMAP = [];
-
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
-    useUtils: () => ({
-      dashboard: { getStats: { invalidate: vi.fn() } },
-      discipline: { list: { invalidate: vi.fn() } },
-      exam: { list: { invalidate: vi.fn() } },
-      note: { list: { invalidate: vi.fn() } },
-      topic: { list: { invalidate: vi.fn() } },
-      calendar: { getData: { invalidate: vi.fn() } },
-      questionError: { list: { invalidate: vi.fn() } },
-      invalidate: vi.fn(),
-    }),
-    useContext: () => ({}),
-    dashboard: {
-      getStats: { useQuery: () => ({ data: MOCK_STATS, isLoading: false }) },
-      getWeeklyStats: { useQuery: () => ({ data: [] }) },
-      getHeatmap: { useQuery: () => ({ data: MOCK_HEATMAP }) },
-      getTodayMinutes: {
-        useQuery: () => ({ data: { minutes: 45, goal: 120 } }),
-      },
-    },
-    mentor: {
-      generateDeepAnalysis: { useMutation: () => ({ mutate: vi.fn() }) },
-      chat: { useMutation: () => ({ mutate: vi.fn() }) },
-      getRecentChats: { useQuery: () => ({ data: [] }) },
-      generateAdaptiveQuestion: { useMutation: () => ({ mutate: vi.fn() }) },
-      getTecRegressions: { useQuery: () => ({ data: { regressions: [] } }) },
-      getStatsInsight: { useMutation: () => ({ mutate: vi.fn() }) },
-      diagnoseError: { useMutation: () => ({ mutate: vi.fn() }) },
-      saveSessionResult: { useMutation: () => ({ mutate: vi.fn() }) },
-      getWeakProfile: { useQuery: () => ({ data: null }) },
-      getMentorRecommendation: { useQuery: () => ({ data: null }) },
-      getPlateauedTopics: { useQuery: () => ({ data: [] }) },
-      generateBreakthroughDossier: { useMutation: () => ({ mutate: vi.fn() }) },
-      getDailyBriefing: { useMutation: () => ({ mutate: vi.fn() }) },
-      getConceptConfusions: { useQuery: () => ({ data: [] }) },
-      generateMnemonicForConfusion: {
-        useMutation: () => ({ mutate: vi.fn() }),
-      },
-      generateMaliciousMock: { useMutation: () => ({ mutate: vi.fn() }) },
-      transcribeSubjectiveEssay: { useMutation: () => ({ mutate: vi.fn() }) },
-      analyzeSubjectiveEssay: { useMutation: () => ({ mutate: vi.fn() }) },
-      executeAction: { useMutation: () => ({ mutate: vi.fn() }) },
-      testKey: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    v10: {
-      getForgettingVelocity: { useQuery: () => ({ data: [] }) },
-      getDisciplineRebalance: { useQuery: () => ({ data: [] }) },
-      getPreExamStatus: { useQuery: () => ({ data: null }) },
-      logStudyEnd: { useMutation: () => ({ mutate: vi.fn() }) },
-      checkMassStudy: { useQuery: () => ({ data: null }) },
-      logEmotion: { useMutation: () => ({ mutate: vi.fn() }) },
-      updateV10Settings: { useMutation: () => ({ mutate: vi.fn() }) },
-      saveRecallRating: { useMutation: () => ({ mutate: vi.fn() }) },
-      getPeakHours: { useQuery: () => ({ data: [] }) },
-      getEmotionCorrelation: { useQuery: () => ({ data: [] }) },
-    },
-    revision: {
-      list: { useQuery: () => ({ data: MOCK_REVISIONS }) },
-      markCompleted: { useMutation: () => ({ mutateAsync: vi.fn() }) },
-      complete: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    history: {
-      list: { useQuery: () => ({ data: [] }) },
-    },
-    mockExam: {
-      list: { useQuery: () => ({ data: MOCK_EXAMS }) },
-    },
-    auth: {
-      updateSettings: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    exam: {
-      list: { useQuery: () => ({ data: MOCK_EXAMS }) },
-      upsert: { useMutation: () => ({ mutate: vi.fn() }) },
-      delete: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    discipline: {
-      list: { useQuery: () => ({ data: [] }) },
-      update: { useMutation: () => ({ mutate: vi.fn() }) },
-      reorder: { useMutation: () => ({ mutate: vi.fn() }) },
-      create: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    topic: {
-      list: { useQuery: () => ({ data: MOCK_TOPICS }) },
-      resetAllStats: { useMutation: () => ({ mutate: vi.fn() }) },
-      setPerformance: { useMutation: () => ({ mutateAsync: vi.fn() }) },
-      addStudyTime: { useMutation: () => ({ mutateAsync: vi.fn() }) },
-      update: { useMutation: () => ({ mutate: vi.fn() }) },
-      reorder: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    note: {
-      list: { useQuery: () => ({ data: MOCK_NOTES }) },
-    },
-    import: {
-      getICalUrl: { useQuery: () => ({ data: { token: "mock" } }) },
-      tecConcursos: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    questionError: {
-      save: { useMutation: () => ({ mutate: vi.fn() }) },
-    },
-    essay: {
-      list: { useQuery: () => ({ data: [] }) },
-      save: { useMutation: () => ({ mutate: vi.fn() }) },
-      analyze: { useMutation: () => ({ mutate: vi.fn() }) },
-      transcribe: { useMutation: () => ({ mutate: vi.fn() }) },
-      delete: { useMutation: () => ({ mutate: vi.fn() }) },
+const MOCK_FLASHCARDS = [
+  {
+    id: 1,
+    disciplineId: 1,
+    topicId: 1,
+    front: "Q1",
+    back: "A1",
+    interval: 1,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: "2024-01-01",
+    archived: false,
+    tags: [],
+    createdAt: "",
+    updatedAt: "",
+  },
+];
+const MOCK_DISCIPLINES = [
+  {
+    id: 1,
+    name: "Direito",
+    color: "#f00",
+    weight: 10,
+    order: 0,
+    studyTimeSeconds: 0,
+    topicCount: 2,
+    performance: {
+      questionsResolved: 10,
+      accuracy: 70,
+      correctCount: 7,
+      errorCount: 3,
     },
   },
+];
+
+const createRecursiveProxy = () => {
+  return new Proxy(
+    {},
+    {
+      get: (target, prop) => {
+        if (prop === "useQuery") return () => ({ data: [], isLoading: false });
+        if (prop === "useMutation")
+          return () => ({ mutate: vi.fn(), mutateAsync: vi.fn() });
+        if (prop === "invalidate") return vi.fn();
+        return createRecursiveProxy();
+      },
+    },
+  );
+};
+
+vi.mock("@/lib/trpc", () => ({
+  trpc: new Proxy(
+    {},
+    {
+      get: (target, prop) => {
+        if (prop === "useUtils") return () => createRecursiveProxy();
+        if (prop === "useContext") return () => ({});
+
+        // Return specific mocks for specific pages that need exact shapes
+        if (prop === "topic") {
+          return new Proxy(
+            {
+              list: {
+                useQuery: () => ({ data: MOCK_TOPICS, isLoading: false }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+        if (prop === "flashcard") {
+          return new Proxy(
+            {
+              list: {
+                useQuery: () => ({ data: MOCK_FLASHCARDS, isLoading: false }),
+              },
+              due: {
+                useQuery: () => ({ data: MOCK_FLASHCARDS, isLoading: false }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+        if (prop === "discipline") {
+          return new Proxy(
+            {
+              list: {
+                useQuery: () => ({ data: MOCK_DISCIPLINES, isLoading: false }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+        if (prop === "calendar") {
+          return new Proxy(
+            {
+              getData: {
+                useQuery: () => ({
+                  data: { revisions: [], studySessions: [] },
+                  isLoading: false,
+                }),
+              },
+              getActivities: {
+                useQuery: () => ({ data: [], isLoading: false }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+        if (prop === "history") {
+          return new Proxy(
+            {
+              get: {
+                useQuery: () => ({
+                  data: { revisions: [], topics: [], disciplines: [] },
+                  isLoading: false,
+                }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+        if (prop === "dashboard") {
+          return new Proxy(
+            {
+              getStats: {
+                useQuery: () => ({ data: MOCK_STATS, isLoading: false }),
+              },
+              getWeeklyStats: { useQuery: () => ({ data: [] }) },
+              getHeatmap: { useQuery: () => ({ data: MOCK_HEATMAP }) },
+              getTodayMinutes: {
+                useQuery: () => ({ data: { minutes: 45, goal: 120 } }),
+              },
+            },
+            {
+              get: (t, p) =>
+                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
+            },
+          );
+        }
+
+        return createRecursiveProxy();
+      },
+    },
+  ),
 }));
 
 vi.mock("wouter", () => ({
@@ -206,6 +271,81 @@ describe("Page Components", () => {
 
   test("QuestionSession renders without crashing", () => {
     const { container } = render(<QuestionSession />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Lab renders without crashing", () => {
+    const { container } = render(<Lab />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Sync renders without crashing", () => {
+    const { container } = render(<Sync />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Profile renders without crashing", () => {
+    const { container } = render(<Profile />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Topics renders without crashing", () => {
+    const { container } = render(<Topics />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Revisions renders without crashing", () => {
+    const { container } = render(<Revisions />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Notes renders without crashing", () => {
+    const { container } = render(<Notes />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Simulado renders without crashing", () => {
+    const { container } = render(<Simulado />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Home renders without crashing", () => {
+    const { container } = render(<Home />);
+    expect(container).toBeTruthy();
+  });
+
+  test("QuestionErrors renders without crashing", () => {
+    const { container } = render(<QuestionErrors />);
+    expect(container).toBeTruthy();
+  });
+
+  test("MockExams renders without crashing", () => {
+    const { container } = render(<MockExams />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Edital renders without crashing", () => {
+    const { container } = render(<Edital />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Flashcards renders without crashing", () => {
+    const { container } = render(<Flashcards />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Calendar renders without crashing", () => {
+    const { container } = render(<Calendar />);
+    expect(container).toBeTruthy();
+  });
+
+  test("Disciplines renders without crashing", () => {
+    const { container } = render(<Disciplines />);
+    expect(container).toBeTruthy();
+  });
+
+  test("History renders without crashing", () => {
+    const { container } = render(<History />);
     expect(container).toBeTruthy();
   });
 });

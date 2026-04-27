@@ -49,7 +49,7 @@ export function DailyGoalWidget() {
 
   return (
     <div
-      className="rounded-2xl p-4 space-y-3"
+      className="rounded-2xl p-4 space-y-3 h-full flex flex-col justify-center"
       style={{
         background: "var(--card-bg, var(--app-bg))",
         border: `1px solid ${done ? "color-mix(in srgb, var(--accent-green) 40%, var(--card-border))" : "var(--card-border)"}`,

@@ -1,10 +1,5 @@
 import { router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { createRequire } from "module";
-// Em CJS o require já existe globalmente. Em ESM (dev), criamos um.
-const _require =
-  typeof require !== "undefined" ? require : createRequire(import.meta.url);
-
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
 import path from "path";
@@ -27,8 +22,12 @@ export const labRouter = router({
     .mutation(async ({ input }) => {
       try {
         const buffer = Buffer.from(input.base64, "base64");
-        const pdf = _require("pdf-parse");
-        const data = await pdf(buffer);
+        // @ts-ignore
+        const pdfParse =
+          typeof require !== "undefined"
+            ? require("pdf-parse")
+            : (await import("pdf-parse")).default;
+        const data = await pdfParse(buffer);
         const fullText = data.text;
 
         if (fullText.trim().length < 100) throw new Error("PDF sem texto.");

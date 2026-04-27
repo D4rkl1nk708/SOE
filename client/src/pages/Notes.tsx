@@ -568,6 +568,7 @@ export default function Notes() {
                   </span>
                 </div>
                 <button
+                  data-testid="btn-generate-flashcards"
                   onClick={handleGenerateFlashcards}
                   disabled={generateFlashcardsMut.isPending}
                   className="p-3.5 md:px-4 md:py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-90 transition-all"
@@ -575,6 +576,7 @@ export default function Notes() {
                   <Sparkles size={18} />
                 </button>
                 <button
+                  data-testid="btn-delete-note"
                   onClick={() => {
                     if (confirm("Excluir anotação?"))
                       deleteNote.mutate({ id: (activeNote as any).id });

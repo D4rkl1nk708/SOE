@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">82.6% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/23</span>
+                <span class='fraction'>19/23</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">82.6% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/23</span>
+                <span class='fraction'>19/23</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -142,25 +142,25 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// JSON Storage adapter — sem MySQL, sem conversão de tipos.
 // Todos os campos de data são strings ISO (ex: "2025-01-15T10:30:00.000Z").
 import * as storage from "./jsonStorage";
@@ -191,25 +191,25 @@ export async function <span class="fstat-no" title="function not covered" >getUs
 }
 &nbsp;
 // Re-exporta todas as funções de storage para compatibilidade
-export const getDisciplinesByUser = <span class="cstat-no" title="statement not covered" >storage.getDisciplinesByUser;</span>
-export const getDisciplineById = <span class="cstat-no" title="statement not covered" >storage.getDisciplineById;</span>
-export const createDiscipline = <span class="cstat-no" title="statement not covered" >storage.createDiscipline;</span>
-export const updateDiscipline = <span class="cstat-no" title="statement not covered" >storage.updateDiscipline;</span>
-export const deleteDiscipline = <span class="cstat-no" title="statement not covered" >storage.deleteDiscipline;</span>
-export const getTopicsByUser = <span class="cstat-no" title="statement not covered" >storage.getTopicsByUser;</span>
-export const getTopicById = <span class="cstat-no" title="statement not covered" >storage.getTopicById;</span>
-export const createTopic = <span class="cstat-no" title="statement not covered" >storage.createTopic;</span>
-export const updateTopic = <span class="cstat-no" title="statement not covered" >storage.updateTopic;</span>
-export const deleteTopic = <span class="cstat-no" title="statement not covered" >storage.deleteTopic;</span>
-export const getRevisionsByUser = <span class="cstat-no" title="statement not covered" >storage.getRevisionsByUser;</span>
-export const createRevisions = <span class="cstat-no" title="statement not covered" >storage.createRevisions;</span>
-export const markRevisionCompleted = <span class="cstat-no" title="statement not covered" >storage.markRevisionCompleted;</span>
-export const getCalendarData = <span class="cstat-no" title="statement not covered" >storage.getCalendarData;</span>
-export const getDashboardStats = <span class="cstat-no" title="statement not covered" >storage.getDashboardStats;</span>
-export const saveQuestionError = <span class="cstat-no" title="statement not covered" >storage.saveQuestionError;</span>
-export const getQuestionErrors = <span class="cstat-no" title="statement not covered" >storage.getQuestionErrorsByUser;</span>
-export const deleteQuestionsByContest = <span class="cstat-no" title="statement not covered" >storage.deleteQuestionsByContest;</span>
-export const checkExamIntegrated = <span class="cstat-no" title="statement not covered" >storage.checkExamIntegrated;</span>
+export const getDisciplinesByUser = storage.getDisciplinesByUser;
+export const getDisciplineById = storage.getDisciplineById;
+export const createDiscipline = storage.createDiscipline;
+export const updateDiscipline = storage.updateDiscipline;
+export const deleteDiscipline = storage.deleteDiscipline;
+export const getTopicsByUser = storage.getTopicsByUser;
+export const getTopicById = storage.getTopicById;
+export const createTopic = storage.createTopic;
+export const updateTopic = storage.updateTopic;
+export const deleteTopic = storage.deleteTopic;
+export const getRevisionsByUser = storage.getRevisionsByUser;
+export const createRevisions = storage.createRevisions;
+export const markRevisionCompleted = storage.markRevisionCompleted;
+export const getCalendarData = storage.getCalendarData;
+export const getDashboardStats = storage.getDashboardStats;
+export const saveQuestionError = storage.saveQuestionError;
+export const getQuestionErrors = storage.getQuestionErrorsByUser;
+export const deleteQuestionsByContest = storage.deleteQuestionsByContest;
+export const checkExamIntegrated = storage.checkExamIntegrated;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -217,7 +217,7 @@ export const checkExamIntegrated = <span class="cstat-no" title="statement not c
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-24T23:08:21.361Z
+                at 2026-04-27T01:06:25.270Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

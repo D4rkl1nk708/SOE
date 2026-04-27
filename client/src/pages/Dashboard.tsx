@@ -298,26 +298,48 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Clock className="w-10 h-10 md:w-12 md:h-12" />
+        <div className="flex flex-col gap-4">
+          <div
+            className={`soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group ${widgets.showExtra("dailyGoal") ? "" : "h-full"}`}
+          >
+            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock
+                className={
+                  widgets.showExtra("dailyGoal")
+                    ? "w-8 h-8 md:w-10 md:h-10"
+                    : "w-10 h-10 md:w-12 md:h-12"
+                }
+              />
+            </div>
+            <div>
+              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
+                Tempo de Estudo
+              </p>
+              <span
+                className={
+                  widgets.showExtra("dailyGoal")
+                    ? "text-2xl md:text-3xl font-black tabular-nums"
+                    : "text-3xl md:text-4xl font-black tabular-nums"
+                }
+                style={{ color: "var(--primary)" }}
+              >
+                {formatStudyTime(totalStudyTime)}
+              </span>
+            </div>
+            {!widgets.showExtra("dailyGoal") && (
+              <div className="mt-3 md:mt-4">
+                <p className="text-[10px] md:text-xs opacity-60 font-medium truncate">
+                  {stats?.totalTopics || 0} temas catalogados
+                </p>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
-              Tempo de Estudo
-            </p>
-            <span
-              className="text-3xl md:text-4xl font-black tabular-nums"
-              style={{ color: "var(--primary)" }}
-            >
-              {formatStudyTime(totalStudyTime)}
-            </span>
-          </div>
-          <div className="mt-3 md:mt-4">
-            <p className="text-[10px] md:text-xs opacity-60 font-medium truncate">
-              {stats?.totalTopics || 0} temas catalogados
-            </p>
-          </div>
+
+          {widgets.showExtra("dailyGoal") && (
+            <div id="tour-daily-goal">
+              <DailyGoalWidget />
+            </div>
+          )}
         </div>
 
         <div
@@ -412,12 +434,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="lg:col-span-3 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {widgets.showExtra("dailyGoal") && (
-              <div id="tour-daily-goal">
-                <DailyGoalWidget />
-              </div>
-            )}
+          <div className="grid grid-cols-1 gap-6">
             {widgets.showExtra("todayRevisions") && (
               <div id="tour-today-revisions">
                 <TodayRevisions />

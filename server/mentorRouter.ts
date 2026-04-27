@@ -20,7 +20,16 @@ async function callAI(
   maxTokens = 1200,
   imageBase64?: string,
 ): Promise<string> {
-  return callAiProvider(provider, apiKeyString, prompt, maxTokens, imageBase64);
+  // Reasoning models (Gemini 2.0/3.0) consume tokens for internal thoughts.
+  // We force a minimum of 3000 tokens to prevent premature truncation across all routes.
+  const safeTokens = Math.max(maxTokens, 3000);
+  return callAiProvider(
+    provider,
+    apiKeyString,
+    prompt,
+    safeTokens,
+    imageBase64,
+  );
 }
 
 /**
@@ -33,13 +42,11 @@ async function callAI(
 export function extractJSON(text: string): unknown {
   if (!text) throw new Error("Resposta da IA está vazia.");
 
-  // 1. Limpeza inicial
   let cleaned = text
     .replace(/```json\s?([\s\S]*?)```/g, "$1")
     .replace(/```\s?([\s\S]*?)```/g, "$1")
     .trim();
 
-  // Procura o início de um objeto ou array
   const startBrace = cleaned.indexOf("{");
   const startBracket = cleaned.indexOf("[");
   let start = -1;
@@ -54,54 +61,58 @@ export function extractJSON(text: string): unknown {
 
   let jsonStr = cleaned.substring(start).trim();
 
-  // 2. Tenta o parse direto
+  // Remove comentários de bloco e de linha que a IA pode inserir erroneamente
+  jsonStr = jsonStr.replace(/\/\*[\s\S]*?\*\//g, "");
+  jsonStr = jsonStr.replace(/\/\/.*$/gm, "");
+  // Transforma quebras de linha literais e tabs em espaços.
+  // Isso evita que JSON.parse falhe caso a IA gere quebras de linha dentro de strings.
+  jsonStr = jsonStr.replace(/[\n\r\t]+/g, " ");
+
   try {
     return JSON.parse(jsonStr);
-  } catch (e) {}
-
-  // 3. Algoritmo de recuperação de JSON truncado
-  // Tenta remover caracteres do final até que o JSON se torne válido (após fechar as estruturas)
-  let current = jsonStr;
-
-  // Limpeza de caracteres que costumam quebrar o parse no final de truncamentos
-  current = current.replace(/[,:\[\{\" \n\r\t]+$/, "");
-
-  // Tentativa iterativa de fechamento
-  for (let i = 0; i < 100; i++) {
-    // Limite de tentativas para evitar loop infinito
+  } catch (e) {
     try {
-      // Tenta fechar aspas se estiverem abertas
-      let attempt = current;
-      const quotes = (attempt.match(/"/g) || []).length;
-      if (quotes % 2 !== 0) attempt += '"';
-
-      // Conta balanço de chaves e colchetes
-      const openBraces = (attempt.match(/\{/g) || []).length;
-      const closeBraces = (attempt.match(/\}/g) || []).length;
-      const openBrackets = (attempt.match(/\[/g) || []).length;
-      const closeBrackets = (attempt.match(/\]/g) || []).length;
-
-      if (openBrackets > closeBrackets)
-        attempt += "]".repeat(openBrackets - closeBrackets);
-      if (openBraces > closeBraces)
-        attempt += "}".repeat(openBraces - closeBraces);
-
-      return JSON.parse(attempt);
-    } catch (e) {
-      // Se falhou, remove o último caractere "significativo" e tenta de novo
-      // Remove a última palavra/valor que pode estar incompleto
-      const lastSpecial = Math.max(
-        current.lastIndexOf(","),
-        current.lastIndexOf("["),
-        current.lastIndexOf("{"),
-        current.lastIndexOf(":"),
-      );
-
-      if (lastSpecial <= 0) break;
-      current = current.substring(0, lastSpecial).trim();
-      // Remove vírgulas ou dois pontos que sobraram no final
-      current = current.replace(/[,:]+$/, "").trim();
+      // Fallback 1: Attempt to evaluate as a JS object (handles unquoted keys and some unescaped quotes)
+      return new Function("return " + jsonStr)();
+    } catch (eLoose) {
+      const lastBrace = jsonStr.lastIndexOf("}");
+      const lastBracket = jsonStr.lastIndexOf("]");
+      const end = Math.max(lastBrace, lastBracket);
+      if (end !== -1) {
+        try {
+          return JSON.parse(jsonStr.substring(0, end + 1));
+        } catch (e2) {}
+      }
     }
+  }
+
+  // 4. Fallback: Regex de extração bruta para contornar aspas não escapadas no meio do texto
+  const disciplineNameMatch = jsonStr.match(/"disciplineName"\s*:\s*"([^"]+)"/);
+  const diagnosticMatch = jsonStr.match(
+    /"diagnostic"\s*:\s*"([\s\S]*?)"\s*,\s*"actionPlan"/,
+  );
+  const actionPlanMatch = jsonStr.match(
+    /"actionPlan"\s*:\s*"([\s\S]*?)"\s*,\s*"prediction"/,
+  );
+  const predictionMatch = jsonStr.match(
+    /"prediction"\s*:\s*"([\s\S]*?)"\s*,\s*"(?:priority|contextTag)"/,
+  );
+
+  if (disciplineNameMatch || diagnosticMatch) {
+    return {
+      disciplineName: disciplineNameMatch ? disciplineNameMatch[1] : "Geral",
+      diagnostic: diagnosticMatch
+        ? diagnosticMatch[1]
+        : "Análise de desempenho padrão.",
+      actionPlan: actionPlanMatch
+        ? actionPlanMatch[1]
+        : "Siga seu cronograma de revisões agendadas.",
+      prediction: predictionMatch
+        ? predictionMatch[1]
+        : "A falta de foco em temas base pode reduzir sua média geral.",
+      priority: "media",
+      contextTag: "Alerta",
+    };
   }
 
   throw new Error("Não foi possível recuperar o JSON da resposta truncada.");
@@ -1705,27 +1716,37 @@ Mentor:`;
       3. PONTOS CEGOS (TEC): PRIORIDADE ESTRATÉGICA.
       
       INSTRUÇÕES DE RESPOSTA:
-      - Seja um Mentor de Elite: use os nomes exatos das disciplinas e tópicos.
-      - O "diagnostic" deve ser um "esporro técnico": diga exatamente onde ele está falhando (ex: "Você despencou 10% em Controle de Constitucionalidade, focando demais em teoria e errando questões de base").
-      - O "actionPlan" deve ser uma tarefa de 15-30 min (ex: "Resolva 20 questões de Atos Administrativos focadas em 'Extinção'").
-      - O "prediction" deve ser o custo do erro (ex: "Esse assunto representa 15% da sua prova; ignorar isso hoje é aceitar a reprovação").
+      - Seja um Mentor de Elite: analise os dados fornecidos e aponte exatamente o que está dando errado.
+      - O "diagnostic" deve ser um esporro técnico: diga com precisão onde o aluno está falhando e por quê (ex: "Você despencou 10% em Controle de Constitucionalidade focando em teoria enquanto erra a base").
+      - O "actionPlan" deve ser uma tarefa de 15-30 min para corrigir essa falha agora.
+      - O "prediction" deve prever os erros futuros e o custo na prova (ex: "Ignorar isso vai custar sua aprovação, pois essa matéria representa 15% da prova").
       
-      Retorne um JSON (apenas o JSON):
+      ATENÇÃO: É ESTRITAMENTE PROIBIDO usar aspas duplas (") dentro dos seus textos (use aspas simples se precisar).
+      IMPORTANTE: Retorne APENAS um bloco JSON válido no formato abaixo. Não adicione nenhum texto antes ou depois.
+      \`\`\`json
       {
-        "disciplineName": "Matéria ou Área",
-        "diagnostic": "Análise técnica granular baseada nos dados fornecidos",
+        "disciplineName": "Nome da Matéria",
+        "diagnostic": "Análise técnica granular baseada nos dados",
         "actionPlan": "Passo a passo prático e imediato",
-        "prediction": "Risco real para a prova",
-        "priority": "alta" | "media",
+        "prediction": "Previsão exata do impacto e risco na prova",
+        "priority": "alta",
         "contextTag": "Estatística rápida"
-      }`;
+      }
+      \`\`\`
+      `;
 
+      let raw = "";
       try {
-        const raw = await callAI(input.provider, input.apiKey, prompt, 800);
+        // Increase maxTokens significantly because new Gemini models (2.0/3.0) use Chain-of-Thought
+        // "thoughts" tokens count towards maxOutputTokens, causing premature truncation if set too low.
+        raw = await callAI(input.provider, input.apiKey, prompt, 4000);
         const parsed = extractJSON(raw) as any;
+
         return {
           disciplineName: parsed.disciplineName || "Geral",
-          diagnostic: parsed.diagnostic || "Análise de desempenho padrão.",
+          diagnostic:
+            parsed.diagnostic ||
+            (raw.length > 20 ? raw : "Análise de desempenho padrão."),
           actionPlan:
             parsed.actionPlan || "Siga seu cronograma de revisões agendadas.",
           prediction:
@@ -1738,18 +1759,16 @@ Mentor:`;
         };
       } catch (err: any) {
         return {
-          disciplineName: "Geral",
-          reason: "Manutenção de constância",
-          strategy:
-            "Não foi possível gerar uma recomendação personalizada no momento. Mantenha o foco nas suas revisões do dia.",
-          briefing:
-            "Mantenha o foco e a constância. O sucesso é a soma de pequenos esforços repetidos dia após dia.",
-          action: "Continue com seu plano de revisões agendadas",
-          actionLabel: "Começar Agora",
-          priority: "media" as const,
-          contextTag: "Modo Padrão",
-          plateauCount: 0,
-          regressionCount: 0,
+          disciplineName: "Erro de IA",
+          diagnostic: raw
+            ? `[RECUPERAÇÃO DE TEXTO DA IA]: ${raw}`
+            : `[ERRO INTERNO]: ${err.message}`,
+          actionPlan: "Tente clicar em 'Recalcular Rota' no botão acima.",
+          prediction: "Falha na leitura do cérebro da IA.",
+          priority: "alta" as const,
+          contextTag: "Erro de Leitura",
+          plateauCount: plateaus.length,
+          regressionCount: regressions.length,
         };
       }
     }),
