@@ -234,7 +234,7 @@ export async function archiveFlashcard(id: number, userId: number, archived: boo
   if (error) throw error;
 }
 
-export async function exportDatabase() { return { message: "Os dados estão no Supabase." }; }
+export async function exportDatabase() { return JSON.stringify({ message: "Os dados estão no Supabase. Use o painel do Supabase para backups completos." }); }
 export async function importDatabase(json: string) {}
 
 export async function generatePushToken(userId: number) {
@@ -279,7 +279,7 @@ export async function getNotesByUser(userId: number) {
   return data;
 }
 
-export async function getTopicById(id: number) {
+export async function getTopicById(id: number, userId: number) {
   const { data, error } = await supabase.from('topics').select('*').eq('id', id).single();
   return data;
 }
@@ -288,7 +288,7 @@ export async function deleteQuestionsByContest(contest: string, userId: number) 
   await supabase.from('question_errors').delete().eq('contest', contest).eq('user_id', userId);
 }
 
-export async function updateTopicNotes(id: number, userId: number, notes: string) {
+export async function updateTopicNotes(id: number, userId: number, notes: any) {
   await updateTopic(id, userId, { notes });
 }
 
@@ -297,7 +297,7 @@ export async function getMockExamsByUser(userId: number) {
   return data || [];
 }
 
-export async function createMockExam(userId: number, data: any) {
+export async function createMockExam(data: any) {
   const { data: exam, error } = await supabase.from('mock_exams').insert({ ...data, user_id: userId }).select().single();
   return exam;
 }
@@ -318,7 +318,7 @@ export async function saveQuestionErrorRevisionTip(id: number, userId: number, t
   await supabase.from('question_errors').update({ revision_tip: tip }).eq('id', id).eq('user_id', userId);
 }
 
-export async function saveQuestionErrorSimilarQuestions(id: number, userId: number, questions: any[]) {
+export async function saveQuestionErrorSimilarQuestions(id: number, userId: number, questions: any) {
   await supabase.from('question_errors').update({ similar_questions: questions }).eq('id', id).eq('user_id', userId);
 }
 
@@ -331,7 +331,7 @@ export async function getEssaysByUser(userId: number) {
   return data || [];
 }
 
-export async function saveEssay(userId: number, data: any) {
+export async function saveEssay(data: any) {
   const { data: essay, error } = await supabase.from('study_notes').insert({ ...data, user_id: userId, is_essay: true }).select().single();
   return essay;
 }

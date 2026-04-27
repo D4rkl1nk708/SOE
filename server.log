@@ -160,3 +160,6 @@ Server running on http://0.0.0.0:3000/
 6:04:16 PM [tsx] change in ./server/labRouter.ts Restarting...
 c◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
 Server running on http://0.0.0.0:3000/
+6:07:42 PM [tsx] change in ./server/db.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Server running on http://0.0.0.0:3000/
