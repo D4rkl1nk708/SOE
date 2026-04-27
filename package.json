@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
     "desktop:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
-    "build": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-database.cjs",
+    "build": "vite build",
     "build:clean": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-clean.cjs",
     "desktop:build": "npm run build && electron-builder",
     "desktop:build:linux": "npm run build:clean && electron-builder --linux --publish never",

@@ -86,3 +86,23 @@ Error: Invalid package config /home/anon/Desktop/SOE/package.json.
 }
 
 Node.js v22.22.0
+5:49:29 PM [tsx] change in ./package.json Rerunning...
+cnode:internal/modules/package_json_reader:189
+  const result = modulesBinding.readPackageJSON(nearestParentPackageJSON);
+                                ^
+
+Error: Invalid package config /home/anon/Desktop/SOE/package.json.
+    at Object.getNearestParentPackageJSON (node:internal/modules/package_json_reader:189:33)
+    at trySelf (node:internal/modules/cjs/loader:599:33)
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1360:24)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at node:internal/modules/cjs/loader:1989:12 {
+  code: 'ERR_INVALID_PACKAGE_CONFIG'
+}
+
+Node.js v22.22.0
