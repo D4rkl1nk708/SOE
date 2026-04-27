@@ -1,4 +1,4 @@
-// Supabase Storage adapter — Versão Final e Tipada.
+// Supabase Storage adapter — Versão Corrigida (Argumentos e Variáveis).
 import { supabase } from "./supabase";
 
 export type Discipline = any;
@@ -234,7 +234,7 @@ export async function archiveFlashcard(id: number, userId: number, archived: boo
   if (error) throw error;
 }
 
-export async function exportDatabase() { return JSON.stringify({ message: "Os dados estão no Supabase. Use o painel do Supabase para backups completos." }); }
+export async function exportDatabase() { return JSON.stringify({ message: "Dados no Supabase." }); }
 export async function importDatabase(json: string) {}
 
 export async function generatePushToken(userId: number) {
@@ -279,7 +279,7 @@ export async function getNotesByUser(userId: number) {
   return data;
 }
 
-export async function getTopicById(id: number, userId: number) {
+export async function getTopicById(id: number, userId?: number) {
   const { data, error } = await supabase.from('topics').select('*').eq('id', id).single();
   return data;
 }
@@ -297,7 +297,7 @@ export async function getMockExamsByUser(userId: number) {
   return data || [];
 }
 
-export async function createMockExam(data: any) {
+export async function createMockExam(userId: number, data: any) {
   const { data: exam, error } = await supabase.from('mock_exams').insert({ ...data, user_id: userId }).select().single();
   return exam;
 }
@@ -331,7 +331,7 @@ export async function getEssaysByUser(userId: number) {
   return data || [];
 }
 
-export async function saveEssay(data: any) {
+export async function saveEssay(userId: number, data: any) {
   const { data: essay, error } = await supabase.from('study_notes').insert({ ...data, user_id: userId, is_essay: true }).select().single();
   return essay;
 }
