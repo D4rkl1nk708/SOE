@@ -42,6 +42,18 @@ export default function Lab() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [showPlayer, setShowPlayer] = useState(false);
   const [expandedExam, setExpandedExam] = useState<string | null>(null);
+  const [filterTopicId, setFilterTopicId] = useState<number | undefined>();
+
+  // Detectar início automático via URL (Treino de Elite Direto)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("startElite") === "true") {
+      const tId = params.get("topicId");
+      if (tId) setFilterTopicId(Number(tId));
+      setShowPlayer(true);
+      setActiveTab("library");
+    }
+  }, []);
 
   // States para Estratégia e Busca
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
@@ -263,7 +275,13 @@ export default function Lab() {
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-20 pt-10 px-4">
       {showPlayer && (
-        <MinedResolutionPanel onClose={() => setShowPlayer(false)} />
+        <MinedResolutionPanel
+          topicId={filterTopicId}
+          onClose={() => {
+            setShowPlayer(false);
+            setFilterTopicId(undefined);
+          }}
+        />
       )}
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
@@ -555,11 +573,20 @@ export default function Lab() {
                       ) : (
                         <Clock className="opacity-30" size={18} />
                       )}
-                      <span className="text-xs font-bold truncate max-w-[200px]">
-                        {item.file.name}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold truncate max-w-[200px]">
+                          {item.file.name}
+                        </span>
+                        {item.error && (
+                          <span className="text-[10px] text-destructive font-medium truncate max-w-[200px]">
+                            {item.error}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[9px] font-black uppercase px-3 py-1 rounded-lg bg-background border border-border shadow-sm opacity-60">
+                    <span
+                      className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg bg-background border border-border shadow-sm ${item.status === "error" ? "text-destructive border-destructive/20 bg-destructive/5" : "opacity-60"}`}
+                    >
                       {item.status}
                     </span>
                   </div>

@@ -313,147 +313,147 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* Day Detail Modal */}
+      {/* Day Detail Modal — Command Center Redesign */}
       <Dialog open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
-        <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 !w-[95vw] !max-w-[1600px] rounded-[3.5rem] p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="!bg-[#0a0a0a] !border-white/10 !w-[95vw] !max-w-6xl rounded-[2.5rem] p-0 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] border-[0.5px] [&>button]:hidden">
           {selectedDay && (
-            <div className="flex flex-col h-[90vh] md:h-auto max-h-[92vh]">
-              {/* Modal Header */}
-              <div className="p-8 border-b border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
-                    <p className="text-[0.75rem] font-black uppercase tracking-[0.2em] text-[var(--primary)] opacity-80">
+            <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
+              {/* Ultra-Compact Header */}
+              <div className="px-10 py-8 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent flex items-end justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
+                    <DialogTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
                       Programação Diária
-                    </p>
+                    </DialogTitle>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/10">
+                      • {getDayActivities(selectedDay).length} Tarefas
+                    </span>
+                    <DialogDescription className="sr-only">
+                      Detalhes das atividades para o dia selecionado
+                    </DialogDescription>
                   </div>
-                  <h3 className="text-5xl font-black tracking-tight">
-                    {format(selectedDay, "dd 'de' MMMM", { locale: ptBR })}
+                  <h3 className="text-4xl font-black tracking-tight flex items-baseline gap-3">
+                    {format(selectedDay, "dd", { locale: ptBR })}
+                    <span className="text-xl font-medium opacity-20 lowercase">
+                      de {format(selectedDay, "MMMM", { locale: ptBR })}
+                    </span>
                   </h3>
-                  <p className="text-base opacity-40 font-medium">
-                    Você tem {getDayActivities(selectedDay).length} tarefas
-                    planejadas para este dia.
-                  </p>
                 </div>
-                <div className="hidden sm:flex w-20 h-20 rounded-[2.5rem] bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] items-center justify-center text-[var(--primary)] shadow-2xl shadow-[var(--primary-shadow)]/30 transform hover:rotate-6 transition-transform duration-500">
-                  <CalendarDays size={36} strokeWidth={1.5} />
+                <div className="px-5 py-2 rounded-2xl bg-white/5 border border-white/5">
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                    {format(selectedDay, "EEEE", { locale: ptBR })}
+                  </span>
                 </div>
               </div>
 
-              {/* Activity List Container */}
-              <div className="p-10 overflow-y-auto custom-scrollbar flex-1">
+              {/* Activity Timeline List */}
+              <div className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a]">
                 {getDayActivities(selectedDay).length > 0 ? (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="space-y-3 relative">
+                    {/* Vertical Timeline Line */}
+                    <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
+
                     {getDayActivities(selectedDay).map((activity) => {
                       const isTest = activity.type === "test";
-                      const isRevision = activity.type === "revision";
+                      const isCompleted = activity.completed;
 
                       return (
                         <div
                           key={activity.id}
-                          className={`group relative rounded-[3rem] border transition-all duration-700 overflow-hidden flex flex-col
+                          className={`group relative flex items-start gap-6 p-5 rounded-[2rem] border transition-all duration-300
                             ${
-                              activity.completed
+                              isCompleted
                                 ? "bg-white/[0.01] border-white/5 opacity-40"
-                                : isTest
-                                  ? "bg-white/[0.02] border-white/5 hover:bg-white/[0.04]"
-                                  : "bg-white/[0.03] border-white/10 backdrop-blur-3xl hover:bg-white/[0.06] hover:border-white/20 hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)] hover:-translate-y-1.5"
-                            }`}
+                                : "bg-white/[0.03] border-white/5 hover:border-white/20 hover:bg-white/[0.05] hover:shadow-2xl"
+                            }
+                          `}
                         >
-                          {/* Card Header — Minimal & Precise */}
-                          <div className="px-8 py-5 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-1.5 h-1.5 rounded-full ${isTest ? "bg-white/20" : "bg-[var(--primary)] shadow-[0_0_12px_var(--primary)] animate-pulse"}`}
-                              />
-                              <span className="text-[0.6rem] font-bold uppercase tracking-[0.3em] text-white/30">
-                                {isTest
-                                  ? "Simulado"
-                                  : isRevision
-                                    ? "Revisão"
-                                    : "Estudo"}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() =>
-                                toggleCompleted(activity.id, activity.completed)
-                              }
-                              className={`px-5 py-2 rounded-full border text-[0.6rem] font-bold uppercase tracking-[0.2em] transition-all duration-500
-                                ${
-                                  activity.completed
-                                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
-                                    : "bg-white/5 border-white/10 text-white/30 hover:text-white hover:border-white/40"
-                                }`}
+                          {/* Timeline Node Indicator — Interactive */}
+                          <button
+                            onClick={() =>
+                              toggleCompleted(activity.id, isCompleted)
+                            }
+                            className="relative z-10 mt-3 hidden md:block group/node"
+                          >
+                            <span className="sr-only">Marcar como feito</span>
+                            <div
+                              className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-500 shadow-2xl
+                                  ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}`}
                             >
-                              {activity.completed
-                                ? "Concluído"
-                                : "Marcar como feito"}
-                            </button>
-                          </div>
+                              {isCompleted ? (
+                                <Check size={20} strokeWidth={3} />
+                              ) : (
+                                <div className="w-2 h-2 rounded-full bg-current" />
+                              )}
+                            </div>
+                          </button>
 
-                          <div className="px-8 pb-8 flex-1 flex flex-col justify-between space-y-8">
-                            {/* Information Block */}
-                            <div className="space-y-4">
-                              <div className="flex">
+                          {/* Content Wrapper */}
+                          <div className="flex-1 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-3">
                                 <span
-                                  className="px-3 py-1 rounded-full text-[0.6rem] font-bold uppercase tracking-[0.2em] border border-white/5 bg-white/[0.02]"
-                                  style={{ color: activity.disciplineColor }}
+                                  className="px-2.5 py-0.5 rounded-lg text-[0.6rem] font-black uppercase tracking-widest border border-white/5"
+                                  style={{
+                                    color: activity.disciplineColor,
+                                    backgroundColor: `${activity.disciplineColor}10`,
+                                  }}
                                 >
                                   {activity.disciplineName}
                                 </span>
+                                <span className="text-[0.6rem] font-bold text-white/20 uppercase tracking-widest">
+                                  {isTest ? "Simulado" : "Revisão"}
+                                </span>
                               </div>
                               <h4
-                                className={`text-2xl font-semibold leading-[1.2] tracking-tight ${activity.completed ? "line-through opacity-20" : "text-white/90"}`}
+                                className={`text-lg font-bold tracking-tight leading-tight ${isCompleted ? "line-through" : "text-white/90"}`}
                               >
                                 {activity.topicName}
                               </h4>
                             </div>
 
-                            {/* Floating Action Bar */}
-                            <div className="flex items-center gap-4">
-                              <div className="flex-1 flex p-1.5 bg-white/[0.03] border border-white/5 rounded-[2rem] shadow-inner">
-                                <button
-                                  onClick={() =>
-                                    handleStudyNow(
-                                      activity.topicId,
-                                      activity.topicName,
-                                      activity.disciplineId,
-                                    )
-                                  }
-                                  className={`flex-1 flex items-center justify-center gap-3 h-14 rounded-[1.5rem] text-[0.7rem] font-bold uppercase tracking-[0.2em] transition-all duration-500
-                                      ${
-                                        isTest
-                                          ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-                                          : "bg-white text-black shadow-2xl hover:scale-[1.02] active:scale-95"
-                                      }`}
-                                >
-                                  <PlayCircle size={20} strokeWidth={1.5} />{" "}
-                                  Treinar
-                                </button>
+                            {/* Actions — Horizontal & Compact */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() =>
+                                  handleStudyNow(
+                                    activity.topicId,
+                                    activity.topicName,
+                                    activity.disciplineId,
+                                  )
+                                }
+                                className={`h-11 px-6 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all
+                                    ${isCompleted ? "bg-white/5 text-white/20" : "bg-white text-black hover:scale-[1.05] shadow-lg"}`}
+                              >
+                                <PlayCircle size={14} /> Treinar
+                              </button>
 
+                              <div className="h-11 w-[1px] bg-white/5 mx-1" />
+
+                              <div className="flex gap-1.5">
                                 {!isTest && (
                                   <button
                                     onClick={() =>
                                       handleOpenSubjective(activity)
                                     }
-                                    className="w-14 h-14 flex items-center justify-center text-white/20 hover:text-white transition-colors"
+                                    className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/20 hover:text-white transition-all"
                                   >
-                                    <Camera size={22} strokeWidth={1.5} />
+                                    <Camera size={16} />
                                   </button>
                                 )}
-                              </div>
 
-                              <div className="flex gap-3">
                                 {activity.link && (
                                   <a
                                     href={activity.link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-14 h-14 flex items-center justify-center rounded-full bg-white/[0.03] border border-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                    className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
                                   >
-                                    <LinkIcon size={20} strokeWidth={1.5} />
+                                    <LinkIcon size={16} />
                                   </a>
                                 )}
+
                                 <button
                                   onClick={() =>
                                     setExpandedLinkId(
@@ -462,87 +462,85 @@ export default function Calendar() {
                                         : activity.id,
                                     )
                                   }
-                                  className={`w-14 h-14 flex items-center justify-center rounded-full border transition-all duration-500
-                                      ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-white" : "bg-white/[0.03] border-white/5 text-white/20 hover:text-white"}`}
+                                  className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all
+                                      ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-white" : "bg-white/5 border-white/5 text-white/20 hover:text-white"}`}
                                 >
-                                  <Settings2 size={20} strokeWidth={1.5} />
+                                  <Settings2 size={16} />
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    toggleCompleted(activity.id, isCompleted)
+                                  }
+                                  className={`md:hidden w-11 h-11 rounded-xl border flex items-center justify-center transition-all
+                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black" : "bg-white/5 border-white/5 text-white/20"}`}
+                                >
+                                  <Check size={16} />
                                 </button>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Refined Link Editor */}
-                            {expandedLinkId === activity.id && (
-                              <div className="p-6 rounded-[2rem] bg-black/40 border border-white/10 animate-in fade-in zoom-in-95 duration-500">
-                                <div className="flex items-center gap-3 mb-4 px-1">
-                                  <div className="h-[1px] flex-1 bg-white/10" />
-                                  <span className="text-[0.55rem] font-bold uppercase tracking-[0.4em] text-white/20">
-                                    Configuração TEC
-                                  </span>
-                                  <div className="h-[1px] flex-1 bg-white/10" />
-                                </div>
-                                <div className="flex gap-3">
-                                  <input
-                                    type="text"
-                                    placeholder="URL do caderno..."
-                                    value={
+                          {/* Link Editor — Integrated Overlay */}
+                          {expandedLinkId === activity.id && (
+                            <div className="absolute left-0 right-0 top-full mt-2 z-20 p-5 rounded-2xl bg-black border border-white/10 shadow-2xl animate-in fade-in zoom-in-95">
+                              <div className="flex gap-3">
+                                <input
+                                  type="text"
+                                  placeholder="URL do caderno..."
+                                  value={
+                                    linkDraft[activity.id] ??
+                                    activity.link ??
+                                    ""
+                                  }
+                                  onChange={(e) =>
+                                    setLinkDraft((prev) => ({
+                                      ...prev,
+                                      [activity.id]: e.target.value,
+                                    }))
+                                  }
+                                  className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-xs outline-none focus:border-white/20"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const link =
                                       linkDraft[activity.id] ??
                                       activity.link ??
-                                      ""
-                                    }
-                                    onChange={(e) =>
-                                      setLinkDraft((prev) => ({
-                                        ...prev,
-                                        [activity.id]: e.target.value,
-                                      }))
-                                    }
-                                    className="flex-1 bg-white/5 border border-white/5 rounded-2xl px-5 py-4 text-[0.75rem] outline-none focus:border-white/20 transition-all placeholder:text-white/10"
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      const link =
-                                        linkDraft[activity.id] ??
-                                        activity.link ??
-                                        "";
-                                      saveLinkMut.mutate({
-                                        revisionId: activity.id,
-                                        link,
-                                      });
-                                      setExpandedLinkId(null);
-                                    }}
-                                    className="w-14 h-14 shrink-0 bg-white text-black flex items-center justify-center rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl"
-                                  >
-                                    <Check size={22} strokeWidth={2.5} />
-                                  </button>
-                                </div>
+                                      "";
+                                    saveLinkMut.mutate({
+                                      revisionId: activity.id,
+                                      link,
+                                    });
+                                    setExpandedLinkId(null);
+                                  }}
+                                  className="px-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                >
+                                  Salvar
+                                </button>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="py-32 text-center space-y-6">
-                    <div className="w-24 h-24 rounded-[2rem] bg-white/5 flex items-center justify-center mx-auto border border-white/5 transform rotate-12">
-                      <EyeOff size={40} className="opacity-20" />
+                  <div className="py-20 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto opacity-20">
+                      <EyeOff size={32} />
                     </div>
-                    <div>
-                      <p className="text-lg font-black tracking-tight opacity-40">
-                        Tudo limpo por aqui!
-                      </p>
-                      <p className="text-sm opacity-20 font-medium">
-                        Nenhuma tarefa programada para este dia.
-                      </p>
-                    </div>
+                    <p className="text-sm font-bold opacity-30 uppercase tracking-[0.2em]">
+                      Nenhuma tarefa programada
+                    </p>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 bg-white/[0.02] border-t border-white/5 flex justify-end">
+              <div className="px-10 py-6 border-t border-white/5 flex justify-end bg-white/[0.01]">
                 <Button
                   variant="ghost"
                   onClick={() => setIsDayDetailOpen(false)}
-                  className="h-14 px-10 rounded-[1.5rem] font-black uppercase text-[0.75rem] tracking-[0.2em] opacity-40 hover:opacity-100 hover:bg-white/5 transition-all"
+                  className="h-10 px-8 rounded-xl font-black uppercase text-[10px] tracking-widest opacity-40 hover:opacity-100 transition-all"
                 >
                   Fechar
                 </Button>

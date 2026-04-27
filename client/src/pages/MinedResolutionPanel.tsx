@@ -14,11 +14,13 @@ import { toast } from "sonner";
 
 export default function MinedResolutionPanel({
   onClose,
+  topicId,
 }: {
   onClose: () => void;
+  topicId?: number;
 }) {
   const { data: questions, isLoading } =
-    trpc.lab.getIntegratedQuestions.useQuery();
+    trpc.lab.getIntegratedQuestions.useQuery({ topicId });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAlt, setSelectedAlt] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -28,9 +30,17 @@ export default function MinedResolutionPanel({
 
   const currentQ = questions?.[currentIndex];
 
-  const handleRespond = () => {
+  const registerResponse = trpc.lab.registerIntegratedResponse.useMutation();
+
+  const handleRespond = async () => {
     if (!selectedAlt || !currentQ) return;
     const isCorrect = selectedAlt === currentQ.correctAnswer;
+
+    // Registrar no banco para o Mentor analisar depois
+    if (topicId) {
+      registerResponse.mutate({ topicId, isCorrect });
+    }
+
     setAnswers((prev) => ({
       ...prev,
       [currentQ.id]: { selected: selectedAlt, correct: isCorrect },

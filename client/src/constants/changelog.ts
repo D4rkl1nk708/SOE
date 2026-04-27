@@ -11,6 +11,40 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "5.5.0",
+    date: "27/04/2026",
+    title: "Ecossistema de Mineração & Command Center",
+    categories: [
+      {
+        title: "📅 Command Center",
+        type: "feature",
+        items: [
+          "Redesign total do detalhe do dia no Calendário: interface de alta densidade com timeline vertical.",
+          "Checklists interativos: marque suas tarefas diretamente na timeline com feedback visual tátil.",
+          "Layout 'Apple-style' otimizado para produtividade, removendo redundâncias e melhorando a escala visual.",
+        ],
+      },
+      {
+        title: "⛏️ Mineração Sequential AI",
+        type: "feature",
+        items: [
+          "Novo motor de mineração massiva: processe PDFs de 200+ questões com processamento paralelo e inteligente.",
+          "Chunking Estratégico: a IA agora analisa o PDF em blocos para garantir que nenhuma questão seja perdida.",
+          "Desduplicação Automática: proteção nativa contra questões repetidas durante a ingestão de dados.",
+        ],
+      },
+      {
+        title: "🎯 Treino de Elite",
+        type: "improvement",
+        items: [
+          "Integração Mentor-Lab: recomendações do Mentor agora permitem iniciar o 'Treino de Elite' com um clique.",
+          "Badge de Questões Integradas: visualize instantaneamente quais tópicos possuem questões mineradas prontas.",
+          "Correção de tipagem tRPC: estabilidade garantida no tráfego de métricas de performance.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.2.0",
     date: "25/04/2026",
     title: "Diagnóstico Tático & Rastreamento Resiliente",

@@ -348,6 +348,14 @@ export interface QuestionError {
   resolution?: string; // NOVO: comentário da resolução importado do TEC
   supportText?: string; // NOVO: texto de apoio da questão
   source?: "manual" | "tec" | "mined"; // NOVO: origem da questão
+  // IDEA 1: Mapeamento Psicológico de Distratores
+  distractorPattern?:
+    | "absolutist"
+    | "partial"
+    | "similar"
+    | "negative"
+    | "timing"
+    | "calculation";
   createdAt: string;
 }
 
@@ -1932,13 +1940,49 @@ export async function getTodayStudyMinutes(userId: number): Promise<number> {
 }
 
 // ============ QUESTION ERRORS ============
+
+/**
+ * Analisa o padrão da alternativa errada para classificar o viés cognitivo
+ */
+function detectDistractorPattern(
+  userAnswer: string | undefined,
+  alternatives: { letter: string; text: string }[],
+):
+  | "absolutist"
+  | "partial"
+  | "similar"
+  | "negative"
+  | "timing"
+  | "calculation"
+  | undefined {
+  if (!userAnswer || !alternatives || alternatives.length === 0)
+    return undefined;
+  const selectedAlt = alternatives.find((a) => a.letter === userAnswer);
+  if (!selectedAlt) return undefined;
+  const text = selectedAlt.text.toLowerCase();
+  if (/\b(sempre|nunca|apenas|somente|exclusive|qualquer)\b/.test(text))
+    return "absolutist";
+  if (/\b(parcial|parte|algum|incompleto)\b/.test(text)) return "partial";
+  if (/\b(invers|invert|contrário|opost)\b/.test(text)) return "negative";
+  if (/\b(mais|menos|igual|equivalente)\b/.test(text)) return "calculation";
+  if (/\b(antes|depois|primeiro|último)\b/.test(text)) return "timing";
+  if (text.length > 30) return "similar";
+  return "similar";
+}
+
 export async function saveQuestionError(
   data: Omit<QuestionError, "id" | "createdAt">,
 ): Promise<QuestionError> {
+  // IDEA 1: Detectar automaticamente o padrão do distrator
+  const distractorPattern = detectDistractorPattern(
+    data.userAnswer,
+    data.alternatives,
+  );
   return await runInTransaction((db) => {
     db.counters.questionErrors++;
     const record: QuestionError = {
       ...data,
+      distractorPattern,
       id: db.counters.questionErrors,
       createdAt: now(),
     };
@@ -1985,6 +2029,32 @@ export async function getQuestionErrorsByUser(
     hasMore: offset + limit < total,
     nextOffset: offset + limit,
   };
+}
+
+/**
+ * IDEA 1: Mapeamento Psicológico de Distratores
+ * Analisa o padrão das alternativas erradas para identificar viés cognitivo
+ */
+export async function getDistractorPatternAnalysis(
+  userId: number,
+): Promise<{ pattern: string; count: number; percentage: number }[]> {
+  const db = readDatabase();
+  const errors = db.questionErrors.filter(
+    (e) => e.userId === userId && e.distractorPattern,
+  );
+  const patternCounts: Record<string, number> = {};
+  for (const err of errors) {
+    const p = err.distractorPattern || "unknown";
+    patternCounts[p] = (patternCounts[p] || 0) + 1;
+  }
+  const total = errors.length || 1;
+  return Object.entries(patternCounts)
+    .map(([pattern, count]) => ({
+      pattern,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 export async function saveQuestionErrorAnalysis(

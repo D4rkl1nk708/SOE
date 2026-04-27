@@ -20,36 +20,81 @@ export const labRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
+      console.log(
+        `[Lab] Processando PDF: ${input.fileName} (${(input.base64.length / 1024).toFixed(1)} KB)`,
+      );
       try {
+        const { createRequire } = await import("module");
+        const require = createRequire(import.meta.url);
+        const pdfParse = require("pdf-parse/lib/pdf-parse.js");
+
         const buffer = Buffer.from(input.base64, "base64");
-        // @ts-ignore
-        const pdfParse =
-          typeof require !== "undefined"
-            ? require("pdf-parse")
-            : (await import("pdf-parse")).default;
         const data = await pdfParse(buffer);
         const fullText = data.text;
 
-        if (fullText.trim().length < 100) throw new Error("PDF sem texto.");
+        if (!fullText || fullText.trim().length < 50) {
+          throw new Error("O PDF parece não conter texto extraível.");
+        }
 
-        const prompt = `Você é um minerador de questões de concursos de elite. 
-Sua tarefa é extrair questões de um PDF com 100% de precisão.
+        console.log(`[Lab] Texto extraído: ${fullText.length} caracteres.`);
 
-REGRAS CRÍTICAS:
-1. TEXTO DE APOIO (supportText): Identifique se existe um texto base (geralmente começando com "Texto I", "Leia o texto", ou um fragmento de lei) que serve para uma ou mais questões seguintes. Se houver, copie esse texto integralmente para o campo "supportText" de CADA questão que dependa dele.
-2. ESTRUTURA: Extraia statement (enunciado), alternatives (A,B,C,D,E), correctAnswer (apenas a letra), subject (matéria) e topic (assunto).
-3. FORMATO: Retorne APENAS um array JSON.
+        // Estratégia de Chunks (Pedaços) para lidar com PDFs grandes (200+ questões)
+        const CHUNK_SIZE = 35000;
+        const chunks: string[] = [];
+        for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
+          chunks.push(fullText.substring(i, i + CHUNK_SIZE + 2000)); // Pequeno overlap de 2k para não cortar questões
+        }
 
-TEXTO DO PDF:
-${fullText.substring(0, 25000)}`;
+        console.log(`[Lab] PDF dividido em ${chunks.length} partes.`);
+        const allQuestions: any[] = [];
 
-        const rawAiResponse = await callAiProvider(
-          input.provider,
-          input.apiKey,
-          prompt,
-          8192,
+        for (let i = 0; i < chunks.length; i++) {
+          console.log(`[Lab] Processando parte ${i + 1}/${chunks.length}...`);
+          const chunkText = chunks[i];
+          const prompt = `Você é um minerador de questões de elite. Extraia TODAS as questões deste pedaço de PDF.
+REGRAS:
+1. Identifique statement, alternatives, correctAnswer (letra), subject e topic.
+2. Se encontrar textos de apoio, inclua em "supportText".
+3. Retorne APENAS um array JSON. Se não houver questões completas, retorne [].
+
+TEXTO DO PDF (PARTE ${i + 1}):
+${chunkText}`;
+
+          const rawAiResponse = await callAiProvider(
+            input.provider,
+            input.apiKey,
+            prompt,
+            12000,
+          );
+
+          try {
+            const chunkQuestions = extractJSON(rawAiResponse);
+            if (Array.isArray(chunkQuestions)) {
+              // Evitar duplicatas causadas pelo overlap (pelo enunciado)
+              for (const q of chunkQuestions) {
+                if (
+                  !allQuestions.some(
+                    (existing) => existing.statement === q.statement,
+                  )
+                ) {
+                  allQuestions.push(q);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(
+              `[Lab] Falha ao extrair JSON da parte ${i + 1}, pulando...`,
+            );
+          }
+        }
+
+        if (allQuestions.length === 0) {
+          throw new Error("Não consegui identificar questões válidas.");
+        }
+
+        console.log(
+          `[Lab] Mineração concluída. Total: ${allQuestions.length} questões.`,
         );
-        const questions = extractJSON(rawAiResponse) as any[];
 
         const storagePath = path.join(process.cwd(), "data", "mined_exams");
         if (!fs.existsSync(storagePath))
@@ -61,15 +106,16 @@ ${fullText.substring(0, 25000)}`;
         const outputFileName = `questoes_${safeName}_${Date.now()}.json`;
         fs.writeFileSync(
           path.join(storagePath, outputFileName),
-          JSON.stringify(questions, null, 2),
+          JSON.stringify(allQuestions, null, 2),
         );
 
         return {
           success: true,
-          count: questions.length,
+          count: allQuestions.length,
           fileName: outputFileName,
         };
       } catch (err: any) {
+        console.error(`[Lab Error] ${err.message}`);
         throw new Error(err.message);
       }
     }),
@@ -293,39 +339,56 @@ ${fullText.substring(0, 25000)}`;
       return { success: true };
     }),
 
-  getIntegratedQuestions: protectedProcedure.query(async ({ ctx }) => {
-    const db = await import("./db");
-    const storagePath = path.join(process.cwd(), "data", "mined_exams");
-    if (!fs.existsSync(storagePath)) return [];
+  getIntegratedQuestions: protectedProcedure
+    .input(z.object({ topicId: z.number().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const db = await import("./db");
+      const storagePath = path.join(process.cwd(), "data", "mined_exams");
+      if (!fs.existsSync(storagePath)) return [];
 
-    const files = fs
-      .readdirSync(storagePath)
-      .filter((f) => f.endsWith(".json"));
-    const allQuestions: any[] = [];
+      const files = fs
+        .readdirSync(storagePath)
+        .filter((f) => f.endsWith(".json"));
+      const allQuestions: any[] = [];
 
-    for (const f of files) {
-      const contestId = f.replace(".json", "");
-      if (await db.checkExamIntegrated(contestId, ctx.user.id)) {
-        const content = JSON.parse(
-          fs.readFileSync(path.join(storagePath, f), "utf-8"),
-        );
-        const questionsWithMeta = content.map((q: any, idx: number) => ({
-          ...q,
-          id: `${contestId}_${idx}`,
-          contest: contestId,
-          banca: "IA",
-          alternatives: Array.isArray(q.alternatives)
-            ? q.alternatives
-            : Object.entries(q.alternatives || {}).map(([letter, text]) => ({
-                letter,
-                text: String(text),
-              })),
-        }));
-        allQuestions.push(...questionsWithMeta);
+      for (const f of files) {
+        const contestId = f.replace(".json", "");
+        if (await db.checkExamIntegrated(contestId, ctx.user.id)) {
+          const content = JSON.parse(
+            fs.readFileSync(path.join(storagePath, f), "utf-8"),
+          );
+          const questionsWithMeta = content.map((q: any, idx: number) => ({
+            ...q,
+            id: `${contestId}_${idx}`,
+            contest: contestId,
+            banca: "IA",
+            alternatives: Array.isArray(q.alternatives)
+              ? q.alternatives
+              : Object.entries(q.alternatives || {}).map(([letter, text]) => ({
+                  letter,
+                  text: String(text),
+                })),
+          }));
+          allQuestions.push(...questionsWithMeta);
+        }
       }
-    }
-    return allQuestions;
-  }),
+
+      // Filter by topic if requested.
+      // We try to match the topic name from the mined question with the topic name in the DB.
+      if (input?.topicId) {
+        const topic = await db.getTopicById(input.topicId, ctx.user.id);
+        if (topic) {
+          const topicNameLower = topic.name.toLowerCase();
+          return allQuestions.filter(
+            (q) =>
+              (q.topic && q.topic.toLowerCase() === topicNameLower) ||
+              (q.subject && q.subject.toLowerCase() === topicNameLower),
+          );
+        }
+      }
+
+      return allQuestions;
+    }),
 
   deleteIntegratedExam: protectedProcedure
     .input(z.object({ fileName: z.string() }))
@@ -446,5 +509,21 @@ ${fullText.substring(0, 25000)}`;
         input.fileName,
       );
       return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    }),
+
+  registerIntegratedResponse: protectedProcedure
+    .input(
+      z.object({
+        topicId: z.number(),
+        isCorrect: z.boolean(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const storage = await import("./jsonStorage");
+      await storage.updateTopicPerformance(input.topicId, ctx.user.id, {
+        correctCount: input.isCorrect ? 1 : 0,
+        errorCount: input.isCorrect ? 0 : 1,
+      });
+      return { success: true };
     }),
 });

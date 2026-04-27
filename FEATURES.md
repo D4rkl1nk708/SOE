@@ -6,8 +6,9 @@ O SOE (Strategic Optimization of Education) é um ecossistema de alto desempenho
 
 ## 🏛️ 1. Núcleo de Planejamento (Strategic Core)
 
-- **Calendário Preditivo**: Gestão de revisões baseada em desempenho, com escala de zoom dinâmica e visualização "Glassmorphism".
-- **Gestão de Temas (Edital)**: Cadastro de assuntos vinculados a disciplinas, com controle de notas e tempo de estudo.
+- **Calendário Command Center**: Gestão de revisões em timeline vertical de alta densidade, com indicadores de status em tempo real e checklists interativos.
+- **Sequential AI Mining**: Motor de processamento massivo de PDFs (200+ questões) com chunking inteligente, desduplicação e integração automática ao banco de dados.
+- **Gestão de Temas (Edital)**: Cadastro de assuntos vinculados a disciplinas, com controle de performance (Elite Training) e tempo de estudo.
 - **Ciclo de Revisão Dinâmico**: Algoritmo que ajusta a frequência de revisão baseado na taxa de acerto (quanto pior o acerto, mais cedo você revisa).
 
 ## 🧠 2. Inteligência Artificial (AI Mentor & Analytics)

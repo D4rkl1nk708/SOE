@@ -556,8 +556,8 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
             .getQuestionErrorsByUser(ctx.user.id, { limit: 20 })
             .then((r) => r.items),
           storage.getDisciplinesByUser(ctx.user.id),
-          storage.getRevisionsByUser(ctx.user.id),
-          storage.getTecRegressions(ctx.user.id, 5),
+          storage.getPeakHoursAnalysis(ctx.user.id),
+          storage.getDistractorPatternAnalysis(ctx.user.id),
         ]);
 
       const totalResolved = (stats.disciplineStats ?? []).reduce(
@@ -595,7 +595,7 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
       - Padrões de Erro Recentes:
       ${errorPatterns}
       
-      - Regressões Detectadas: ${regressions.length} temas pioraram recentemente.
+      - Regressões Detectadas: ${regressions?.length ?? 0} temas pioraram recentemente.
 
       ESTRUTURA DO RELATÓRIO:
       1. **Diagnóstico da Situação Atual**: Onde o aluno está (faixa de acerto, maturidade).
@@ -1658,6 +1658,8 @@ Mentor:`;
         topics,
         revisions,
         disciplines,
+        peakHours,
+        distratorPattern,
       ] = await Promise.all([
         storage.getDisciplineRebalanceReport(ctx.user.id),
         storage.getForgettingVelocityByDiscipline(ctx.user.id),
@@ -1673,6 +1675,8 @@ Mentor:`;
         storage.getTopicsByUser(ctx.user.id),
         storage.getRevisionsByUser(ctx.user.id),
         storage.getDisciplinesByUser(ctx.user.id),
+        storage.getPeakHoursAnalysis(ctx.user.id),
+        storage.getDistractorPatternAnalysis(ctx.user.id),
       ]);
 
       const plateaus = topics.filter((t) => {
@@ -1700,7 +1704,49 @@ Mentor:`;
       const pendingEssays = essays.filter((e) => e.status !== "corrected");
       const lowFlashcards = flashcards.filter((f) => f.interval <= 1).length;
 
+      // IDEA 2: Tone-Shifting (Modulação Psicológica Automática)
+      let globalAcc = 70;
+      if (rebalance.length > 0) {
+        const totalQ = rebalance.reduce(
+          (acc, d) => acc + d.questionsResolved,
+          0,
+        );
+        const totalC = rebalance.reduce(
+          (acc, d) => acc + (d.accuracy * d.questionsResolved) / 100,
+          0,
+        );
+        if (totalQ > 0) globalAcc = (totalC / totalQ) * 100;
+      }
+      const toneInstruction =
+        globalAcc < 50
+          ? "O aluno está com a média global péssima e possivelmente fadigado (Burnout). Seja um 'Técnico de Resgate': adote um tom firme porém mais encorajador, não o massacre. Foque em recuperar a base."
+          : "O aluno tem boa média geral. Seja um 'General': dê um esporro técnico agressivo e não aceite mediocridade ou desculpas.";
+
+      // IDEA 3: Matriz de Fuga Cognitiva (Cross-Pollination)
+      const sortedD = [...rebalance].sort((a, b) => b.accuracy - a.accuracy);
+      const topD = sortedD.slice(0, 2);
+      const weakD = [...rebalance]
+        .sort((a, b) => a.accuracy - b.accuracy)
+        .slice(0, 2);
+      const crossPollination = `Cuidado com Fuga Cognitiva: Ele(a) domina [${topD.map((d) => d.name).join(", ")}] mas apanha de [${weakD.map((d) => d.name).join(", ")}]. Diga se ele estiver usando matérias fáceis para inflar o ego em vez de focar nas que dói.`;
+
+      // IDEA 1: Auditoria de Pico de Performance (Time-of-Day Tracking)
+      const peakHoursText =
+        peakHours.length > 0
+          ? `Horários de Pico: ${peakHours.map((h) => `${h.hour}h: ${Math.round(h.avgAccuracy * 100)}% (${h.sessions} sessões)`).join(", ")}`
+          : "Sem dados de horário ainda.";
+
+      // IDEA 1: Mapeamento Psicológico de Distratores (Por que você erra?)
+      const distratorText =
+        distratorPattern.length > 0
+          ? `Padrão de Erro: ${distratorPattern.map((d) => `${d.pattern} ${d.percentage}%`).join(", ")} — Identifique se há viés cognitivo recorrente.`
+          : "Sem padrão de distrator identificado.";
+
       const prompt = `Você é o Arquiteto Estratégico SOE. Sua missão é analisar a "Nuvem de Dados" do aluno e definir a AÇÃO MESTRE para hoje.
+      
+      ANÁLISE DE PERFORMANCE:
+      - ${peakHoursText}
+      - ${distratorText}
       
       DADOS BRUTOS:
       - Rebalanceamento (Aproveitamento): ${JSON.stringify(rebalance.slice(0, 3))}
@@ -1708,7 +1754,11 @@ Mentor:`;
       - Últimos Erros: ${recentErrors.map((e: any) => `${e.disciplineName} > ${e.errorOrigin}`).join(", ")}
       - Regressões Detectadas: ${regressions.length > 0 ? regressions.map((r: any) => `${r.disciplineName} > ${r.topicName} (-${r.accuracyDrop}%)`).join(", ") : "Nenhuma"}
       - Temas em Platô (Estagnados): ${plateaus.length > 0 ? plateaus.map((p: any) => `${p.disciplineName} > ${p.topicName} (${Math.round((p.performance?.correctCount / p.performance?.questionsResolved) * 100)}%)`).join(", ") : "Nenhum"}
-      - Observações de Longo Prazo: ${observations.slice(-3).join(" | ")}
+      - Memória Histórica (Seus Últimos Diagnósticos a este aluno): ${observations.slice(-5).join(" | ")}
+      
+      ANÁLISE DE FUGA COGNITIVA E TOM MENTAL:
+      - ${crossPollination}
+      - ${toneInstruction}
       
       CRITÉRIOS DE PRIORIDADE:
       1. REGRESSÃO CRÍTICA (queda >5%): PRIORIDADE MÁXIMA.
@@ -1742,8 +1792,74 @@ Mentor:`;
         raw = await callAI(input.provider, input.apiKey, prompt, 4000);
         const parsed = extractJSON(raw) as any;
 
+        // IDEA 4: Intervenção na Fila de Agendamento (Emergency Bypass)
+        if (parsed.priority === "alta" && parsed.disciplineName) {
+          const dName = parsed.disciplineName.toLowerCase();
+          const matchDisc = disciplines.find((d) =>
+            d.name.toLowerCase().includes(dName),
+          );
+          if (matchDisc) {
+            const weakTopics = topics
+              .filter((t) => t.disciplineId === matchDisc.id)
+              .sort(
+                (a, b) =>
+                  (a.performance?.accuracy || 0) -
+                  (b.performance?.accuracy || 0),
+              );
+            if (weakTopics.length > 0) {
+              await storage.createRevisions([
+                {
+                  userId: ctx.user.id,
+                  topicId: weakTopics[0].id,
+                  scheduledDate: new Date().toISOString().split("T")[0],
+                  type: "revision",
+                  revisionNumber: 99, // Flag emergencial
+                },
+              ]);
+            }
+          }
+        }
+
+        // IDEA 1: Gravar este diagnóstico na memória punitiva do mentor
+        if (parsed.diagnostic) {
+          await storage.addMentorObservation(
+            ctx.user.id,
+            `Diagnosticou (${parsed.disciplineName}): ${parsed.diagnostic}`,
+          );
+        }
+
+        // Find the IDs to return to the frontend for the "Resolve Questions" button
+        const dName = (parsed.disciplineName || "").toLowerCase();
+        const matchDisc = disciplines.find((d) =>
+          d.name.toLowerCase().includes(dName),
+        );
+        let matchTopicId: number | undefined;
+        let bankQuestionCount = 0;
+
+        if (matchDisc) {
+          const weakTopics = topics
+            .filter((t) => t.disciplineId === matchDisc.id)
+            .sort(
+              (a, b) =>
+                (a.performance?.accuracy || 0) - (b.performance?.accuracy || 0),
+            );
+          if (weakTopics.length > 0) {
+            matchTopicId = weakTopics[0].id;
+            const errors = await storage.getQuestionErrorsByUser(ctx.user.id, {
+              topicId: matchTopicId,
+              limit: 1000,
+            });
+            bankQuestionCount = errors.items.filter(
+              (q) => q.source === "mined",
+            ).length;
+          }
+        }
+
         return {
           disciplineName: parsed.disciplineName || "Geral",
+          disciplineId: matchDisc?.id,
+          topicId: matchTopicId,
+          bankQuestionCount,
           diagnostic:
             parsed.diagnostic ||
             (raw.length > 20 ? raw : "Análise de desempenho padrão."),

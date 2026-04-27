@@ -79,8 +79,9 @@ Na base da evolução pedagógica do App reside o Algoritmo Tutor Adaptativo, in
 
 ## 5. Changelog / Histórico
 
-A plataforma passou pelas seguintes progressões notáveis ao longo de suas versões base:
-
+- **v5.5.0**: Sistema de Mineração Sequential AI (motor massivo para 200+ questões com chunking e desduplicação), Redesign do Command Center no Calendário (timeline vertical de alta densidade), Integração do Treino de Elite com o Mentor IA, e correções críticas de tipagem e performance.
+- **v5.4.0**: Super Inteligência Preditiva. Implementação de Mapeamento Psicológico de Distratores (detecção automática de viés cognitivo por tipo de alternativa errada), Auditoria de Pico de Performance (Time-of-Day Tracking com médias por horário), Peso Dinâmico por Edital (ROI inteligente), Simulador de Questão Maliciosa (já integrado ao briefing), e Simulação de Monte Carlo (predictive readiness com 1000 simulações).
+- **v5.3.0**: Salto evolutivo na Cognição da Inteligência Artificial. Implementação de Memória Histórica Punitiva (recordação dos últimos 5 diagnósticos), Modulação Psicológica Automática (Tone-Shifting de burnout/general), Detecção de Fuga Cognitiva (Ego-Inflation) e Bypass de Emergência no agendamento (inclusão de revisões críticas no mesmo dia).
 - **v5.2.1**: Implementada robustez avançada no "Mentor de IA" (aumento do limite de tokens para evitar truncamento no Gemini 2.0/3.0, novo fallback em Regex para lidar com quebras de linha e aspas soltas, e testes automatizados).
 - Saída do backend SQL global para modelo de arquitetura _Serverless/Client-Side_ IndexedDB / Data JSON local.
 - Adição dos fluxos de Flashcards dinâmicos.

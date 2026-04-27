@@ -4,7 +4,7 @@ test.describe("SOE Core Features", () => {
   test.beforeEach(async ({ page }) => {
     // Acessa a página inicial com no-splash para agilizar os testes
     await page.goto("http://localhost:3000/?no-splash");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
   });
 
   test("Deve acessar o Perfil e abrir a aba do Sentinela", async ({ page }) => {

@@ -117,6 +117,14 @@ export function RecommendationCard() {
                     {rec.regressionCount} Regressões
                   </Badge>
                 )}
+                {(rec.bankQuestionCount ?? 0) > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
+                  >
+                    {rec.bankQuestionCount} Questões de Elite
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -172,6 +180,18 @@ export function RecommendationCard() {
               Foco Imediato
             </span>
           </div>
+
+          {(rec.bankQuestionCount ?? 0) > 0 && (
+            <button
+              onClick={() => {
+                window.location.href = `/lab?startElite=true&topicId=${rec.topicId}`;
+              }}
+              className="btn-apple-primary w-full md:w-auto h-12 px-8 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+            >
+              <Target size={16} />
+              Treino de Elite ({rec.bankQuestionCount})
+            </button>
+          )}
         </div>
       </div>
     </div>
