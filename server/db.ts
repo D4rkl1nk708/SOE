@@ -1,6 +1,5 @@
-// JSON Storage adapter — sem MySQL, sem conversão de tipos.
-// Todos os campos de data são strings ISO (ex: "2025-01-15T10:30:00.000Z").
-import * as storage from "./jsonStorage";
+// Supabase Storage adapter — Migrado do JSON Storage para Nuvem.
+import { supabase } from "./supabase";
 
 export async function upsertUser(user: {
   openId: string;
@@ -13,37 +12,627 @@ export async function upsertUser(user: {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
-  await storage.upsertUser({
-    openId: user.openId,
-    name: user.name,
-    email: user.email,
-    loginMethod: user.loginMethod,
-    role: user.role,
-  });
+
+  const { error } = await supabase.from("users").upsert(
+    {
+      open_id: user.openId,
+      name: user.name,
+      email: user.email,
+      login_method: user.loginMethod,
+      role: user.role,
+      last_signed_in: user.lastSignedIn || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "open_id" },
+  );
+
+  if (error) throw error;
 }
 
-// Retorna o User diretamente do jsonStorage (createdAt etc. já são strings)
 export async function getUserByOpenId(openId: string) {
-  return storage.getUserByOpenId(openId);
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("open_id", openId)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
 }
 
-// Re-exporta todas as funções de storage para compatibilidade
-export const getDisciplinesByUser = storage.getDisciplinesByUser;
-export const getDisciplineById = storage.getDisciplineById;
-export const createDiscipline = storage.createDiscipline;
-export const updateDiscipline = storage.updateDiscipline;
-export const deleteDiscipline = storage.deleteDiscipline;
-export const getTopicsByUser = storage.getTopicsByUser;
-export const getTopicById = storage.getTopicById;
-export const createTopic = storage.createTopic;
-export const updateTopic = storage.updateTopic;
-export const deleteTopic = storage.deleteTopic;
-export const getRevisionsByUser = storage.getRevisionsByUser;
-export const createRevisions = storage.createRevisions;
-export const markRevisionCompleted = storage.markRevisionCompleted;
-export const getCalendarData = storage.getCalendarData;
-export const getDashboardStats = storage.getDashboardStats;
-export const saveQuestionError = storage.saveQuestionError;
-export const getQuestionErrors = storage.getQuestionErrorsByUser;
-export const deleteQuestionsByContest = storage.deleteQuestionsByContest;
-export const checkExamIntegrated = storage.checkExamIntegrated;
+export async function setTopicPerformance(
+  topicId: number,
+  userId: number,
+  data: any,
+) {
+  const { error } = await supabase
+    .from("topics")
+    .update({
+      performance: data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", topicId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateTopic(id: number, userId: number, data: any) {
+  const { error } = await supabase
+    .from("topics")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function deleteTopic(id: number, userId: number) {
+  const { error } = await supabase
+    .from("topics")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function reorderTopics(
+  userId: number,
+  disciplineId: number,
+  orderedIds: number[],
+) {
+  // Na nuvem, atualizamos o campo 'order' de cada tópico
+  for (let i = 0; i < orderedIds.length; i++) {
+    await supabase
+      .from("topics")
+      .update({ order: i })
+      .eq("id", orderedIds[i])
+      .eq("user_id", userId);
+  }
+}
+
+export async function reorderDisciplines(userId: number, orderedIds: number[]) {
+  for (let i = 0; i < orderedIds.length; i++) {
+    await supabase
+      .from("disciplines")
+      .update({ order: i })
+      .eq("id", orderedIds[i])
+      .eq("user_id", userId);
+  }
+}
+
+export async function resetAllTopicStats(userId: number) {
+  const { error } = await supabase
+    .from("topics")
+    .update({ performance: {}, study_time_seconds: 0 })
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function addTopicStudyTime(
+  topicId: number,
+  userId: number,
+  seconds: number,
+) {
+  // Primeiro buscamos o tempo atual
+  const { data, error: getError } = await supabase
+    .from("topics")
+    .select("study_time_seconds")
+    .eq("id", topicId)
+    .single();
+
+  if (getError) throw getError;
+
+  const { error } = await supabase
+    .from("topics")
+    .update({ study_time_seconds: (data.study_time_seconds || 0) + seconds })
+    .eq("id", topicId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export type Discipline = any;
+export type Topic = any;
+export type Revision = any;
+
+export async function getNotesByUser(userId: number) {
+  const { data, error } = await supabase
+    .from("study_notes")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertNote(data: any) {
+  const { error } = await supabase.from("study_notes").upsert({
+    id: data.id,
+    user_id: data.userId,
+    discipline_id: data.disciplineId,
+    topic_id: data.topicId,
+    title: data.title,
+    content: data.content,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
+export async function getFlashcardsByUser(userId: number) {
+  const { data, error } = await supabase
+    .from("flashcards")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return data;
+}
+
+export async function createFlashcard(data: any) {
+  const { data: result, error } = await supabase
+    .from("flashcards")
+    .insert({
+      user_id: data.userId,
+      discipline_id: data.disciplineId,
+      topic_id: data.topicId,
+      front: data.front,
+      back: data.back,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+export async function getMockExamsByUser(userId: number) {
+  const { data, error } = await supabase
+    .from("mock_exams")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return data;
+}
+
+export async function createMockExam(data: any) {
+  const { data: result, error } = await supabase
+    .from("mock_exams")
+    .insert({
+      user_id: data.userId,
+      name: data.name,
+      date: data.date,
+      correct: data.correct,
+      wrong: data.wrong,
+      blank: data.blank,
+      total_questions: data.totalQuestions,
+      score: data.score,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+export async function getDisciplinesByUser(userId: number) {
+  const { data, error } = await supabase
+    .from("disciplines")
+    .select("*")
+    .eq("user_id", userId)
+    .order("order", { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createDiscipline(data: {
+  userId: number;
+  name: string;
+  color: string;
+  weight: number;
+}) {
+  const { data: result, error } = await supabase
+    .from("disciplines")
+    .insert({
+      user_id: data.userId,
+      name: data.name,
+      color: data.color,
+      weight: data.weight,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return result;
+}
+
+export async function getTopicsByUser(
+  userId: number,
+  filters?: { disciplineId?: number; search?: string },
+) {
+  let query = supabase.from("topics").select("*").eq("user_id", userId);
+
+  if (filters?.disciplineId) {
+    query = query.eq("discipline_id", filters.disciplineId);
+  }
+  if (filters?.search) {
+    query = query.ilike("name", `%${filters.search}%`);
+  }
+
+  const { data, error } = await query.order("order", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function createTopic(data: {
+  userId: number;
+  disciplineId: number;
+  name: string;
+  studyDate?: string;
+  notes?: string | null;
+  studyTimeSeconds?: number;
+}) {
+  const { data: result, error } = await supabase
+    .from("topics")
+    .insert({
+      user_id: data.userId,
+      discipline_id: data.disciplineId,
+      name: data.name,
+      study_date: data.studyDate,
+      notes: data.notes,
+      study_time_seconds: data.studyTimeSeconds || 0,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return result;
+}
+
+export async function getRevisionsByUser(
+  userId: number,
+  filters?: { completed?: boolean; ignored?: boolean },
+) {
+  let query = supabase
+    .from("revisions")
+    .select("*, topics!inner(*)") // Join com tópicos para pegar os nomes
+    .eq("user_id", userId);
+
+  if (filters?.completed !== undefined) {
+    query = query.eq("completed", filters.completed);
+  }
+  if (filters?.ignored !== undefined) {
+    query = query.eq("ignored", filters.ignored);
+  }
+
+  const { data, error } = await query.order("scheduled_date", {
+    ascending: true,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function markRevisionCompleted(
+  id: number,
+  userId: number,
+  completed: boolean,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+// Helper para pegar settings (muito usado nos roteadores)
+export async function getUserSettings(userId: number) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("settings")
+    .eq("id", userId)
+    .single();
+
+  if (error) throw error;
+  return data?.settings;
+}
+
+export async function updateUserSettings(userId: number, settings: any) {
+  // Busca settings atuais para fazer merge
+  const current = await getUserSettings(userId);
+  const { error } = await supabase
+    .from("users")
+    .update({
+      settings: { ...current, ...settings },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+export async function createRevisions(revisions: any[]) {
+  const { error } = await supabase.from("revisions").insert(revisions);
+  if (error) throw error;
+}
+
+export async function deleteDiscipline(id: number, userId: number) {
+  const { error } = await supabase
+    .from("disciplines")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateDiscipline(id: number, userId: number, data: any) {
+  const { error } = await supabase
+    .from("disciplines")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function getTecSnapshots(userId: number, limit: number = 10) {
+  const { data, error } = await supabase
+    .from("tec_snapshots")
+    .select("*")
+    .eq("user_id", userId)
+    .order("snapshot_date", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+export async function saveQuestionError(data: any) {
+  const { error } = await supabase.from("question_errors").insert({
+    user_id: data.userId,
+    topic_id: data.topicId,
+    discipline_id: data.disciplineId,
+    question_id: data.questionId,
+    banca: data.banca,
+    year: data.year,
+    contest: data.contest,
+    statement: data.statement,
+    alternatives: data.alternatives,
+    user_answer: data.userAnswer,
+    correct_answer: data.correctAnswer,
+    error_origin: data.errorOrigin,
+  });
+  if (error) throw error;
+}
+
+export async function getQuestionErrorsByUser(userId: number) {
+  const { data, error } = await supabase
+    .from("question_errors")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return data;
+}
+
+export async function getCalendarData(
+  userId: number,
+  startDate: string,
+  endDate: string,
+) {
+  const { data: revisions, error: revError } = await supabase
+    .from("revisions")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("scheduled_date", startDate)
+    .lte("scheduled_date", endDate);
+
+  if (revError) throw revError;
+
+  const topicIds = [...new Set(revisions.map((r) => r.topic_id))];
+  const { data: topics, error: topError } = await supabase
+    .from("topics")
+    .select("*")
+    .in("id", topicIds);
+
+  if (topError) throw topError;
+
+  const { data: disciplines, error: discError } = await supabase
+    .from("disciplines")
+    .select("*")
+    .eq("user_id", userId);
+
+  if (discError) throw discError;
+
+  return {
+    revisions: revisions.map((r) => ({
+      ...r,
+      scheduledDate: r.scheduled_date,
+      topicId: r.topic_id,
+    })),
+    topics,
+    disciplines,
+  };
+}
+
+export async function getCadernosTec(userId: number) {
+  const settings = await getUserSettings(userId);
+  return settings?.cadernosTec || [];
+}
+
+export async function saveRevisionRecallRating(
+  id: number,
+  userId: number,
+  rating: number,
+  freeRecallText?: string,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({
+      recall_rating: rating,
+      free_recall_text: freeRecallText,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function markRevisionIgnored(
+  id: number,
+  userId: number,
+  ignored: boolean,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({ ignored, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function rescheduleRevision(
+  id: number,
+  userId: number,
+  newDate: string,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({ scheduled_date: newDate, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateRevisionLink(
+  id: number,
+  userId: number,
+  link: string,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({ link, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function checkExamIntegrated(userId: number) {
+  return false;
+}
+
+export async function getUserByPushToken(token: string) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .contains("settings", { pushToken: token })
+    .single();
+  if (error) return null;
+  return data;
+}
+
+export async function saveTecSnapshot(userId: number, topics: any[]) {
+  const { error } = await supabase
+    .from("tec_snapshots")
+    .insert({ user_id: userId, topics });
+  if (error) throw error;
+}
+
+export async function saveCadernoTec(userId: number, data: any) {
+  const current = await getUserSettings(userId);
+  const cadernos = current?.cadernosTec || [];
+  const updated = [
+    ...cadernos.filter((c: any) => c.cadernoId !== data.cadernoId),
+    data,
+  ];
+  await updateUserSettings(userId, { cadernosTec: updated });
+}
+
+export async function deleteCadernoTec(userId: number, cadernoId: string) {
+  const current = await getUserSettings(userId);
+  const cadernos = current?.cadernosTec || [];
+  const updated = cadernos.filter((c: any) => c.cadernoId !== cadernoId);
+  await updateUserSettings(userId, { cadernosTec: updated });
+}
+
+export async function updateFlashcard(id: number, userId: number, data: any) {
+  const { error } = await supabase
+    .from("flashcards")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function deleteFlashcard(id: number, userId: number) {
+  const { error } = await supabase
+    .from("flashcards")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function reviewFlashcard(
+  id: number,
+  userId: number,
+  quality: number,
+) {
+  const { data: fc, error: getError } = await supabase
+    .from("flashcards")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (getError) throw getError;
+  let interval = fc.interval || 1;
+  let easeFactor = fc.ease_factor || 2.5;
+  let repetitions = fc.repetitions || 0;
+  if (quality >= 3) {
+    if (repetitions === 0) interval = 1;
+    else if (repetitions === 1) interval = 6;
+    else interval = Math.round(interval * easeFactor);
+    repetitions++;
+  } else {
+    interval = 1;
+    repetitions = 0;
+  }
+  easeFactor = Math.max(
+    1.3,
+    easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)),
+  );
+  const nextReview = new Date();
+  nextReview.setDate(nextReview.getDate() + interval);
+  await supabase
+    .from("flashcards")
+    .update({
+      interval,
+      ease_factor: easeFactor,
+      repetitions,
+      next_review_date: nextReview.toISOString().split("T")[0],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+}
+
+export async function archiveFlashcard(
+  id: number,
+  userId: number,
+  archived: boolean,
+) {
+  const { error } = await supabase
+    .from("flashcards")
+    .update({ archived })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function exportDatabase() {
+  return { message: "Os dados estão no Supabase." };
+}
+
+export async function importDatabase(json: string) {}
+
+export async function generatePushToken(userId: number) {
+  const token = Math.random().toString(36).substring(2, 15);
+  await updateUserSettings(userId, { pushToken: token });
+  return token;
+}

@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import * as storage from "./jsonStorage";
+import * as storage from "./db";
 import { mentorRouter, extractJSON } from "./mentorRouter";
 import { editalRouter } from "./editalRouter";
 import { labRouter } from "./labRouter";

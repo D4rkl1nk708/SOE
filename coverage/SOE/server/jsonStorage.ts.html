@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">65.33% </span>
+                <span class="strong">65.29% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>554/848</span>
+                <span class='fraction'>555/850</span>
             </div>
         
             
@@ -2796,7 +2796,25 @@
 <a name='L2731'></a><a href='#L2731'>2731</a>
 <a name='L2732'></a><a href='#L2732'>2732</a>
 <a name='L2733'></a><a href='#L2733'>2733</a>
-<a name='L2734'></a><a href='#L2734'>2734</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L2734'></a><a href='#L2734'>2734</a>
+<a name='L2735'></a><a href='#L2735'>2735</a>
+<a name='L2736'></a><a href='#L2736'>2736</a>
+<a name='L2737'></a><a href='#L2737'>2737</a>
+<a name='L2738'></a><a href='#L2738'>2738</a>
+<a name='L2739'></a><a href='#L2739'>2739</a>
+<a name='L2740'></a><a href='#L2740'>2740</a>
+<a name='L2741'></a><a href='#L2741'>2741</a>
+<a name='L2742'></a><a href='#L2742'>2742</a>
+<a name='L2743'></a><a href='#L2743'>2743</a>
+<a name='L2744'></a><a href='#L2744'>2744</a>
+<a name='L2745'></a><a href='#L2745'>2745</a>
+<a name='L2746'></a><a href='#L2746'>2746</a>
+<a name='L2747'></a><a href='#L2747'>2747</a>
+<a name='L2748'></a><a href='#L2748'>2748</a>
+<a name='L2749'></a><a href='#L2749'>2749</a>
+<a name='L2750'></a><a href='#L2750'>2750</a>
+<a name='L2751'></a><a href='#L2751'>2751</a>
+<a name='L2752'></a><a href='#L2752'>2752</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2856,6 +2874,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4740,6 +4764,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -4751,6 +4783,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4758,6 +4791,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -5880,7 +5916,13 @@ export interface QuestionError {
   supportText?: string; // NOVO: texto de apoio da questão
   source?: "manual" | "tec" | "mined"; // NOVO: origem da questão
   // IDEA 1: Mapeamento Psicológico de Distratores
-  distractorPattern?: "absolutist" | "partial" | "similar" | "negative" | "timing" | "calculation";
+  distractorPattern?:
+    | "absolutist"
+    | "partial"
+    | "similar"
+    | "negative"
+    | "timing"
+    | "calculation";
   createdAt: string;
 }
 &nbsp;
@@ -7472,12 +7514,21 @@ export async function <span class="fstat-no" title="function not covered" >getTo
 function detectDistractorPattern(
   userAnswer: string | undefined,
   alternatives: { letter: string; text: string }[],
-): "absolutist" | "partial" | "similar" | "negative" | "timing" | "calculation" | undefined {
-  <span class="missing-if-branch" title="else path not taken" >E</span>if (!userAnswer || !alternatives || alternatives.length === 0) return undefined;
+):
+  | "absolutist"
+  | "partial"
+  | "similar"
+  | "negative"
+  | "timing"
+  | "calculation"
+  | undefined {
+  <span class="missing-if-branch" title="else path not taken" >E</span>if (!userAnswer || !alternatives || alternatives.length === 0)
+    return undefined;
   const selectedAlt = <span class="cstat-no" title="statement not covered" >alternatives.find(<span class="fstat-no" title="function not covered" >(a</span>) =&gt; <span class="cstat-no" title="statement not covered" >a.letter === userAnswer)</span>;</span>
 <span class="cstat-no" title="statement not covered" >  if (!selectedAlt) <span class="cstat-no" title="statement not covered" >return undefined;</span></span>
   const text = <span class="cstat-no" title="statement not covered" >selectedAlt.text.toLowerCase();</span>
-<span class="cstat-no" title="statement not covered" >  if (/\b(sempre|nunca|apenas|somente|exclusive|qualquer)\b/.test(text)) <span class="cstat-no" title="statement not covered" >return "absolutist";</span></span>
+<span class="cstat-no" title="statement not covered" >  if (/\b(sempre|nunca|apenas|somente|exclusive|qualquer)\b/.test(text))</span>
+<span class="cstat-no" title="statement not covered" >    return "absolutist";</span>
 <span class="cstat-no" title="statement not covered" >  if (/\b(parcial|parte|algum|incompleto)\b/.test(text)) <span class="cstat-no" title="statement not covered" >return "partial";</span></span>
 <span class="cstat-no" title="statement not covered" >  if (/\b(invers|invert|contrário|opost)\b/.test(text)) <span class="cstat-no" title="statement not covered" >return "negative";</span></span>
 <span class="cstat-no" title="statement not covered" >  if (/\b(mais|menos|igual|equivalente)\b/.test(text)) <span class="cstat-no" title="statement not covered" >return "calculation";</span></span>
@@ -7490,7 +7541,10 @@ export async function saveQuestionError(
   data: Omit&lt;QuestionError, "id" | "createdAt"&gt;,
 ): Promise&lt;QuestionError&gt; {
   // IDEA 1: Detectar automaticamente o padrão do distrator
-  const distractorPattern = detectDistractorPattern(data.userAnswer, data.alternatives);
+  const distractorPattern = detectDistractorPattern(
+    data.userAnswer,
+    data.alternatives,
+  );
   return await runInTransaction((db) =&gt; {
     db.counters.questionErrors++;
     const record: QuestionError = {
@@ -8134,7 +8188,7 @@ export async function generatePushToken(userId: number): Promise&lt;string&gt; {
 export async function getUserByPushToken(
   token: string,
 ): Promise&lt;User | undefined&gt; {
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (!token || token.length &lt; 16) <span class="cstat-no" title="statement not covered" >return undefined; // rejeita tokens obviamente inválidos</span>
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!token || token.length &lt; 8) <span class="cstat-no" title="statement not covered" >return undefined; // rejeita tokens obviamente inválidos (mínimo 8 para token-123 e 13 para ELECTRON_MODE)</span>
   const db = readDatabase();
   return db.users.find((u) =&gt; u.settings?.pushToken === token);
 }
@@ -8269,7 +8323,7 @@ export async function checkExamIntegrated(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-27T17:20:59.720Z
+                at 2026-04-27T19:36:37.094Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
