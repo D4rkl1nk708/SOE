@@ -14,8 +14,15 @@ export function setDataDir(newDir: string) {
 }
 
 // Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn(
+    "Could not create DATA_DIR, might be in a read-only environment like Vercel.",
+    e,
+  );
 }
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
