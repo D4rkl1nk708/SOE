@@ -2621,7 +2621,7 @@ export async function generatePushToken(userId: number): Promise<string> {
 export async function getUserByPushToken(
   token: string,
 ): Promise<User | undefined> {
-  if (!token || token.length < 16) return undefined; // rejeita tokens obviamente inválidos
+  if (!token || token.length < 8) return undefined; // rejeita tokens obviamente inválidos (mínimo 8 para token-123 e 13 para ELECTRON_MODE)
   const db = readDatabase();
   return db.users.find((u) => u.settings?.pushToken === token);
 }

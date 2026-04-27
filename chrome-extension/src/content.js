@@ -241,16 +241,6 @@
       lastUrl = location.href;
       questionStartTime = Date.now();
       setTimeout(() => {
-        const bodyText = document.body.innerText || '';
-        const headerMatch = bodyText.match(/#(\d+)\s+([^\-]+)/);
-        if (headerMatch) {
-          const qId = headerMatch[1];
-          const acertoMatch = bodyText.match(/Você acertou!/i);
-          const erroMatch = bodyText.match(/Você errou!/i);
-          if ((acertoMatch || erroMatch) && !sessionStorage.getItem('soe_scored_' + qId)) {
-            sessionStorage.setItem('soe_scored_' + qId, '1');
-          }
-        }
         // Se chegou na página de cadernos, raspa a lista
         if (location.pathname.match(/\/cadernos($|\?)/)) {
           setTimeout(scrapeCadernosFromDOM, 2000);
@@ -278,10 +268,10 @@
 
     const questionId = headerMatch?.[1] || urlIdMatch?.[1] || domId || null;
 
-    const acertoMatch = bodyText.match(/Você acertou!/i) ||
-                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"]');
-    const erroMatch   = bodyText.match(/Você errou!/i) ||
-                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"]');
+    const acertoMatch = bodyText.match(/Você acertou!|Resposta correta|Alternativa correta|Parabéns|Acertou/i) ||
+                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"], .feedback-success, .is-correct');
+    const erroMatch   = bodyText.match(/Você errou!|Resposta errada|Alternativa incorreta|Errou/i) ||
+                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], .feedback-error, .is-wrong');
 
     // If we can't find questionId at all, use URL as dedup key
     const dedupKey = questionId || location.href;
@@ -290,7 +280,10 @@
       const storageKey = 'soe_scored_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
       if (!sessionStorage.getItem(storageKey)) {
         const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
-        if (timeSpentSeconds < 2) return;
+        if (timeSpentSeconds < 1) {
+          console.log('[SOE v2] Ignorando questão muito rápida (< 1s)');
+          return;
+        }
         sessionStorage.setItem(storageKey, '1');
         const isError = !!erroMatch;
         questionStartTime = Date.now();
