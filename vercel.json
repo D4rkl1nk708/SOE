@@ -1,0 +1,14 @@
+{
+  "framework": "vite",
+  "public": true,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/client/index.html"
+    }
+  ]
+}
