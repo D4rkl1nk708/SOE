@@ -485,7 +485,7 @@ ${chunkText}`;
         fs.readFileSync(path.join(storagePath, input.fileName), "utf-8"),
       );
       const topics = await db.getTopicsByUser(ctx.user.id, {});
-      const topicList = topics.map((t) => t.name).join(", ");
+      const topicList = topics.map((t: any) => t.name).join(", ");
       const prompt = `Cruze as questões desta prova com os tópicos do meu Edital.\nQUESTÕES: ${questions
         .map((q: any) => q.statement)
         .join(" | ")

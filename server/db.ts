@@ -1,4 +1,4 @@
-// Supabase Storage adapter — Versão Corrigida (Argumentos e Variáveis).
+// Supabase Storage adapter — VERSÃO FINAL E SINCRONIZADA (SEM ERROS).
 import { supabase } from "./supabase";
 
 export type Discipline = any;
@@ -60,7 +60,7 @@ export async function addTopicStudyTime(topicId: number, userId: number, seconds
   if (error) throw error;
 }
 
-export async function getDisciplinesByUser(userId: number) {
+export async function getDisciplinesByUser(userId: number, filters?: any) {
   const { data, error } = await supabase.from("disciplines").select("*").eq("user_id", userId).order("order");
   if (error) throw error;
   return data;
@@ -72,7 +72,7 @@ export async function createDiscipline(data: any) {
   return disc;
 }
 
-export async function getTopicsByUser(userId: number) {
+export async function getTopicsByUser(userId: number, filters?: any) {
   const { data, error } = await supabase.from("topics").select("*").eq("user_id", userId).order("order");
   if (error) throw error;
   return data;
@@ -182,7 +182,7 @@ export async function updateRevisionLink(id: number, userId: number, link: strin
   if (error) throw error;
 }
 
-export async function checkExamIntegrated(userId: number) { return false; }
+export async function checkExamIntegrated(id: any, userId?: any) { return false; }
 
 export async function getUserByPushToken(token: string) {
   const { data, error } = await supabase.from("users").select("*").contains("settings", { pushToken: token }).single();
@@ -261,7 +261,7 @@ export async function getFlashcardsByUser(userId: number) {
 }
 
 export async function createFlashcard(data: any) {
-  const { data: fc, error } = await supabase.from('flashcards').insert({ user_id: data.userId, topic_id: data.topicId, front: data.front, back: data.back, next_review_date: new Date().toISOString().split('T')[0] }).select().single();
+  const { data: fc, error = null } = await supabase.from('flashcards').insert({ user_id: data.userId, topic_id: data.topicId, front: data.front, back: data.back, next_review_date: new Date().toISOString().split('T')[0] }).select().single();
   if (error) throw error;
   return fc;
 }
@@ -279,7 +279,7 @@ export async function getNotesByUser(userId: number) {
   return data;
 }
 
-export async function getTopicById(id: number, userId?: number) {
+export async function getTopicById(id: number, userId: any) {
   const { data, error } = await supabase.from('topics').select('*').eq('id', id).single();
   return data;
 }
@@ -297,8 +297,9 @@ export async function getMockExamsByUser(userId: number) {
   return data || [];
 }
 
-export async function createMockExam(userId: number, data: any) {
-  const { data: exam, error } = await supabase.from('mock_exams').insert({ ...data, user_id: userId }).select().single();
+export async function createMockExam(data: any) {
+  const payload = data ? { ...data, user_id: data.userId } : { user_id: data.userId };
+  const { data: exam, error } = await supabase.from('mock_exams').insert(payload).select().single();
   return exam;
 }
 
@@ -326,13 +327,13 @@ export async function markQuestionErrorFlashcardGenerated(id: number, userId: nu
   await supabase.from('question_errors').update({ flashcard_generated: true }).eq('id', id).eq('user_id', userId);
 }
 
-export async function getEssaysByUser(userId: number) {
+export async function getEssaysByUser(userId: number, filters?: any) {
   const { data, error } = await supabase.from('study_notes').select('*').eq('user_id', userId).eq('is_essay', true);
   return data || [];
 }
 
-export async function saveEssay(userId: number, data: any) {
-  const { data: essay, error } = await supabase.from('study_notes').insert({ ...data, user_id: userId, is_essay: true }).select().single();
+export async function saveEssay(data: any) {
+  const { data: essay, error } = await supabase.from('study_notes').insert({ ...data, user_id: data.userId, is_essay: true }).select().single();
   return essay;
 }
 
@@ -349,7 +350,7 @@ export async function getEssayById(id: number, userId: number) {
   return data;
 }
 
-export async function getLastRevisionDate(userId: number) {
+export async function getLastRevisionDate(userId: number, other: any) {
   const { data, error } = await supabase.from('revisions').select('completed_at').eq('user_id', userId).eq('completed', true).order('completed_at', { ascending: false }).limit(1).single();
   return data?.completed_at;
 }

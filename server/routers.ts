@@ -139,7 +139,7 @@ export const appRouter = router({
         const nextId =
           input.id ||
           `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-        const exists = exams.some((e) => e.id === nextId);
+        const exists = exams.some((e: any) => e.id === nextId);
         const updatedExams = exists
           ? exams.map((e: any) =>
               e.id === nextId
@@ -835,9 +835,9 @@ export const appRouter = router({
         if (!e) throw new Error("Questão não encontrada.");
 
         const chosenText =
-          e.alternatives?.find((a) => a.letter === e.userAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.userAnswer)?.text || "";
         const correctText =
-          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor especialista em concursos públicos brasileiros.
 
@@ -900,7 +900,7 @@ Responda em português, máximo 300 palavras. Sem introduções — vá direto a
         if (!e) throw new Error("Questão não encontrada.");
 
         const correctText =
-          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, escreva uma DICA DE REVISÃO curta e memorável.
 
@@ -1017,7 +1017,7 @@ Por que praticar: [1 linha]`;
         if (!e) throw new Error("Questão não encontrada.");
 
         const correctText =
-          e.alternatives?.find((a) => a.letter === e.correctAnswer)?.text || "";
+          e.alternatives?.find((a: any) => a.letter === e.correctAnswer)?.text || "";
 
         const prompt = `Você é um professor de concursos públicos. Com base na questão abaixo que o aluno errou, crie UM flashcard para memorização.
 
@@ -1038,7 +1038,7 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
           let parsed;
           try {
             parsed = extractJSON(raw) as { front: string; back: string };
-          } catch (parseErr: unknown) {
+          } catch (parseErr: any) {
             console.error(
               "JSON parsing failed for flashcard:",
               (parseErr as any).message,
@@ -1064,7 +1064,7 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
             ctx.user.id,
           );
           return { front: parsed.front, back: parsed.back };
-        } catch (err: unknown) {
+        } catch (err: any) {
           throw new Error(
             `Falha ao gerar flashcard: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -1098,7 +1098,7 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
             input.image,
           );
           return { transcription: result };
-        } catch (err: unknown) {
+        } catch (err: any) {
           throw new Error(
             `Falha na transcrição: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -1233,7 +1233,7 @@ Responda apenas o JSON.`;
           });
 
           return parsed;
-        } catch (err: unknown) {
+        } catch (err: any) {
           throw new Error(
             `Falha na correção da IA: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -1283,10 +1283,10 @@ Responda apenas o JSON.`;
                 ? `Gabarito: ${e.correctAnswer}`
                 : "";
               const chosenText =
-                e.alternatives.find((a) => a.letter === e.userAnswer)?.text ||
+                e.alternatives.find((a: any) => a.letter === e.userAnswer)?.text ||
                 "";
               const correctText =
-                e.alternatives.find((a) => a.letter === e.correctAnswer)
+                e.alternatives.find((a: any) => a.letter === e.correctAnswer)
                   ?.text || "";
               const origin = e.errorOrigin
                 ? `Tipo do erro: ${e.errorOrigin}`
