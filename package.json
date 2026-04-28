@@ -2,7 +2,6 @@
   "name": "estudo_25_50_dias",
   "version": "5.5.2",
   "main": "electron/main.cjs",
-  "type": "module",
   "engines": {
     "node": ">=20.x"
   },

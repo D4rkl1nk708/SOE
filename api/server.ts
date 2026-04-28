@@ -13,7 +13,6 @@ export default async function handler(req: any, res: any) {
     
     const { app } = await appPromise;
     
-    // Ensure we await the response
     await new Promise((resolve, reject) => {
       res.on("finish", resolve);
       res.on("close", resolve);
