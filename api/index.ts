@@ -5,7 +5,15 @@ import { createApp } from "../server/_core/index";
 
 const appPromise = createApp();
 
-export default async (req: any, res: any) => {
-  const { app } = await appPromise;
-  return app(req, res);
-};
+export default function (req: any, res: any) {
+  appPromise
+    .then(({ app }) => {
+      app(req, res);
+    })
+    .catch((err) => {
+      console.error("Express initialization error:", err);
+      res
+        .status(500)
+        .send("A server error has occurred during initialization.");
+    });
+}

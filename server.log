@@ -212,3 +212,69 @@ Server running on http://0.0.0.0:3000/
 8:14:34 PM [tsx] change in ./package.json Restarting...
 c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
 Server running on http://0.0.0.0:3000/
+8:23:07 PM [tsx] change in ./package.json Restarting...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+Server running on http://0.0.0.0:3000/
+8:23:24 PM [tsx] change in ./package.json Restarting...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error: Error parsing: /home/anon/Desktop/SOE/package.json
+    at readPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332204410:2:618)
+    at async findPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332204410:2:792)
+    at async getPackageType (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332204410:2:928)
+    at async resolve (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332204410:2:5543)
+    at async nextResolve (node:internal/modules/esm/hooks:748:22)
+    at async Hooks.resolve (node:internal/modules/esm/hooks:240:24)
+    at async handleMessage (node:internal/modules/esm/worker:199:18)
+
+Node.js v22.22.0
+8:26:36 PM [tsx] change in ./package.json Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error: Error parsing: /home/anon/Desktop/SOE/package.json
+    at readPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332396493:2:618)
+    at async findPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332396493:2:792)
+    at async getPackageType (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332396493:2:928)
+    at async resolve (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332396493:2:5543)
+    at async nextResolve (node:internal/modules/esm/hooks:748:22)
+    at async Hooks.resolve (node:internal/modules/esm/hooks:240:24)
+    at async handleMessage (node:internal/modules/esm/worker:199:18)
+
+Node.js v22.22.0
+8:27:14 PM [tsx] change in ./package.json Rerunning...
+c
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error: Error parsing: /home/anon/Desktop/SOE/package.json
+    at readPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332434709:2:618)
+    at async findPackageJson (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332434709:2:792)
+    at async getPackageType (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332434709:2:928)
+    at async resolve (file:///home/anon/Desktop/SOE/node_modules/tsx/dist/esm/index.mjs?1777332434709:2:5543)
+    at async nextResolve (node:internal/modules/esm/hooks:748:22)
+    at async Hooks.resolve (node:internal/modules/esm/hooks:240:24)
+    at async handleMessage (node:internal/modules/esm/worker:199:18)
+
+Node.js v22.22.0
+8:29:23 PM [tsx] change in ./package.json Rerunning...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Server running on http://0.0.0.0:3000/
+8:39:06 PM [tsx] change in ./server/_core/index.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+ReferenceError: setupVite is not defined
+    at createApp (/home/anon/Desktop/SOE/server/_core/index.ts:1599:5)
+    at startServer (/home/anon/Desktop/SOE/server/_core/index.ts:1621:9)
+    at <anonymous> (/home/anon/Desktop/SOE/server/_core/index.ts:1625:3)
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+8:39:08 PM [tsx] change in ./server/_core/index.ts Rerunning...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+Server running on http://0.0.0.0:3000/
+8:40:02 PM [tsx] change in ./server/_core/index.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+Server running on http://0.0.0.0:3000/
