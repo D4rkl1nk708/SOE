@@ -5,15 +5,24 @@ import { createApp } from "../server/_core/index";
 
 const appPromise = createApp();
 
-export default function (req: any, res: any) {
-  appPromise
-    .then(({ app }) => {
+export default async function handler(req: any, res: any) {
+  try {
+    const { app } = await appPromise;
+    await new Promise((resolve, reject) => {
+      res.on("finish", resolve);
+      res.on("close", resolve);
+      res.on("error", reject);
       app(req, res);
-    })
-    .catch((err) => {
-      console.error("Express initialization error:", err);
+    });
+  } catch (err: any) {
+    console.error("Serverless Handler Error:", err);
+    if (!res.headersSent) {
       res
         .status(500)
-        .send("A server error has occurred during initialization.");
-    });
+        .json({
+          error: "Serverless Handler Error",
+          details: String(err?.message || err),
+        });
+    }
+  }
 }
