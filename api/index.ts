@@ -1,4 +1,4 @@
-import { createApp } from "../server/_core/index.ts";
+import { createApp } from "../server/_core/index";
 
 // Entry point for Vercel Serverless.
 // Exporta o Express para a Vercel.
@@ -13,6 +13,7 @@ export default async function handler(req: any, res: any) {
     
     const { app } = await appPromise;
     
+    // Ensure we await the response
     await new Promise((resolve, reject) => {
       res.on("finish", resolve);
       res.on("close", resolve);
