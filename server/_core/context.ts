@@ -31,7 +31,7 @@ export async function createContext(
 
   // Supabase Auth Integration
   const authHeader = opts.req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
+  if (authHeader?.startsWith("Bearer ") && supabase) {
     const token = authHeader.split(" ")[1];
     const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
     
