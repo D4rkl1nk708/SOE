@@ -201,7 +201,7 @@ export default function Dashboard() {
             className="text-3xl font-black tracking-tight flex items-center gap-2.5"
             style={{ color: "var(--app-fg)" }}
           >
-            Painel
+            Painel de Controle
           </h1>
           <p className="text-sm opacity-60">
             Gestão centralizada do seu desempenho.
