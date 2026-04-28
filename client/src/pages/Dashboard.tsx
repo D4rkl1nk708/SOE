@@ -108,6 +108,7 @@ export default function Dashboard() {
     null,
   );
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [manualHideOnboarding, setManualHideOnboarding] = useState(false);
 
   // Mutation for TEC error origin classification (used in TEC error queue dialog)
   const setTecPerf = trpc.topic.setPerformance.useMutation({
@@ -115,12 +116,17 @@ export default function Dashboard() {
   });
 
   // Onboarding
-  const onboardingCompleted = (
-    stats?.settings as Record<string, unknown> | undefined
-  )?.onboardingCompleted as boolean | undefined;
+  const onboardingCompleted =
+    (stats?.settings as Record<string, unknown> | undefined)
+      ?.onboardingCompleted === true;
+
   const hasAnyDisciplines = (stats?.disciplineStats ?? []).length > 0;
+
   const showOnboarding =
-    !isLoading && !onboardingCompleted && !hasAnyDisciplines;
+    !isLoading &&
+    !onboardingCompleted &&
+    !hasAnyDisciplines &&
+    !manualHideOnboarding;
 
   if (isLoading)
     return (
@@ -176,7 +182,11 @@ export default function Dashboard() {
     <div className="space-y-6 w-full pb-10">
       {showOnboarding && (
         <OnboardingWizard
-          onComplete={() => utils.dashboard.getStats.invalidate()}
+          onComplete={() => {
+            console.log("[DASHBOARD] Onboarding finalizado, escondendo...");
+            setManualHideOnboarding(true);
+            utils.dashboard.getStats.invalidate();
+          }}
         />
       )}
 
