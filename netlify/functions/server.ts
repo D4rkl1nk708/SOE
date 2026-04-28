@@ -25,10 +25,20 @@ export const handler = async (event: any, context: any) => {
               /^\/\.netlify\/functions\/server/,
               "/api",
             );
-            (request as any).url = normalizedPath;
+
+            // IMPORTANT: Reconstruct query string for tRPC batching (?batch=1)
+            const queryParams = event.queryStringParameters || {};
+            const queryString =
+              Object.keys(queryParams).length > 0
+                ? "?" + new URLSearchParams(queryParams as any).toString()
+                : "";
+
+            (request as any).url = normalizedPath + queryString;
 
             // Log para debug interno do Netlify
-            console.log(`[NETLIFY] Routing: ${rawPath} -> ${normalizedPath}`);
+            console.log(
+              `[NETLIFY] Routing: ${rawPath}${queryString} -> ${(request as any).url}`,
+            );
           },
         });
       })();
