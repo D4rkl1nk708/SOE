@@ -1,16 +1,14 @@
+import { createApp } from "../server/_core/index.ts";
+
 // Entry point for Vercel Serverless.
 // Exporta o Express para a Vercel.
 
 let appPromise: Promise<any> | null = null;
 
 export default async function handler(req: any, res: any) {
-  console.log(`[Vercel] Request received: ${req.method} ${req.url}`);
-  
   try {
     if (!appPromise) {
-      console.log("[Vercel] Dynamically importing createApp...");
-      // Using dynamic import to catch top-level errors in the server module
-      appPromise = import("../server/_core/index").then(mod => mod.createApp());
+      appPromise = createApp();
     }
     
     const { app } = await appPromise;
@@ -27,8 +25,7 @@ export default async function handler(req: any, res: any) {
       res.status(500).json({ 
         error: "Serverless Handler Error", 
         details: String(err?.message || err),
-        stack: err?.stack,
-        phase: "dynamic-import-or-runtime"
+        stack: err?.stack
       });
     }
   }
