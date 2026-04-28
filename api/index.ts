@@ -1,7 +1,7 @@
 import { createApp } from "../server/_core/index";
 
-// Este arquivo é o ponto de entrada para a Vercel.
-// Ele exporta o servidor Express para que a Vercel possa rodar como Serverless.
+// Entry point for Vercel Serverless.
+// Exporta o Express para a Vercel.
 
 let appPromise: Promise<any> | null = null;
 
