@@ -58,10 +58,19 @@ export const handler = async (event: any, context: any) => {
         method: event.httpMethod,
         url: event.path,
         headers: event.headers,
+        cookies: {}, // Será preenchido abaixo
         body: event.body ? (event.isBase64Encoded ? Buffer.from(event.body, "base64").toString() : event.body) : null,
         query: event.queryStringParameters,
         params: {}
       };
+
+      // Suporte a Cookies (Vital para auth.me)
+      if (req.headers.cookie) {
+        req.headers.cookie.split(";").forEach((c: string) => {
+          const [key, ...v] = c.split("=");
+          req.cookies[key.trim()] = v.join("=");
+        });
+      }
 
       // Se for um POST com JSON, precisamos garantir que o req.body seja um objeto para o Express
       if (req.method === "POST" && req.headers["content-type"]?.includes("application/json") && typeof req.body === "string") {
