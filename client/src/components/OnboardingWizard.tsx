@@ -232,8 +232,11 @@ export function OnboardingWizard({ onComplete }: Props) {
 
   const handleFinish = async () => {
     setSaving(true);
+    console.log("[ONBOARDING] Iniciando finalização...");
+    setSaving(true);
     try {
       const disciplines = getDisciplines();
+      console.log(`[ONBOARDING] Criando ${disciplines.length} disciplinas...`);
       // Create disciplines with colors
       for (let i = 0; i < disciplines.length; i++) {
         await createDiscipline.mutateAsync({
@@ -243,6 +246,7 @@ export function OnboardingWizard({ onComplete }: Props) {
         });
       }
       // Save exam + goal
+      console.log("[ONBOARDING] Salvando configurações do usuário...");
       const examId = examName ? `exam-${Date.now()}` : undefined;
       await updateSettings.mutateAsync({
         onboardingCompleted: true,
@@ -253,10 +257,13 @@ export function OnboardingWizard({ onComplete }: Props) {
             }
           : {}),
       });
+      console.log("[ONBOARDING] Invalidando cache local...");
       await utils.discipline.list.invalidate();
       await utils.dashboard.getStats.invalidate();
+      console.log("[ONBOARDING] Sucesso! Mudando para tela de conclusão.");
       setStep("done");
-    } catch {
+    } catch (err) {
+      console.error("[ONBOARDING] Erro fatal na finalização:", err);
       toast.error("Erro ao salvar configurações.");
     } finally {
       setSaving(false);
@@ -338,7 +345,12 @@ export function OnboardingWizard({ onComplete }: Props) {
             ))}
           </div>
           <button
-            onClick={onComplete}
+            onClick={() => {
+              console.log(
+                "[ONBOARDING] Clique no botão final: Ir para Dashboard",
+              );
+              onComplete();
+            }}
             className="w-full py-3.5 rounded-xl font-bold text-white text-sm"
             style={{ background: "var(--primary)" }}
           >
@@ -442,7 +454,9 @@ export function OnboardingWizard({ onComplete }: Props) {
               </div>
               <button
                 onClick={() => {
-                  console.log("Configurar agora clicado!");
+                  console.log(
+                    "[ONBOARDING] Clique no botão inicial: Configurar agora",
+                  );
                   setStep("concurso");
                 }}
                 className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2"
