@@ -298,3 +298,9 @@ Error: Invalid package config /home/anon/Desktop/SOE/package.json.
 }
 
 Node.js v22.22.0
+9:52:59 PM [tsx] change in ./package.json Rerunning...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+Server running on http://0.0.0.0:3000/
+9:53:18 PM [tsx] change in ./package.json Restarting...
+c◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+Server running on http://0.0.0.0:3000/
