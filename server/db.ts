@@ -6,6 +6,7 @@ export type Topic = any;
 export type Revision = any;
 
 export async function upsertUser(user: any): Promise<void> {
+  if (!supabase) return;
   const { error } = await supabase.from("users").upsert(
     {
       open_id: user.openId,
@@ -22,6 +23,7 @@ export async function upsertUser(user: any): Promise<void> {
 }
 
 export async function getUserByOpenId(openId: string) {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("users")
     .select("*")
