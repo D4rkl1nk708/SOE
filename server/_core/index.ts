@@ -34,11 +34,13 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 export async function createApp() {
+  console.log("[SERVER] Starting createApp...");
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  console.log("[SERVER] Body parsers configured.");
 
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
