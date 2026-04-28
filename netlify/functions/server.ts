@@ -12,7 +12,17 @@ export const handler = async (event: any, context: any) => {
     "/api",
   );
 
-  console.log(`[NETLIFY] Incoming: ${method} ${rawPath} -> ${normalizedPath}`);
+  // IMPORTANT: Reconstruct the query string, otherwise tRPC queries (GET) will fail
+  const queryParams = event.queryStringParameters || {};
+  const queryString =
+    Object.keys(queryParams).length > 0
+      ? "?" + new URLSearchParams(queryParams as any).toString()
+      : "";
+  const normalizedUrl = normalizedPath + queryString;
+
+  console.log(
+    `[NETLIFY] Incoming: ${method} ${rawPath}${queryString} -> ${normalizedUrl}`,
+  );
 
   try {
     if (!appPromise) {
@@ -88,7 +98,7 @@ export const handler = async (event: any, context: any) => {
 
       const req: any = {
         method: method,
-        url: normalizedPath,
+        url: normalizedUrl,
         headers: normalizedHeaders,
         cookies: {},
         body: event.body
@@ -123,12 +133,12 @@ export const handler = async (event: any, context: any) => {
 
       setTimeout(() => {
         if (!isResolved) {
-          console.error(`[NETLIFY] Timeout for ${path}`);
+          console.error(`[NETLIFY] Timeout for ${rawPath}`);
           isResolved = true;
           resolve({
             statusCode: 504,
             headers: responseHeaders,
-            body: JSON.stringify({ error: "Express timeout", path }),
+            body: JSON.stringify({ error: "Express timeout", path: rawPath }),
           });
         }
       }, 8500);
