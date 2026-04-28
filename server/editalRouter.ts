@@ -1,6 +1,6 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import * as storage from "./jsonStorage";
+import * as storage from "./db";
 // @ts-ignore
 import pdf from "pdf-parse/lib/pdf-parse.js";
 import { callAiProvider } from "./aiProviders";

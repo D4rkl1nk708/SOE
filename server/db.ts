@@ -219,7 +219,85 @@ export async function updateUserSettings(userId: number, settings: any) {
 }
 
 export async function createRevisions(revisions: any[]) {
-  const { error } = await supabase.from("revisions").insert(revisions);
+  const formatted = revisions.map((r) => ({
+    user_id: r.userId,
+    topic_id: r.topicId,
+    scheduled_date: r.scheduledDate,
+    type: r.type,
+    revision_number: r.revisionNumber,
+    completed: r.completed || false,
+    ignored: r.ignored || false,
+    link: r.link || null,
+  }));
+  const { error } = await supabase.from("revisions").insert(formatted);
+  if (error) throw error;
+}
+
+export async function saveTecSnapshot(userId: number, topics: any[]) {
+  const { error } = await supabase.from("tec_snapshots").insert({
+    user_id: userId,
+    topics,
+    snapshot_date: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
+export async function rescheduleRevision(
+  id: number,
+  userId: number,
+  newDate: string,
+) {
+  const { error } = await supabase
+    .from("revisions")
+    .update({
+      scheduled_date: newDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function updateTopicPerformance(
+  topicId: number,
+  userId: number,
+  data: { correctCount: number; errorCount: number },
+): Promise<void> {
+  const { data: topic, error: getError } = await supabase
+    .from("topics")
+    .select("performance")
+    .eq("id", topicId)
+    .single();
+
+  if (getError) throw getError;
+
+  const current = (topic.performance as any) || {
+    questionsResolved: 0,
+    accuracy: 0,
+    correctCount: 0,
+    errorCount: 0,
+  };
+
+  const totalCorrect = current.correctCount + data.correctCount;
+  const totalError = current.errorCount + data.errorCount;
+  const totalResolved = totalCorrect + totalError;
+  const accuracy =
+    totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * 100) : 0;
+
+  const { error } = await supabase
+    .from("topics")
+    .update({
+      performance: {
+        questionsResolved: totalResolved,
+        accuracy,
+        correctCount: totalCorrect,
+        errorCount: totalError,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", topicId)
+    .eq("user_id", userId);
+
   if (error) throw error;
 }
 
@@ -357,19 +435,6 @@ export async function markRevisionIgnored(
   if (error) throw error;
 }
 
-export async function rescheduleRevision(
-  id: number,
-  userId: number,
-  newDate: string,
-) {
-  const { error } = await supabase
-    .from("revisions")
-    .update({ scheduled_date: newDate, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", userId);
-  if (error) throw error;
-}
-
 export async function updateRevisionLink(
   id: number,
   userId: number,
@@ -395,13 +460,6 @@ export async function getUserByPushToken(token: string) {
     .single();
   if (error) return null;
   return data;
-}
-
-export async function saveTecSnapshot(userId: number, topics: any[]) {
-  const { error } = await supabase
-    .from("tec_snapshots")
-    .insert({ user_id: userId, topics });
-  if (error) throw error;
 }
 
 export async function saveCadernoTec(userId: number, data: any) {

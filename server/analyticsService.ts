@@ -5,7 +5,7 @@
  *   analyticsService = consultas analíticas e relatórios
  */
 
-import * as storage from "./jsonStorage";
+import * as storage from "./db";
 import type { Discipline, Topic, Revision } from "./jsonStorage";
 
 // ─── Utilitários internos ──────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./serveStatic";
-import * as storage from "../jsonStorage";
+import * as storage from "../db";
 import tecProxy from "../tecProxy";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
 

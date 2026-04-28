@@ -2,7 +2,7 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
 import type { User } from "../jsonStorage";
 import { supabase } from "../supabase";
 import * as db from "../db";
-import * as storage from "../jsonStorage";
+import * as storage from "../db";
 
 // Default local user for offline mode (when OAuth is not configured)
 const LOCAL_USER: User = {
@@ -12,7 +12,10 @@ const LOCAL_USER: User = {
   email: "local@estudos.local",
   loginMethod: "local",
   role: "admin",
-  settings: { theme: "light", studyStreak: { current: 0, best: 0, lastStudyDate: null } },
+  settings: {
+    theme: "light",
+    studyStreak: { current: 0, best: 0, lastStudyDate: null },
+  },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   lastSignedIn: new Date().toISOString(),
@@ -25,7 +28,7 @@ export type TrpcContext = {
 };
 
 export async function createContext(
-  opts: CreateExpressContextOptions
+  opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
@@ -33,8 +36,11 @@ export async function createContext(
   const authHeader = opts.req.headers.authorization;
   if (authHeader?.startsWith("Bearer ") && supabase) {
     const token = authHeader.split(" ")[1];
-    const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
-    
+    const {
+      data: { user: authUser },
+      error,
+    } = await supabase.auth.getUser(token);
+
     if (authUser && !error) {
       const dbUser = await db.getUserByOpenId(authUser.id);
       if (dbUser) {
@@ -57,7 +63,7 @@ export async function createContext(
           email: authUser.email,
           loginMethod: "supabase",
           role: "user",
-          lastSignedIn: new Date().toISOString()
+          lastSignedIn: new Date().toISOString(),
         });
         const newDbUser = await db.getUserByOpenId(authUser.id);
         if (newDbUser) {
@@ -83,8 +89,8 @@ export async function createContext(
     let dbUser;
     try {
       dbUser = await db.getUserByOpenId("local-user");
-    } catch(e) {}
-    
+    } catch (e) {}
+
     if (!dbUser) {
       await db.upsertUser({
         openId: "local-user",
