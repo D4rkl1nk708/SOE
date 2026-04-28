@@ -352,3 +352,18 @@ TypeError [ERR_INVALID_ARG_TYPE]: The "paths[0]" argument must be of type string
     at cjsLoader (node:internal/modules/esm/translators:309:5) {
   code: 'ERR_INVALID_ARG_TYPE'
 }
+11:10:28 PM [tsx] change in ./package.json Rerunning...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+TypeError [ERR_INVALID_ARG_TYPE]: The "paths[0]" argument must be of type string. Received undefined
+    at Object.resolve (node:path:1272:7)
+    at packageJson (/home/anon/Desktop/SOE/vite.config.ts:39:17)
+    at Object.<anonymous> (/home/anon/Desktop/SOE/vite.config.ts:70:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (/home/anon/Desktop/SOE/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at cjsLoader (node:internal/modules/esm/translators:309:5) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}

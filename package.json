@@ -3,7 +3,7 @@
   "version": "5.5.2",
   "main": "electron/main.cjs",
   "engines": {
-    "node": ">=20.x"
+    "node": "20.x"
   },
   "license": "MIT",
   "scripts": {
