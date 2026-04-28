@@ -1615,7 +1615,7 @@ ${questionText}`;
   }
 
   let port = parseInt(process.env.PORT || "3000");
-  if (!process.env.VERCEL) {
+  if (!process.env.VERCEL && !process.env.NETLIFY) {
     const availablePort = await findAvailablePort(port);
     if (availablePort !== port) {
       console.log(`Port ${port} is busy, using port ${availablePort} instead`);

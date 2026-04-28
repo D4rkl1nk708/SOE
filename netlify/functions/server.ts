@@ -4,8 +4,15 @@ let appPromise: any = null;
 
 export const handler = async (event: any, context: any) => {
   const method = event.httpMethod;
-  const path = event.path;
-  console.log(`[NETLIFY] Incoming: ${method} ${path}`);
+  const rawPath = event.path;
+  // Normalize path: Netlify functions receive the full internal path
+  // We need to map it back to what Express expects (/api/...)
+  const normalizedPath = rawPath.replace(
+    /^\/\.netlify\/functions\/server/,
+    "/api",
+  );
+
+  console.log(`[NETLIFY] Incoming: ${method} ${rawPath} -> ${normalizedPath}`);
 
   try {
     if (!appPromise) {
@@ -17,25 +24,34 @@ export const handler = async (event: any, context: any) => {
     return new Promise((resolve) => {
       const responseHeaders: any = {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-TRPC-Source",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE, PUT"
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-TRPC-Source",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE, PUT",
       };
-      
+
       let isResolved = false;
 
       const res: any = {
         statusCode: 200,
-        status(code: number) { this.statusCode = code; return this; },
-        setHeader(name: string, value: string) { responseHeaders[name.toLowerCase()] = value; return this; },
-        getHeader(name: string) { return responseHeaders[name.toLowerCase()]; },
-        json(data: any) { 
+        status(code: number) {
+          this.statusCode = code;
+          return this;
+        },
+        setHeader(name: string, value: string) {
+          responseHeaders[name.toLowerCase()] = value;
+          return this;
+        },
+        getHeader(name: string) {
+          return responseHeaders[name.toLowerCase()];
+        },
+        json(data: any) {
           if (isResolved) return;
           isResolved = true;
           this.setHeader("Content-Type", "application/json");
           resolve({
             statusCode: this.statusCode,
             headers: responseHeaders,
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
           });
         },
         send(data: any) {
@@ -45,16 +61,24 @@ export const handler = async (event: any, context: any) => {
           resolve({
             statusCode: this.statusCode,
             headers: responseHeaders,
-            body: body
+            body: body,
           });
         },
         end(data: any) {
           this.send(data || "");
         },
-        on() { return this; },
-        once() { return this; },
-        emit() { return true; },
-        removeListener() { return this; }
+        on() {
+          return this;
+        },
+        once() {
+          return this;
+        },
+        emit() {
+          return true;
+        },
+        removeListener() {
+          return this;
+        },
       };
 
       const normalizedHeaders: any = {};
@@ -64,12 +88,16 @@ export const handler = async (event: any, context: any) => {
 
       const req: any = {
         method: method,
-        url: path,
+        url: normalizedPath,
         headers: normalizedHeaders,
         cookies: {},
-        body: event.body ? (event.isBase64Encoded ? Buffer.from(event.body, "base64").toString() : event.body) : null,
+        body: event.body
+          ? event.isBase64Encoded
+            ? Buffer.from(event.body, "base64").toString()
+            : event.body
+          : null,
         query: event.queryStringParameters || {},
-        params: {}
+        params: {},
       };
 
       if (normalizedHeaders.cookie) {
@@ -79,8 +107,16 @@ export const handler = async (event: any, context: any) => {
         });
       }
 
-      if (method === "POST" && normalizedHeaders["content-type"]?.includes("application/json") && typeof req.body === "string") {
-        try { req.body = JSON.parse(req.body); } catch(e) { console.error("[NETLIFY] JSON Parse Error", e); }
+      if (
+        method === "POST" &&
+        normalizedHeaders["content-type"]?.includes("application/json") &&
+        typeof req.body === "string"
+      ) {
+        try {
+          req.body = JSON.parse(req.body);
+        } catch (e) {
+          console.error("[NETLIFY] JSON Parse Error", e);
+        }
       }
 
       app(req, res);
@@ -92,7 +128,7 @@ export const handler = async (event: any, context: any) => {
           resolve({
             statusCode: 504,
             headers: responseHeaders,
-            body: JSON.stringify({ error: "Express timeout", path })
+            body: JSON.stringify({ error: "Express timeout", path }),
           });
         }
       }, 8500);
@@ -101,7 +137,7 @@ export const handler = async (event: any, context: any) => {
     console.error("[NETLIFY] Handler Crash:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message, stack: err.stack })
+      body: JSON.stringify({ error: err.message, stack: err.stack }),
     };
   }
 };
