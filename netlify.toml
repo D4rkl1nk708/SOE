@@ -1,6 +1,7 @@
 [build]
-  command = "npm run build"
+  command = "pnpm install --frozen-lockfile && pnpm build"
   publish = "dist/public"
 
 [functions]
-  directory = "functions"
+  directory = "netlify/functions"
+  node_bundle = true

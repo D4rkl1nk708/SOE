@@ -57,7 +57,6 @@ export const handler = async (event: any, context: any) => {
         removeListener() { return this; }
       };
 
-      // Normalizar headers para lowercase (como o Express espera)
       const normalizedHeaders: any = {};
       for (const key in event.headers) {
         normalizedHeaders[key.toLowerCase()] = event.headers[key];
@@ -73,7 +72,6 @@ export const handler = async (event: any, context: any) => {
         params: {}
       };
 
-      // Parse Cookies manual
       if (normalizedHeaders.cookie) {
         normalizedHeaders.cookie.split(";").forEach((c: string) => {
           const [key, ...v] = c.split("=");
@@ -81,15 +79,12 @@ export const handler = async (event: any, context: any) => {
         });
       }
 
-      // IMPORTANTE: tRPC e outros middlewares as vezes precisam do body bruto ou já parseado
       if (method === "POST" && normalizedHeaders["content-type"]?.includes("application/json") && typeof req.body === "string") {
         try { req.body = JSON.parse(req.body); } catch(e) { console.error("[NETLIFY] JSON Parse Error", e); }
       }
 
-      // Chamar o Express
       app(req, res);
 
-      // Proteção contra silêncio do Express
       setTimeout(() => {
         if (!isResolved) {
           console.error(`[NETLIFY] Timeout for ${path}`);
