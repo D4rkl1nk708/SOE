@@ -441,7 +441,10 @@ export function OnboardingWizard({ onComplete }: Props) {
                 ))}
               </div>
               <button
-                onClick={() => setStep("concurso")}
+                onClick={() => {
+                  console.log("Configurar agora clicado!");
+                  setStep("concurso");
+                }}
                 className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2"
                 style={{ background: "var(--primary)" }}
               >
