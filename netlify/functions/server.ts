@@ -1,153 +1,50 @@
 import { createApp } from "../../server/_core/index";
+import serverless from "serverless-http";
 
-let appPromise: any = null;
+// Cache do handler para reuso em warm starts
+let handlerPromise: any = null;
 
+/**
+ * Netlify Function Handler
+ * Usa serverless-http para fazer a ponte perfeita entre o Express e o ambiente Lambda.
+ */
 export const handler = async (event: any, context: any) => {
-  const method = event.httpMethod;
-  const rawPath = event.path;
-  // Normalize path: Netlify functions receive the full internal path
-  // We need to map it back to what Express expects (/api/...)
-  const normalizedPath = rawPath.replace(
-    /^\/\.netlify\/functions\/server/,
-    "/api",
-  );
-
-  // IMPORTANT: Reconstruct the query string, otherwise tRPC queries (GET) will fail
-  const queryParams = event.queryStringParameters || {};
-  const queryString =
-    Object.keys(queryParams).length > 0
-      ? "?" + new URLSearchParams(queryParams as any).toString()
-      : "";
-  const normalizedUrl = normalizedPath + queryString;
-
-  console.log(
-    `[NETLIFY] Incoming: ${method} ${rawPath}${queryString} -> ${normalizedUrl}`,
-  );
+  console.log(`[NETLIFY] Request: ${event.httpMethod} ${event.path}`);
 
   try {
-    if (!appPromise) {
-      console.log("[NETLIFY] Bootstrapping Express...");
-      appPromise = createApp();
-    }
-    const { app } = await appPromise;
+    if (!handlerPromise) {
+      console.log("[NETLIFY] First run: initializing Express app...");
+      handlerPromise = (async () => {
+        const { app } = await createApp();
+        return serverless(app, {
+          // Normaliza o caminho para que o Express (que espera /api/...)
+          // entenda as requisições vindas do Netlify (/.netlify/functions/server/...)
+          request: (request, event) => {
+            const rawPath = event.path || "";
+            const normalizedPath = rawPath.replace(
+              /^\/\.netlify\/functions\/server/,
+              "/api",
+            );
+            (request as any).url = normalizedPath;
 
-    return new Promise((resolve) => {
-      const responseHeaders: any = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-TRPC-Source",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE, PUT",
-      };
-
-      let isResolved = false;
-
-      const res: any = {
-        statusCode: 200,
-        status(code: number) {
-          this.statusCode = code;
-          return this;
-        },
-        setHeader(name: string, value: string) {
-          responseHeaders[name.toLowerCase()] = value;
-          return this;
-        },
-        getHeader(name: string) {
-          return responseHeaders[name.toLowerCase()];
-        },
-        json(data: any) {
-          if (isResolved) return;
-          isResolved = true;
-          this.setHeader("Content-Type", "application/json");
-          resolve({
-            statusCode: this.statusCode,
-            headers: responseHeaders,
-            body: JSON.stringify(data),
-          });
-        },
-        send(data: any) {
-          if (isResolved) return;
-          isResolved = true;
-          const body = typeof data === "string" ? data : JSON.stringify(data);
-          resolve({
-            statusCode: this.statusCode,
-            headers: responseHeaders,
-            body: body,
-          });
-        },
-        end(data: any) {
-          this.send(data || "");
-        },
-        on() {
-          return this;
-        },
-        once() {
-          return this;
-        },
-        emit() {
-          return true;
-        },
-        removeListener() {
-          return this;
-        },
-      };
-
-      const normalizedHeaders: any = {};
-      for (const key in event.headers) {
-        normalizedHeaders[key.toLowerCase()] = event.headers[key];
-      }
-
-      const req: any = {
-        method: method,
-        url: normalizedUrl,
-        headers: normalizedHeaders,
-        cookies: {},
-        body: event.body
-          ? event.isBase64Encoded
-            ? Buffer.from(event.body, "base64").toString()
-            : event.body
-          : null,
-        query: event.queryStringParameters || {},
-        params: {},
-      };
-
-      if (normalizedHeaders.cookie) {
-        normalizedHeaders.cookie.split(";").forEach((c: string) => {
-          const [key, ...v] = c.split("=");
-          if (key) req.cookies[key.trim()] = v.join("=");
+            // Log para debug interno do Netlify
+            console.log(`[NETLIFY] Routing: ${rawPath} -> ${normalizedPath}`);
+          },
         });
-      }
+      })();
+    }
 
-      if (
-        method === "POST" &&
-        normalizedHeaders["content-type"]?.includes("application/json") &&
-        typeof req.body === "string"
-      ) {
-        try {
-          req.body = JSON.parse(req.body);
-        } catch (e) {
-          console.error("[NETLIFY] JSON Parse Error", e);
-        }
-      }
-
-      app(req, res);
-
-      setTimeout(() => {
-        if (!isResolved) {
-          console.error(`[NETLIFY] Timeout for ${rawPath}`);
-          isResolved = true;
-          resolve({
-            statusCode: 504,
-            headers: responseHeaders,
-            body: JSON.stringify({ error: "Express timeout", path: rawPath }),
-          });
-        }
-      }, 8500);
-    });
+    const serverlessHandler = await handlerPromise;
+    return await serverlessHandler(event, context);
   } catch (err: any) {
-    console.error("[NETLIFY] Handler Crash:", err);
+    console.error("[NETLIFY] Critical Bridge Error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message, stack: err.stack }),
+      body: JSON.stringify({
+        error: "Internal Server Error (Netlify Bridge)",
+        message: err.message,
+        path: event.path,
+      }),
     };
   }
 };
