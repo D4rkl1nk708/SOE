@@ -304,3 +304,6 @@ Server running on http://0.0.0.0:3000/
 9:53:18 PM [tsx] change in ./package.json Restarting...
 c◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
 Server running on http://0.0.0.0:3000/
+10:00:37 PM [tsx] change in ./package.json Restarting...
+c◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+Server running on http://0.0.0.0:3000/
