@@ -3,10 +3,13 @@ import { createApp } from "../server/_core/index";
 // Este arquivo é o ponto de entrada para a Vercel.
 // Ele exporta o servidor Express para que a Vercel possa rodar como Serverless.
 
-const appPromise = createApp();
+let appPromise: Promise<any> | null = null;
 
 export default async function handler(req: any, res: any) {
   try {
+    if (!appPromise) {
+      appPromise = createApp();
+    }
     const { app } = await appPromise;
     await new Promise((resolve, reject) => {
       res.on("finish", resolve);
@@ -22,6 +25,7 @@ export default async function handler(req: any, res: any) {
         .json({
           error: "Serverless Handler Error",
           details: String(err?.message || err),
+          stack: err?.stack,
         });
     }
   }
