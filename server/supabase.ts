@@ -12,7 +12,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : (null as any);
+let supabaseClient = null;
+try {
+  if (supabaseUrl && supabaseAnonKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+} catch (e) {
+  console.error("Supabase Initialization Error:", e);
+}
+
+export const supabase = supabaseClient as any;
