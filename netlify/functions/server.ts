@@ -17,6 +17,8 @@ export const handler = async (event: any, context: any) => {
       handlerPromise = (async () => {
         const { app } = await createApp();
         return serverless(app, {
+          // Desativa o parsing interno para deixar o express.json() do SOE lidar com isso
+          bodyParser: false,
           // Normaliza o caminho para que o Express (que espera /api/...)
           // entenda as requisições vindas do Netlify (/.netlify/functions/server/...)
           request: (request, event) => {
