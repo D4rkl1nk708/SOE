@@ -1,18 +1,4 @@
 {
   "framework": "vite",
-  "outputDirectory": "dist/public",
-  "rewrites": [
-    {
-      "source": "/api/debug",
-      "destination": "/api/debug.ts"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.ts"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "outputDirectory": "dist/public"
 }
