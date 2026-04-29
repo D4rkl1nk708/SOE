@@ -36,7 +36,7 @@ import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { GuidedTour } from "./components/GuidedTour";
-
+import { useAuth } from "./_core/hooks/useAuth";
 import AuthPage from "@/pages/Auth";
 import { AuthGuard } from "./components/AuthGuard";
 
@@ -60,31 +60,40 @@ function Router() {
   return (
     <AuthGuard>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        {/* Public auth route */}
         <Route path="/auth" component={AuthPage} />
-        <Route path="/admin" component={AdminDashboard} />
-        <Route path="/disciplines" component={DisciplinesPage} />
-        <Route path="/topics" component={Topics} />
-        <Route path="/revisions" component={Revisions} />
-        <Route path="/statistics" component={StatisticsPage} />
-        <Route path="/calendar" component={Calendar} />
-        <Route path="/mock-exams" component={MockExams} />
-        <Route path="/notes" component={Notes} />
-        <Route path="/flashcards" component={Flashcards} />
-        <Route path="/simulado" component={Simulado} />
-        <Route path="/topic-stats" component={TopicStats} />
-        <Route path="/edital" component={Edital} />
-        <Route path="/history" component={History} />
-        <Route path="/sync" component={Sync} />
-        <Route path="/question-session" component={QuestionSession} />
-        <Route path="/question-errors" component={QuestionErrors} />
-        <Route path="/lab" component={Lab} />
-        <Route path="/profile" component={Profile} />
-        <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
-        <Route path="/intercalacao" component={IntercalacaoPlanner} />
-        <Route path="/mentor" component={MentorTab} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
+        
+        {/* Protected routes — inside Layout */}
+        <Route path="/">
+          <Layout>
+            <Switch>
+              <Route path="/" component={Dashboard} />
+              <Route path="/admin" component={AdminDashboard} />
+              <Route path="/disciplines" component={DisciplinesPage} />
+              <Route path="/topics" component={Topics} />
+              <Route path="/revisions" component={Revisions} />
+              <Route path="/statistics" component={StatisticsPage} />
+              <Route path="/calendar" component={Calendar} />
+              <Route path="/mock-exams" component={MockExams} />
+              <Route path="/notes" component={Notes} />
+              <Route path="/flashcards" component={Flashcards} />
+              <Route path="/simulado" component={Simulado} />
+              <Route path="/topic-stats" component={TopicStats} />
+              <Route path="/edital" component={Edital} />
+              <Route path="/history" component={History} />
+              <Route path="/sync" component={Sync} />
+              <Route path="/question-session" component={QuestionSession} />
+              <Route path="/question-errors" component={QuestionErrors} />
+              <Route path="/lab" component={Lab} />
+              <Route path="/profile" component={Profile} />
+              <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
+              <Route path="/intercalacao" component={IntercalacaoPlanner} />
+              <Route path="/mentor" component={MentorTab} />
+              <Route component={NotFound} />
+            </Switch>
+            <GuidedTour />
+          </Layout>
+        </Route>
       </Switch>
     </AuthGuard>
   );
@@ -122,7 +131,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         pointerEvents: phase === "out" ? "none" : "all",
       }}
     >
-      {/* Animated background orbs */}
       <div
         style={{
           position: "absolute",
@@ -151,7 +159,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         }}
       />
 
-      {/* Logo container */}
       <div
         style={{
           display: "flex",
@@ -163,7 +170,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           transition: "all 0.5s cubic-bezier(0.34,1.56,0.64,1)",
         }}
       >
-        {/* Icon */}
         <div
           style={{
             width: 96,
@@ -179,7 +185,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
             position: "relative",
           }}
         >
-          {/* Book icon — open book matching app icon */}
           <svg
             width="52"
             height="52"
@@ -187,7 +192,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            {/* Left page */}
             <rect
               x="4"
               y="10"
@@ -198,7 +202,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
               strokeWidth="3"
               fill="none"
             />
-            {/* Right page */}
             <rect
               x="27"
               y="10"
@@ -209,10 +212,8 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
               strokeWidth="3"
               fill="none"
             />
-            {/* Center binding tab */}
             <rect x="23" y="38" width="6" height="5" rx="1" fill="#1a1a1a" />
           </svg>
-          {/* Shine effect */}
           <div
             style={{
               position: "absolute",
@@ -227,7 +228,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           />
         </div>
 
-        {/* Title */}
         <div style={{ textAlign: "center" }}>
           <div
             style={{
@@ -258,7 +258,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           </div>
         </div>
 
-        {/* Loading bar */}
         <div
           style={{
             width: 140,
@@ -306,18 +305,39 @@ function App() {
     return false;
   });
 
+  const { loading } = useAuth();
+
+  if (!splashDone) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster position="top-right" richColors />
+            <SplashScreen onDone={() => setSplashDone(true)} />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  if (loading) {
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster position="top-right" richColors />
+          </TooltipProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <TooltipProvider>
           <Toaster position="top-right" richColors />
-          {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-          <div style={{ visibility: splashDone ? "visible" : "hidden" }}>
-            <Layout>
-              <Router />
-              <GuidedTour />
-            </Layout>
-          </div>
+          <Router />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

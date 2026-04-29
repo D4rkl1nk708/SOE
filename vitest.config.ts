@@ -17,6 +17,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
+    env: {
+      VITE_SUPABASE_URL: "https://test.supabase.co",
+      VITE_SUPABASE_ANON_KEY: "test-anon-key",
+    },
     include: ["tests/**/*.test.{ts,tsx}", "server/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
@@ -35,5 +39,6 @@ export default defineConfig({
         "**/client/src/pages/**/index.tsx",
       ],
     },
+    setupFiles: ["./tests/setup.ts"],
   },
 });

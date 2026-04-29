@@ -108,6 +108,7 @@ export default function Dashboard() {
     null,
   );
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [manualHideOnboarding, setManualHideOnboarding] = useState(false);
 
   // Mutation for TEC error origin classification (used in TEC error queue dialog)
   const setTecPerf = trpc.topic.setPerformance.useMutation({
@@ -115,12 +116,17 @@ export default function Dashboard() {
   });
 
   // Onboarding
-  const onboardingCompleted = (
-    stats?.settings as Record<string, unknown> | undefined
-  )?.onboardingCompleted as boolean | undefined;
+  const onboardingCompleted =
+    (stats?.settings as Record<string, unknown> | undefined)
+      ?.onboardingCompleted === true;
+
   const hasAnyDisciplines = (stats?.disciplineStats ?? []).length > 0;
+
   const showOnboarding =
-    !isLoading && !onboardingCompleted && !hasAnyDisciplines;
+    !isLoading &&
+    !onboardingCompleted &&
+    !hasAnyDisciplines &&
+    !manualHideOnboarding;
 
   if (isLoading)
     return (
@@ -176,7 +182,11 @@ export default function Dashboard() {
     <div className="space-y-6 w-full pb-10">
       {showOnboarding && (
         <OnboardingWizard
-          onComplete={() => utils.dashboard.getStats.invalidate()}
+          onComplete={() => {
+            console.log("[DASHBOARD] Onboarding finalizado, escondendo...");
+            setManualHideOnboarding(true);
+            utils.dashboard.getStats.invalidate();
+          }}
         />
       )}
 
@@ -191,7 +201,7 @@ export default function Dashboard() {
             className="text-3xl font-black tracking-tight flex items-center gap-2.5"
             style={{ color: "var(--app-fg)" }}
           >
-            Painel
+            Painel de Controle
           </h1>
           <p className="text-sm opacity-60">
             Gestão centralizada do seu desempenho.
@@ -447,9 +457,13 @@ export default function Dashboard() {
       <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Personalizar</DialogTitle>
+            <DialogTitle>Personalizar Painel</DialogTitle>
+            <DialogDescription>
+              Escolha quais widgets você deseja visualizar no seu painel de
+              controle.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="grid gap-2 py-4">
             {EXTRA_WIDGETS.map((w) => (
               <Button
                 key={w.id}
@@ -457,11 +471,11 @@ export default function Dashboard() {
                 className="w-full justify-between"
                 onClick={() => widgets.toggleExtra(w.id)}
               >
-                {w.label}{" "}
+                <span className="text-sm font-medium">{w.label}</span>
                 {widgets.showExtra(w.id) ? (
-                  <Eye size={14} />
+                  <Eye size={14} className="text-primary" />
                 ) : (
-                  <EyeOff size={14} />
+                  <EyeOff size={14} className="opacity-40" />
                 )}
               </Button>
             ))}
@@ -485,7 +499,10 @@ export default function Dashboard() {
       <Dialog open={questions.open} onOpenChange={questions.setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Questões</DialogTitle>
+            <DialogTitle>Registrar Desempenho</DialogTitle>
+            <DialogDescription>
+              Informe a quantidade de acertos e erros para este tópico.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Input
@@ -510,7 +527,11 @@ export default function Dashboard() {
       <Dialog open={tec.dialogOpen} onOpenChange={tec.setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Importar TEC</DialogTitle>
+            <DialogTitle>Importar Dados do TEC Concursos</DialogTitle>
+            <DialogDescription>
+              Selecione o arquivo Excel exportado do TEC para atualizar seu
+              desempenho.
+            </DialogDescription>
           </DialogHeader>
           <Button
             onClick={() => {
@@ -526,7 +547,11 @@ export default function Dashboard() {
       <Dialog open={exams.dialogOpen} onOpenChange={exams.setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Provas</DialogTitle>
+            <DialogTitle>Gerenciar Provas</DialogTitle>
+            <DialogDescription>
+              Adicione ou edite datas de provas para acompanhar a contagem
+              regressiva.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input

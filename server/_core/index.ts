@@ -9,8 +9,8 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
-import * as storage from "../jsonStorage";
+import { serveStatic } from "./serveStatic";
+import * as storage from "../db";
 import tecProxy from "../tecProxy";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
 
@@ -34,11 +34,13 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 export async function createApp() {
+  console.log("[SERVER] Starting createApp...");
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  console.log("[SERVER] Body parsers configured.");
 
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
@@ -1675,22 +1677,35 @@ ${questionText}`;
     }, 500);
   });
 
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === "development" && !process.env.VERCEL) {
+    const viteMod = "./vite.js";
+    const { setupVite } = await import(viteMod);
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    const publicDir =
+      process.env.NODE_ENV === "development"
+        ? path.join(process.cwd(), "dist", "public")
+        : path.join(process.cwd(), "client", "public"); // default
+    serveStatic(
+      app,
+      process.env.VERCEL
+        ? path.join(process.cwd(), "dist", "public")
+        : publicDir,
+    );
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  let port = parseInt(process.env.PORT || "3000");
+  if (!process.env.VERCEL && !process.env.NETLIFY) {
+    const availablePort = await findAvailablePort(port);
+    if (availablePort !== port) {
+      console.log(`Port ${port} is busy, using port ${availablePort} instead`);
+      port = availablePort;
+    }
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${port}/`);
+    });
   }
-
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${port}/`);
-  });
 
   return { app, server };
 }
@@ -1699,6 +1714,6 @@ async function startServer() {
   await createApp();
 }
 
-if (process.env.NODE_ENV !== "test") {
+if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
   startServer().catch(console.error);
 }

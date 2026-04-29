@@ -1,8 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../jsonStorage";
-import { sdk } from "./sdk";
-import { ENV } from "./env";
-import * as storage from "../jsonStorage";
+import * as storage from "../db";
 
 // Default local user for offline mode (when OAuth is not configured)
 const LOCAL_USER: User = {
@@ -20,29 +18,6 @@ const LOCAL_USER: User = {
   updatedAt: new Date().toISOString(),
   lastSignedIn: new Date().toISOString(),
 };
-
-// Check if running in local mode (no OAuth configured)
-function isLocalMode(): boolean {
-  return !ENV.oAuthServerUrl || !ENV.appId;
-}
-
-// Ensure local user exists in DB (only called once)
-let localUserEnsured = false;
-async function ensureLocalUser() {
-  if (localUserEnsured) return;
-  localUserEnsured = true;
-  try {
-    await storage.upsertUser({
-      openId: "local-user",
-      name: "Usuário Local",
-      email: "local@estudos.local",
-      loginMethod: "local",
-      role: "admin",
-    });
-  } catch (e) {
-    console.error("Error ensuring local user:", e);
-  }
-}
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];

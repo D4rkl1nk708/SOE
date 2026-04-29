@@ -1,7 +1,8 @@
 import { getLoginUrl, isLocalMode } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -20,9 +21,6 @@ const LOCAL_USER = {
   updatedAt: new Date(),
   lastSignedIn: new Date(),
 };
-
-import { supabase } from "@/lib/supabase";
-import { useState } from "react";
 
 export function useAuth() {
   const [user, setUser] = useState<any>(null);

@@ -157,10 +157,10 @@ function RichEditor({
         className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-white/5 bg-white/[0.01] relative"
       >
         <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth mask-fade-right pr-12">
-          {toolbarGroups.map((group, gi) => (
+          {toolbarGroups.map((group: any, gi: any) => (
             <Fragment key={gi}>
               {gi > 0 && <div className="w-px h-5 bg-white/10 mx-1 shrink-0" />}
-              {group.map((btn) => (
+              {group.map((btn: any) => (
                 <button
                   key={btn.cmd + (btn.val ?? "")}
                   title={btn.title}
@@ -217,7 +217,7 @@ function RichEditor({
                     { id: "improve", label: "Melhorar Escrita" },
                     { id: "explain", label: "Simplificar Conceito" },
                     { id: "autocomplete", label: "Expandir Ideia" },
-                  ].map((a) => (
+                  ].map((a: any) => (
                     <button
                       key={a.id}
                       onMouseDown={(e) => {
@@ -301,7 +301,7 @@ export default function Notes() {
   const [newTopicId, setNewTopicId] = useState<number | "">("");
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  const activeNote = notes.find((n) => n.id === activeNoteId);
+  const activeNote = notes.find((n: any) => n.id === activeNoteId);
   const [editorContent, setEditorContent] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const saveTimeout = useRef<any>(null);
@@ -399,7 +399,7 @@ export default function Notes() {
     handleCreate(); // This is simplified for the demo
   };
 
-  const filteredNotes = notes.filter((n) => {
+  const filteredNotes = notes.filter((n: any) => {
     const matchesSearch =
       n.title.toLowerCase().includes(search.toLowerCase()) ||
       n.content.toLowerCase().includes(search.toLowerCase());
@@ -475,7 +475,7 @@ export default function Notes() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 space-y-2 custom-scrollbar pb-20">
-          {filteredNotes.map((note) => {
+          {filteredNotes.map((note: any) => {
             const disc = disciplines.find(
               (d: any) => d.id === note.disciplineId,
             );

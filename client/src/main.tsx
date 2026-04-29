@@ -8,6 +8,7 @@ import { Capacitor } from "@capacitor/core";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import { createLocalLink } from "./lib/localLink";
+import { supabase } from "@/lib/supabase";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -20,7 +21,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  window.location.href = "/auth";
 };
 
 queryClient.getQueryCache().subscribe((event) => {
@@ -54,18 +55,14 @@ const trpcClient = trpc.createClient({
       false: httpBatchLink({
         url: trpcUrl,
         transformer: superjson,
-        async fetch(input, init) {
-          const {
-            data: { session },
-          } = await (await import("@/lib/supabase")).supabase.auth.getSession();
-          return globalThis.fetch(input, {
-            ...(init ?? {}),
-            credentials: "include",
-            headers: {
-              ...(init?.headers ?? {}),
-              "x-user-id": session?.user?.id || "anonymous",
-            },
-          });
+        headers: async () => {
+          const { data } = await supabase.auth.getSession();
+          const session = data.session;
+          const token = session?.access_token;
+          return {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            "x-user-id": session?.user?.id || "anonymous",
+          };
         },
       }),
     }),

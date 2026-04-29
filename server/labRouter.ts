@@ -81,7 +81,7 @@ ${chunkText}`;
                 }
               }
             }
-          } catch (e) {
+          } catch (e: any) {
             console.warn(
               `[Lab] Falha ao extrair JSON da parte ${i + 1}, pulando...`,
             );
@@ -291,7 +291,7 @@ ${chunkText}`;
         const disciplines = await db.getDisciplinesByUser(userId);
         const subjectName = q.subject || "Geral";
         let disc = disciplines.find(
-          (d) => d.name.toLowerCase() === subjectName.toLowerCase(),
+          (d: any) => d.name.toLowerCase() === subjectName.toLowerCase(),
         );
         if (!disc) {
           const { id } = await db.createDiscipline({
@@ -308,7 +308,7 @@ ${chunkText}`;
         });
         const topicName = q.topic || "Geral";
         let top = topics.find(
-          (t) => t.name.toLowerCase() === topicName.toLowerCase(),
+          (t: any) => t.name.toLowerCase() === topicName.toLowerCase(),
         );
         if (!top) {
           const { id } = await db.createTopic({
@@ -348,7 +348,7 @@ ${chunkText}`;
 
       const files = fs
         .readdirSync(storagePath)
-        .filter((f) => f.endsWith(".json"));
+        .filter((f: any) => f.endsWith(".json"));
       const allQuestions: any[] = [];
 
       for (const f of files) {
@@ -405,7 +405,7 @@ ${chunkText}`;
     const db = await import("./db");
     const files = fs
       .readdirSync(storagePath)
-      .filter((f) => f.endsWith(".json"));
+      .filter((f: any) => f.endsWith(".json"));
     const history = [];
 
     for (const f of files) {
@@ -485,7 +485,7 @@ ${chunkText}`;
         fs.readFileSync(path.join(storagePath, input.fileName), "utf-8"),
       );
       const topics = await db.getTopicsByUser(ctx.user.id, {});
-      const topicList = topics.map((t) => t.name).join(", ");
+      const topicList = topics.map((t: any) => t.name).join(", ");
       const prompt = `Cruze as questões desta prova com os tópicos do meu Edital.\nQUESTÕES: ${questions
         .map((q: any) => q.statement)
         .join(" | ")

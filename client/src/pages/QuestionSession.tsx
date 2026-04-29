@@ -359,8 +359,8 @@ export default function QuestionSession() {
       toast.error("Selecione um tema para salvar.");
       return;
     }
-    const correct = results.filter((r) => r.correct).length;
-    const wrong = results.filter((r) => !r.correct).length;
+    const correct = results.filter((r: any) => r.correct).length;
+    const wrong = results.filter((r: any) => !r.correct).length;
     try {
       const cur = (topicsData as any)?.topics?.find(
         (t: any) => t.id === selectedTopic,
@@ -372,16 +372,16 @@ export default function QuestionSession() {
         errorCount: (prev?.errorCount ?? 0) + wrong,
         errorByAttention:
           (prev?.errorByAttention ?? 0) +
-          results.filter((r) => r.errorOrigin === "attention").length,
+          results.filter((r: any) => r.errorOrigin === "attention").length,
         errorByForgetting:
           (prev?.errorByForgetting ?? 0) +
-          results.filter((r) => r.errorOrigin === "forgetting").length,
+          results.filter((r: any) => r.errorOrigin === "forgetting").length,
         errorByTheory:
           (prev?.errorByTheory ?? 0) +
-          results.filter((r) => r.errorOrigin === "theory").length,
+          results.filter((r: any) => r.errorOrigin === "theory").length,
         errorByTrap:
           (prev?.errorByTrap ?? 0) +
-          results.filter((r) => r.errorOrigin === "trap").length,
+          results.filter((r: any) => r.errorOrigin === "trap").length,
       });
       if (elapsed > 0)
         await addStudyTime.mutateAsync({
@@ -412,8 +412,8 @@ export default function QuestionSession() {
     }
   };
 
-  const correctCount = results.filter((r) => r.correct).length;
-  const wrongCount = results.filter((r) => !r.correct).length;
+  const correctCount = results.filter((r: any) => r.correct).length;
+  const wrongCount = results.filter((r: any) => !r.correct).length;
   const accuracy =
     results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
   const progress = (currentIndex / totalQ) * 100;
@@ -426,7 +426,7 @@ export default function QuestionSession() {
         { id: "errors", label: "Erros", icon: ClipboardX },
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
         { id: "essays", label: "Redações", icon: FileText },
-      ].map((t) => (
+      ].map((t: any) => (
         <button
           key={t.id}
           onClick={() => setActiveTab(t.id as any)}
@@ -517,7 +517,7 @@ export default function QuestionSession() {
                       <option value="" className="bg-slate-900">
                         Selecionar...
                       </option>
-                      {(disciplines as any[])?.map((d) => (
+                      {(disciplines as any[])?.map((d: any) => (
                         <option
                           key={d.id}
                           value={d.id}
@@ -563,7 +563,7 @@ export default function QuestionSession() {
                     Quantidade de Questões
                   </label>
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                    {[5, 10, 15, 20, 30, 50].map((n) => (
+                    {[5, 10, 15, 20, 30, 50].map((n: any) => (
                       <button
                         key={n}
                         onClick={() => setTotalQ(n)}
@@ -739,7 +739,7 @@ export default function QuestionSession() {
               color: "text-sky-500",
               bg: "bg-sky-500/5",
             },
-          ].map((s) => (
+          ].map((s: any) => (
             <div
               key={s.label}
               className={`rounded-2xl p-4 text-center border border-white/5 ${s.bg}`}
@@ -809,7 +809,7 @@ export default function QuestionSession() {
               <h3 className="font-black text-lg">O que causou o erro?</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {ERROR_ORIGINS.map((o) => {
+              {ERROR_ORIGINS.map((o: any) => {
                 const Icon = o.icon;
                 return (
                   <button
@@ -941,11 +941,11 @@ export default function QuestionSession() {
   }
 
   // ── RENDER SUMMARY ─────────────────────────────────────────────────
-  const totalWrong = results.filter((r) => !r.correct);
-  const originCounts = ERROR_ORIGINS.map((o) => ({
+  const totalWrong = results.filter((r: any) => !r.correct);
+  const originCounts = ERROR_ORIGINS.map((o: any) => ({
     ...o,
-    count: totalWrong.filter((r) => r.errorOrigin === o.id).length,
-  })).filter((o) => o.count > 0);
+    count: totalWrong.filter((r: any) => r.errorOrigin === o.id).length,
+  })).filter((o: any) => o.count > 0);
   const finalAccuracy =
     totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
   const accuracyColorClass =
@@ -1007,7 +1007,7 @@ export default function QuestionSession() {
               <BarChart2 className="w-4 h-4" /> Diagnóstico do Erro
             </h3>
             <div className="space-y-4">
-              {originCounts.map((o) => {
+              {originCounts.map((o: any) => {
                 const pct = Math.round((o.count / totalWrong.length) * 100);
                 return (
                   <div key={o.id} className="space-y-2">
@@ -1166,7 +1166,7 @@ function MobileTecBrowser({ pushToken }: { pushToken: string }) {
                 }
               }
             }
-          } catch (e) {
+          } catch (e: any) {
             console.error("[Mobile Browser] Erro na requisição:", e);
           }
         }
@@ -1389,7 +1389,7 @@ function EssaysTab() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--primary)] transition-all"
                 >
                   <option value={0}>Selecionar...</option>
-                  {disciplines.data?.map((d) => (
+                  {disciplines.data?.map((d: any) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
                     </option>
@@ -1535,8 +1535,8 @@ function EssaysTab() {
   const renderFeedback = (text: string) =>
     text
       .split(/\n+/)
-      .filter((l) => l.trim())
-      .map((line, i) => {
+      .filter((l: any) => l.trim())
+      .map((line: any, i: any) => {
         const clean = line
           .replace(/^#{1,4}\s/, "")
           .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -1699,7 +1699,7 @@ function EssaysTab() {
                         label: "Métricas Textuais",
                       },
                       { id: "texto", icon: FileText, label: "Raio-X do Texto" },
-                    ].map((t) => (
+                    ].map((t: any) => (
                       <button
                         key={t.id}
                         onClick={() => setActiveEssayTab(t.id as any)}
@@ -1953,7 +1953,7 @@ function EssaysTab() {
                                       selectedEssay.correction.estatisticas
                                         .conectivos,
                                   },
-                                ].map((s, i) => (
+                                ].map((s: any, i: any) => (
                                   <div
                                     key={i}
                                     className="soe-card p-4 flex flex-col items-center justify-center gap-1 bg-white/[0.02]"
@@ -2089,7 +2089,7 @@ function EssaysTab() {
 
         {essays.isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((i: any) => (
               <div
                 key={i}
                 className="h-44 rounded-2xl bg-white/5 animate-pulse"
@@ -2105,7 +2105,7 @@ function EssaysTab() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {essays.data?.map((essay) => (
+            {essays.data?.map((essay: any) => (
               <div
                 key={essay.id}
                 onClick={() => setSelectedEssay(essay)}
@@ -2328,7 +2328,7 @@ function MnemonicSos({ topicId }: { topicId: number | null }) {
     const topicName =
       stats?.disciplineStats
         ?.flatMap((d) => d.topics || [])
-        .find((t) => t.id === topicId)?.name || "Assunto";
+        .find((t: any) => t.id === topicId)?.name || "Assunto";
     genMut.mutate({
       apiKey,
       provider,

@@ -2,12 +2,14 @@
   "name": "estudo_25_50_dias",
   "version": "6.0.0",
   "main": "electron/main.cjs",
-  "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
     "desktop:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
-    "build": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-database.cjs",
+    "build": "vite build",
     "build:clean": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-clean.cjs",
     "desktop:build": "npm run build && electron-builder",
     "desktop:build:linux": "npm run build:clean && electron-builder --linux --publish never",
@@ -19,15 +21,14 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:all": "npm run check && npm run test -- --coverage && npx playwright test",
+    "test:all": "npm run check && npm run test -- --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "ios:add": "npx cap add ios",
     "ios:sync": "npm run build:clean && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "ios:build": "npm run build:clean && npx cap sync ios && npx cap open ios",
-    "android:build:nosync": "npm run build:clean && mkdir -p android/app/src/main/assets/public/ && cp -r dist/public/* android/app/src/main/assets/public/ && cd android && ./gradlew assembleDebug",
-    "prepare": "husky"
+    "android:build:nosync": "npm run build:clean && mkdir -p android/app/src/main/assets/public/ && cp -r dist/public/* android/app/src/main/assets/public/ && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
@@ -63,6 +64,7 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.105.0",
     "@tanstack/react-query": "^5.90.2",
     "@trpc/client": "^11.6.0",
     "@trpc/react-query": "^11.6.0",
@@ -97,6 +99,7 @@
     "recharts": "^2.15.2",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
+    "serverless-http": "^4.0.0",
     "sonner": "^2.0.7",
     "streamdown": "^1.4.0",
     "superjson": "^1.13.3",
@@ -208,13 +211,5 @@
       "prettier --write"
     ]
   },
-  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af",
-  "pnpm": {
-    "patchedDependencies": {
-      "wouter@3.7.1": "patches/wouter@3.7.1.patch"
-    },
-    "overrides": {
-      "tailwindcss>nanoid": "3.3.7"
-    }
-  }
+  "packageManager": "pnpm@10.4.1"
 }

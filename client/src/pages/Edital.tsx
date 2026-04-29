@@ -123,7 +123,9 @@ function groupRows(rows: EditalTopico[]): GroupedDiscipline[] {
     if (r.isHeader) map[r.discipline].header = r;
     else map[r.discipline].topics.push(r);
   }
-  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.values(map).sort((a: any, b: any) =>
+    a.name.localeCompare(b.name),
+  );
 }
 
 function hitColor(acerto?: number): string {
@@ -293,7 +295,7 @@ function EditalTab({
   const openRegisterStudy = (t: EditalTopico) => {
     // Tenta encontrar a disciplina pelo nome (case insensitive)
     const disc = disciplines?.find(
-      (d) => d.name.toLowerCase() === t.discipline.toLowerCase(),
+      (d: any) => d.name.toLowerCase() === t.discipline.toLowerCase(),
     );
     setStudyForm({
       disciplineId: disc?.id || 0,
@@ -380,7 +382,7 @@ function EditalTab({
   const saveAll = (newRows?: EditalTopico[]) => {
     const toSave = newRows ?? rows;
     updateSettings.mutate({
-      editalRows: toSave.map((r) => ({
+      editalRows: toSave.map((r: any) => ({
         id: r.id,
         discipline: r.discipline,
         topic: r.topic,
@@ -398,7 +400,7 @@ function EditalTab({
   };
 
   const toggleCompleted = (id: string) => {
-    const updated = rows.map((r) =>
+    const updated = rows.map((r: any) =>
       r.id === id ? { ...r, completed: !r.completed } : r,
     );
     setRows(updated);
@@ -409,7 +411,7 @@ function EditalTab({
     id: string,
     flag: "revisar" | "avancar" | "discursiva",
   ) => {
-    const updated = rows.map((r) =>
+    const updated = rows.map((r: any) =>
       r.id === id ? { ...r, [flag]: !r[flag] } : r,
     );
     setRows(updated);
@@ -419,7 +421,7 @@ function EditalTab({
   const updateAcerto = (id: string, val: string) => {
     const num = parseFloat(val);
     if (isNaN(num)) return;
-    const updated = rows.map((r) =>
+    const updated = rows.map((r: any) =>
       r.id === id ? { ...r, acerto: Math.max(0, Math.min(1, num / 100)) } : r,
     );
     setRows(updated);
@@ -433,7 +435,7 @@ function EditalTab({
 
   const saveEditTopic = (id: string) => {
     if (!editingTopicText.trim()) return;
-    const updated = rows.map((r) =>
+    const updated = rows.map((r: any) =>
       r.id === id ? { ...r, topic: editingTopicText.trim() } : r,
     );
     setRows(updated);
@@ -442,14 +444,14 @@ function EditalTab({
   };
 
   const deleteTopic = (id: string) => {
-    const updated = rows.filter((r) => r.id !== id);
+    const updated = rows.filter((r: any) => r.id !== id);
     setRows(updated);
     saveAll(updated);
     toast.success("Tópico removido.");
   };
 
   const deleteDiscipline = (disciplineName: string) => {
-    const updated = rows.filter((r) => r.discipline !== disciplineName);
+    const updated = rows.filter((r: any) => r.discipline !== disciplineName);
     setRows(updated);
     saveAll(updated);
     toast.success(`Disciplina "${disciplineName}" removida.`);
@@ -478,7 +480,7 @@ function EditalTab({
       toast.success(
         `${newRows.length} itens importados de ${discCount} disciplinas!`,
       );
-    } catch (err) {
+    } catch (err: any) {
       toast.error("Erro ao importar planilha.");
     } finally {
       setImporting(false);
@@ -490,9 +492,9 @@ function EditalTab({
 
   // Filter
   const filteredGrouped = grouped
-    .map((g) => ({
+    .map((g: any) => ({
       ...g,
-      topics: g.topics.filter((t) => {
+      topics: g.topics.filter((t: any) => {
         const matchSearch =
           !search || t.topic.toLowerCase().includes(search.toLowerCase());
         const matchFlag =
@@ -510,12 +512,16 @@ function EditalTab({
         return matchSearch && matchFlag;
       }),
     }))
-    .filter((g) => g.topics.length > 0 || (!search && filterFlag === "all"));
+    .filter(
+      (g: any) => g.topics.length > 0 || (!search && filterFlag === "all"),
+    );
 
-  const totalTopics = rows.filter((r) => !r.isHeader).length;
-  const completedTopics = rows.filter((r) => !r.isHeader && r.completed).length;
-  const revisarCount = rows.filter((r) => !r.isHeader && r.revisar).length;
-  const avancarCount = rows.filter((r) => !r.isHeader && r.avancar).length;
+  const totalTopics = rows.filter((r: any) => !r.isHeader).length;
+  const completedTopics = rows.filter(
+    (r: any) => !r.isHeader && r.completed,
+  ).length;
+  const revisarCount = rows.filter((r: any) => !r.isHeader && r.revisar).length;
+  const avancarCount = rows.filter((r: any) => !r.isHeader && r.avancar).length;
 
   const inputStyle = {
     background: "var(--input-bg)",
@@ -651,7 +657,7 @@ function EditalTab({
                         "Dir. Constitucional",
                         "Informática",
                         "Raciocínio Lógico",
-                      ].map((tab, i) => (
+                      ].map((tab: any, i: any) => (
                         <div
                           key={tab}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border"
@@ -716,7 +722,7 @@ function EditalTab({
                         "Porcentagem",
                         "Revisar",
                         "Avançar",
-                      ].map((h, i) => (
+                      ].map((h: any, i: any) => (
                         <div
                           key={h}
                           className="px-2 py-2.5 truncate"
@@ -780,7 +786,7 @@ function EditalTab({
                         rev: "",
                         av: "",
                       },
-                    ].map((row) => (
+                    ].map((row: any) => (
                       <div
                         key={row.n}
                         className="grid text-[11px] transition-colors"
@@ -1082,7 +1088,7 @@ function EditalTab({
                 color: "#3b82f6",
                 icon: ChevronRight,
               },
-            ].map((s) => (
+            ].map((s: any) => (
               <div
                 key={s.label}
                 className="soe-card p-5 relative overflow-hidden group"
@@ -1171,11 +1177,11 @@ function EditalTab({
         )}
 
         {/* Discipline groups */}
-        {filteredGrouped.map((group) => {
+        {filteredGrouped.map((group: any) => {
           const isCollapsed = collapsed[group.name];
           const header = group.header;
           const completedInGroup = group.topics.filter(
-            (t) => t.completed,
+            (t: any) => t.completed,
           ).length;
           const progressPct =
             group.topics.length > 0
@@ -1304,7 +1310,7 @@ function EditalTab({
                       </tr>
                     </thead>
                     <tbody>
-                      {group.topics.map((t, i) => (
+                      {group.topics.map((t: any, i: any) => (
                         <tr
                           key={t.id}
                           className="transition-all hover:bg-white/[0.01]"
@@ -1364,7 +1370,7 @@ function EditalTab({
                               >
                                 {t.topic}
                                 {allTopics.some(
-                                  (at) =>
+                                  (at: any) =>
                                     at.name.toLowerCase() ===
                                     t.topic.toLowerCase(),
                                 ) && (
@@ -1575,7 +1581,7 @@ function EditalTab({
                   <SelectValue placeholder="Selecione a disciplina..." />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-white/10 bg-[var(--app-bg)]">
-                  {disciplines?.map((d) => (
+                  {disciplines?.map((d: any) => (
                     <SelectItem
                       key={d.id}
                       value={String(d.id)}
@@ -1865,7 +1871,7 @@ function AssignDropdown({
             border: "1px solid var(--card-border)",
           }}
         >
-          {unassigned.map((d) => (
+          {unassigned.map((d: any) => (
             <button
               key={d.id}
               className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:opacity-70 transition-opacity"
@@ -1984,7 +1990,7 @@ function DisciplineProgressTable({
             </tr>
           </thead>
           <tbody>
-            {disciplines.map((disc) => {
+            {disciplines.map((disc: any) => {
               const acc = disc.performance?.accuracy;
               const q = disc.performance?.questionsResolved ?? 0;
               const accColor =
@@ -2082,7 +2088,7 @@ function DisciplineProgressTable({
                     </tr>
                   )}
                   {isExpanded &&
-                    topics.map((topic, ti) => {
+                    topics.map((topic: any, ti: any) => {
                       const tacc = topic.performance?.accuracy;
                       const tq = topic.performance?.questionsResolved ?? 0;
                       const tc =
@@ -2186,7 +2192,7 @@ function CycleConfigPanel({
   const toggleDay = (day: number) =>
     setSelectedDays((prev) =>
       prev.includes(day)
-        ? prev.filter((d) => d !== day)
+        ? prev.filter((d: any) => d !== day)
         : [...prev, day].sort(),
     );
   const effectiveCount = type === "weekdays" ? selectedDays.length : count;
@@ -2262,7 +2268,7 @@ function CycleConfigPanel({
             <span style={{ color: "var(--primary)" }}>{count}</span>
           </label>
           <div className="flex items-center gap-2 flex-wrap">
-            {[2, 3, 4, 5, 6, 7].map((n) => (
+            {[2, 3, 4, 5, 6, 7].map((n: any) => (
               <button
                 key={n}
                 className="w-10 h-10 rounded-full text-sm font-bold transition-all"
@@ -2289,7 +2295,7 @@ function CycleConfigPanel({
             Dias de estudo ({selectedDays.length} selecionados)
           </label>
           <div className="flex gap-1.5 flex-wrap">
-            {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+            {[0, 1, 2, 3, 4, 5, 6].map((day: any) => {
               const sel = selectedDays.includes(day);
               return (
                 <button
@@ -2309,7 +2315,7 @@ function CycleConfigPanel({
           </div>
           {selectedDays.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {selectedDays.map((d, i) => (
+              {selectedDays.map((d: any, i: any) => (
                 <span
                   key={d}
                   className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -2415,12 +2421,13 @@ function CiclosTab({ data }: { data: any }) {
 
   const getDisciplinesInCycle = (cycleKey: string): DisciplineItem[] =>
     assignments
-      .filter((a) => a.cycleKey === cycleKey)
-      .map((a) => disciplines?.find((d) => d.id === a.disciplineId))
+      .filter((a: any) => a.cycleKey === cycleKey)
+      .map((a: any) => disciplines?.find((d: any) => d.id === a.disciplineId))
       .filter((d): d is DisciplineItem => Boolean(d));
 
   const getAssignedCycleKey = (disciplineId: number) =>
-    assignments.find((a) => a.disciplineId === disciplineId)?.cycleKey ?? null;
+    assignments.find((a: any) => a.disciplineId === disciplineId)?.cycleKey ??
+    null;
 
   const assignDiscipline = (disciplineId: number, cycleKey: string | null) => {
     let newAssignments = assignments.filter(
@@ -2435,7 +2442,7 @@ function CiclosTab({ data }: { data: any }) {
 
   const saveCycleConfig = (newConfig: CycleConfig) => {
     const keys = getCycleKeys(newConfig);
-    const filtered = (newConfig.assignments || []).filter((a) =>
+    const filtered = (newConfig.assignments || []).filter((a: any) =>
       keys.includes(a.cycleKey),
     );
     const final = { ...newConfig, assignments: filtered };
@@ -2445,7 +2452,7 @@ function CiclosTab({ data }: { data: any }) {
   };
 
   const unassignedDisciplines = (disciplines ?? []).filter(
-    (d) => !getAssignedCycleKey(d.id),
+    (d: any) => !getAssignedCycleKey(d.id),
   );
   const cols = Math.min(
     cycleKeys.length,
@@ -2476,7 +2483,7 @@ function CiclosTab({ data }: { data: any }) {
               if (!disciplines || disciplines.length === 0)
                 return toast.error("Cadastre disciplinas primeiro.");
               optimizeCycle.mutate({
-                disciplines: disciplines.map((d) => ({
+                disciplines: disciplines.map((d: any) => ({
                   id: d.id,
                   name: d.name,
                   accuracy: d.performance?.accuracy ?? null,
@@ -2607,7 +2614,7 @@ function CiclosTab({ data }: { data: any }) {
             gridTemplateColumns: `repeat(${cycleKeys.length <= 3 ? cycleKeys.length : cycleKeys.length <= 5 ? "2" : "3"}, minmax(0, 1fr))`,
           }}
         >
-          {cycleKeys.map((key, idx) => {
+          {cycleKeys.map((key: any, idx: any) => {
             const discsInCycle = getDisciplinesInCycle(key);
             const label = getCycleLabel(config, idx);
             return (
@@ -2656,7 +2663,7 @@ function CiclosTab({ data }: { data: any }) {
                       Vazio
                     </div>
                   )}
-                  {discsInCycle.map((disc) => {
+                  {discsInCycle.map((disc: any) => {
                     const acc = disc.performance?.accuracy;
                     const accColor =
                       acc == null
@@ -2730,7 +2737,7 @@ function CiclosTab({ data }: { data: any }) {
             SEM CICLO ATRIBUÍDO
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {unassignedDisciplines.map((d) => (
+            {unassignedDisciplines.map((d: any) => (
               <span
                 key={d.id}
                 className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"

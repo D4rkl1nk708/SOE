@@ -11,7 +11,7 @@
  */
 
 import * as XLSX from "xlsx";
-import * as storage from "./jsonStorage";
+import * as storage from "./db";
 import type { RevisionInput } from "./jsonStorage";
 import {
   buildSchedule,

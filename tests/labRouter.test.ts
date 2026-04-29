@@ -2,22 +2,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { labRouter } from "../server/labRouter";
 import * as storage from "../server/jsonStorage";
+import * as db from "../server/db";
 import * as ai from "../server/aiProviders";
 import fs from "fs";
 
 vi.mock("../server/jsonStorage");
+vi.mock("../server/db");
 vi.mock("../server/aiProviders");
 vi.mock("fs");
 
 // Mock pdf-parse
 vi.mock("pdf-parse", () => {
-  return vi
-    .fn()
-    .mockResolvedValue({
-      text:
-        "Sample PDF Text with enough content to pass the 100 char limit check. " +
-        "X".repeat(100),
-    });
+  return vi.fn().mockResolvedValue({
+    text:
+      "Sample PDF Text with enough content to pass the 100 char limit check. " +
+      "X".repeat(100),
+  });
 });
 
 describe("labRouter procedures", () => {
@@ -37,9 +37,9 @@ describe("labRouter procedures", () => {
     );
     vi.mocked(fs.readdirSync).mockReturnValue(["prova1.json"] as any);
     vi.mocked(fs.statSync).mockReturnValue({ mtime: new Date() } as any);
-    vi.mocked(storage.getDisciplinesByUser).mockResolvedValue([]);
-    vi.mocked(storage.getTopicsByUser).mockResolvedValue([]);
-    vi.mocked(storage.checkExamIntegrated).mockResolvedValue(true);
+    vi.mocked(db.getDisciplinesByUser).mockResolvedValue([]);
+    vi.mocked(db.getTopicsByUser).mockResolvedValue([]);
+    vi.mocked(db.checkExamIntegrated).mockResolvedValue(true);
     vi.mocked(ai.callAiProvider).mockResolvedValue(
       '[{"statement": "Q1", "alternatives": {"A": "1"}, "correctAnswer": "A", "subject": "Math", "topic": "Alg"}]',
     );
@@ -66,14 +66,14 @@ describe("labRouter procedures", () => {
   });
 
   it("integrateExam creates disciplines and topics if missing", async () => {
-    vi.mocked(storage.getDisciplinesByUser).mockResolvedValue([]);
-    vi.mocked(storage.createDiscipline).mockResolvedValue({ id: 10 } as any);
-    vi.mocked(storage.createTopic).mockResolvedValue({ id: 20 } as any);
+    vi.mocked(db.getDisciplinesByUser).mockResolvedValue([]);
+    vi.mocked(db.createDiscipline).mockResolvedValue({ id: 10 } as any);
+    vi.mocked(db.createTopic).mockResolvedValue({ id: 20 } as any);
 
     const caller = labRouter.createCaller(ctx as any);
     const res = await caller.integrateExam({ fileName: "prova1.json" });
     expect(res.success).toBe(true);
-    expect(storage.saveQuestionError).toHaveBeenCalled();
+    expect(db.saveQuestionError).toHaveBeenCalled();
   });
 
   it("listHistory returns files with metadata", async () => {
