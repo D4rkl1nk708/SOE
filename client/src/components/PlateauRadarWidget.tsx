@@ -102,7 +102,7 @@ export function PlateauRadarWidget() {
       </p>
 
       <div className="space-y-3">
-        {plateauedTopics.slice(0, 3).map((t, i) => (
+        {plateauedTopics.slice(0, 3).map((t: any, i: any) => (
           <div
             key={i}
             className="group relative p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-rose-500/30 transition-all cursor-pointer overflow-hidden"

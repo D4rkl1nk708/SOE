@@ -117,7 +117,7 @@ export function ConfusionMatrixWidget() {
       </p>
 
       <div className="grid gap-3">
-        {confusions.slice(0, 3).map((c, i) => (
+        {confusions.slice(0, 3).map((c: any, i: any) => (
           <div
             key={i}
             className="group p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer"

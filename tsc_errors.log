@@ -1,0 +1,228 @@
+
+> estudo_25_50_dias@6.0.0 check
+> tsc --noEmit
+
+client/src/_core/hooks/useAuth.ts(31,48): error TS7031: Binding element 'session' implicitly has an 'any' type.
+client/src/components/AuthGuard.tsx(12,48): error TS7031: Binding element 'session' implicitly has an 'any' type.
+client/src/components/ConfusionMatrixWidget.tsx(120,38): error TS7006: Parameter 'c' implicitly has an 'any' type.
+client/src/components/ConfusionMatrixWidget.tsx(120,41): error TS7006: Parameter 'i' implicitly has an 'any' type.
+client/src/components/GlobalSearch.tsx(78,18): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/components/GlobalSearch.tsx(79,15): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/components/PlateauRadarWidget.tsx(105,43): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/components/PlateauRadarWidget.tsx(105,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(66,40): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(66,43): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(67,40): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(67,43): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(69,43): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/components/ShareProgress.tsx(69,46): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/components/WeakProfileChart.tsx(35,53): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/components/WeakProfileChart.tsx(45,50): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/components/WeakProfileChart.tsx(98,45): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/components/WeakProfileChart.tsx(98,48): error TS7006: Parameter 'i' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(46,45): error TS7031: Binding element 'key' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(46,50): error TS7031: Binding element 'newPresences' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(49,46): error TS7031: Binding element 'key' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(49,51): error TS7031: Binding element 'leftPresences' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(52,25): error TS7006: Parameter 'status' implicitly has an 'any' type.
+client/src/hooks/useProfile.ts(68,42): error TS7006: Parameter '_event' implicitly has an 'any' type.
+client/src/hooks/useProfile.ts(68,50): error TS7006: Parameter 'session' implicitly has an 'any' type.
+client/src/hooks/useSyncEngine.ts(32,45): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/hooks/useSyncEngine.ts(51,42): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/hooks/useSyncEngine.ts(70,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+client/src/pages/QuestionSession.tsx(2330,20): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(586,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1195,49): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1205,24): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1206,22): error TS7006: Parameter 'a' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1206,25): error TS7006: Parameter 'b' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1211,21): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(1211,24): error TS7006: Parameter 'i' implicitly has an 'any' type.
+server/_core/index.prod.ts(448,40): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(502,49): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(521,25): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(653,41): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(697,41): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(720,48): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/_core/index.prod.ts(723,34): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/_core/index.prod.ts(738,50): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/_core/index.prod.ts(815,43): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(840,45): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(855,23): error TS2551: Property 'saveQuestionError' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/jsonStorage")'. Did you mean 'createQuestionError'?
+server/_core/index.prod.ts(995,23): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(1002,59): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/_core/index.ts(475,38): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(477,75): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(484,36): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(489,12): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(531,67): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(552,13): error TS2554: Expected 1 arguments, but got 3.
+server/_core/index.ts(572,18): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(573,15): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(576,31): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(661,38): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(666,71): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(685,12): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(711,66): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(810,40): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(814,73): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(829,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(833,70): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(846,23): error TS2551: Property 'createQuestionError' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'. Did you mean 'saveQuestionError'?
+server/_core/index.ts(986,52): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(1041,36): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(1045,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(1241,57): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/_core/index.ts(1299,38): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(1309,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(1327,29): error TS18046: 'b' is of type 'unknown'.
+server/_core/index.ts(1327,41): error TS18046: 'b' is of type 'unknown'.
+server/_core/index.ts(1327,52): error TS18046: 'a' is of type 'unknown'.
+server/_core/index.ts(1327,64): error TS18046: 'a' is of type 'unknown'.
+server/_core/index.ts(1396,44): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(1397,54): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/_core/index.ts(1402,10): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/_core/index.ts(1423,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/_core/index.ts(1425,54): error TS2339: Property 'disciplineId' does not exist on type '{}'.
+server/_core/index.ts(1429,35): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1429,60): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1432,115): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1432,144): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1498,32): error TS2339: Property 'readDatabase' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/_core/index.ts(1512,44): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(1543,44): error TS2554: Expected 1 arguments, but got 2.
+server/analyticsService.ts(348,16): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/analyticsService.ts(348,19): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/analyticsService.ts(369,51): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/analyticsService.ts(413,44): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/analyticsService.ts(538,31): error TS2339: Property 'getDisciplineRebalanceReport' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/analyticsService.ts(551,33): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/analyticsService.ts(552,32): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/analyticsService.ts(552,37): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/analyticsService.ts(556,26): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/analyticsService.ts(556,29): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/analyticsService.ts(569,35): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/analyticsService.ts(569,38): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/analyticsService.ts(571,24): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/analyticsService.ts(571,29): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/jsonStorage.ts(735,9): error TS2322: Type 'string | number' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+server/jsonStorage.ts(738,9): error TS2322: Type '{ examDate?: string | undefined; examName?: string | undefined; exams?: { id: string; name: string; date: string; }[] | undefined; editalCycle?: { id: string; title: string; durationMinutes: number; done: boolean; }[] | undefined; ... 33 more ...; douResults?: Array<{ id: string; title: string; date: string; url: st...' is not assignable to type 'UserSettings'.
+  Types of property 'studyStreak' are incompatible.
+    Type '{ current: number; best: number; lastStudyDate: string | null; } | undefined' is not assignable to type '{ current: number; best: number; lastStudyDate: string | null; }'.
+      Type 'undefined' is not assignable to type '{ current: number; best: number; lastStudyDate: string | null; }'.
+server/jsonStorage.ts(2731,23): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2731,47): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2732,35): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2735,37): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2736,23): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2744,28): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2745,6): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/jsonStorage.ts(2745,9): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/jsonStorage.ts(2754,25): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2755,18): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2755,43): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/mentorRouter.ts(135,17): error TS2339: Property 'getDisciplineRebalanceReport' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(136,17): error TS2339: Property 'getForgettingVelocityByDiscipline' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(186,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(328,35): error TS2339: Property 'getDashboardStats' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(330,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(330,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(334,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(334,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(344,12): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(392,17): error TS2339: Property 'getDashboardStats' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(399,17): error TS2339: Property 'getDisciplineRebalanceReport' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(401,17): error TS2339: Property 'getTecRegressions' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(402,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(403,17): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(430,12): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(469,20): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(482,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(553,19): error TS2339: Property 'getDashboardStats' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(554,19): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(559,19): error TS2339: Property 'getPeakHoursAnalysis' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(560,19): error TS2339: Property 'getDistractorPatternAnalysis' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(564,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(564,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(571,18): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/mentorRouter.ts(571,21): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(656,10): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server/mentorRouter.ts(925,9): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/mentorRouter.ts(941,17): error TS2339: Property 'getTecRegressions' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(943,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1133,17): error TS2339: Property 'getDashboardStats' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1134,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1143,17): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1167,18): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(1194,12): error TS7006: Parameter 'n' implicitly has an 'any' type.
+server/mentorRouter.ts(1209,12): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server/mentorRouter.ts(1313,34): error TS2339: Property 'addMentorObservation' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1321,27): error TS2339: Property 'addConceptConfusion' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1364,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(1378,25): error TS2339: Property 'updateNote' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1380,25): error TS2339: Property 'createNote' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1401,19): error TS2339: Property 'getDashboardStats' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1402,19): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1409,19): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1452,17): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1456,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1552,17): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1553,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1595,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(1634,26): error TS2339: Property 'getConceptConfusions' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1664,17): error TS2339: Property 'getDisciplineRebalanceReport' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1665,17): error TS2339: Property 'getForgettingVelocityByDiscipline' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1666,17): error TS2339: Property 'getWeakTopicsFromSnapshot' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1668,17): error TS2339: Property 'getMentorObservations' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1674,17): error TS2339: Property 'getTecRegressions' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1678,17): error TS2339: Property 'getPeakHoursAnalysis' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1679,17): error TS2339: Property 'getDistractorPatternAnalysis' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1687,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(1711,12): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/mentorRouter.ts(1711,17): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(1715,12): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/mentorRouter.ts(1715,17): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(1805,18): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/mentorRouter.ts(1805,21): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/mentorRouter.ts(1825,25): error TS2339: Property 'addMentorObservation' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/mentorRouter.ts(1843,16): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/mentorRouter.ts(1843,19): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/mentorRouter.ts(1853,16): error TS7006: Parameter 'q' implicitly has an 'any' type.
+server/mentorRouter.ts(1941,21): error TS2339: Property 'addConceptConfusion' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/routers.ts(181,54): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(245,72): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(264,52): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(530,37): error TS2304: Cannot find name 'ctx'.
+server/routers.ts(530,37): error TS2554: Expected 0 arguments, but got 1.
+server/routers.ts(535,51): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(558,52): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(613,47): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(787,53): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(853,24): error TS2551: Property 'createQuestionError' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'. Did you mean 'saveQuestionError'?
+server/routers.ts(1119,54): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(1184,47): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(1480,58): error TS2554: Expected 1 arguments, but got 2.
+server/routers.ts(1600,11): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/routers.ts(1622,11): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+server/tecImportService.ts(274,40): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/tecImportService.ts(287,38): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/tecImportService.ts(293,8): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(300,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(359,42): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/tecImportService.ts(361,14): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(362,11): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(364,53): error TS2339: Property 'name' does not exist on type '{}'.
+server/tecImportService.ts(381,44): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(383,40): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/tecImportService.ts(392,40): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/tecImportService.ts(396,17): error TS2339: Property 'performance' does not exist on type '{}'.
+server/tecImportService.ts(396,38): error TS2339: Property 'performance' does not exist on type '{}'.
+server/tecImportService.ts(398,23): error TS2339: Property 'performance' does not exist on type '{}'.

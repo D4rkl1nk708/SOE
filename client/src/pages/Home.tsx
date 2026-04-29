@@ -1,7 +1,22 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Clock, Target, TrendingUp, BookOpen, Flame, CheckCircle2, AlertTriangle, Calendar } from "lucide-react";
+import {
+  Clock,
+  Target,
+  TrendingUp,
+  BookOpen,
+  Flame,
+  CheckCircle2,
+  AlertTriangle,
+  Calendar,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, isToday, parseISO } from "date-fns";
@@ -71,7 +86,9 @@ export default function Home() {
           {streak && streak.current > 0 && (
             <div className="flex-shrink-0 bg-white/20 rounded-lg px-4 py-2 flex flex-col items-center">
               <Flame className="h-6 w-6 mb-1" />
-              <span className="text-2xl font-bold leading-none">{streak.current}</span>
+              <span className="text-2xl font-bold leading-none">
+                {streak.current}
+              </span>
               <span className="text-xs opacity-80">dias seguidos</span>
             </div>
           )}
@@ -81,7 +98,9 @@ export default function Home() {
             <Calendar className="h-4 w-4 flex-shrink-0" />
             <span>
               <strong>{examName}</strong> em{" "}
-              <strong>{daysUntilExam} dia{daysUntilExam !== 1 ? "s" : ""}</strong>{" "}
+              <strong>
+                {daysUntilExam} dia{daysUntilExam !== 1 ? "s" : ""}
+              </strong>{" "}
               ({format(parseISO(examDate!), "dd/MM/yyyy", { locale: ptBR })})
             </span>
           </div>
@@ -110,7 +129,9 @@ export default function Home() {
           subtitle="revisões/testes atrasados"
           icon={Clock}
           valueClass={
-            (stats?.pendingRevisions ?? 0) > 0 ? "text-amber-600" : "text-green-600"
+            (stats?.pendingRevisions ?? 0) > 0
+              ? "text-amber-600"
+              : "text-green-600"
           }
           loading={isLoading}
         />
@@ -132,13 +153,15 @@ export default function Home() {
               <TrendingUp className="h-5 w-5 text-primary" />
               Desempenho por Disciplina
             </CardTitle>
-            <CardDescription>Questões resolvidas e acerto acumulado</CardDescription>
+            <CardDescription>
+              Questões resolvidas e acerto acumulado
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {stats!.disciplineStats
-              .filter((d) => (d.performance?.questionsResolved ?? 0) > 0)
+              .filter((d: any) => (d.performance?.questionsResolved ?? 0) > 0)
               .slice(0, 6)
-              .map((d) => (
+              .map((d: any) => (
                 <div key={d.disciplineId} className="flex items-center gap-3">
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
@@ -164,9 +187,12 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-            {stats!.disciplineStats.every((d) => (d.performance?.questionsResolved ?? 0) === 0) && (
+            {stats!.disciplineStats.every(
+              (d: any) => (d.performance?.questionsResolved ?? 0) === 0,
+            ) && (
               <p className="text-sm text-muted-foreground text-center py-2">
-                Nenhuma questão registrada ainda. Importe dados do TEC ou registre manualmente no Dashboard.
+                Nenhuma questão registrada ainda. Importe dados do TEC ou
+                registre manualmente no Dashboard.
               </p>
             )}
           </CardContent>

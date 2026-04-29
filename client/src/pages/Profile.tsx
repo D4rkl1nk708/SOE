@@ -205,7 +205,7 @@ function SettingsTab() {
         </div>
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            {(["light", "dark"] as const).map((m) => (
+            {(["light", "dark"] as const).map((m: any) => (
               <button
                 key={m}
                 onClick={() => {
@@ -571,7 +571,7 @@ function DiarioOficialTab() {
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {INTERVAL_PRESETS.map((p) => (
+                {INTERVAL_PRESETS.map((p: any) => (
                   <button
                     key={p.value}
                     onClick={() => {
@@ -813,7 +813,7 @@ export default function Profile() {
 
       {/* Elegant Tab Navigation */}
       <div className="flex flex-wrap md:flex-nowrap items-center justify-center bg-secondary/20 p-2 rounded-[2.5rem] border border-white/5 backdrop-blur-sm shadow-inner">
-        {TABS.map((t) => {
+        {TABS.map((t: any) => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (

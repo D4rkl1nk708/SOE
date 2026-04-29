@@ -1,0 +1,100 @@
+client/src/components/GlobalSearch.tsx(78,18): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(46,45): error TS7031: Binding element 'key' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(46,50): error TS7031: Binding element 'newPresences' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(49,46): error TS7031: Binding element 'key' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(49,51): error TS7031: Binding element 'leftPresences' implicitly has an 'any' type.
+client/src/hooks/usePresence.ts(52,25): error TS7006: Parameter 'status' implicitly has an 'any' type.
+client/src/pages/QuestionSession.tsx(2330,20): error TS7006: Parameter 'd' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(362,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(366,10): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(366,13): error TS7006: Parameter 't' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(374,10): error TS7006: Parameter 's' implicitly has an 'any' type.
+client/src/pages/SOEAnalytics.tsx(374,13): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.prod.ts(720,48): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+server/_core/index.prod.ts(723,34): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+server/_core/index.prod.ts(738,50): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+server/_core/index.prod.ts(995,23): error TS2554: Expected 2 arguments, but got 1.
+server/_core/index.prod.ts(1002,59): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'number'.
+server/_core/index.ts(477,75): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(489,12): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(531,67): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(552,13): error TS2554: Expected 1 arguments, but got 3.
+server/_core/index.ts(666,71): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(685,12): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(711,66): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(814,73): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(829,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(833,70): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(846,23): error TS2551: Property 'createQuestionError' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'. Did you mean 'saveQuestionError'?
+server/_core/index.ts(986,52): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(1045,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(1309,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/_core/index.ts(1327,29): error TS18046: 'b' is of type 'unknown'.
+server/_core/index.ts(1327,41): error TS18046: 'b' is of type 'unknown'.
+server/_core/index.ts(1327,52): error TS18046: 'a' is of type 'unknown'.
+server/_core/index.ts(1327,64): error TS18046: 'a' is of type 'unknown'.
+server/_core/index.ts(1402,10): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/_core/index.ts(1425,54): error TS2339: Property 'disciplineId' does not exist on type '{}'.
+server/_core/index.ts(1429,35): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1429,60): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1432,115): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1432,144): error TS2339: Property 'name' does not exist on type '{}'.
+server/_core/index.ts(1498,32): error TS2339: Property 'readDatabase' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/_core/index.ts(1512,44): error TS2554: Expected 1 arguments, but got 2.
+server/_core/index.ts(1543,44): error TS2554: Expected 1 arguments, but got 2.
+server/analyticsService.ts(72,6): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/analyticsService.ts(251,8): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/analyticsService.ts(304,8): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/analyticsService.ts(485,15): error TS7006: Parameter 'curTopic' implicitly has an 'any' type.
+server/analyticsService.ts(487,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/analyticsService.ts(538,31): error TS2339: Property 'getDisciplineRebalanceReport' does not exist on type 'typeof import("/home/anon/Desktop/SOE/server/db")'.
+server/jsonStorage.ts(735,9): error TS2322: Type 'string | number' is not assignable to type 'string'.
+server/jsonStorage.ts(738,9): error TS2322: Type '{ examDate?: string | undefined; examName?: string | undefined; exams?: { id: string; name: string; date: string; }[] | undefined; editalCycle?: { id: string; title: string; durationMinutes: number; done: boolean; }[] | undefined; ... 33 more ...; douResults?: Array<{ id: string; title: string; date: string; url: st...' is not assignable to type 'UserSettings'.
+server/jsonStorage.ts(2731,23): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2731,47): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2732,35): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2735,37): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2736,23): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2744,28): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2745,6): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/jsonStorage.ts(2745,9): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/jsonStorage.ts(2754,25): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2755,18): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/jsonStorage.ts(2755,43): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+server/mentorRouter.ts(188,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(332,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(332,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(336,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(336,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(346,12): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(432,12): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(471,20): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(484,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(566,10): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+server/mentorRouter.ts(566,15): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(573,18): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/mentorRouter.ts(573,21): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(658,10): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server/mentorRouter.ts(1169,18): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(1196,12): error TS7006: Parameter 'n' implicitly has an 'any' type.
+server/mentorRouter.ts(1211,12): error TS7006: Parameter 'e' implicitly has an 'any' type.
+server/mentorRouter.ts(1366,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(1382,29): error TS2554: Expected 2 arguments, but got 1.
+server/mentorRouter.ts(1597,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/mentorRouter.ts(1689,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/mentorRouter.ts(1713,12): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/mentorRouter.ts(1713,17): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(1717,12): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/mentorRouter.ts(1717,17): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/mentorRouter.ts(1807,18): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/mentorRouter.ts(1807,21): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/mentorRouter.ts(1845,16): error TS7006: Parameter 'a' implicitly has an 'any' type.
+server/mentorRouter.ts(1845,19): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/mentorRouter.ts(1855,16): error TS7006: Parameter 'q' implicitly has an 'any' type.
+server/routers.ts(615,27): error TS2554: Expected 3 arguments, but got 2.
+server/tecImportService.ts(293,8): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(300,10): error TS7006: Parameter 't' implicitly has an 'any' type.
+server/tecImportService.ts(364,53): error TS2339: Property 'name' does not exist on type '{}'.
+server/tecImportService.ts(396,17): error TS2339: Property 'performance' does not exist on type '{}'.
+server/tecImportService.ts(396,38): error TS2339: Property 'performance' does not exist on type '{}'.
+server/tecImportService.ts(398,23): error TS2339: Property 'performance' does not exist on type '{}'.

@@ -65,7 +65,7 @@ export function useProfile() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       if (!session) {
         setProfile(null);
         setLoading(false);

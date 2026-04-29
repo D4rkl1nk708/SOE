@@ -73,7 +73,7 @@ function buildQR(
       document.body.removeChild(div);
       resolve(canvas?.toDataURL("image/png") || img?.src || "");
     }, 200);
-  } catch (e) {
+  } catch (e: any) {
     document.body.removeChild(div);
     reject(e);
   }
@@ -113,7 +113,7 @@ async function scanQRNative(): Promise<string | null> {
       try {
         const { camera } = await BarcodeScanner.requestPermissions();
         granted = camera === "granted" || camera === "limited";
-      } catch (e) {}
+      } catch (e: any) {}
     }
 
     if (!granted) {
@@ -518,7 +518,7 @@ export default function Sync() {
       const [dRes, tRes, rRes, nRes, mRes, qRes] = results;
 
       // Check for errors
-      const errorsFound = results.filter((r) => r.error);
+      const errorsFound = results.filter((r: any) => r.error);
       if (errorsFound.length > 0) {
         console.error("[CloudDownload] Supabase Errors:", errorsFound);
         throw new Error(
@@ -558,7 +558,7 @@ export default function Sync() {
             settings: { theme: "light" },
           },
         ],
-        disciplines: (discs || []).map((d) => ({
+        disciplines: (discs || []).map((d: any) => ({
           id: d.id,
           userId: uid,
           name: d.name,
@@ -569,7 +569,7 @@ export default function Sync() {
           createdAt: d.created_at,
           updatedAt: d.updated_at,
         })),
-        topics: (topics || []).map((t) => ({
+        topics: (topics || []).map((t: any) => ({
           id: t.id,
           userId: uid,
           disciplineId: t.discipline_id,
@@ -580,7 +580,7 @@ export default function Sync() {
           createdAt: t.created_at,
           updatedAt: t.updated_at,
         })),
-        revisions: (revs || []).map((r) => ({
+        revisions: (revs || []).map((r: any) => ({
           id: r.id,
           userId: uid,
           topicId: r.topic_id,
@@ -594,7 +594,7 @@ export default function Sync() {
           createdAt: r.created_at,
           updatedAt: r.updated_at,
         })),
-        notes: (notes || []).map((n) => ({
+        notes: (notes || []).map((n: any) => ({
           id: n.id,
           userId: uid,
           disciplineId: n.discipline_id,
@@ -604,7 +604,7 @@ export default function Sync() {
           createdAt: n.created_at,
           updatedAt: n.updated_at,
         })),
-        mockExams: (exams || []).map((e) => ({
+        mockExams: (exams || []).map((e: any) => ({
           id: e.id,
           userId: uid,
           name: e.name,
@@ -616,7 +616,7 @@ export default function Sync() {
           score: e.score,
           createdAt: e.created_at,
         })),
-        questionErrors: (errors || []).map((e) => ({
+        questionErrors: (errors || []).map((e: any) => ({
           id: e.id,
           userId: uid,
           topicId: e.topic_id,
@@ -639,27 +639,27 @@ export default function Sync() {
           users: 1,
           disciplines:
             (discs || []).length > 0
-              ? Math.max(...(discs || []).map((d) => Number(d.id) || 0))
+              ? Math.max(...(discs || []).map((d: any) => Number(d.id) || 0))
               : 0,
           topics:
             (topics || []).length > 0
-              ? Math.max(...(topics || []).map((t) => Number(t.id) || 0))
+              ? Math.max(...(topics || []).map((t: any) => Number(t.id) || 0))
               : 0,
           revisions:
             (revs || []).length > 0
-              ? Math.max(...(revs || []).map((r) => Number(r.id) || 0))
+              ? Math.max(...(revs || []).map((r: any) => Number(r.id) || 0))
               : 0,
           notes:
             (notes || []).length > 0
-              ? Math.max(...(notes || []).map((n) => Number(n.id) || 0))
+              ? Math.max(...(notes || []).map((n: any) => Number(n.id) || 0))
               : 0,
           mockExams:
             (exams || []).length > 0
-              ? Math.max(...(exams || []).map((e) => Number(e.id) || 0))
+              ? Math.max(...(exams || []).map((e: any) => Number(e.id) || 0))
               : 0,
           questionErrors:
             (errors || []).length > 0
-              ? Math.max(...(errors || []).map((e) => Number(e.id) || 0))
+              ? Math.max(...(errors || []).map((e: any) => Number(e.id) || 0))
               : 0,
           flashcards: 0,
         },
@@ -870,7 +870,7 @@ export default function Sync() {
                       </div>
                       {syncInfo.ips.length > 1 && (
                         <div className="flex gap-1.5">
-                          {syncInfo.ips.map((ip) => (
+                          {syncInfo.ips.map((ip: any) => (
                             <button
                               key={ip}
                               onClick={() => setSelectedIp(ip)}
@@ -1134,7 +1134,7 @@ export default function Sync() {
 
               <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                 {backupLoading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
+                  Array.from({ length: 3 }).map((_: any, i: any) => (
                     <div
                       key={i}
                       className="h-14 rounded-xl bg-white/5 animate-pulse"
@@ -1146,7 +1146,7 @@ export default function Sync() {
                     <p className="text-xs font-bold mt-2">Sem backups</p>
                   </div>
                 ) : (
-                  backups.map((b) => (
+                  backups.map((b: any) => (
                     <div
                       key={b.path}
                       onClick={async () => {

@@ -9,7 +9,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
       setSession(session);
       setLoading(false);
       if (!session && location !== "/auth") {
@@ -20,7 +20,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Listen for changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       if (!session && location !== "/auth") {
         setLocation("/auth");

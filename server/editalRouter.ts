@@ -74,7 +74,7 @@ DICA: Se o texto for confuso, use sua base de conhecimento sobre concursos para 
       }
 
       // Mapear para o formato do EditalTopico do frontend (ids temporários)
-      return parsed.map((item, idx) => ({
+      return parsed.map((item: any, idx: any) => ({
         id: `ai-${Date.now()}-${idx}`,
         discipline: item.discipline,
         topic: item.topic,
@@ -96,10 +96,10 @@ DICA: Se o texto for confuso, use sua base de conhecimento sobre concursos para 
     .mutation(async ({ input }) => {
       const topics = input.topicsText
         .split(/[\n,;]+/)
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
+        .map((t: any) => t.trim())
+        .filter((t: any) => t.length > 0);
 
-      return topics.map((topic, idx) => ({
+      return topics.map((topic: any, idx: any) => ({
         id: `manual-${Date.now()}-${idx}`,
         discipline: input.discipline,
         topic: topic,
@@ -131,7 +131,7 @@ DICA: Se o texto for confuso, use sua base de conhecimento sobre concursos para 
 Você é um estrategista de estudos de alto desempenho. Sua missão é organizar um CICLO DE ESTUDOS otimizado.
 
 DISCIPLINAS E DESEMPENHO ATUAL:
-${input.disciplines.map((d) => `- ${d.name}: Acerto ${d.accuracy ?? 0}%, Questões: ${d.questionsResolved}, Tempo: ${Math.round(d.studyTimeSeconds / 3600)}h`).join("\n")}
+${input.disciplines.map((d: any) => `- ${d.name}: Acerto ${d.accuracy ?? 0}%, Questões: ${d.questionsResolved}, Tempo: ${Math.round(d.studyTimeSeconds / 3600)}h`).join("\n")}
 
 CONFIGURAÇÃO DO CICLO:
 - Total de slots no ciclo: ${input.cycleLength}
@@ -157,7 +157,7 @@ Retorne exatamente ${input.cycleLength} slots.
       const response = await callAiProvider(provider, apiKey, prompt, 2000);
       const parsed = extractJSON(response) as any[];
 
-      return parsed.map((item) => ({
+      return parsed.map((item: any) => ({
         cycleKey: `cycle-${item.slotIndex}`,
         disciplineId: item.disciplineId,
         reason: item.reason,

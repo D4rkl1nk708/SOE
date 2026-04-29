@@ -29,7 +29,7 @@ export function useSyncEngine() {
 
       // 1. Sync Disciplines
       if (disciplines && disciplines.length > 0) {
-        const discToSync = disciplines.map((d) => ({
+        const discToSync = disciplines.map((d: any) => ({
           user_id: profile.id,
           id: d.id, // Using the same ID as local to keep relationships
           name: d.name,
@@ -48,7 +48,7 @@ export function useSyncEngine() {
 
       // 2. Sync Topics
       if (topics && topics.length > 0) {
-        const topicsToSync = topics.map((t) => ({
+        const topicsToSync = topics.map((t: any) => ({
           user_id: profile.id,
           id: t.id,
           discipline_id: t.disciplineId,
@@ -67,7 +67,7 @@ export function useSyncEngine() {
 
       // 3. Sync Revisions
       if (revisions && revisions.length > 0) {
-        const revsToSync = revisions.map((r) => ({
+        const revsToSync = revisions.map((r: any) => ({
           user_id: profile.id,
           id: r.id,
           topic_id: r.topicId,

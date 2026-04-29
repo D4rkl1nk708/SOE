@@ -1,6 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../jsonStorage";
 import * as storage from "../db";
+import * as jsonStorage from "../jsonStorage";
 
 // Default local user for offline mode (when OAuth is not configured)
 const LOCAL_USER: User = {
@@ -29,7 +30,7 @@ export async function createContext(
   opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
   const userId = (opts.req.headers["x-user-id"] as string) || "anonymous";
-  storage.setDbUser(userId);
+  jsonStorage.setDbUser(userId);
 
   let user: User | null = null;
 

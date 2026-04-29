@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { trpcVanilla } from "@/lib/trpc-vanilla";
 
+export const DEFAULT_INTERVAL_MINUTES = 120;
+
 const isAndroid = Capacitor.isNativePlatform();
 const isElectron = typeof window !== "undefined" && !!(window as any).electron;
 const canFetchDirect = isAndroid || isElectron;
@@ -10,9 +12,15 @@ const canFetchDirect = isAndroid || isElectron;
 export async function douGetConfig() {
   try {
     return await trpcVanilla.dou.getConfig.query();
-  } catch (e) {
+  } catch (e: any) {
     console.error("[DOU] Error fetching config:", e);
-    return { name: "", intervalMinutes: 120, lastCheck: null, seenIds: [] };
+    return {
+      name: "",
+      intervalMinutes: 120,
+      lastCheck: null,
+      seenIds: [],
+      results: [],
+    };
   }
 }
 
@@ -22,10 +30,11 @@ export async function douSaveConfig(config: {
   intervalMinutes?: number;
   lastCheck?: string;
   seenIds?: string[];
+  results?: any[];
 }) {
   try {
     await trpcVanilla.dou.updateConfig.mutate(config);
-  } catch (e) {
+  } catch (e: any) {
     console.error("[DOU] Error saving config:", e);
   }
 }
@@ -172,7 +181,7 @@ async function sendNotification(title: string, body: string) {
       if (perm === "granted")
         new Notification(title, { body, icon: "/favicon.ico", tag: "soe-dou" });
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn("[DOU] Notification failed:", e);
   }
 }
@@ -187,10 +196,12 @@ export async function checkDOU() {
     if (results.length === 0) return;
 
     const seen = config.seenIds || [];
-    const newResults = results.filter((r) => !seen.includes(r.id));
+    const newResults = results.filter((r: any) => !seen.includes(r.id));
 
     if (newResults.length > 0) {
-      const allSeen = [...seen, ...newResults.map((r) => r.id)].slice(-200);
+      const allSeen = [...seen, ...newResults.map((r: any) => r.id)].slice(
+        -200,
+      );
       const existingResults = config.results || [];
       const allResults = [...newResults, ...existingResults].slice(0, 50); // Keep last 50 citations
       await douSaveConfig({ seenIds: allSeen, results: allResults });
@@ -202,7 +213,7 @@ export async function checkDOU() {
       );
     }
     await douSaveConfig({ lastCheck: new Date().toISOString() });
-  } catch (e) {
+  } catch (e: any) {
     console.warn("[DOU] Error checking:", e);
   }
 }
@@ -246,9 +257,9 @@ export async function douCheckNow(): Promise<{
   if (!config.name) return { total: 0, newCount: 0, searchURL: "" };
   const results = await fetchDOUResults(config.name);
   const seen = config.seenIds || [];
-  const newResults = results.filter((r) => !seen.includes(r.id));
+  const newResults = results.filter((r: any) => !seen.includes(r.id));
   if (newResults.length > 0) {
-    const allSeen = [...seen, ...newResults.map((r) => r.id)].slice(-200);
+    const allSeen = [...seen, ...newResults.map((r: any) => r.id)].slice(-200);
     const existingResults = config.results || [];
     const allResults = [...newResults, ...existingResults].slice(0, 50);
     await douSaveConfig({ seenIds: allSeen, results: allResults });

@@ -22,7 +22,7 @@ export async function upsertUser(user: any): Promise<void> {
   if (error) throw error;
 }
 
-export async function getUserByOpenId(openId: string) {
+export async function getUserByOpenId(openId: string | number) {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("users")
@@ -35,7 +35,7 @@ export async function getUserByOpenId(openId: string) {
 
 export async function setTopicPerformance(
   topicId: number,
-  userId: number,
+  userId: string | number,
   data: any,
 ) {
   const { error } = await supabase
@@ -46,7 +46,11 @@ export async function setTopicPerformance(
   if (error) throw error;
 }
 
-export async function updateTopic(id: number, userId: number, data: any) {
+export async function updateTopic(
+  id: number,
+  userId: string | number,
+  data: any,
+) {
   const { error } = await supabase
     .from("topics")
     .update({ ...data, updated_at: new Date().toISOString() })
@@ -55,7 +59,7 @@ export async function updateTopic(id: number, userId: number, data: any) {
   if (error) throw error;
 }
 
-export async function deleteTopic(id: number, userId: number) {
+export async function deleteTopic(id: number, userId: string | number) {
   const { error } = await supabase
     .from("topics")
     .delete()
@@ -65,7 +69,7 @@ export async function deleteTopic(id: number, userId: number) {
 }
 
 export async function reorderTopics(
-  userId: number,
+  userId: string | number,
   disciplineId: number,
   orderedIds: number[],
 ) {
@@ -78,7 +82,10 @@ export async function reorderTopics(
   }
 }
 
-export async function reorderDisciplines(userId: number, orderedIds: number[]) {
+export async function reorderDisciplines(
+  userId: string | number,
+  orderedIds: number[],
+) {
   for (let i = 0; i < orderedIds.length; i++) {
     await supabase
       .from("disciplines")
@@ -88,7 +95,7 @@ export async function reorderDisciplines(userId: number, orderedIds: number[]) {
   }
 }
 
-export async function resetAllTopicStats(userId: number) {
+export async function resetAllTopicStats(userId: string | number) {
   const { error } = await supabase
     .from("topics")
     .update({ performance: {}, study_time_seconds: 0 })
@@ -98,7 +105,7 @@ export async function resetAllTopicStats(userId: number) {
 
 export async function addTopicStudyTime(
   topicId: number,
-  userId: number,
+  userId: string | number,
   seconds: number,
 ) {
   const { data, error: getError } = await supabase
@@ -115,7 +122,10 @@ export async function addTopicStudyTime(
   if (error) throw error;
 }
 
-export async function getDisciplinesByUser(userId: number, filters?: any) {
+export async function getDisciplinesByUser(
+  userId: string | number,
+  filters?: any,
+) {
   const { data, error } = await supabase
     .from("disciplines")
     .select("*")
@@ -140,7 +150,7 @@ export async function createDiscipline(data: any) {
   return disc;
 }
 
-export async function getTopicsByUser(userId: number, filters?: any) {
+export async function getTopicsByUser(userId: string | number, filters?: any) {
   const { data, error } = await supabase
     .from("topics")
     .select("*")
@@ -166,7 +176,10 @@ export async function createTopic(data: any) {
   return topic;
 }
 
-export async function getRevisionsByUser(userId: number, filters?: any) {
+export async function getRevisionsByUser(
+  userId: string | number,
+  filters?: any,
+) {
   let query = supabase.from("revisions").select("*").eq("user_id", userId);
   if (filters?.completed !== undefined)
     query = query.eq("completed", filters.completed);
@@ -181,7 +194,7 @@ export async function getRevisionsByUser(userId: number, filters?: any) {
 
 export async function markRevisionCompleted(
   id: number,
-  userId: number,
+  userId: string | number,
   completed: boolean,
 ) {
   const { error } = await supabase
@@ -196,7 +209,7 @@ export async function markRevisionCompleted(
   if (error) throw error;
 }
 
-export async function getUserSettings(userId: number) {
+export async function getUserSettings(userId: string | number) {
   const { data, error } = await supabase
     .from("users")
     .select("settings")
@@ -206,7 +219,10 @@ export async function getUserSettings(userId: number) {
   return data?.settings;
 }
 
-export async function updateUserSettings(userId: number, settings: any) {
+export async function updateUserSettings(
+  userId: string | number,
+  settings: any,
+) {
   const current = await getUserSettings(userId);
   const { error } = await supabase
     .from("users")
@@ -219,7 +235,7 @@ export async function updateUserSettings(userId: number, settings: any) {
 }
 
 export async function createRevisions(revisions: any[]) {
-  const formatted = revisions.map((r) => ({
+  const formatted = revisions.map((r: any) => ({
     user_id: r.userId,
     topic_id: r.topicId,
     scheduled_date: r.scheduledDate,
@@ -233,7 +249,7 @@ export async function createRevisions(revisions: any[]) {
   if (error) throw error;
 }
 
-export async function saveTecSnapshot(userId: number, topics: any[]) {
+export async function saveTecSnapshot(userId: string | number, topics: any[]) {
   const { error } = await supabase.from("tec_snapshots").insert({
     user_id: userId,
     topics,
@@ -244,7 +260,7 @@ export async function saveTecSnapshot(userId: number, topics: any[]) {
 
 export async function rescheduleRevision(
   id: number,
-  userId: number,
+  userId: string | number,
   newDate: string,
 ) {
   const { error } = await supabase
@@ -260,7 +276,7 @@ export async function rescheduleRevision(
 
 export async function updateTopicPerformance(
   topicId: number,
-  userId: number,
+  userId: string | number,
   data: { correctCount: number; errorCount: number },
 ): Promise<void> {
   const { data: topic, error: getError } = await supabase
@@ -301,7 +317,7 @@ export async function updateTopicPerformance(
   if (error) throw error;
 }
 
-export async function deleteDiscipline(id: number, userId: number) {
+export async function deleteDiscipline(id: number, userId: string | number) {
   const { error } = await supabase
     .from("disciplines")
     .delete()
@@ -310,7 +326,11 @@ export async function deleteDiscipline(id: number, userId: number) {
   if (error) throw error;
 }
 
-export async function updateDiscipline(id: number, userId: number, data: any) {
+export async function updateDiscipline(
+  id: number,
+  userId: string | number,
+  data: any,
+) {
   const { error } = await supabase
     .from("disciplines")
     .update({ ...data, updated_at: new Date().toISOString() })
@@ -319,7 +339,10 @@ export async function updateDiscipline(id: number, userId: number, data: any) {
   if (error) throw error;
 }
 
-export async function getTecSnapshots(userId: number, limit: number = 10) {
+export async function getTecSnapshots(
+  userId: string | number,
+  limit: number = 10,
+) {
   const { data, error } = await supabase
     .from("tec_snapshots")
     .select("*")
@@ -349,7 +372,7 @@ export async function saveQuestionError(data: any) {
 }
 
 export async function getQuestionErrorsByUser(
-  userId: number,
+  userId: string | number,
   filters: any = {},
 ) {
   const { data, error } = await supabase
@@ -366,7 +389,7 @@ export async function getQuestionErrorsByUser(
 }
 
 export async function getCalendarData(
-  userId: number,
+  userId: string | number,
   startDate: string,
   endDate: string,
 ) {
@@ -399,14 +422,14 @@ export async function getCalendarData(
   };
 }
 
-export async function getCadernosTec(userId: number) {
+export async function getCadernosTec(userId: string | number) {
   const settings = await getUserSettings(userId);
   return settings?.cadernosTec || [];
 }
 
 export async function saveRevisionRecallRating(
   id: number,
-  userId: number,
+  userId: string | number,
   rating: number,
   freeRecallText?: string,
 ) {
@@ -424,7 +447,7 @@ export async function saveRevisionRecallRating(
 
 export async function markRevisionIgnored(
   id: number,
-  userId: number,
+  userId: string | number,
   ignored: boolean,
 ) {
   const { error } = await supabase
@@ -437,7 +460,7 @@ export async function markRevisionIgnored(
 
 export async function updateRevisionLink(
   id: number,
-  userId: number,
+  userId: string | number,
   link: string,
 ) {
   const { error } = await supabase
@@ -462,7 +485,7 @@ export async function getUserByPushToken(token: string) {
   return data;
 }
 
-export async function saveCadernoTec(userId: number, data: any) {
+export async function saveCadernoTec(userId: string | number, data: any) {
   const current = await getUserSettings(userId);
   const cadernos = current?.cadernosTec || [];
   const updated = [
@@ -472,14 +495,21 @@ export async function saveCadernoTec(userId: number, data: any) {
   await updateUserSettings(userId, { cadernosTec: updated });
 }
 
-export async function deleteCadernoTec(userId: number, cadernoId: string) {
+export async function deleteCadernoTec(
+  userId: string | number,
+  cadernoId: string,
+) {
   const current = await getUserSettings(userId);
   const cadernos = current?.cadernosTec || [];
   const updated = cadernos.filter((c: any) => c.cadernoId !== cadernoId);
   await updateUserSettings(userId, { cadernosTec: updated });
 }
 
-export async function updateFlashcard(id: number, userId: number, data: any) {
+export async function updateFlashcard(
+  id: number,
+  userId: string | number,
+  data: any,
+) {
   const { error } = await supabase
     .from("flashcards")
     .update({ ...data, updated_at: new Date().toISOString() })
@@ -488,7 +518,7 @@ export async function updateFlashcard(id: number, userId: number, data: any) {
   if (error) throw error;
 }
 
-export async function deleteFlashcard(id: number, userId: number) {
+export async function deleteFlashcard(id: number, userId: string | number) {
   const { error } = await supabase
     .from("flashcards")
     .delete()
@@ -499,7 +529,7 @@ export async function deleteFlashcard(id: number, userId: number) {
 
 export async function reviewFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
   quality: number,
 ) {
   const { data: fc, error: getError } = await supabase
@@ -540,7 +570,7 @@ export async function reviewFlashcard(
 
 export async function archiveFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
   archived: boolean,
 ) {
   const { error } = await supabase
@@ -556,7 +586,7 @@ export async function exportDatabase() {
 }
 export async function importDatabase(json: string) {}
 
-export async function generatePushToken(userId: number) {
+export async function generatePushToken(userId: string | number) {
   const token = Math.random().toString(36).substring(2, 15);
   await updateUserSettings(userId, { pushToken: token });
   return token;
@@ -578,7 +608,7 @@ export async function upsertNote(data: any) {
   return note;
 }
 
-export async function deleteNote(id: number, userId: number) {
+export async function deleteNote(id: number, userId: string | number) {
   const { error } = await supabase
     .from("study_notes")
     .delete()
@@ -587,7 +617,7 @@ export async function deleteNote(id: number, userId: number) {
   if (error) throw error;
 }
 
-export async function getFlashcardsByUser(userId: number) {
+export async function getFlashcardsByUser(userId: string | number) {
   const { data, error } = await supabase
     .from("flashcards")
     .select("*")
@@ -612,7 +642,7 @@ export async function createFlashcard(data: any) {
   return fc;
 }
 
-export async function deleteQuestionError(id: number, userId: number) {
+export async function deleteQuestionError(id: number, userId: string | number) {
   const { error } = await supabase
     .from("question_errors")
     .delete()
@@ -621,13 +651,13 @@ export async function deleteQuestionError(id: number, userId: number) {
   if (error) throw error;
 }
 
-export async function getTodayStudyMinutes(userId: number) {
+export async function getTodayStudyMinutes(userId: string | number) {
   return 0;
 }
-export async function revokePushToken(userId: number) {
+export async function revokePushToken(userId: string | number) {
   await updateUserSettings(userId, { pushToken: null });
 }
-export async function getNotesByUser(userId: number) {
+export async function getNotesByUser(userId: string | number) {
   const { data, error } = await supabase
     .from("study_notes")
     .select("*")
@@ -647,7 +677,7 @@ export async function getTopicById(id: number, userId: any) {
 
 export async function deleteQuestionsByContest(
   contest: string,
-  userId: number,
+  userId: string | number,
 ) {
   await supabase
     .from("question_errors")
@@ -656,11 +686,15 @@ export async function deleteQuestionsByContest(
     .eq("user_id", userId);
 }
 
-export async function updateTopicNotes(id: number, userId: number, notes: any) {
+export async function updateTopicNotes(
+  id: number,
+  userId: string | number,
+  notes: any,
+) {
   await updateTopic(id, userId, { notes });
 }
 
-export async function getMockExamsByUser(userId: number) {
+export async function getMockExamsByUser(userId: string | number) {
   const { data, error } = await supabase
     .from("mock_exams")
     .select("*")
@@ -680,7 +714,11 @@ export async function createMockExam(data: any) {
   return exam;
 }
 
-export async function updateMockExam(id: number, userId: number, data: any) {
+export async function updateMockExam(
+  id: number,
+  userId: string | number,
+  data: any,
+) {
   await supabase
     .from("mock_exams")
     .update(data)
@@ -688,13 +726,13 @@ export async function updateMockExam(id: number, userId: number, data: any) {
     .eq("user_id", userId);
 }
 
-export async function deleteMockExam(id: number, userId: number) {
+export async function deleteMockExam(id: number, userId: string | number) {
   await supabase.from("mock_exams").delete().eq("id", id).eq("user_id", userId);
 }
 
 export async function saveQuestionErrorAnalysis(
   id: number,
-  userId: number,
+  userId: string | number,
   analysis: any,
 ) {
   await supabase
@@ -706,7 +744,7 @@ export async function saveQuestionErrorAnalysis(
 
 export async function saveQuestionErrorRevisionTip(
   id: number,
-  userId: number,
+  userId: string | number,
   tip: string,
 ) {
   await supabase
@@ -718,7 +756,7 @@ export async function saveQuestionErrorRevisionTip(
 
 export async function saveQuestionErrorSimilarQuestions(
   id: number,
-  userId: number,
+  userId: string | number,
   questions: any,
 ) {
   await supabase
@@ -730,7 +768,7 @@ export async function saveQuestionErrorSimilarQuestions(
 
 export async function markQuestionErrorFlashcardGenerated(
   id: number,
-  userId: number,
+  userId: string | number,
 ) {
   await supabase
     .from("question_errors")
@@ -739,7 +777,7 @@ export async function markQuestionErrorFlashcardGenerated(
     .eq("user_id", userId);
 }
 
-export async function getEssaysByUser(userId: number, filters?: any) {
+export async function getEssaysByUser(userId: string | number, filters?: any) {
   const { data, error } = await supabase
     .from("study_notes")
     .select("*")
@@ -757,7 +795,11 @@ export async function saveEssay(data: any) {
   return essay;
 }
 
-export async function updateEssay(id: number, userId: number, data: any) {
+export async function updateEssay(
+  id: number,
+  userId: string | number,
+  data: any,
+) {
   await supabase
     .from("study_notes")
     .update(data)
@@ -765,7 +807,7 @@ export async function updateEssay(id: number, userId: number, data: any) {
     .eq("user_id", userId);
 }
 
-export async function deleteEssay(id: number, userId: number) {
+export async function deleteEssay(id: number, userId: string | number) {
   await supabase
     .from("study_notes")
     .delete()
@@ -773,7 +815,7 @@ export async function deleteEssay(id: number, userId: number) {
     .eq("user_id", userId);
 }
 
-export async function getEssayById(id: number, userId: number) {
+export async function getEssayById(id: number, userId: string | number) {
   const { data, error } = await supabase
     .from("study_notes")
     .select("*")
@@ -783,7 +825,7 @@ export async function getEssayById(id: number, userId: number) {
   return data;
 }
 
-export async function getLastRevisionDate(userId: number, other: any) {
+export async function getLastRevisionDate(userId: string | number, other: any) {
   const { data, error } = await supabase
     .from("revisions")
     .select("completed_at")
@@ -795,7 +837,7 @@ export async function getLastRevisionDate(userId: number, other: any) {
   return data?.completed_at;
 }
 
-export async function logEmotion(userId: number, emotion: string) {
+export async function logEmotion(userId: string | number, emotion: string) {
   const current = await getUserSettings(userId);
   const logs = current?.emotionLogs || [];
   logs.push({ emotion, timestamp: new Date().toISOString() });
@@ -803,7 +845,7 @@ export async function logEmotion(userId: number, emotion: string) {
 }
 
 export async function logStudySession(
-  userId: number,
+  userId: string | number,
   hourStart: number,
   durationMin: number,
   accuracy: number,
@@ -822,7 +864,7 @@ export async function logStudySession(
 }
 
 export async function logStudyEndTime(
-  userId: number,
+  userId: string | number,
   endHour: number,
   alertIssued: boolean,
 ) {
