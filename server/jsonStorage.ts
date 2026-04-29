@@ -3,14 +3,23 @@ import * as path from "path";
 
 // Data directory for JSON files
 let DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
-let DB_FILE = path.join(DATA_DIR, "database.json");
+let CURRENT_USER_ID: string = "default";
 
 export function setDataDir(newDir: string) {
   DATA_DIR = newDir;
-  DB_FILE = path.join(DATA_DIR, "database.json");
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+}
+
+export function setDbUser(userId: string | number) {
+  CURRENT_USER_ID = String(userId || "default");
+  resetCache(userId);
+}
+
+function getDbFile(userId: string | number) {
+  const uid = String(userId || "default");
+  return path.join(DATA_DIR, `database_${uid}.json`);
 }
 
 // Ensure data directory exists
@@ -21,49 +30,43 @@ if (!fs.existsSync(DATA_DIR)) {
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 // Avoids reading the file from disk on every operation.
 // Invalidated on every write so reads always reflect the latest state.
-let _dbCache: Database | null = null;
-let _dbCacheVersion = 0; // bumped on every write
-export function resetCache() {
-  _dbCache = null;
-  _dbCacheVersion = 0;
+interface CacheEntry {
+  db: Database;
+  version: number;
+}
+const _dbCaches = new Map<string, CacheEntry>();
+
+export function resetCache(userId: string | number) {
+  _dbCaches.delete(String(userId));
 }
 
 let _writeLock: Promise<any> = Promise.resolve();
 
-function acquireWriteLock(fn: () => any) {
-  _writeLock = _writeLock.then(async () => {
-    try {
-      await fn();
-    } catch (err) {
-      console.error("[jsonStorage] Lock execution error:", err);
-    }
-  });
-}
-
 async function runInTransaction<T>(
+  userId: string | number,
   fn: (db: Database) => T | Promise<T>,
 ): Promise<T> {
   const result = await (_writeLock = _writeLock
     .then(async () => {
       try {
-        const db = readDatabase();
+        const db = readDatabase(userId);
         const res = await fn(db);
-        // We don't call writeDatabase here because we want to be explicit,
-        // but we could. For now, let's just make sure the callers use the db we give them.
         return res;
       } catch (err) {
         console.error("[jsonStorage] Transaction error:", err);
         throw err;
       }
     })
-    .catch(() => {})); // prevent lock chain from breaking
+    .catch((err) => {
+      throw err;
+    }));
   return result as T;
 }
 
 // Type definitions
 export interface Discipline {
   id: number;
-  userId: number;
+  userId: string | number;
   name: string;
   color: string;
   weight: number;
@@ -82,7 +85,7 @@ export interface Discipline {
 
 export interface Topic {
   id: number;
-  userId: number;
+  userId: string | number;
   disciplineId: number;
   name: string;
   order: number;
@@ -124,7 +127,7 @@ export interface Topic {
 
 export interface Revision {
   id: number;
-  userId: number;
+  userId: string | number;
   topicId: number;
   scheduledDate: string;
   type: "revision" | "test";
@@ -143,7 +146,7 @@ export interface Revision {
 
 export interface MockExam {
   id: number;
-  userId: number;
+  userId: string | number;
   name: string;
   date: string;
   correct: number;
@@ -156,7 +159,7 @@ export interface MockExam {
 
 export interface StudyNote {
   id: number;
-  userId: number;
+  userId: string | number;
   disciplineId: number;
   topicId?: number;
   title: string;
@@ -285,10 +288,16 @@ export interface UserSettings {
     detectedAt: string;
     occurrences: number;
   }>;
+  /** Sentinela (DOU) Settings */
+  douName?: string;
+  douIntervalMinutes?: number;
+  douLastCheck?: string;
+  douSeenIds?: string[];
+  douResults?: Array<{ id: string; title: string; date: string; url: string }>;
 }
 
 export interface User {
-  id: number;
+  id: string | number;
   openId: string;
   name: string | null;
   email: string | null;
@@ -302,7 +311,7 @@ export interface User {
 
 export interface Flashcard {
   id: number;
-  userId: number;
+  userId: string | number;
   disciplineId: number;
   topicId?: number;
   noteId?: number;
@@ -319,8 +328,8 @@ export interface Flashcard {
 }
 
 export interface QuestionError {
-  id: number;
-  userId: number;
+  id: string | number;
+  userId: string | number;
   topicId: number;
   disciplineId: number;
   // Parsed from TEC paste
@@ -372,8 +381,8 @@ export interface EssayCorrection {
 }
 
 export interface Essay {
-  id: number;
-  userId: number;
+  id: string | number;
+  userId: string | number;
   disciplineId: number;
   topicId?: number;
   title: string; // Tema da redação
@@ -397,8 +406,8 @@ export interface TecTopicSnapshot {
 }
 
 export interface TecSnapshot {
-  id: number;
-  userId: number;
+  id: string | number;
+  userId: string | number;
   importedAt: string; // ISO datetime
   totalQuestions: number;
   totalCorrect: number;
@@ -490,144 +499,158 @@ function fixEncoding(str: string): string {
   return str;
 }
 
-function readDatabase(): Database {
-  // Return cached version if available (invalidated after every write)
-  if (_dbCache !== null) return _dbCache;
+function readDatabase(userId: string | number): Database {
+  const uid = String(userId || "default");
+  const cache = _dbCaches.get(uid);
+  if (cache) return cache.db;
+
+  const dbFile = getDbFile(uid);
+  const legacyFile = path.join(DATA_DIR, "database.json");
 
   try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, "utf-8");
-      const db = JSON.parse(data);
-      // Migration for new fields if they don't exist
-      if (!db.mockExams) db.mockExams = [];
-      if (!db.notes) db.notes = [];
-      if (!db.flashcards) db.flashcards = [];
-      if (!db.questionErrors) db.questionErrors = [];
-      if (!db.essays) db.essays = [];
-      if (!db.tecSnapshots) db.tecSnapshots = [];
-      if (!db.cadernosTec) db.cadernosTec = {};
-      if (!db.counters.mockExams) db.counters.mockExams = 0;
-      if (!db.counters.notes) db.counters.notes = 0;
-      if (!db.counters.flashcards) db.counters.flashcards = 0;
-      if (!db.counters.questionErrors) db.counters.questionErrors = 0;
-      if (!db.counters.essays) db.counters.essays = 0;
-      if (!db.counters.tecSnapshots) db.counters.tecSnapshots = 0;
-      // Migration helpers — raw JSON records may be missing fields added in later versions
-      type RawRecord = Record<string, unknown>;
-      // Migrate disciplines to have studyTimeSeconds
-      db.disciplines = (db.disciplines as unknown as RawRecord[])
-        .map((d) => ({
-          ...d,
-          name: fixEncoding(d.name as string),
-          studyTimeSeconds: (d.studyTimeSeconds as number) || 0,
-          weight: (d.weight as number) || 1,
-          order: (d.order as number) || 0,
-        }))
-        .sort((a, b) => (b.weight as number) - (a.weight as number))
-        .map((d, idx) => ({
-          ...d,
-          order: d.order || idx + 1,
-        })) as unknown as Discipline[];
-      // Migrate topics to have studyTimeSeconds
-      db.topics = (db.topics as unknown as RawRecord[]).map((t) => ({
-        ...t,
-        name: fixEncoding(t.name as string),
-        notes: t.notes ? fixEncoding(t.notes as string) : t.notes,
-        studyTimeSeconds: (t.studyTimeSeconds as number) || 0,
-        order: typeof t.order === "number" ? t.order : Number(t.id),
-      })) as unknown as Topic[];
-      // Migrate settings to support exams and edital data
-      db.users = (db.users as unknown as RawRecord[]).map((u) => {
-        const rawSettings = (u.settings as RawRecord) || {
-          theme: "light",
-          studyStreak: { current: 0, best: 0, lastStudyDate: null },
-        };
-        const examsFromLegacy =
-          rawSettings.examDate && rawSettings.examName
-            ? [
-                {
-                  id: "legacy-exam",
-                  name: rawSettings.examName as string,
-                  date: rawSettings.examDate as string,
-                },
-              ]
-            : [];
-        return {
-          ...u,
-          settings: {
-            ...rawSettings,
-            exams: Array.isArray(rawSettings.exams)
-              ? rawSettings.exams
-              : examsFromLegacy,
-            editalCycle: Array.isArray(rawSettings.editalCycle)
-              ? rawSettings.editalCycle
-              : [],
-            editalRows: Array.isArray(rawSettings.editalRows)
-              ? rawSettings.editalRows
-              : [],
-          },
-        };
-      }) as unknown as User[];
-      // Migrate revisions to have ignored field
-      db.revisions = (db.revisions as unknown as RawRecord[]).map((r) => ({
-        ...r,
-        ignored: (r.ignored as boolean) || false,
-      })) as unknown as Revision[];
-      // Persist encoding fixes back to disk (one-time migration)
-      if (!db._encodingFixed) {
-        db._encodingFixed = true;
-        try {
-          fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-        } catch {}
+    const hasUserFile = fs.existsSync(dbFile);
+    let db: any = null;
+
+    if (hasUserFile) {
+      const data = fs.readFileSync(dbFile, "utf-8");
+      try {
+        if (data.trim().length > 0) db = JSON.parse(data);
+      } catch (e) {
+        console.error(
+          `[jsonStorage] Parse error for ${uid}, will try migration or empty.`,
+        );
       }
-      _dbCache = db;
-      return db;
+    }
+
+    // Check if the current db is "empty" (no real study data)
+    const isEmpty =
+      !db ||
+      (!db.disciplines?.length && !db.topics?.length && !db.revisions?.length);
+
+    // 2. Migration: If current db is empty but legacy global file exists with data
+    if (
+      isEmpty &&
+      fs.existsSync(legacyFile) &&
+      uid !== "anonymous" &&
+      uid !== "default"
+    ) {
+      console.log(
+        `[jsonStorage] Current database is empty. Checking legacy database.json for migration...`,
+      );
+      try {
+        const data = fs.readFileSync(legacyFile, "utf-8");
+        const legacyDb = JSON.parse(data);
+
+        if (legacyDb.disciplines?.length || legacyDb.topics?.length) {
+          console.log(
+            `[jsonStorage] Legacy data found (${legacyDb.disciplines?.length} disciplines). Migrating...`,
+          );
+          const migratedDb = ensureDatabaseStructure(legacyDb);
+
+          // Map ALL records to the new UUID
+          const mapRecord = (r: any) => {
+            if (r) r.userId = uid;
+          };
+          migratedDb.disciplines.forEach(mapRecord);
+          migratedDb.topics.forEach(mapRecord);
+          migratedDb.revisions.forEach(mapRecord);
+          if (migratedDb.mockExams) migratedDb.mockExams.forEach(mapRecord);
+          if (migratedDb.notes) migratedDb.notes.forEach(mapRecord);
+          if (migratedDb.flashcards) migratedDb.flashcards.forEach(mapRecord);
+          if (migratedDb.questionErrors)
+            migratedDb.questionErrors.forEach(mapRecord);
+          if (migratedDb.essays) migratedDb.essays.forEach(mapRecord);
+          if (migratedDb.tecSnapshots)
+            migratedDb.tecSnapshots.forEach(mapRecord);
+
+          // Save and backup
+          fs.writeFileSync(dbFile, JSON.stringify(migratedDb, null, 2));
+          const backupPath = legacyFile + ".migrated." + Date.now();
+          fs.renameSync(legacyFile, backupPath);
+
+          _dbCaches.set(uid, { db: migratedDb, version: 0 });
+          return migratedDb;
+        }
+      } catch (migErr) {
+        console.error("[jsonStorage] Migration failed:", migErr);
+      }
+    }
+
+    if (db) {
+      const migratedDb = ensureDatabaseStructure(db);
+      _dbCaches.set(uid, { db: migratedDb, version: 0 });
+      return migratedDb;
     }
   } catch (error) {
-    console.error("Error reading database:", error);
+    console.error("[jsonStorage] Error reading database:", error);
   }
+
   const empty = getEmptyDatabase();
-  _dbCache = empty;
+  _dbCaches.set(uid, { db: empty, version: 0 });
   return empty;
 }
 
-// Write database to file (invalidates cache, queues through write lock)
-function writeDatabase(db: Database): void {
-  // Invalidate cache immediately so subsequent reads get the new data
-  _dbCache = db;
-  _dbCacheVersion++;
+/**
+ * Ensures a database object has all required fields and basic record integrity
+ */
+function ensureDatabaseStructure(db: any): Database {
+  if (!db.users) db.users = [];
+  if (!db.disciplines) db.disciplines = [];
+  if (!db.topics) db.topics = [];
+  if (!db.revisions) db.revisions = [];
+  if (!db.mockExams) db.mockExams = [];
+  if (!db.notes) db.notes = [];
+  if (!db.flashcards) db.flashcards = [];
+  if (!db.questionErrors) db.questionErrors = [];
+  if (!db.essays) db.essays = [];
+  if (!db.tecSnapshots) db.tecSnapshots = [];
 
-  // Queue the actual disk write behind the lock
-  acquireWriteLock(() => {
+  if (!db.counters) {
+    db.counters = {
+      users: db.users.length,
+      disciplines: db.disciplines.length,
+      topics: db.topics.length,
+      revisions: db.revisions.length,
+      mockExams: db.mockExams.length,
+      notes: db.notes.length,
+      flashcards: db.flashcards.length,
+      questionErrors: db.questionErrors.length,
+    };
+  }
+
+  // Ensure revisions have ignored field
+  db.revisions = db.revisions.map((r: any) => ({
+    ...r,
+    ignored: r.ignored || false,
+  }));
+
+  return db as Database;
+}
+
+async function writeDatabase(
+  db: Database,
+  userId: string | number,
+): Promise<void> {
+  const dbFile = getDbFile(userId);
+  try {
+    fs.writeFileSync(dbFile, JSON.stringify(db, null, 2), "utf-8");
+    _dbCaches.set(String(userId), { db, version: 0 });
+  } catch (err) {
+    console.error(`[jsonStorage] Error writing database for ${userId}:`, err);
+    throw err;
+  }
+}
+
+function acquireWriteLock(fn: () => any): Promise<void> {
+  const p = _writeLock.then(async () => {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-
-      // AUTO-BACKUP (Sincronização em Nuvem Invisível -> via Google Drive local)
-      if (db.users && db.users.length > 0) {
-        const primaryUser = db.users[0];
-        if (
-          primaryUser.settings?.autoBackupEnabled &&
-          primaryUser.settings.autoBackupDir
-        ) {
-          try {
-            const targetDir = primaryUser.settings.autoBackupDir;
-            if (!fs.existsSync(targetDir)) {
-              fs.mkdirSync(targetDir, { recursive: true });
-            }
-            const backupFile = path.join(targetDir, "soe_backup_sync.json");
-            fs.copyFileSync(DB_FILE, backupFile);
-          } catch (copyErr) {
-            console.error("SOE Auto-Backup Error:", copyErr);
-          }
-        }
-      }
-    } catch (error) {
-      // If the write fails, clear cache so the next read will reload from disk
-      _dbCache = null;
-      console.error("Error writing database:", error);
-      throw error;
+      await fn();
+    } catch (err) {
+      console.error("[jsonStorage] Lock execution error:", err);
     }
   });
+  _writeLock = p;
+  return p;
 }
 
 // Get current timestamp
@@ -640,7 +663,7 @@ function now(): string {
 export async function upsertUser(
   userData: Partial<User> & { openId: string },
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userData.openId);
   const existingIndex = db.users.findIndex((u) => u.openId === userData.openId);
 
   const defaultSettings: UserSettings = {
@@ -673,42 +696,55 @@ export async function upsertUser(
     db.users.push(newUser);
   }
 
-  writeDatabase(db);
+  await writeDatabase(db, userData.openId);
 }
 
 export async function getUserByOpenId(
   openId: string,
 ): Promise<User | undefined> {
-  const db = readDatabase();
+  const db = readDatabase(openId);
   return db.users.find((u) => u.openId === openId);
 }
 
 export async function getUserSettings(
-  userId: number,
+  userId: string | number,
 ): Promise<UserSettings | undefined> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   return user?.settings;
 }
 
 export async function updateUserSettings(
-  userId: number,
-  settings: Partial<UserSettings>,
+  userId: string | number,
+  data: Partial<UserSettings>,
 ): Promise<void> {
-  const db = readDatabase();
-  const index = db.users.findIndex((u) => u.id === userId);
-  if (index >= 0) {
-    db.users[index].settings = { ...db.users[index].settings, ...settings };
-    writeDatabase(db);
-  }
+  return runInTransaction(userId, async (db) => {
+    const idx = db.users.findIndex((u) => u.openId === userId);
+    if (idx >= 0) {
+      db.users[idx].settings = { ...db.users[idx].settings, ...data };
+    } else {
+      db.users.push({
+        id: (db.counters?.users || 0) + 1,
+        openId: userId,
+        name: "Usuário",
+        email: String(userId),
+        settings: { theme: "light", ...data },
+        createdAt: now(),
+        updatedAt: now(),
+        lastSignedIn: now(),
+      });
+      if (db.counters) db.counters.users = (db.counters.users || 0) + 1;
+    }
+    await writeDatabase(db, userId);
+  });
 }
 
 // ============ DISCIPLINE OPERATIONS ============
 
 export async function getDisciplinesByUser(
-  userId: number,
+  userId: string | number,
 ): Promise<Discipline[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.disciplines
     .filter((d) => d.userId === userId)
     .sort((a, b) => {
@@ -723,19 +759,22 @@ export async function getDisciplinesByUser(
 
 export async function getDisciplineById(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<Discipline | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.disciplines.find((d) => d.id === id && d.userId === userId) || null;
 }
 
-export async function createDiscipline(data: {
-  userId: number;
-  name: string;
-  color: string;
-  weight: number;
-}): Promise<{ id: number }> {
-  const db = readDatabase();
+export async function createDiscipline(
+  userId: string | number,
+  data: {
+    userId: string | number;
+    name: string;
+    color: string;
+    weight: number;
+  },
+): Promise<{ id: number }> {
+  const db = readDatabase(userId);
   db.counters.disciplines++;
   const userDisciplines = db.disciplines.filter(
     (d) => d.userId === data.userId,
@@ -757,14 +796,14 @@ export async function createDiscipline(data: {
   };
 
   db.disciplines.push(newDiscipline);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 
   return { id: newDiscipline.id };
 }
 
 export async function updateDiscipline(
   id: number,
-  userId: number,
+  userId: string | number,
   data: Partial<
     Pick<
       Discipline,
@@ -772,7 +811,7 @@ export async function updateDiscipline(
     >
   >,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.disciplines.findIndex(
     (d) => d.id === id && d.userId === userId,
   );
@@ -783,15 +822,15 @@ export async function updateDiscipline(
       ...data,
       updatedAt: now(),
     };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function deleteDiscipline(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const topicIds = db.topics
     .filter((t) => t.disciplineId === id && t.userId === userId)
     .map((t) => t.id);
@@ -805,7 +844,7 @@ export async function deleteDiscipline(
   db.disciplines = db.disciplines.filter(
     (d) => d.id !== id || d.userId !== userId,
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ TOPIC OPERATIONS ============
@@ -816,10 +855,10 @@ export interface TopicFilters {
 }
 
 export async function getTopicsByUser(
-  userId: number,
+  userId: string | number,
   filters?: TopicFilters,
 ): Promise<Topic[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   let topics = db.topics.filter((t) => t.userId === userId);
   if (filters?.disciplineId)
     topics = topics.filter((t) => t.disciplineId === filters.disciplineId);
@@ -841,21 +880,24 @@ export async function getTopicsByUser(
 
 export async function getTopicById(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<Topic | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.topics.find((t) => t.id === id && t.userId === userId) || null;
 }
 
-export async function createTopic(data: {
-  userId: number;
-  disciplineId: number;
-  name: string;
-  studyDate: string;
-  notes: string | null;
-  studyTimeSeconds?: number;
-}): Promise<{ id: number }> {
-  const db = readDatabase();
+export async function createTopic(
+  userId: string | number,
+  data: {
+    userId: string | number;
+    disciplineId: number;
+    name: string;
+    studyDate: string;
+    notes: string | null;
+    studyTimeSeconds?: number;
+  },
+): Promise<{ id: number }> {
+  const db = readDatabase(userId);
   db.counters.topics++;
   const disciplineTopics = db.topics.filter(
     (t) => t.userId === data.userId && t.disciplineId === data.disciplineId,
@@ -876,7 +918,7 @@ export async function createTopic(data: {
     updatedAt: now(),
   };
   db.topics.push(newTopic);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return { id: newTopic.id };
 }
 
@@ -894,23 +936,26 @@ export type TopicUpdateData = Partial<
 
 export async function updateTopic(
   id: number,
-  userId: number,
+  userId: string | number,
   data: TopicUpdateData,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.topics.findIndex((t) => t.id === id && t.userId === userId);
   if (index >= 0) {
     db.topics[index] = { ...db.topics[index], ...data, updatedAt: now() };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
-export async function deleteTopic(id: number, userId: number): Promise<void> {
-  const db = readDatabase();
+export async function deleteTopic(
+  id: number,
+  userId: string | number,
+): Promise<void> {
+  const db = readDatabase(userId);
   db.revisions = db.revisions.filter((r) => r.topicId !== id);
   db.notes = db.notes.filter((n) => n.topicId !== id);
   db.topics = db.topics.filter((t) => t.id !== id || t.userId !== userId);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ REVISION OPERATIONS ============
@@ -922,10 +967,10 @@ export interface RevisionFilters {
 }
 
 export async function getRevisionsByUser(
-  userId: number,
+  userId: string | number,
   filters?: RevisionFilters,
 ): Promise<Revision[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   let revisions = db.revisions.filter((r) => r.userId === userId);
   if (filters?.topicId)
     revisions = revisions.filter((r) => r.topicId === filters.topicId);
@@ -939,7 +984,7 @@ export async function getRevisionsByUser(
 }
 
 export interface RevisionInput {
-  userId: number;
+  userId: string | number;
   topicId: number;
   scheduledDate: string;
   type: "revision" | "test";
@@ -948,10 +993,11 @@ export interface RevisionInput {
 }
 
 export async function createRevisions(
+  userId: string | number,
   revisionsData: RevisionInput[],
 ): Promise<void> {
   if (revisionsData.length === 0) return;
-  const db = readDatabase();
+  const db = readDatabase(userId);
   // Batch all inserts before a single write — avoids N disk writes
   for (const data of revisionsData) {
     db.counters.revisions++;
@@ -969,15 +1015,15 @@ export async function createRevisions(
       updatedAt: now(),
     });
   }
-  writeDatabase(db); // single write for all revisions
+  await writeDatabase(db, userId); // single write for all revisions
 }
 
 export async function markRevisionCompleted(
   id: number,
-  userId: number,
+  userId: string | number,
   completed: boolean,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.revisions.findIndex(
     (r) => r.id === id && r.userId === userId,
   );
@@ -985,71 +1031,74 @@ export async function markRevisionCompleted(
     db.revisions[index].completed = completed;
     db.revisions[index].completedAt = completed ? now() : null;
     db.revisions[index].updatedAt = now();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function rescheduleRevision(
   id: number,
-  userId: number,
+  userId: string | number,
   newDate: string,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.revisions.findIndex(
     (r) => r.id === id && r.userId === userId,
   );
   if (index >= 0) {
     db.revisions[index].scheduledDate = newDate;
     db.revisions[index].updatedAt = now();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function markRevisionIgnored(
   id: number,
-  userId: number,
+  userId: string | number,
   ignored: boolean,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.revisions.findIndex(
     (r) => r.id === id && r.userId === userId,
   );
   if (index >= 0) {
     db.revisions[index].ignored = ignored;
     db.revisions[index].updatedAt = now();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function updateRevisionLink(
   id: number,
-  userId: number,
+  userId: string | number,
   link: string,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.revisions.findIndex(
     (r) => r.id === id && r.userId === userId,
   );
   if (index >= 0) {
     db.revisions[index].link = link;
     db.revisions[index].updatedAt = now();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 // ============ MOCK EXAM OPERATIONS ============
 
-export async function getMockExamsByUser(userId: number): Promise<MockExam[]> {
-  const db = readDatabase();
+export async function getMockExamsByUser(
+  userId: string | number,
+): Promise<MockExam[]> {
+  const db = readDatabase(userId);
   return db.mockExams
     .filter((m) => m.userId === userId)
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export async function createMockExam(
+  userId: string | number,
   data: Omit<MockExam, "id" | "createdAt">,
 ): Promise<MockExam> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.counters.mockExams++;
   const newExam: MockExam = {
     id: db.counters.mockExams,
@@ -1057,54 +1106,57 @@ export async function createMockExam(
     createdAt: now(),
   };
   db.mockExams.push(newExam);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return newExam;
 }
 
 export async function updateMockExam(
   id: number,
-  userId: number,
+  userId: string | number,
   data: Partial<Omit<MockExam, "id" | "userId" | "createdAt">>,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.mockExams.findIndex(
     (m) => m.id === id && m.userId === userId,
   );
   if (index >= 0) {
     db.mockExams[index] = { ...db.mockExams[index], ...data };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function deleteMockExam(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.mockExams = db.mockExams.filter(
     (m) => !(m.id === id && m.userId === userId),
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ NOTE OPERATIONS ============
 
-export async function getNotesByUser(userId: number): Promise<StudyNote[]> {
-  const db = readDatabase();
+export async function getNotesByUser(
+  userId: string | number,
+): Promise<StudyNote[]> {
+  const db = readDatabase(userId);
   return db.notes
     .filter((n) => n.userId === userId)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function upsertNote(
+  userId: string | number,
   data: Partial<StudyNote> & {
-    userId: number;
+    userId: string | number;
     disciplineId: number;
     title: string;
     content: string;
   },
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   if (data.id) {
     const index = db.notes.findIndex(
       (n) => n.id === data.id && n.userId === data.userId,
@@ -1125,17 +1177,20 @@ export async function upsertNote(
       updatedAt: now(),
     });
   }
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
-export async function createNote(data: {
-  userId: number;
-  title: string;
-  content: string;
-  disciplineId?: number;
-  topicId?: number;
-}): Promise<void> {
-  const db = readDatabase();
+export async function createNote(
+  userId: string | number,
+  data: {
+    userId: string | number;
+    title: string;
+    content: string;
+    disciplineId?: number;
+    topicId?: number;
+  },
+): Promise<void> {
+  const db = readDatabase(userId);
   let discId = data.disciplineId;
   if (!discId) {
     const userDiscs = db.disciplines.filter((d) => d.userId === data.userId);
@@ -1153,59 +1208,152 @@ export async function createNote(data: {
     createdAt: now(),
     updatedAt: now(),
   });
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 export async function updateNote(
   id: number,
-  userId: number,
+  userId: string | number,
   data: Partial<
     Pick<StudyNote, "title" | "content" | "disciplineId" | "topicId">
   >,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.notes.findIndex((n) => n.id === id && n.userId === userId);
   if (index >= 0) {
     db.notes[index] = { ...db.notes[index], ...data, updatedAt: now() };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
-export async function deleteNote(id: number, userId: number): Promise<void> {
-  const db = readDatabase();
+export async function deleteNote(
+  userId: string | number,
+  id: number,
+): Promise<void> {
+  const db = readDatabase(userId);
   db.notes = db.notes.filter((n) => n.id !== id || n.userId !== userId);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ BACKUP OPERATIONS ============
 
-export async function exportDatabase(): Promise<string> {
-  const db = readDatabase();
+export async function exportDatabase(userId: string | number): Promise<string> {
+  const db = readDatabase(userId);
   return JSON.stringify(db, null, 2);
 }
 
-export async function importDatabase(jsonString: string): Promise<void> {
+export async function importDatabase(
+  userId: string | number,
+  jsonString: string,
+): Promise<void> {
   try {
+    const targetUserId = String(userId);
     const db = JSON.parse(jsonString);
+    console.log(
+      `[jsonStorage] Incoming JSON length: ${jsonString.length}. Top-level keys: ${Object.keys(db).join(", ")}`,
+    );
+
     // Basic validation
     if (db.users && db.disciplines && db.topics && db.revisions) {
-      writeDatabase(db);
+      console.log(`[jsonStorage] Importing database for user ${targetUserId}`);
+      console.log(
+        `[jsonStorage] Data summary: ${db.disciplines?.length || 0} disciplines, ${db.topics?.length || 0} topics, ${db.revisions?.length || 0} revisions`,
+      );
+
+      // Ensure all required arrays exist
+      db.users = db.users || [];
+      db.disciplines = db.disciplines || [];
+      db.topics = db.topics || [];
+      db.revisions = db.revisions || [];
+      db.mockExams = db.mockExams || [];
+      db.notes = db.notes || [];
+      db.flashcards = db.flashcards || [];
+      db.questionErrors = db.questionErrors || [];
+      db.essays = db.essays || [];
+      db.tecSnapshots = db.tecSnapshots || [];
+
+      // Ensure counters exist
+      if (!db.counters) {
+        db.counters = {
+          users: db.users.length,
+          disciplines: db.disciplines.length,
+          topics: db.topics.length,
+          revisions: db.revisions.length,
+          notes: db.notes.length,
+          mockExams: db.mockExams.length,
+          questionErrors: db.questionErrors.length,
+          flashcards: db.flashcards.length,
+          essays: 0,
+          tecSnapshots: 0,
+        };
+      }
+
+      // Ensure all records belong to the current user
+      const mapRecord = (r: any) => {
+        if (r) r.userId = targetUserId;
+      };
+
+      db.disciplines.forEach(mapRecord);
+      db.topics.forEach(mapRecord);
+      db.revisions.forEach(mapRecord);
+      db.mockExams.forEach(mapRecord);
+      db.notes.forEach(mapRecord);
+      db.flashcards.forEach(mapRecord);
+      db.questionErrors.forEach(mapRecord);
+      db.essays.forEach(mapRecord);
+      db.tecSnapshots.forEach(mapRecord);
+
+      // Find or create the current user in the imported database
+      const existingUserIndex = db.users.findIndex((u: any) => {
+        const uId = String(u.openId || u.id || "");
+        return uId === targetUserId;
+      });
+
+      if (existingUserIndex >= 0) {
+        console.log(
+          `[jsonStorage] User ${targetUserId} matched with imported user ${db.users[existingUserIndex].openId || db.users[existingUserIndex].id}`,
+        );
+        db.users[existingUserIndex].openId = targetUserId;
+      } else {
+        console.log(
+          `[jsonStorage] User ${targetUserId} NOT found in imported data. Current users in JSON:`,
+          db.users.map((u: any) => ({ id: u.id, openId: u.openId })),
+        );
+        console.log("[jsonStorage] Creating new user record...");
+
+        // Add current user to the database
+        db.users.push({
+          id: (db.counters.users || 0) + 1,
+          openId: targetUserId,
+          name: "Usuário Importado",
+          email: `${targetUserId}@soe.local`,
+          settings: db.users[0]?.settings || { theme: "light" },
+        });
+        db.counters.users = (db.counters.users || 0) + 1;
+      }
+
+      // Persistence
+      await writeDatabase(db, targetUserId);
+      console.log(`[jsonStorage] Import successful for user ${targetUserId}`);
     } else {
-      throw new Error("Invalid database format");
+      throw new Error(
+        "Formato de banco de dados inválido (campos obrigatórios ausentes: users, disciplines, topics, revisions).",
+      );
     }
   } catch (error) {
-    throw new Error("Failed to import database: " + (error as Error).message);
+    console.error("[jsonStorage] Import Error:", error);
+    throw new Error("Falha ao importar banco: " + (error as Error).message);
   }
 }
 
 // ============ CALENDAR & DASHBOARD DATA ============
 
 export async function getCalendarData(
-  userId: number,
+  userId: string | number,
   startDate: string,
   endDate: string,
 ) {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const revisions = db.revisions.filter(
     (r) =>
       r.userId === userId &&
@@ -1218,9 +1366,9 @@ export async function getCalendarData(
   return { revisions, topics, disciplines };
 }
 
-export async function getDashboardStats(userId: number) {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+export async function getDashboardStats(userId: string | number) {
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   const disciplines = db.disciplines
     .filter((d) => d.userId === userId)
     .sort(
@@ -1309,10 +1457,10 @@ export async function getDashboardStats(userId: number) {
 
 export async function updateTopicPerformance(
   topicId: number,
-  userId: number,
+  userId: string | number,
   data: { correctCount: number; errorCount: number },
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.topics.findIndex(
     (t) => t.id === topicId && t.userId === userId,
   );
@@ -1339,7 +1487,7 @@ export async function updateTopicPerformance(
       },
       updatedAt: now(),
     };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
@@ -1362,10 +1510,10 @@ export interface TopicPerformanceData {
 
 export async function setTopicPerformance(
   topicId: number,
-  userId: number,
+  userId: string | number,
   data: TopicPerformanceData,
 ): Promise<void> {
-  await runInTransaction((db) => {
+  await runInTransaction(userId, async (db) => {
     const index = db.topics.findIndex(
       (t) => t.id === topicId && t.userId === userId,
     );
@@ -1413,16 +1561,16 @@ export async function setTopicPerformance(
       },
       updatedAt: now(),
     };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   });
 }
 
 export async function updateTopicNotes(
   topicId: number,
-  userId: number,
+  userId: string | number,
   mantras: string[],
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.topics.findIndex(
     (t) => t.id === topicId && t.userId === userId,
   );
@@ -1432,15 +1580,15 @@ export async function updateTopicNotes(
       topicNotes: mantras,
       updatedAt: now(),
     };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function reorderDisciplines(
-  userId: number,
+  userId: string | number,
   orderedDisciplineIds: number[],
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const userDisciplineIds = new Set(
     db.disciplines.filter((d) => d.userId === userId).map((d) => d.id),
   );
@@ -1458,15 +1606,15 @@ export async function reorderDisciplines(
     }
   });
 
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 export async function addTopicStudyTime(
   topicId: number,
-  userId: number,
+  userId: string | number,
   seconds: number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.topics.findIndex(
     (t) => t.id === topicId && t.userId === userId,
   );
@@ -1476,12 +1624,14 @@ export async function addTopicStudyTime(
       studyTimeSeconds: (db.topics[index].studyTimeSeconds || 0) + seconds,
       updatedAt: now(),
     };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
-export async function resetAllTopicStats(userId: number): Promise<void> {
-  const db = readDatabase();
+export async function resetAllTopicStats(
+  userId: string | number,
+): Promise<void> {
+  const db = readDatabase(userId);
   db.topics = db.topics.map((t) => {
     if (t.userId !== userId) return t;
     return {
@@ -1503,15 +1653,15 @@ export async function resetAllTopicStats(userId: number): Promise<void> {
       updatedAt: now(),
     };
   });
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 export async function reorderTopics(
-  userId: number,
+  userId: string | number,
   disciplineId: number,
   orderedTopicIds: number[],
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const userTopicIds = new Set(
     db.topics
       .filter((t) => t.userId === userId && t.disciplineId === disciplineId)
@@ -1532,10 +1682,10 @@ export async function reorderTopics(
     }
   });
 
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
-export async function getWeeklyStats(userId: number): Promise<{
+export async function getWeeklyStats(userId: string | number): Promise<{
   thisWeek: {
     topics: number;
     questions: number;
@@ -1556,7 +1706,7 @@ export async function getWeeklyStats(userId: number): Promise<{
     questionsResolved: number;
   }>;
 }> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const topics = db.topics.filter((t) => t.userId === userId);
   const disciplines = db.disciplines.filter((d) => d.userId === userId);
 
@@ -1626,7 +1776,7 @@ export async function getWeeklyStats(userId: number): Promise<{
 
 // ── Comparativo de períodos ───────────────────────────────────────────────
 export async function getPeriodComparison(
-  userId: number,
+  userId: string | number,
   days: number = 7,
 ): Promise<{
   current: {
@@ -1652,7 +1802,7 @@ export async function getPeriodComparison(
     prevAccuracy: number;
   }>;
 }> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const topics = db.topics.filter((t) => t.userId === userId);
   const disciplines = db.disciplines.filter((d) => d.userId === userId);
 
@@ -1742,7 +1892,7 @@ export async function getPeriodComparison(
 
 // ── Disciplinas negligenciadas (notificações) ─────────────────────────────
 export async function getNeglectedDisciplines(
-  userId: number,
+  userId: string | number,
   thresholdDays: number = 7,
 ): Promise<
   Array<{
@@ -1751,7 +1901,7 @@ export async function getNeglectedDisciplines(
     lastStudyDate: string | null;
   }>
 > {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const disciplines = db.disciplines.filter((d) => d.userId === userId);
   const topics = db.topics.filter((t) => t.userId === userId);
   const today = new Date();
@@ -1785,7 +1935,7 @@ export async function getNeglectedDisciplines(
 
 // ============ STUDY HEATMAP ============
 export async function getStudyHeatmap(
-  userId: number,
+  userId: string | number,
   months: number,
 ): Promise<
   {
@@ -1794,7 +1944,7 @@ export async function getStudyHeatmap(
     minutes: number;
   }[]
 > {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const topics = db.topics.filter((t) => t.userId === userId);
 
   // Build cutoff date
@@ -1825,21 +1975,24 @@ export async function getStudyHeatmap(
 
 // ============ FLASHCARD OPERATIONS (SM-2 spaced repetition) ============
 export async function getFlashcardsByUser(
-  userId: number,
+  userId: string | number,
 ): Promise<Flashcard[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.flashcards.filter((f) => f.userId === userId);
 }
 
-export async function createFlashcard(data: {
-  userId: number;
-  disciplineId: number;
-  topicId?: number;
-  noteId?: number;
-  front: string;
-  back: string;
-}): Promise<Flashcard> {
-  const db = readDatabase();
+export async function createFlashcard(
+  userId: string | number,
+  data: {
+    userId: string | number;
+    disciplineId: number;
+    topicId?: number;
+    noteId?: number;
+    front: string;
+    back: string;
+  },
+): Promise<Flashcard> {
+  const db = readDatabase(userId);
   db.counters.flashcards++;
   const today = now().split("T")[0];
   const card: Flashcard = {
@@ -1858,43 +2011,43 @@ export async function createFlashcard(data: {
     updatedAt: now(),
   };
   db.flashcards.push(card);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return card;
 }
 
 export async function updateFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
   data: Partial<Pick<Flashcard, "front" | "back">>,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.flashcards.findIndex(
     (f) => f.id === id && f.userId === userId,
   );
   if (idx >= 0) {
     db.flashcards[idx] = { ...db.flashcards[idx], ...data, updatedAt: now() };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function deleteFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.flashcards = db.flashcards.filter(
     (f) => f.id !== id || f.userId !== userId,
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // SM-2 algorithm: quality 0-5 (0-2 = fail, 3-5 = pass)
 export async function reviewFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
   quality: number,
 ): Promise<Flashcard> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.flashcards.findIndex(
     (f) => f.id === id && f.userId === userId,
   );
@@ -1923,13 +2076,15 @@ export async function reviewFlashcard(
   card.updatedAt = now();
 
   db.flashcards[idx] = card;
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return card;
 }
 
 // Get today's study time in minutes (from topics updated today)
-export async function getTodayStudyMinutes(userId: number): Promise<number> {
-  const db = readDatabase();
+export async function getTodayStudyMinutes(
+  userId: string | number,
+): Promise<number> {
+  const db = readDatabase(userId);
   const today = new Date().toISOString().split("T")[0];
   const topics = db.topics.filter(
     (t) => t.userId === userId && t.updatedAt?.startsWith(today),
@@ -1970,15 +2125,15 @@ function detectDistractorPattern(
   return "similar";
 }
 
-export async function saveQuestionError(
+export async function createQuestionError(
+  userId: string | number,
   data: Omit<QuestionError, "id" | "createdAt">,
 ): Promise<QuestionError> {
-  // IDEA 1: Detectar automaticamente o padrão do distrator
   const distractorPattern = detectDistractorPattern(
     data.userAnswer,
     data.alternatives,
   );
-  return await runInTransaction((db) => {
+  return await runInTransaction(userId, async (db) => {
     db.counters.questionErrors++;
     const record: QuestionError = {
       ...data,
@@ -1987,7 +2142,7 @@ export async function saveQuestionError(
       createdAt: now(),
     };
     db.questionErrors.push(record);
-    writeDatabase(db);
+    await writeDatabase(db, userId);
     return record;
   });
 }
@@ -2009,10 +2164,10 @@ export interface PaginatedResult<T> {
 }
 
 export async function getQuestionErrorsByUser(
-  userId: number,
+  userId: string | number,
   opts?: QuestionErrorFilters,
 ): Promise<PaginatedResult<QuestionError>> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   let errors = db.questionErrors.filter((e) => e.userId === userId);
   if (opts?.topicId) errors = errors.filter((e) => e.topicId === opts.topicId);
   if (opts?.disciplineId)
@@ -2036,9 +2191,9 @@ export async function getQuestionErrorsByUser(
  * Analisa o padrão das alternativas erradas para identificar viés cognitivo
  */
 export async function getDistractorPatternAnalysis(
-  userId: number,
+  userId: string | number,
 ): Promise<{ pattern: string; count: number; percentage: number }[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const errors = db.questionErrors.filter(
     (e) => e.userId === userId && e.distractorPattern,
   );
@@ -2059,83 +2214,84 @@ export async function getDistractorPatternAnalysis(
 
 export async function saveQuestionErrorAnalysis(
   id: number,
-  userId: number,
+  userId: string | number,
   aiAnalysis: string,
 ): Promise<QuestionError | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.questionErrors.findIndex(
     (e) => e.id === id && e.userId === userId,
   );
   if (idx === -1) return null;
   db.questionErrors[idx].aiAnalysis = aiAnalysis;
   db.questionErrors[idx].aiAnalyzedAt = now();
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return db.questionErrors[idx];
 }
 
 export async function saveQuestionErrorRevisionTip(
   id: number,
-  userId: number,
+  userId: string | number,
   tip: string,
 ): Promise<QuestionError | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.questionErrors.findIndex(
     (e) => e.id === id && e.userId === userId,
   );
   if (idx === -1) return null;
   db.questionErrors[idx].aiRevisionTip = tip;
   db.questionErrors[idx].aiRevisionTipAt = now();
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return db.questionErrors[idx];
 }
 
 export async function saveQuestionErrorSimilarQuestions(
   id: number,
-  userId: number,
+  userId: string | number,
   similar: string,
 ): Promise<QuestionError | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.questionErrors.findIndex(
     (e) => e.id === id && e.userId === userId,
   );
   if (idx === -1) return null;
   db.questionErrors[idx].aiSimilarQuestions = similar;
   db.questionErrors[idx].aiSimilarQuestionsAt = now();
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return db.questionErrors[idx];
 }
 
 export async function markQuestionErrorFlashcardGenerated(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<QuestionError | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.questionErrors.findIndex(
     (e) => e.id === id && e.userId === userId,
   );
   if (idx === -1) return null;
   db.questionErrors[idx].aiFlashcardGenerated = true;
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return db.questionErrors[idx];
 }
 
 export async function deleteQuestionError(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.questionErrors = db.questionErrors.filter(
     (e) => !(e.id === id && e.userId === userId),
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ ESSAYS ============
 
 export async function saveEssay(
+  userId: string | number,
   data: Omit<Essay, "id" | "createdAt" | "updatedAt">,
 ): Promise<Essay> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.counters.essays++;
   const record: Essay = {
     ...data,
@@ -2144,15 +2300,15 @@ export async function saveEssay(
     updatedAt: now(),
   };
   db.essays.push(record);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return record;
 }
 
 export async function getEssaysByUser(
-  userId: number,
+  userId: string | number,
   disciplineId?: number,
 ): Promise<Essay[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   let items = db.essays.filter((e) => e.userId === userId);
   if (disciplineId)
     items = items.filter((e) => e.disciplineId === disciplineId);
@@ -2161,29 +2317,32 @@ export async function getEssaysByUser(
 
 export async function getEssayById(
   id: number,
-  userId: number,
+  userId: string | number,
 ): Promise<Essay | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.essays.find((e) => e.id === id && e.userId === userId) || null;
 }
 
 export async function updateEssay(
   id: number,
-  userId: number,
+  userId: string | number,
   data: Partial<Omit<Essay, "id" | "userId" | "createdAt">>,
 ): Promise<Essay | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.essays.findIndex((e) => e.id === id && e.userId === userId);
   if (idx === -1) return null;
   db.essays[idx] = { ...db.essays[idx], ...data, updatedAt: now() };
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return db.essays[idx];
 }
 
-export async function deleteEssay(id: number, userId: number): Promise<void> {
-  const db = readDatabase();
+export async function deleteEssay(
+  id: number,
+  userId: string | number,
+): Promise<void> {
+  const db = readDatabase(userId);
   db.essays = db.essays.filter((e) => !(e.id === id && e.userId === userId));
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 // ============ V10 NEW FEATURE STORAGE FUNCTIONS ============
@@ -2191,27 +2350,27 @@ export async function deleteEssay(id: number, userId: number): Promise<void> {
 /** F04 - Save recall rating when user completes a revision */
 export async function saveRevisionRecallRating(
   id: number,
-  userId: number,
+  userId: string | number,
   rating: 1 | 2 | 3 | 4 | 5,
   freeRecallText?: string,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const idx = db.revisions.findIndex((r) => r.id === id && r.userId === userId);
   if (idx >= 0) {
     db.revisions[idx].recallRating = rating;
     if (freeRecallText !== undefined)
       db.revisions[idx].freeRecallText = freeRecallText;
     db.revisions[idx].updatedAt = now();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 /** F03 - Check if a topic was revised too recently (less than minDays ago) */
 export async function getLastRevisionDate(
   topicId: number,
-  userId: number,
+  userId: string | number,
 ): Promise<string | null> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const completed = db.revisions
     .filter(
       (r) =>
@@ -2226,11 +2385,11 @@ export async function getLastRevisionDate(
 
 /** F09 - Log emotion before study session */
 export async function logEmotion(
-  userId: number,
+  userId: string | number,
   mood: 1 | 2 | 3 | 4 | 5,
 ): Promise<void> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   if (!user) return;
   if (!user.settings.emotionLog) user.settings.emotionLog = [];
   user.settings.emotionLog.push({
@@ -2241,19 +2400,19 @@ export async function logEmotion(
   // keep last 180 entries
   if (user.settings.emotionLog.length > 180)
     user.settings.emotionLog = user.settings.emotionLog.slice(-180);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 /** F10 - Log study session for peak-hour analysis */
 export async function logStudySession(
-  userId: number,
+  userId: string | number,
   hourStart: number,
   durationMin: number,
   accuracy: number,
   disciplineId?: number,
 ): Promise<void> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   if (!user) return;
   if (!user.settings.studySessionLog) user.settings.studySessionLog = [];
   user.settings.studySessionLog.push({
@@ -2265,15 +2424,15 @@ export async function logStudySession(
   });
   if (user.settings.studySessionLog.length > 500)
     user.settings.studySessionLog = user.settings.studySessionLog.slice(-500);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 /** F10 - Get peak hour analysis */
 export async function getPeakHoursAnalysis(
-  userId: number,
+  userId: string | number,
 ): Promise<Array<{ hour: number; avgAccuracy: number; sessions: number }>> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   const log = user?.settings?.studySessionLog || [];
   const hourMap: Record<number, { total: number; count: number }> = {};
   for (const s of log) {
@@ -2294,12 +2453,12 @@ export async function getPeakHoursAnalysis(
 
 /** F15 - Log end of study time for sleep warning analysis */
 export async function logStudyEndTime(
-  userId: number,
+  userId: string | number,
   endHour: number,
   alertIssued: boolean,
 ): Promise<void> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   if (!user) return;
   if (!user.settings.sleepLog) user.settings.sleepLog = [];
   const today = now().split("T")[0];
@@ -2319,11 +2478,13 @@ export async function logStudyEndTime(
   }
   if (user.settings.sleepLog.length > 90)
     user.settings.sleepLog = user.settings.sleepLog.slice(-90);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 /** F17 - Get discipline rebalance report: time invested vs accuracy vs edital weight */
-export async function getDisciplineRebalanceReport(userId: number): Promise<
+export async function getDisciplineRebalanceReport(
+  userId: string | number,
+): Promise<
   Array<{
     disciplineId: number;
     name: string;
@@ -2336,13 +2497,13 @@ export async function getDisciplineRebalanceReport(userId: number): Promise<
     editalWeight?: number;
   }>
 > {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const disciplines = db.disciplines.filter((d) => d.userId === userId);
   const topics = db.topics.filter((t) => t.userId === userId);
   const revisions = db.revisions.filter(
     (r) => r.userId === userId && r.completed,
   );
-  const user = db.users.find((u) => u.id === userId);
+  const user = db.users.find((u) => u.openId === userId);
   const editalRows = user?.settings?.editalRows || [];
 
   return disciplines.map((d) => {
@@ -2377,7 +2538,7 @@ export async function getDisciplineRebalanceReport(userId: number): Promise<
 
 /** F19 - Forgetting velocity: compare recall ratings across revision numbers for each topic */
 export async function getForgettingVelocityByDiscipline(
-  userId: number,
+  userId: string | number,
 ): Promise<
   Array<{
     disciplineId: number;
@@ -2389,7 +2550,7 @@ export async function getForgettingVelocityByDiscipline(
     revisionCount: number;
   }>
 > {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const disciplines = db.disciplines.filter((d) => d.userId === userId);
   const topics = db.topics.filter((t) => t.userId === userId);
   const revisions = db.revisions.filter(
@@ -2430,10 +2591,10 @@ export async function getForgettingVelocityByDiscipline(
 
 /** Salva um snapshot completo após importação TEC (XLSX ou scraping) */
 export async function saveTecSnapshot(
-  userId: number,
+  userId: string | number,
   topics: TecTopicSnapshot[],
 ): Promise<TecSnapshot> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.counters.tecSnapshots++;
   const totalCorrect = topics.reduce((s, t) => s + t.correctCount, 0);
   const totalErrors = topics.reduce((s, t) => s + t.errorCount, 0);
@@ -2462,16 +2623,16 @@ export async function saveTecSnapshot(
     const oldestIds = new Set(oldest.map((s) => s.id));
     db.tecSnapshots = db.tecSnapshots.filter((s) => !oldestIds.has(s.id));
   }
-  writeDatabase(db);
+  await writeDatabase(db, userId);
   return snapshot;
 }
 
 /** Retorna os últimos N snapshots do usuário, mais recentes primeiro */
 export async function getTecSnapshots(
-  userId: number,
+  userId: string | number,
   limit = 10,
 ): Promise<TecSnapshot[]> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   if (!db.tecSnapshots) return [];
   return db.tecSnapshots
     .filter((s) => s.userId === userId)
@@ -2481,7 +2642,7 @@ export async function getTecSnapshots(
 
 /** Retorna o snapshot mais recente antes do atual (para comparação de delta) */
 export async function getPreviousTecSnapshot(
-  userId: number,
+  userId: string | number,
 ): Promise<TecSnapshot | null> {
   const snaps = await getTecSnapshots(userId, 2);
   return snaps[1] || null;
@@ -2492,7 +2653,7 @@ export async function getPreviousTecSnapshot(
  * Retorna lista ordenada por queda de acerto (maior queda primeiro).
  */
 export async function getTecRegressions(
-  userId: number,
+  userId: string | number,
   thresholdPp = 5,
 ): Promise<
   Array<{
@@ -2542,7 +2703,7 @@ export async function getTecRegressions(
  * ordenados do pior para o melhor.
  */
 export async function getWeakTopicsFromSnapshot(
-  userId: number,
+  userId: string | number,
   accuracyThreshold = 65,
 ): Promise<TecTopicSnapshot[]> {
   const snaps = await getTecSnapshots(userId, 1);
@@ -2555,10 +2716,10 @@ export async function getWeakTopicsFromSnapshot(
 // ============ CADERNOS TEC (tempo real via userscript) ============
 
 export async function saveCadernoTec(
-  userId: number,
+  userId: string | number,
   caderno: CadernoTec,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   if (!db.cadernosTec) db.cadernosTec = {};
   if (!db.cadernosTec[userId]) db.cadernosTec[userId] = [];
   const existing = db.cadernosTec[userId].findIndex(
@@ -2566,26 +2727,28 @@ export async function saveCadernoTec(
   );
   if (existing >= 0) db.cadernosTec[userId][existing] = caderno;
   else db.cadernosTec[userId].push(caderno);
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
-export async function getCadernosTec(userId: number): Promise<CadernoTec[]> {
-  const db = readDatabase();
+export async function getCadernosTec(
+  userId: string | number,
+): Promise<CadernoTec[]> {
+  const db = readDatabase(userId);
   return (db.cadernosTec?.[userId] ?? []).sort(
     (a, b) => new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime(),
   );
 }
 
 export async function deleteCadernoTec(
-  userId: number,
+  userId: string | number,
   cadernoId: string,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   if (!db.cadernosTec?.[userId]) return;
   db.cadernosTec[userId] = db.cadernosTec[userId].filter(
     (c: CadernoTec) => c.cadernoId !== cadernoId,
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 /** Gera um push token seguro usando crypto.randomBytes (64 chars hex) */
@@ -2606,13 +2769,15 @@ function generateSecureToken(): string {
 }
 
 /** Gera e persiste um novo push token, invalidando o anterior (rotação automática) */
-export async function generatePushToken(userId: number): Promise<string> {
+export async function generatePushToken(
+  userId: string | number,
+): Promise<string> {
   const token = generateSecureToken();
-  const db = readDatabase();
-  const idx = db.users.findIndex((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const idx = db.users.findIndex((u) => u.openId === userId);
   if (idx >= 0) {
     db.users[idx].settings = { ...db.users[idx].settings, pushToken: token };
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
   return token;
 }
@@ -2621,35 +2786,70 @@ export async function generatePushToken(userId: number): Promise<string> {
 export async function getUserByPushToken(
   token: string,
 ): Promise<User | undefined> {
-  if (!token || token.length < 8) return undefined; // rejeita tokens obviamente inválidos (mínimo 8 para token-123 e 13 para ELECTRON_MODE)
-  const db = readDatabase();
-  return db.users.find((u) => u.settings?.pushToken === token);
+  if (!token || token.length < 8) return undefined;
+
+  // In multi-file mode, we must scan all files
+  const files = fs
+    .readdirSync(DATA_DIR)
+    .filter((f) => f.startsWith("database_") && f.endsWith(".json"))
+    .sort((a, b) => {
+      // Prioritize files with UUID-like names over "default", "anonymous", "local-user"
+      const aIsUuid = a.length > 30;
+      const bIsUuid = b.length > 30;
+      if (aIsUuid && !bIsUuid) return -1;
+      if (!aIsUuid && bIsUuid) return 1;
+      return 0;
+    });
+
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(path.join(DATA_DIR, file), "utf-8");
+      const db = JSON.parse(content);
+      const uidFromFilename = file
+        .replace("database_", "")
+        .replace(".json", "");
+
+      // Only consider users whose openId matches the filename (isolation check)
+      const user = db.users.find(
+        (u: any) =>
+          u.settings?.pushToken === token &&
+          String(u.openId || u.id) === uidFromFilename,
+      );
+
+      if (user) return user;
+    } catch (e) {
+      // Skip broken files
+    }
+  }
+  return undefined;
 }
 
 /** Revoga o push token de um usuário (limpa a configuração) */
-export async function revokePushToken(userId: number): Promise<void> {
-  const db = readDatabase();
-  const idx = db.users.findIndex((u) => u.id === userId);
+export async function revokePushToken(userId: string | number): Promise<void> {
+  const db = readDatabase(userId);
+  const idx = db.users.findIndex((u) => u.openId === userId);
   if (idx >= 0) {
     const { pushToken: _, ...rest } = db.users[idx].settings;
     db.users[idx].settings = rest as any;
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 // ============ MENTOR OBSERVATIONS ============
 
-export async function getMentorObservations(userId: number): Promise<string[]> {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+export async function getMentorObservations(
+  userId: string | number,
+): Promise<string[]> {
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   return user?.settings?.mentorObservations || [];
 }
 
 export async function addMentorObservation(
-  userId: number,
+  userId: string | number,
   observation: string,
 ): Promise<void> {
-  const db = readDatabase();
-  const index = db.users.findIndex((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const index = db.users.findIndex((u) => u.openId === userId);
   if (index >= 0) {
     const user = db.users[index];
     if (!user.settings) user.settings = {} as any;
@@ -2664,7 +2864,7 @@ export async function addMentorObservation(
       user.settings.mentorObservations.shift();
     }
 
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
@@ -2672,34 +2872,34 @@ export async function addMentorObservation(
 
 export async function archiveFlashcard(
   id: number,
-  userId: number,
+  userId: string | number,
   archived: boolean = true,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   const index = db.flashcards.findIndex(
     (f) => f.id === id && f.userId === userId,
   );
   if (index >= 0) {
     db.flashcards[index].archived = archived;
     db.flashcards[index].updatedAt = new Date().toISOString();
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 // ============ CONCEPT CONFUSIONS ============
 
-export async function getConceptConfusions(userId: number) {
-  const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
+export async function getConceptConfusions(userId: string | number) {
+  const db = readDatabase(userId);
+  const user = db.users.find((u) => u.openId === userId);
   return user?.settings?.conceptConfusions || [];
 }
 
 export async function addConceptConfusion(
-  userId: number,
+  userId: string | number,
   data: { conceptA: string; conceptB: string; explanation: string },
 ) {
-  const db = readDatabase();
-  const index = db.users.findIndex((u) => u.id === userId);
+  const db = readDatabase(userId);
+  const index = db.users.findIndex((u) => u.openId === userId);
   if (index >= 0) {
     const user = db.users[index];
     if (!user.settings) user.settings = {} as any;
@@ -2724,26 +2924,26 @@ export async function addConceptConfusion(
       });
     }
 
-    writeDatabase(db);
+    await writeDatabase(db, userId);
   }
 }
 
 export async function deleteQuestionsByContest(
   contest: string,
-  userId: number,
+  userId: string | number,
 ): Promise<void> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   db.questionErrors = db.questionErrors.filter(
     (q) => q.userId !== userId || q.contest !== contest,
   );
-  writeDatabase(db);
+  await writeDatabase(db, userId);
 }
 
 export async function checkExamIntegrated(
   contest: string,
-  userId: number,
+  userId: string | number,
 ): Promise<boolean> {
-  const db = readDatabase();
+  const db = readDatabase(userId);
   return db.questionErrors.some(
     (q) =>
       q.userId === userId && q.contest?.toLowerCase() === contest.toLowerCase(),

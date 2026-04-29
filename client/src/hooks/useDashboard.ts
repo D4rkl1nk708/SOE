@@ -80,7 +80,10 @@ export function useExams() {
   });
 
   const remove = trpc.exam.delete.useMutation({
-    onSuccess: () => { utils.exam.list.invalidate(); toast.success("Prova removida."); },
+    onSuccess: () => {
+      utils.exam.list.invalidate();
+      toast.success("Prova removida.");
+    },
     onError: (err) => toast.error(err.message),
   });
 
@@ -91,28 +94,39 @@ export function useExams() {
     setDialogOpen(true);
   }, []);
 
-  const openEdit = useCallback((exam: { id: string; name: string; date: string }) => {
-    setExamNameInput(exam.name);
-    setExamDateInput(exam.date);
-    setEditingId(exam.id);
-    setDialogOpen(true);
-  }, []);
+  const openEdit = useCallback(
+    (exam: { id: string; name: string; date: string }) => {
+      setExamNameInput(exam.name);
+      setExamDateInput(exam.date);
+      setEditingId(exam.id);
+      setDialogOpen(true);
+    },
+    [],
+  );
 
   const handleSave = useCallback(() => {
     if (!examNameInput.trim() || !examDateInput) {
       toast.error("Preencha nome e data da prova.");
       return;
     }
-    save.mutate({ id: editingId ?? undefined, name: examNameInput.trim(), date: examDateInput });
+    save.mutate({
+      id: editingId ?? undefined,
+      name: examNameInput.trim(),
+      date: examDateInput,
+    });
   }, [examNameInput, examDateInput, editingId, save]);
 
   return {
     exams,
-    dialogOpen, setDialogOpen,
-    examDateInput, setExamDateInput,
-    examNameInput, setExamNameInput,
+    dialogOpen,
+    setDialogOpen,
+    examDateInput,
+    setExamDateInput,
+    examNameInput,
+    setExamNameInput,
     editingId,
-    openCreate, openEdit,
+    openCreate,
+    openEdit,
     handleSave,
     handleRemove: (id: string) => remove.mutate({ id }),
     isSaving: save.isPending,
@@ -140,7 +154,11 @@ export function useScheduleSettings(onSuccess?: () => void) {
     const testInterval = parseInt(testIntervalInput, 10);
     const revisionInterval = parseInt(revisionIntervalInput, 10);
     const revisionSecondPhase = parseInt(revisionSecondPhaseInput, 10);
-    if (isNaN(testInterval) || isNaN(revisionInterval) || isNaN(revisionSecondPhase)) {
+    if (
+      isNaN(testInterval) ||
+      isNaN(revisionInterval) ||
+      isNaN(revisionSecondPhase)
+    ) {
       toast.error("Preencha todos os campos com valores válidos.");
       return;
     }
@@ -149,13 +167,22 @@ export function useScheduleSettings(onSuccess?: () => void) {
       revisionIntervalDays: revisionInterval,
       revisionSecondPhaseDays: revisionSecondPhase,
     });
-  }, [testIntervalInput, revisionIntervalInput, revisionSecondPhaseInput, updateSettings]);
+  }, [
+    testIntervalInput,
+    revisionIntervalInput,
+    revisionSecondPhaseInput,
+    updateSettings,
+  ]);
 
   return {
-    scheduleDialogOpen, setScheduleDialogOpen,
-    testIntervalInput, setTestIntervalInput,
-    revisionIntervalInput, setRevisionIntervalInput,
-    revisionSecondPhaseInput, setRevisionSecondPhaseInput,
+    scheduleDialogOpen,
+    setScheduleDialogOpen,
+    testIntervalInput,
+    setTestIntervalInput,
+    revisionIntervalInput,
+    setRevisionIntervalInput,
+    revisionSecondPhaseInput,
+    setRevisionSecondPhaseInput,
     handleSaveSchedule,
     isSaving: updateSettings.isPending,
   };
@@ -170,14 +197,18 @@ export function useTecImport() {
   const [isImporting, setIsImporting] = useState(false);
 
   // Fila de erros TEC para classificação após importação
-  const [errorQueue, setErrorQueue] = useState<{ topicId: number; topicName: string; newErrors: number }[]>([]);
+  const [errorQueue, setErrorQueue] = useState<
+    { topicId: number; topicName: string; newErrors: number }[]
+  >([]);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [currentErrorIndex, setCurrentErrorIndex] = useState(0);
   const [currentOrigin, setCurrentOrigin] = useState<ErrorOrigin | null>(null);
 
   const importTec = trpc.import.tecConcursos.useMutation({
     onSuccess: (data) => {
-      toast.success(data.message || `${data.updatedCount} tema(s) atualizado(s)!`);
+      toast.success(
+        data.message || `${data.updatedCount} tema(s) atualizado(s)!`,
+      );
       utils.dashboard.getStats.invalidate();
       setIsImporting(false);
       setDialogOpen(false);
@@ -187,35 +218,57 @@ export function useTecImport() {
         setCurrentErrorIndex(0);
         setCurrentOrigin(null);
         setErrorDialogOpen(true);
+      } else {
+        // Only reload if there's no error classification queue to show,
+        // or we could reload after the queue is finished.
+        // For simplicity and immediate feedback:
+        window.location.reload();
       }
     },
-    onError: (err) => { toast.error(err.message); setIsImporting(false); },
+    onError: (err) => {
+      toast.error(err.message);
+      setIsImporting(false);
+    },
   });
 
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsImporting(true);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = (ev.target?.result as string).split(",")[1];
-      if (!base64) { toast.error("Erro ao ler arquivo"); setIsImporting(false); return; }
-      importTec.mutate({ base64, fileName: file.name });
-    };
-    reader.onerror = () => { toast.error("Erro ao ler arquivo"); setIsImporting(false); };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }, [importTec]);
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setIsImporting(true);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = (ev.target?.result as string).split(",")[1];
+        if (!base64) {
+          toast.error("Erro ao ler arquivo");
+          setIsImporting(false);
+          return;
+        }
+        importTec.mutate({ base64, fileName: file.name });
+      };
+      reader.onerror = () => {
+        toast.error("Erro ao ler arquivo");
+        setIsImporting(false);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    },
+    [importTec],
+  );
 
   return {
     fileInputRef,
-    dialogOpen, setDialogOpen,
+    dialogOpen,
+    setDialogOpen,
     isImporting,
     handleFileUpload,
     errorQueue,
-    errorDialogOpen, setErrorDialogOpen,
-    currentErrorIndex, setCurrentErrorIndex,
-    currentOrigin, setCurrentOrigin,
+    errorDialogOpen,
+    setErrorDialogOpen,
+    currentErrorIndex,
+    setCurrentErrorIndex,
+    currentOrigin,
+    setCurrentOrigin,
   };
 }
 
@@ -254,25 +307,51 @@ export function useQuestionsDialog() {
     if (!selectedTopic) return;
     const c = parseInt(correctInput, 10) || 0;
     const w = parseInt(wrongInput, 10) || 0;
-    if (c < 0 || w < 0) { toast.error("Valores não podem ser negativos."); return; }
-    const finalC = mode === "add" ? (selectedTopic.performance?.correctCount ?? 0) + c : c;
-    const finalW = mode === "add" ? (selectedTopic.performance?.errorCount ?? 0) + w : w;
-    const originFields = finalW > 0 && errorOrigin ? {
-      errorByAttention: errorOrigin === "attention" ? finalW : undefined,
-      errorByForgetting: errorOrigin === "forgetting" ? finalW : undefined,
-      errorByTheory: errorOrigin === "theory" ? finalW : undefined,
-      errorByTrap: errorOrigin === "trap" ? finalW : undefined,
-    } : {};
-    setPerformance.mutate({ topicId: selectedTopic.id, correctCount: finalC, errorCount: finalW, ...originFields });
-  }, [selectedTopic, correctInput, wrongInput, mode, errorOrigin, setPerformance]);
+    if (c < 0 || w < 0) {
+      toast.error("Valores não podem ser negativos.");
+      return;
+    }
+    const finalC =
+      mode === "add" ? (selectedTopic.performance?.correctCount ?? 0) + c : c;
+    const finalW =
+      mode === "add" ? (selectedTopic.performance?.errorCount ?? 0) + w : w;
+    const originFields =
+      finalW > 0 && errorOrigin
+        ? {
+            errorByAttention: errorOrigin === "attention" ? finalW : undefined,
+            errorByForgetting:
+              errorOrigin === "forgetting" ? finalW : undefined,
+            errorByTheory: errorOrigin === "theory" ? finalW : undefined,
+            errorByTrap: errorOrigin === "trap" ? finalW : undefined,
+          }
+        : {};
+    setPerformance.mutate({
+      topicId: selectedTopic.id,
+      correctCount: finalC,
+      errorCount: finalW,
+      ...originFields,
+    });
+  }, [
+    selectedTopic,
+    correctInput,
+    wrongInput,
+    mode,
+    errorOrigin,
+    setPerformance,
+  ]);
 
   return {
-    open, setOpen,
+    open,
+    setOpen,
     selectedTopic,
-    correctInput, setCorrectInput,
-    wrongInput, setWrongInput,
-    mode, setMode,
-    errorOrigin, setErrorOrigin,
+    correctInput,
+    setCorrectInput,
+    wrongInput,
+    setWrongInput,
+    mode,
+    setMode,
+    errorOrigin,
+    setErrorOrigin,
     openDialog,
     handleSave,
     isSaving: setPerformance.isPending,
@@ -282,46 +361,74 @@ export function useQuestionsDialog() {
 // ─── Hook: Reordenação de Disciplinas e Tópicos ───────────────────────────────
 
 export function useDragReorder(initialStats: DisciplineStat[]) {
-  const [orderedStats, setOrderedStats] = useState<DisciplineStat[]>(initialStats);
-  const [draggingDisciplineId, setDraggingDisciplineId] = useState<number | null>(null);
-  const [draggingTopic, setDraggingTopic] = useState<{ disciplineId: number; topicId: number } | null>(null);
+  const [orderedStats, setOrderedStats] =
+    useState<DisciplineStat[]>(initialStats);
+  const [draggingDisciplineId, setDraggingDisciplineId] = useState<
+    number | null
+  >(null);
+  const [draggingTopic, setDraggingTopic] = useState<{
+    disciplineId: number;
+    topicId: number;
+  } | null>(null);
 
   const reorderDisciplines = trpc.discipline.reorder.useMutation();
   const reorderTopics = trpc.topic.reorder.useMutation();
 
-  useEffect(() => { setOrderedStats(initialStats); }, [initialStats]);
+  useEffect(() => {
+    setOrderedStats(initialStats);
+  }, [initialStats]);
 
-  const handleDropDiscipline = useCallback((targetId: number) => {
-    if (!draggingDisciplineId || draggingDisciplineId === targetId) return;
-    const from = orderedStats.findIndex((d) => d.disciplineId === draggingDisciplineId);
-    const to = orderedStats.findIndex((d) => d.disciplineId === targetId);
-    if (from < 0 || to < 0) return;
-    const reordered = moveItem(orderedStats, from, to);
-    setOrderedStats(reordered);
-    setDraggingDisciplineId(null);
-    reorderDisciplines.mutate({ orderedIds: reordered.map((d) => d.disciplineId) });
-  }, [draggingDisciplineId, orderedStats, reorderDisciplines]);
+  const handleDropDiscipline = useCallback(
+    (targetId: number) => {
+      if (!draggingDisciplineId || draggingDisciplineId === targetId) return;
+      const from = orderedStats.findIndex(
+        (d) => d.disciplineId === draggingDisciplineId,
+      );
+      const to = orderedStats.findIndex((d) => d.disciplineId === targetId);
+      if (from < 0 || to < 0) return;
+      const reordered = moveItem(orderedStats, from, to);
+      setOrderedStats(reordered);
+      setDraggingDisciplineId(null);
+      reorderDisciplines.mutate({
+        orderedIds: reordered.map((d) => d.disciplineId),
+      });
+    },
+    [draggingDisciplineId, orderedStats, reorderDisciplines],
+  );
 
-  const handleDropTopic = useCallback((disciplineId: number, targetTopicId: number) => {
-    if (!draggingTopic || draggingTopic.disciplineId !== disciplineId || draggingTopic.topicId === targetTopicId) return;
-    const di = orderedStats.findIndex((d) => d.disciplineId === disciplineId);
-    if (di < 0) return;
-    const topics = [...(orderedStats[di].topics ?? [])];
-    const from = topics.findIndex((t) => t.id === draggingTopic.topicId);
-    const to = topics.findIndex((t) => t.id === targetTopicId);
-    if (from < 0 || to < 0) return;
-    const reordered = moveItem(topics, from, to);
-    const newStats = [...orderedStats];
-    newStats[di] = { ...newStats[di], topics: reordered };
-    setOrderedStats(newStats);
-    setDraggingTopic(null);
-    reorderTopics.mutate({ disciplineId, orderedIds: reordered.map((t) => t.id) });
-  }, [draggingTopic, orderedStats, reorderTopics]);
+  const handleDropTopic = useCallback(
+    (disciplineId: number, targetTopicId: number) => {
+      if (
+        !draggingTopic ||
+        draggingTopic.disciplineId !== disciplineId ||
+        draggingTopic.topicId === targetTopicId
+      )
+        return;
+      const di = orderedStats.findIndex((d) => d.disciplineId === disciplineId);
+      if (di < 0) return;
+      const topics = [...(orderedStats[di].topics ?? [])];
+      const from = topics.findIndex((t) => t.id === draggingTopic.topicId);
+      const to = topics.findIndex((t) => t.id === targetTopicId);
+      if (from < 0 || to < 0) return;
+      const reordered = moveItem(topics, from, to);
+      const newStats = [...orderedStats];
+      newStats[di] = { ...newStats[di], topics: reordered };
+      setOrderedStats(newStats);
+      setDraggingTopic(null);
+      reorderTopics.mutate({
+        disciplineId,
+        orderedIds: reordered.map((t) => t.id),
+      });
+    },
+    [draggingTopic, orderedStats, reorderTopics],
+  );
 
   return {
     orderedStats,
-    draggingDisciplineId, setDraggingDisciplineId,
-    draggingTopic, setDraggingTopic,
+    draggingDisciplineId,
+    setDraggingDisciplineId,
+    draggingTopic,
+    setDraggingTopic,
     handleDropDiscipline,
     handleDropTopic,
   };
@@ -329,34 +436,55 @@ export function useDragReorder(initialStats: DisciplineStat[]) {
 
 // ─── Hook: Widgets personalizados ─────────────────────────────────────────────
 
-export function useDashboardWidgets(settings: Record<string, unknown> | null | undefined) {
+export function useDashboardWidgets(
+  settings: Record<string, unknown> | null | undefined,
+) {
   const [extraWidgets, setExtraWidgets] = useState<string[]>([]);
   const updateSettings = trpc.auth.updateSettings.useMutation();
 
   useEffect(() => {
-    const cfg = settings?.dashboardConfig as { extraWidgets?: string[] } | undefined;
+    const cfg = settings?.dashboardConfig as
+      | { extraWidgets?: string[] }
+      | undefined;
     if (cfg?.extraWidgets) {
       setExtraWidgets(cfg.extraWidgets);
     } else {
       // Default set for new users or legacy configs
-      setExtraWidgets(["recommendation", "mentorBriefing", "heatmap", "dailyGoal", "todayRevisions"]);
+      setExtraWidgets([
+        "recommendation",
+        "mentorBriefing",
+        "heatmap",
+        "dailyGoal",
+        "todayRevisions",
+      ]);
     }
   }, [settings]);
 
-  const saveExtraWidgets = useCallback((ew: string[]) => {
-    setExtraWidgets(ew);
-    updateSettings.mutate({ dashboardConfig: { extraWidgets: ew } });
-  }, [updateSettings]);
+  const saveExtraWidgets = useCallback(
+    (ew: string[]) => {
+      setExtraWidgets(ew);
+      updateSettings.mutate({ dashboardConfig: { extraWidgets: ew } });
+    },
+    [updateSettings],
+  );
 
-  const toggleExtra = useCallback((id: string) => {
-    setExtraWidgets((prev) => {
-      const next = prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id];
-      updateSettings.mutate({ dashboardConfig: { extraWidgets: next } });
-      return next;
-    });
-  }, [updateSettings]);
+  const toggleExtra = useCallback(
+    (id: string) => {
+      setExtraWidgets((prev) => {
+        const next = prev.includes(id)
+          ? prev.filter((w) => w !== id)
+          : [...prev, id];
+        updateSettings.mutate({ dashboardConfig: { extraWidgets: next } });
+        return next;
+      });
+    },
+    [updateSettings],
+  );
 
-  const showExtra = useCallback((id: string) => extraWidgets.includes(id), [extraWidgets]);
+  const showExtra = useCallback(
+    (id: string) => extraWidgets.includes(id),
+    [extraWidgets],
+  );
 
   return { extraWidgets, saveExtraWidgets, toggleExtra, showExtra };
 }
@@ -365,7 +493,12 @@ export function useDashboardWidgets(settings: Record<string, unknown> | null | u
 
 export function useTimeEdit() {
   const utils = trpc.useUtils();
-  const [dialog, setDialog] = useState<{ topicId: number; topicName: string; hours: number; minutes: number } | null>(null);
+  const [dialog, setDialog] = useState<{
+    topicId: number;
+    topicName: string;
+    hours: number;
+    minutes: number;
+  } | null>(null);
 
   const update = trpc.topic.update.useMutation({
     onSuccess: () => {

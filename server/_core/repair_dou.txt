@@ -1,0 +1,92 @@
+          if (ct.includes("json")) {
+            const json = await r.json();
+            console.log(`[DOU Proxy] JSON response received`);
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            return res.json({ source: "json", data: json });
+          }
+
+          const html = await r.text();
+          console.log(`[DOU Proxy] HTML length: ${html.length}`);
+          
+          const results: any[] = [];
+
+          // Novo Padrão: Blocos de search-result-item (Padrão atual do portal)
+          const blocks = html.split(/class=["']search-result-item["']/i);
+          console.log(`[DOU Proxy] Found ${blocks.length - 1} result blocks`);
+          
+          if (blocks.length > 1) {
+            blocks.shift();
+            blocks.forEach((block, idx) => {
+              // Extract URL and Title (more lenient regex)
+              const linkMatch = block.match(/<h5[^>]*>[\s\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
+              
+              // Extract Date from hierarchy or edition-info
+              const dateMatch = block.match(/(\d{2}\/\d{2}\/\d{4})/);
+
+              if (linkMatch) {
+                const url = linkMatch[1].startsWith("http") ? linkMatch[1] : `https://www.in.gov.br${linkMatch[1]}`;
+                results.push({
+                  id: linkMatch[1],
+                  title: linkMatch[2].replace(/<[^>]+>/g, "").trim(),
+                  url: url,
+                  date: dateMatch?.[1] || ""
+                });
+              } else {
+                console.log(`[DOU Proxy] Block ${idx} failed link match. Sample: ${block.slice(0, 100)}`);
+              }
+            });
+          }
+          
+          console.log(`[DOU Proxy] Successfully parsed ${results.length} results`);
+
+          // Fallback para padrões antigos (regex simples)
+          if (results.length === 0) {
+            const linkPattern = /href=["'](\/web\/dou\/-\/[^"']+)["'][^>]*>\s*<[^>]*>([\s\S]*?)<\/[^>]*>/gi;
+            let m;
+            while ((m = linkPattern.exec(html)) !== null) {
+              const title = m[2].replace(/<[^>]+>/g, "").trim();
+              if (title.length > 5) {
+                results.push({
+                  id: m[1],
+                  title,
+                  url: `https://www.in.gov.br${m[1]}`,
+                });
+              }
+            }
+          }
+
+          // Contagem total
+          const totalMatch = html.match(/(\d+)\s+resultado[s]?\s+encontrado/i) || 
+                             html.match(/"total"\s*:\s*(\d+)/i) || 
+                             html.match(/totalHits["']?\s*:\s*(\d+)/i);
+          const total = totalMatch ? parseInt(totalMatch[1]) : results.length;
+
+          // Extração de dados JSON incorporados (se houver)
+          const jsonScriptMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/i);
+          if (jsonScriptMatch) {
+            try {
+              const parsed = JSON.parse(jsonScriptMatch[1]);
+              const items = parsed.results || parsed.items || (Array.isArray(parsed) ? parsed : []);
+              items.forEach((item: any, i: number) => {
+                const id = item.id || item.urlTitle || `json-${i}`;
+                if (!results.find(r => r.id === id)) {
+                  results.push({
+                    id,
+                    title: item.title || item.titulo || item.name || "",
+                    date: item.pubDate || item.data || "",
+                    url: item.url || (item.urlTitle ? `https://www.in.gov.br${item.urlTitle}` : ""),
+                  });
+                }
+              });
+            } catch {}
+          }
+
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          return res.json({
+            source: "html-parsed",
+            results,
+            total,
+            rawLength: html.length,
+          });

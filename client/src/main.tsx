@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { UNAUTHED_ERR_MSG } from '@shared/const';
+import { UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, splitLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
@@ -23,7 +23,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   window.location.href = getLoginUrl();
 };
 
-queryClient.getQueryCache().subscribe(event => {
+queryClient.getQueryCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -31,7 +31,7 @@ queryClient.getQueryCache().subscribe(event => {
   }
 });
 
-queryClient.getMutationCache().subscribe(event => {
+queryClient.getMutationCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -42,7 +42,9 @@ queryClient.getMutationCache().subscribe(event => {
 const isStandalone = Capacitor.isNativePlatform();
 
 const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-const trpcUrl = apiBase ? `${apiBase.replace(/\/$/, "")}/api/trpc` : "/api/trpc";
+const trpcUrl = apiBase
+  ? `${apiBase.replace(/\/$/, "")}/api/trpc`
+  : "/api/trpc";
 
 const trpcClient = trpc.createClient({
   links: [
@@ -52,10 +54,17 @@ const trpcClient = trpc.createClient({
       false: httpBatchLink({
         url: trpcUrl,
         transformer: superjson,
-        fetch(input, init) {
+        async fetch(input, init) {
+          const {
+            data: { session },
+          } = await (await import("@/lib/supabase")).supabase.auth.getSession();
           return globalThis.fetch(input, {
             ...(init ?? {}),
             credentials: "include",
+            headers: {
+              ...(init?.headers ?? {}),
+              "x-user-id": session?.user?.id || "anonymous",
+            },
           });
         },
       }),
@@ -71,7 +80,7 @@ if (typeof window !== "undefined" && (window as any).electron) {
       // Invalidar todas as queries para forçar salvamento
       await queryClient.invalidateQueries();
       // Dar um tempo para as requisições serem completadas
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
   }
 }
@@ -81,5 +90,5 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <App />
     </QueryClientProvider>
-  </trpc.Provider>
+  </trpc.Provider>,
 );

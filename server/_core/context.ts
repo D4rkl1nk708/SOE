@@ -12,7 +12,10 @@ const LOCAL_USER: User = {
   email: "local@estudos.local",
   loginMethod: "local",
   role: "admin",
-  settings: { theme: "light", studyStreak: { current: 0, best: 0, lastStudyDate: null } },
+  settings: {
+    theme: "light",
+    studyStreak: { current: 0, best: 0, lastStudyDate: null },
+  },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   lastSignedIn: new Date().toISOString(),
@@ -48,34 +51,40 @@ export type TrpcContext = {
 };
 
 export async function createContext(
-  opts: CreateExpressContextOptions
+  opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
+  const userId = (opts.req.headers["x-user-id"] as string) || "anonymous";
+  storage.setDbUser(userId);
+
   let user: User | null = null;
 
-  // In local mode, always use the local user
-  if (isLocalMode()) {
-    await ensureLocalUser();
-    // Get the actual user from DB to use their real ID
-    const dbUser = await storage.getUserByOpenId("local-user");
-    user = dbUser ? {
-      id: dbUser.id,
-      openId: dbUser.openId,
-      name: dbUser.name,
-      email: dbUser.email,
-      loginMethod: dbUser.loginMethod,
-      role: dbUser.role as "user" | "admin",
-      settings: dbUser.settings,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-      lastSignedIn: dbUser.lastSignedIn,
-    } : LOCAL_USER;
+  // Since we are in hybrid mode, we trust the x-user-id header for DB isolation.
+  // We'll also try to fetch/create the user record in that specific DB file.
+  const dbUser = await storage.getUserByOpenId(userId);
+  if (dbUser) {
+    user = {
+      ...dbUser,
+      id: dbUser.openId as any, // Force UUID as the main ID for tRPC procedures
+    };
   } else {
-    try {
-      user = await sdk.authenticateRequest(opts.req);
-    } catch (error) {
-      // Authentication is optional for public procedures.
-      user = null;
-    }
+    // Auto-create local record for this Supabase user if not exists
+    await storage.upsertUser({
+      openId: userId,
+      name: "Usuário SOE",
+      email:
+        userId === "anonymous"
+          ? "anonymous@soe.local"
+          : `${userId}@supabase.soe`,
+      loginMethod: "supabase",
+      role: "user",
+    });
+    const newUser = await storage.getUserByOpenId(userId);
+    user = newUser
+      ? {
+          ...newUser,
+          id: newUser.openId as any,
+        }
+      : null;
   }
 
   return {

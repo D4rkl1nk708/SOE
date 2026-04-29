@@ -33,8 +33,6 @@ import { useTheme, COLOR_THEMES, ColorTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import {
-  douGetConfig,
-  douSaveConfig,
   douCheckNow,
   DEFAULT_INTERVAL_MINUTES,
 } from "@/hooks/useDiarioOficial";
@@ -448,28 +446,52 @@ function DiarioOficialTab() {
   } | null>(null);
   const [lastCheck, setLastCheck] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const utils = trpc.useUtils();
+  const douConfig = trpc.dou.getConfig.useQuery();
+  const saveMutation = trpc.dou.updateConfig.useMutation({
+    onSuccess: () => {
+      toast.success("Monitoramento configurado!");
+      utils.dou.getConfig.invalidate();
+    },
+    onError: (err) => toast.error("Erro ao salvar: " + err.message),
+  });
 
   useEffect(() => {
-    douGetConfig().then((cfg) => {
-      setName(cfg.name);
-      setInputValue(cfg.name);
-      setIntervalMinutes(cfg.intervalMinutes || 60);
-      setLastCheck(cfg.lastCheck);
+    if (douConfig.data) {
+      setName(douConfig.data.name);
+      setInputValue(douConfig.data.name);
+      setIntervalMinutes(douConfig.data.intervalMinutes || 120);
+      setLastCheck(douConfig.data.lastCheck);
       setLoading(false);
-    });
-  }, []);
+    }
+  }, [douConfig.data]);
 
   const saved = name.length >= 3;
 
   async function handleSave() {
     const trimmed = inputValue.trim();
+    console.log("[Sentinela] Ativando para:", trimmed);
     if (trimmed.length < 5) {
       toast.error("Digite seu nome completo.");
       return;
     }
-    await douSaveConfig({ name: trimmed, intervalMinutes });
+    const toastId = toast.loading("Salvando configuração...");
+    saveMutation.mutate(
+      { name: trimmed, intervalMinutes },
+      {
+        onSuccess: () => {
+          console.log("[Sentinela] Salvo com sucesso");
+          toast.dismiss(toastId);
+          toast.success("Monitoramento configurado!");
+        },
+        onError: (e) => {
+          console.error("[Sentinela] Erro ao salvar:", e);
+          toast.dismiss(toastId);
+          toast.error("Erro ao salvar: " + e.message);
+        },
+      },
+    );
     setName(trimmed);
-    toast.success("Monitoramento configurado!");
   }
 
   async function handleCheckNow() {
@@ -511,7 +533,7 @@ function DiarioOficialTab() {
         </div>
         <div className="lg:col-span-2 space-y-8">
           <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 space-y-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
               <FileText size={120} />
             </div>
 
@@ -529,9 +551,10 @@ function DiarioOficialTab() {
                 />
                 <button
                   onClick={handleSave}
-                  className="px-10 h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-95 transition-all"
+                  disabled={saveMutation.isPending}
+                  className="px-10 h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-wait"
                 >
-                  Ativar
+                  {saveMutation.isPending ? "Salvando..." : "Ativar"}
                 </button>
               </div>
             </div>
@@ -553,7 +576,8 @@ function DiarioOficialTab() {
                     key={p.value}
                     onClick={() => {
                       setIntervalMinutes(p.value);
-                      if (saved) douSaveConfig({ intervalMinutes: p.value });
+                      if (saved)
+                        saveMutation.mutate({ intervalMinutes: p.value });
                     }}
                     className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${intervalMinutes === p.value ? "bg-primary/10 border-primary text-white" : "bg-transparent border-white/5 text-white/20 hover:bg-white/5"}`}
                   >
@@ -604,7 +628,7 @@ function DiarioOficialTab() {
                         ? lastResult.total === 0
                           ? "Nenhuma"
                           : lastResult.total
-                        : "---"}
+                        : douConfig.data?.results?.length || "---"}
                     </p>
                     {lastResult?.newCount ? (
                       <span className="px-3 py-1 rounded-full bg-emerald-500 text-white font-black text-[8px] uppercase tracking-widest animate-pulse">

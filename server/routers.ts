@@ -178,7 +178,7 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return storage.createDiscipline({
+        return storage.createDiscipline(ctx.user.id, {
           userId: ctx.user.id,
           name: input.name,
           color: input.color,
@@ -242,7 +242,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const studyDate = input.studyDate || formatDateForDb(new Date());
-        const { id: topicId } = await storage.createTopic({
+        const { id: topicId } = await storage.createTopic(ctx.user.id, {
           userId: ctx.user.id,
           disciplineId: input.disciplineId,
           name: input.name,
@@ -261,7 +261,7 @@ export const appRouter = router({
           revisionNumber: activity.revisionNumber,
           completed: false,
         }));
-        await storage.createRevisions(revisionRecords);
+        await storage.createRevisions(ctx.user.id, revisionRecords);
         return { id: topicId, revisionsCreated: revisionRecords.length };
       }),
     delete: protectedProcedure
@@ -527,12 +527,12 @@ export const appRouter = router({
     }),
 
     exportBackup: protectedProcedure.query(async () => {
-      return storage.exportDatabase();
+      return storage.exportDatabase(ctx.user.id);
     }),
     importBackup: protectedProcedure
       .input(z.object({ json: z.string() }))
-      .mutation(async ({ input }) => {
-        await storage.importDatabase(input.json);
+      .mutation(async ({ ctx, input }) => {
+        await storage.importDatabase(ctx.user.id, input.json);
         return { success: true };
       }),
   }),
@@ -555,7 +555,11 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const score = input.correct - input.wrong;
-        return storage.createMockExam({ ...input, userId: ctx.user.id, score });
+        return storage.createMockExam(ctx.user.id, {
+          ...input,
+          userId: ctx.user.id,
+          score,
+        });
       }),
     update: protectedProcedure
       .input(
@@ -606,7 +610,10 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        await storage.upsertNote({ ...input, userId: ctx.user.id });
+        await storage.upsertNote(ctx.user.id, {
+          ...input,
+          userId: ctx.user.id,
+        });
         return { success: true };
       }),
     delete: protectedProcedure
@@ -715,6 +722,53 @@ export const appRouter = router({
       return { minutes: await getTodayStudyMinutes(ctx.user.id) };
     }),
   }),
+  dou: router({
+    getConfig: protectedProcedure.query(async ({ ctx }) => {
+      const s = await storage.getUserSettings(ctx.user.id);
+      return {
+        name: s?.douName ?? "",
+        intervalMinutes: s?.douIntervalMinutes ?? 120,
+        lastCheck: s?.douLastCheck ?? null,
+        seenIds: s?.douSeenIds ?? [],
+        results: s?.douResults ?? [],
+      };
+    }),
+    updateConfig: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().optional(),
+          intervalMinutes: z.number().optional(),
+          lastCheck: z.string().optional(),
+          seenIds: z.array(z.string()).optional(),
+          results: z
+            .array(
+              z.object({
+                id: z.string(),
+                title: z.string(),
+                date: z.string(),
+                url: z.string(),
+              }),
+            )
+            .optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        console.log(
+          `[DOU] Atualizando configuração para ${ctx.user.id}:`,
+          input,
+        );
+        const update: any = {};
+        if (input.name !== undefined) update.douName = input.name;
+        if (input.intervalMinutes !== undefined)
+          update.douIntervalMinutes = input.intervalMinutes;
+        if (input.lastCheck !== undefined)
+          update.douLastCheck = input.lastCheck;
+        if (input.seenIds !== undefined) update.douSeenIds = input.seenIds;
+        if (input.results !== undefined) update.douResults = input.results;
+        await storage.updateUserSettings(ctx.user.id, update);
+        return { success: true };
+      }),
+  }),
   flashcard: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return storage.getFlashcardsByUser(ctx.user.id);
@@ -730,7 +784,10 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return storage.createFlashcard({ ...input, userId: ctx.user.id });
+        return storage.createFlashcard(ctx.user.id, {
+          ...input,
+          userId: ctx.user.id,
+        });
       }),
     update: protectedProcedure
       .input(
@@ -793,7 +850,10 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return storage.saveQuestionError({ ...input, userId: ctx.user.id });
+        return storage.createQuestionError(ctx.user.id, {
+          ...input,
+          userId: ctx.user.id,
+        });
       }),
 
     list: protectedProcedure
@@ -1052,7 +1112,7 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
             throw new Error("Flashcard inválido gerado pela IA.");
 
           // Salva o flashcard no banco
-          await storage.createFlashcard({
+          await storage.createFlashcard(ctx.user.id, {
             userId: ctx.user.id,
             disciplineId: e.disciplineId,
             topicId: e.topicId || undefined,
@@ -1117,7 +1177,10 @@ Retorne APENAS um JSON válido, sem markdown, sem explicação, exatamente assim
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return storage.saveEssay({ ...input, userId: ctx.user.id });
+        return storage.saveEssay(ctx.user.id, {
+          ...input,
+          userId: ctx.user.id,
+        });
       }),
     update: protectedProcedure
       .input(
@@ -1408,7 +1471,7 @@ ${input.text.substring(0, 8000)}`;
           let createdCount = 0;
           for (const card of parsed) {
             if (card.front && card.back) {
-              await storage.createFlashcard({
+              await storage.createFlashcard(ctx.user.id, {
                 userId: ctx.user.id,
                 disciplineId: input.disciplineId,
                 topicId: input.topicId,

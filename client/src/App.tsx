@@ -21,6 +21,7 @@ import Edital from "@/pages/Edital";
 import Statistics from "@/pages/Statistics";
 import Sync from "@/pages/Sync";
 import Profile from "@/pages/Profile";
+import AdminDashboard from "@/pages/AdminDashboard";
 import QuestionSession from "@/pages/QuestionSession";
 import QuestionErrors from "@/pages/QuestionErrors";
 import Lab from "@/pages/Lab";
@@ -33,13 +34,18 @@ import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
+import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { GuidedTour } from "./components/GuidedTour";
+
+import AuthPage from "@/pages/Auth";
+import { AuthGuard } from "./components/AuthGuard";
 
 function Router() {
   useSmartNotifications();
   useNotifications();
   useDiarioOficial();
   useAutoUpdate();
+  useSyncEngine();
 
   // Auto-backup on app start (PC only — not Capacitor Android)
   useEffect(() => {
@@ -52,31 +58,35 @@ function Router() {
   }, []);
 
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/disciplines" component={DisciplinesPage} />
-      <Route path="/topics" component={Topics} />
-      <Route path="/revisions" component={Revisions} />
-      <Route path="/statistics" component={StatisticsPage} />
-      <Route path="/calendar" component={Calendar} />
-      <Route path="/mock-exams" component={MockExams} />
-      <Route path="/notes" component={Notes} />
-      <Route path="/flashcards" component={Flashcards} />
-      <Route path="/simulado" component={Simulado} />
-      <Route path="/topic-stats" component={TopicStats} />
-      <Route path="/edital" component={Edital} />
-      <Route path="/history" component={History} />
-      <Route path="/sync" component={Sync} />
-      <Route path="/question-session" component={QuestionSession} />
-      <Route path="/question-errors" component={QuestionErrors} />
-      <Route path="/lab" component={Lab} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
-      <Route path="/intercalacao" component={IntercalacaoPlanner} />
-      <Route path="/mentor" component={MentorTab} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
-    </Switch>
+    <AuthGuard>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/disciplines" component={DisciplinesPage} />
+        <Route path="/topics" component={Topics} />
+        <Route path="/revisions" component={Revisions} />
+        <Route path="/statistics" component={StatisticsPage} />
+        <Route path="/calendar" component={Calendar} />
+        <Route path="/mock-exams" component={MockExams} />
+        <Route path="/notes" component={Notes} />
+        <Route path="/flashcards" component={Flashcards} />
+        <Route path="/simulado" component={Simulado} />
+        <Route path="/topic-stats" component={TopicStats} />
+        <Route path="/edital" component={Edital} />
+        <Route path="/history" component={History} />
+        <Route path="/sync" component={Sync} />
+        <Route path="/question-session" component={QuestionSession} />
+        <Route path="/question-errors" component={QuestionErrors} />
+        <Route path="/lab" component={Lab} />
+        <Route path="/profile" component={Profile} />
+        <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
+        <Route path="/intercalacao" component={IntercalacaoPlanner} />
+        <Route path="/mentor" component={MentorTab} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </AuthGuard>
   );
 }
 

@@ -58,12 +58,9 @@ function sumTopicPerf(topics: Topic[]): PerfSummary {
 
 // ─── Dashboard Stats ────────────────────────────────────────────────────────
 
-export async function getDashboardStats(userId: number) {
+export async function getDashboardStats(userId: string | number) {
   const [user, disciplines, topics, revisions] = await Promise.all([
-    storage
-      .getUserByOpenId("")
-      .then(() => null)
-      .catch(() => null), // placeholder
+    storage.getUserByOpenId(userId),
     storage.getDisciplinesByUser(userId),
     storage.getTopicsByUser(userId),
     storage.getRevisionsByUser(userId),
@@ -157,7 +154,7 @@ export async function getDashboardStats(userId: number) {
 
 // ─── Weekly Stats ────────────────────────────────────────────────────────────
 
-export async function getWeeklyStats(userId: number) {
+export async function getWeeklyStats(userId: string | number) {
   const [topics, disciplines] = await Promise.all([
     storage.getTopicsByUser(userId),
     storage.getDisciplinesByUser(userId),
@@ -217,7 +214,7 @@ export async function getWeeklyStats(userId: number) {
 
 // ─── Period Comparison ───────────────────────────────────────────────────────
 
-export async function getPeriodComparison(userId: number, days = 7) {
+export async function getPeriodComparison(userId: string | number, days = 7) {
   const [topics, disciplines] = await Promise.all([
     storage.getTopicsByUser(userId),
     storage.getDisciplinesByUser(userId),
@@ -267,7 +264,7 @@ export async function getPeriodComparison(userId: number, days = 7) {
 // ─── Neglected Disciplines ───────────────────────────────────────────────────
 
 export async function getNeglectedDisciplines(
-  userId: number,
+  userId: string | number,
   thresholdDays = 7,
 ) {
   const [disciplines, topics] = await Promise.all([
@@ -312,7 +309,7 @@ export async function getNeglectedDisciplines(
 
 // ─── Study Heatmap ───────────────────────────────────────────────────────────
 
-export async function getStudyHeatmap(userId: number, months: number) {
+export async function getStudyHeatmap(userId: string | number, months: number) {
   const topics = await storage.getTopicsByUser(userId);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
@@ -340,7 +337,9 @@ export async function getStudyHeatmap(userId: number, months: number) {
 
 // ─── Today Study Minutes ─────────────────────────────────────────────────────
 
-export async function getTodayStudyMinutes(userId: number): Promise<number> {
+export async function getTodayStudyMinutes(
+  userId: string | number,
+): Promise<number> {
   const today = new Date().toISOString().split("T")[0];
   const topics = await storage.getTopicsByUser(userId);
   return Math.round(
@@ -352,7 +351,7 @@ export async function getTodayStudyMinutes(userId: number): Promise<number> {
 
 // ─── Discipline Rebalance Report ─────────────────────────────────────────────
 
-export async function getDisciplineRebalanceReport(userId: number) {
+export async function getDisciplineRebalanceReport(userId: string | number) {
   const [disciplines, topics, revisions, settings] = await Promise.all([
     storage.getDisciplinesByUser(userId),
     storage.getTopicsByUser(userId),
@@ -402,7 +401,9 @@ export async function getDisciplineRebalanceReport(userId: number) {
 
 // ─── Forgetting Velocity ─────────────────────────────────────────────────────
 
-export async function getForgettingVelocityByDiscipline(userId: number) {
+export async function getForgettingVelocityByDiscipline(
+  userId: string | number,
+) {
   const [disciplines, topics, revisions] = await Promise.all([
     storage.getDisciplinesByUser(userId),
     storage.getTopicsByUser(userId),
@@ -450,7 +451,7 @@ export async function getForgettingVelocityByDiscipline(userId: number) {
 
 // ─── Peak Hours ───────────────────────────────────────────────────────────────
 
-export async function getPeakHoursAnalysis(userId: number) {
+export async function getPeakHoursAnalysis(userId: string | number) {
   const settings = await storage.getUserSettings(userId);
   const log = settings?.studySessionLog ?? [];
   const hourMap = new Map<number, { total: number; count: number }>();
@@ -473,7 +474,10 @@ export async function getPeakHoursAnalysis(userId: number) {
 
 // ─── TEC Regressions ─────────────────────────────────────────────────────────
 
-export async function getTecRegressions(userId: number, thresholdPp = 5) {
+export async function getTecRegressions(
+  userId: string | number,
+  thresholdPp = 5,
+) {
   const snaps = await storage.getTecSnapshots(userId, 2);
   if (snaps.length < 2) return [];
   const [current, previous] = snaps;
@@ -502,7 +506,7 @@ export async function getTecRegressions(userId: number, thresholdPp = 5) {
 }
 
 export async function getWeakTopicsFromSnapshot(
-  userId: number,
+  userId: string | number,
   accuracyThreshold = 65,
 ) {
   const snaps = await storage.getTecSnapshots(userId, 1);
@@ -528,7 +532,7 @@ export interface MonteCarloResult {
  * Roda 1000 simulações usando a variância histórica do aluno
  */
 export async function runMonteCarloSimulation(
-  userId: number,
+  userId: string | number,
   simulatedQuestions = 100,
 ): Promise<MonteCarloResult> {
   const stats = await storage.getDisciplineRebalanceReport(userId);

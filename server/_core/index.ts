@@ -188,10 +188,10 @@ export async function createApp() {
       // API de busca JSON do DOU (endpoint interno do Liferay/portal)
       // Descoberto via DevTools no portal in.gov.br
       const endpoints = [
-        // Endpoint 1: API REST do DOU
+        // Endpoint 1: API de Recurso do Portlet (Mais estável para bots)
+        `https://www.in.gov.br/consulta/-/buscar/dou?p_p_id=br_com_in_consulta_buscar_dou_portlet_BuscarDouPortlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=buscar_dou&p_p_cacheability=cacheLevelPage&_br_com_in_consulta_buscar_dou_portlet_BuscarDouPortlet_q=${encodeURIComponent(`"${trimmed}"`)}`,
+        // Endpoint 2: URL de Busca Padrão
         `https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${trimmed}"`)}&s=todos&exactDate=all&sortType=0&delta=20&currentPage=1`,
-        // Endpoint 2: versão alternativa
-        `https://in.gov.br/web/guest/consulta/-/buscar/dou?q=${encodeURIComponent(`"${trimmed}"`)}&s=todos`,
       ];
 
       let lastError = "";
@@ -199,9 +199,14 @@ export async function createApp() {
         try {
           const r = await fetch(url, {
             headers: {
-              "User-Agent": "Mozilla/5.0 (compatible)",
-              Accept: "application/json,text/html,*/*",
-              "Accept-Language": "pt-BR",
+              "User-Agent":
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+              "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+              Referer: "https://www.in.gov.br/consulta/-/buscar/dou",
             },
             signal: AbortSignal.timeout(20000),
           });
@@ -215,48 +220,64 @@ export async function createApp() {
           }
 
           const html = await r.text();
-
-          // Extrai dados do HTML usando regex (mais robusto que DOMParser no Node)
           const results: any[] = [];
 
-          // Padrão 1: data-id nos elementos
-          const dataIdPattern =
-            /data-id="([^"]+)"[^>]*>[\s\S]*?<[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/gi;
-          let m;
-          while ((m = dataIdPattern.exec(html)) !== null) {
-            results.push({
-              id: m[1],
-              title: m[2].replace(/<[^>]+>/g, "").trim(),
+          // Novo Padrão: Blocos de search-result-item (Padrão atual do portal)
+          const blocks = html.split(/class=["']search-result-item["']/i);
+
+          if (blocks.length > 1) {
+            blocks.shift();
+            blocks.forEach((block, idx) => {
+              // Extract URL and Title (more lenient regex)
+              const linkMatch = block.match(
+                /<h5[^>]*>[\s\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i,
+              );
+
+              // Extract Date from hierarchy or edition-info
+              const dateMatch = block.match(/(\d{2}\/\d{2}\/\d{4})/);
+
+              if (linkMatch) {
+                const url = linkMatch[1].startsWith("http")
+                  ? linkMatch[1]
+                  : `https://www.in.gov.br${linkMatch[1]}`;
+                results.push({
+                  id: linkMatch[1],
+                  title: linkMatch[2].replace(/<[^>]+>/g, "").trim(),
+                  url: url,
+                  date: dateMatch?.[1] || "",
+                });
+              }
             });
           }
 
-          // Padrão 2: links de resultados /web/dou/-/...
-          const linkPattern =
-            /href="(\/web\/dou\/-\/[^"]+)"[^>]*>\s*<[^>]*>([\s\S]*?)<\/[^>]*>/gi;
-          while ((m = linkPattern.exec(html)) !== null) {
-            const title = m[2].replace(/<[^>]+>/g, "").trim();
-            if (title.length > 5) {
-              results.push({
-                id: m[1],
-                title,
-                url: `https://www.in.gov.br${m[1]}`,
-              });
+          // Fallback para padrões antigos (regex simples)
+          if (results.length === 0) {
+            const linkPattern =
+              /href=["'](\/web\/dou\/-\/[^"']+)["'][^>]*>\s*<[^>]*>([\s\S]*?)<\/[^>]*>/gi;
+            let m;
+            while ((m = linkPattern.exec(html)) !== null) {
+              const title = m[2].replace(/<[^>]+>/g, "").trim();
+              if (title.length > 5) {
+                results.push({
+                  id: m[1],
+                  title,
+                  url: `https://www.in.gov.br${m[1]}`,
+                });
+              }
             }
           }
 
-          // Padrão 3: contar total de resultados
+          // Contagem total
           const totalMatch =
             html.match(/(\d+)\s+resultado[s]?\s+encontrado/i) ||
             html.match(/"total"\s*:\s*(\d+)/i) ||
-            html.match(/totalHits["']?\s*:\s*(\d+)/i) ||
-            html.match(/(\d+)\s+publicaç/i);
+            html.match(/totalHits["']?\s*:\s*(\d+)/i);
           const total = totalMatch ? parseInt(totalMatch[1]) : results.length;
 
-          // Padrão 4: extrair JSON embutido no HTML (scripts com dados)
-          const jsonScriptMatch =
-            html.match(
-              /window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/i,
-            ) || html.match(/var\s+resultados\s*=\s*(\[[\s\S]*?\]);\s*</i);
+          // Extração de dados JSON incorporados (se houver)
+          const jsonScriptMatch = html.match(
+            /window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*<\/script>/i,
+          );
           if (jsonScriptMatch) {
             try {
               const parsed = JSON.parse(jsonScriptMatch[1]);
@@ -265,16 +286,21 @@ export async function createApp() {
                 parsed.items ||
                 (Array.isArray(parsed) ? parsed : []);
               items.forEach((item: any, i: number) => {
-                results.push({
-                  id: item.id || item.urlTitle || `json-${i}`,
-                  title: item.title || item.titulo || item.name || "",
-                  date: item.pubDate || item.data || "",
-                  url: item.url || item.urlTitle || "",
-                });
+                const id = item.id || item.urlTitle || `json-${i}`;
+                if (!results.find((r) => r.id === id)) {
+                  results.push({
+                    id,
+                    title: item.title || item.titulo || item.name || "",
+                    date: item.pubDate || item.data || "",
+                    url:
+                      item.url ||
+                      (item.urlTitle
+                        ? `https://www.in.gov.br${item.urlTitle}`
+                        : ""),
+                  });
+                }
               });
-            } catch {
-              /* ignora */
-            }
+            } catch {}
           }
 
           res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -424,8 +450,8 @@ export async function createApp() {
         return tests;
       }
 
-      let disciplines = await storage.getDisciplinesByUser(user.id);
-      let topics = await storage.getTopicsByUser(user.id);
+      let disciplines = await storage.getDisciplinesByUser(user.openId);
+      let topics = await storage.getTopicsByUser(user.openId);
       let updated = 0,
         created = 0;
       const topicsWithNewErrors: {
@@ -446,14 +472,14 @@ export async function createApp() {
         // Match or create discipline
         let disc = disciplines.find((d) => isFuzzyMatch(d.name, discName));
         if (!disc) {
-          const { id } = await storage.createDiscipline({
-            userId: user.id,
+          const createdDisc = await storage.createDiscipline(user.openId, {
+            userId: user.openId,
             name: discName,
             color: "#6366f1",
             weight: 1,
           });
-          disciplines = await storage.getDisciplinesByUser(user.id);
-          disc = disciplines.find((d) => d.id === id)!;
+          disciplines = await storage.getDisciplinesByUser(user.openId);
+          disc = disciplines.find((d) => d.id === createdDisc.id)!;
         }
 
         // Match or create topic
@@ -472,7 +498,7 @@ export async function createApp() {
           }
 
           const newErrors = row.erros - prevErrors;
-          await storage.setTopicPerformance(topic.id, user.id, {
+          await storage.setTopicPerformance(topic.id, user.openId, {
             correctCount: row.acertos,
             errorCount: row.erros,
             ...(row.incidencia !== undefined
@@ -500,14 +526,14 @@ export async function createApp() {
           updated++;
         } else {
           const studyDate = fmtDate(new Date());
-          const { id: topicId } = await storage.createTopic({
-            userId: user.id,
+          const newTopic = await storage.createTopic(user.openId, {
+            userId: user.openId,
             disciplineId: disc!.id,
             name: assuntoName,
             studyDate,
             notes: null,
           });
-          const settings = await storage.getUserSettings(user.id);
+          const settings = await storage.getUserSettings(user.openId);
           const params = getScheduleParamsLocal(settings);
           const studyDateObj = new Date(studyDate);
           const revisions = calculateRevisionDatesLocal(studyDateObj, params);
@@ -520,27 +546,26 @@ export async function createApp() {
             (a, b) => a.date.getTime() - b.date.getTime(),
           );
           await storage.createRevisions(
+            user.openId,
+            newTopic.id,
             allActs.map((a) => ({
-              userId: user.id,
-              topicId,
               scheduledDate: fmtDate(a.date),
               type: a.type as "revision" | "test",
               revisionNumber: a.revisionNumber,
-              completed: false,
             })),
           );
-          await storage.setTopicPerformance(topicId, user.id, {
+          await storage.setTopicPerformance(newTopic.id, user.openId, {
             correctCount: row.acertos,
             errorCount: row.erros,
           });
-          topics = await storage.getTopicsByUser(user.id);
+          topics = await storage.getTopicsByUser(user.openId);
           created++;
         }
       }
 
       // Salva snapshot TEC (igual ao fluxo XLSX)
-      const allTopicsNow = await storage.getTopicsByUser(user.id);
-      const allDiscsNow = await storage.getDisciplinesByUser(user.id);
+      const allTopicsNow = await storage.getTopicsByUser(user.openId);
+      const allDiscsNow = await storage.getDisciplinesByUser(user.openId);
       const snapshotTopics = allTopicsNow
         .filter((t) => t.performance && t.performance.questionsResolved > 0)
         .map((t) => ({
@@ -553,10 +578,10 @@ export async function createApp() {
           errorCount: t.performance!.errorCount,
           accuracy: t.performance!.accuracy,
         }));
-      await storage.saveTecSnapshot(user.id, snapshotTopics);
+      await storage.saveTecSnapshot(user.openId, snapshotTopics);
 
       // Registra caderno como conhecido
-      await storage.saveCadernoTec(user.id, {
+      await storage.saveCadernoTec(user.openId, {
         cadernoId: cadernoId || "unknown",
         cadernoUrl: cadernoUrl || "",
         disciplina: disciplinaHint || rows[0]?.disciplina || "Desconhecida",
@@ -578,7 +603,7 @@ export async function createApp() {
   });
 
   // Tracker de alertas (User -> Topic -> Timestamps de erros)
-  const userErrorTracker = new Map<number, Map<number, number[]>>();
+  const userErrorTracker = new Map<string, Map<number, number[]>>();
 
   // Cache de deduplicação em memória (Key -> Timestamp)
   const tecDedupCache = new Map<string, number>();
@@ -630,30 +655,30 @@ export async function createApp() {
         if (!assuntoName)
           return res.status(400).json({ error: "Assunto obrigatório" });
 
-        let disciplines = await storage.getDisciplinesByUser(user.id);
+        let disciplines = await storage.getDisciplinesByUser(user.openId);
         let disc = disciplines.find((d) =>
           isFuzzyMatch(d.name, disciplinaName),
         );
 
         if (!disc) {
-          const created = await storage.createDiscipline({
-            userId: user.id,
+          const created = await storage.createDiscipline(user.openId, {
+            userId: user.openId,
             name: disciplinaName,
             color: "#6366f1",
             weight: 1,
           });
-          disc = Object.assign({}, created, { id: created.id }) as any;
-          disciplines = await storage.getDisciplinesByUser(user.id);
+          disc = { ...created, id: created.id } as any;
+          disciplines = await storage.getDisciplinesByUser(user.openId);
         }
 
         // Add time to discipline
         if (timeSpentSeconds && timeSpentSeconds > 0) {
-          await storage.updateDiscipline(disc!.id, user.id, {
+          await storage.updateDiscipline(disc!.id, user.openId, {
             studyTimeSeconds: (disc!.studyTimeSeconds || 0) + timeSpentSeconds,
           });
         }
 
-        let topics = await storage.getTopicsByUser(user.id);
+        let topics = await storage.getTopicsByUser(user.openId);
         let topic = topics.find(
           (t) =>
             t.disciplineId === disc!.id && isFuzzyMatch(t.name, assuntoName),
@@ -670,32 +695,29 @@ export async function createApp() {
           const newCorrect = prevCorrect + (correctAdd || 0);
           const newErrors = prevErrors + (errorAdd || 0);
 
-          await storage.setTopicPerformance(topic.id, user.id, {
+          await storage.setTopicPerformance(topic.id, user.openId, {
             correctCount: newCorrect,
             errorCount: newErrors,
           });
           if (timeSpentSeconds && timeSpentSeconds > 0) {
-            await storage.updateTopic(topic.id, user.id, {
+            await storage.updateTopic(topic.id, user.openId, {
               studyTimeSeconds:
                 (topic.studyTimeSeconds || 0) + timeSpentSeconds,
             });
           }
         } else {
-          const studyDate = new Date().toISOString();
-          const created = await storage.createTopic({
-            userId: user.id,
+          const created = await storage.createTopic(user.openId, {
+            userId: user.openId,
             disciplineId: disc!.id,
             name: assuntoName,
-            studyDate,
-            notes: null,
           });
           topicId = created.id;
-          await storage.setTopicPerformance(created.id, user.id, {
+          await storage.setTopicPerformance(created.id, user.openId, {
             correctCount: correctAdd || 0,
             errorCount: errorAdd || 0,
           });
           if (timeSpentSeconds && timeSpentSeconds > 0) {
-            await storage.updateTopic(created.id, user.id, {
+            await storage.updateTopic(created.id, user.openId, {
               studyTimeSeconds: timeSpentSeconds,
             });
           }
@@ -705,10 +727,10 @@ export async function createApp() {
         let blockPage = false;
         let alertMessage = "";
         if (errorAdd && errorAdd > 0) {
-          let topicsMap = userErrorTracker.get(user.id);
+          let topicsMap = userErrorTracker.get(user.openId);
           if (!topicsMap) {
             topicsMap = new Map();
-            userErrorTracker.set(user.id, topicsMap);
+            userErrorTracker.set(user.openId, topicsMap);
           }
           let times = topicsMap.get(topicId) || [];
           const now = Date.now();
@@ -724,7 +746,7 @@ export async function createApp() {
           }
         } else if (correctAdd && correctAdd > 0) {
           // Se acertou, pode limpar o contador daquele assunto
-          const topicsMap = userErrorTracker.get(user.id);
+          const topicsMap = userErrorTracker.get(user.openId);
           if (topicsMap && topicsMap.has(topicId)) {
             topicsMap.set(topicId, []);
           }
@@ -777,7 +799,7 @@ export async function createApp() {
         if (!statement)
           return res.status(400).json({ error: "Statement is required" });
 
-        let disciplines = await storage.getDisciplinesByUser(user.id);
+        let disciplines = await storage.getDisciplinesByUser(user.openId);
         let discId = disciplines[0]?.id; // fallback
         let topId: number | undefined = undefined;
 
@@ -787,31 +809,29 @@ export async function createApp() {
             isFuzzyMatch(d.name, disciplinaName),
           );
           if (!disc) {
-            const created = await storage.createDiscipline({
-              userId: user.id,
+            const created = await storage.createDiscipline(user.openId, {
+              userId: user.openId,
               name: disciplinaName,
               color: "#e74c3c",
               weight: 1,
             });
             discId = created.id;
-            disciplines = await storage.getDisciplinesByUser(user.id);
+            disciplines = await storage.getDisciplinesByUser(user.openId);
           } else {
             discId = disc.id;
           }
 
           if (assuntoName && discId) {
-            let topics = await storage.getTopicsByUser(user.id);
+            let topics = await storage.getTopicsByUser(user.openId);
             let topic = topics.find(
               (t) =>
                 t.disciplineId === discId && isFuzzyMatch(t.name, assuntoName),
             );
             if (!topic) {
-              const created = await storage.createTopic({
-                userId: user.id,
+              const created = await storage.createTopic(user.openId, {
+                userId: user.openId,
                 disciplineId: discId,
                 name: assuntoName,
-                studyDate: new Date().toISOString(),
-                notes: null,
               });
               topId = created.id;
             } else {
@@ -821,8 +841,8 @@ export async function createApp() {
         }
 
         // Garantir que o topicId e disciplineId sejam passados corretamente para o storage
-        await storage.saveQuestionError({
-          userId: user.id,
+        await storage.createQuestionError(user.openId, {
+          userId: user.openId,
           disciplineId: discId || 0,
           topicId: topId || 0,
           questionId,
@@ -867,7 +887,7 @@ export async function createApp() {
         if (!questionId)
           return res.status(400).json({ error: "ID da questão ausente" });
 
-        const errors = await storage.getQuestionErrorsByUser(user.id);
+        const errors = await storage.getQuestionErrorsByUser(user.openId);
         const e = errors.items.find(
           (err: any) => err.questionId === questionId,
         );
@@ -961,14 +981,14 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
         const clean = raw.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(clean);
 
-        await storage.createFlashcard({
-          userId: user.id,
+        await storage.createFlashcard(user.openId, {
+          userId: user.openId,
           disciplineId: e.disciplineId,
           topicId: e.topicId || undefined,
           front: parsed.front,
           back: parsed.back,
         });
-        await storage.markQuestionErrorFlashcardGenerated(e.id, user.id);
+        await storage.markQuestionErrorFlashcardGenerated(e.id, user.openId);
 
         res.json({ success: true, front: parsed.front, back: parsed.back });
       } catch (e: any) {
@@ -1015,10 +1035,10 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
         let survivalNotes = "";
         let topicObj = null;
         if (user && subject && discipline) {
-          const discs = await storage.getDisciplinesByUser(user.id);
+          const discs = await storage.getDisciplinesByUser(user.openId);
           const disc = discs.find((d) => isFuzzyMatch(d.name, discipline));
           if (disc) {
-            const topics = await storage.getTopicsByUser(user.id);
+            const topics = await storage.getTopicsByUser(user.openId);
             topicObj = topics.find(
               (t) =>
                 t.disciplineId === disc.id && isFuzzyMatch(t.name, subject),
@@ -1160,14 +1180,14 @@ ${questionText}`;
         // Feature: Salvar como explicação da questão errada (Questões Erradas)
         if (user && questionId) {
           try {
-            const errors = await storage.getQuestionErrorsByUser(user.id);
+            const errors = await storage.getQuestionErrorsByUser(user.openId);
             const match = errors.items.find(
               (e: any) => e.questionId === questionId,
             );
             if (match) {
               await storage.saveQuestionErrorAnalysis(
                 match.id,
-                user.id,
+                user.openId,
                 responseText,
               );
             }
@@ -1215,13 +1235,13 @@ ${questionText}`;
       }
 
       // Salva cada caderno com metadados básicos (sem dados de desempenho ainda)
-      const existingCadernos = await storage.getCadernosTec(user.id);
+      const existingCadernos = await storage.getCadernosTec(user.openId);
       const existingIds = new Set(existingCadernos.map((c) => c.cadernoId));
       let newCount = 0;
 
       for (const c of cadernos) {
         if (!existingIds.has(c.id)) {
-          await storage.saveCadernoTec(user.id, {
+          await storage.saveCadernoTec(user.openId, {
             cadernoId: c.id,
             cadernoUrl: c.url,
             disciplina: c.disciplina || c.nome || "TEC Concursos",
@@ -1271,8 +1291,8 @@ ${questionText}`;
           .status(400)
           .json({ ok: false, error: "assunto e banca obrigatórios" });
 
-      const disciplines = await storage.getDisciplinesByUser(user.id);
-      const topics = await storage.getTopicsByUser(user.id);
+      const disciplines = await storage.getDisciplinesByUser(user.openId);
+      const topics = await storage.getTopicsByUser(user.openId);
 
       const disc = disciplines.find((d) =>
         isFuzzyMatch(d.name, disciplina || ""),
@@ -1305,17 +1325,17 @@ ${questionText}`;
           ([, a], [, b]) => b.correct + b.wrong - (a.correct + a.wrong),
         )[0]?.[0] ?? banca;
 
-      await storage.setTopicPerformance(topic.id, user.id, {
+      await storage.setTopicPerformance(topic.id, user.openId, {
         correctCount: topic.performance?.correctCount ?? 0,
         errorCount: topic.performance?.errorCount ?? 0,
         bancaDominante,
       } as Parameters<typeof storage.setTopicPerformance>[2]);
 
       // Update bancaStats in user settings too (global banca affinity)
-      const settings = await storage.getUserSettings(user.id);
+      const settings = await storage.getUserSettings(user.openId);
       const globalBanca = settings?.bancaStats || {};
       const gb = globalBanca[banca] || { correct: 0, wrong: 0 };
-      await storage.updateUserSettings(user.id, {
+      await storage.updateUserSettings(user.openId, {
         bancaStats: {
           ...globalBanca,
           [banca]: {
@@ -1345,7 +1365,7 @@ ${questionText}`;
       const user = await storage.getUserByPushToken(token);
       if (!user)
         return res.status(401).json({ ok: false, error: "Token inválido" });
-      const cadernos = await storage.getCadernosTec(user.id);
+      const cadernos = await storage.getCadernosTec(user.openId);
       res.json({
         ok: true,
         userName: user.name,
@@ -1366,9 +1386,9 @@ ${questionText}`;
       if (!user) return res.status(401).send("Token inválido");
 
       const [revisions, topics, disciplines] = await Promise.all([
-        storage.getRevisionsByUser(user.id),
-        storage.getTopicsByUser(user.id),
-        storage.getDisciplinesByUser(user.id),
+        storage.getRevisionsByUser(user.openId),
+        storage.getTopicsByUser(user.openId),
+        storage.getDisciplinesByUser(user.openId),
       ]);
 
       const topicMap = new Map(topics.map((t) => [t.id, t]));
@@ -1394,7 +1414,7 @@ ${questionText}`;
           .replace(/\n/g, "\\n");
       }
 
-      const uid_suffix = `@soe-${user.id}.local`;
+      const uid_suffix = `@soe-${user.openId}.local`;
       const now_stamp =
         new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
 
@@ -1470,27 +1490,24 @@ ${questionText}`;
     res.json({ ips, port });
   });
 
-  app.get("/api/sync/export", (_req, res) => {
+  app.get("/api/sync/export", async (req, res) => {
     try {
-      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      if (!fs.existsSync(dbFile))
-        return res.status(404).json({ error: "No database found" });
-      const data = fs.readFileSync(dbFile, "utf-8");
+      const userId = (req.headers["x-user-id"] as string) || "anonymous";
+      const db = await storage.readDatabase(userId);
       res.setHeader("Content-Type", "application/json; charset=utf-8");
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      res.send(data);
+      res.json(db);
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
   });
 
-  app.post("/api/sync/import", (req, res) => {
+  app.post("/api/sync/import", async (req, res) => {
     try {
-      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      fs.writeFileSync(dbFile, JSON.stringify(req.body, null, 2), "utf-8");
+      const userId = (req.headers["x-user-id"] as string) || "anonymous";
+      const jsonStr = JSON.stringify(req.body);
+      await storage.importDatabase(userId, jsonStr);
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.json({ success: true });
     } catch (e) {
@@ -1514,17 +1531,15 @@ ${questionText}`;
     req.on("close", () => receiveSSEClients.delete(res));
   });
 
-  app.post("/api/sync/receive", (req, res) => {
+  app.post("/api/sync/receive", async (req, res) => {
     try {
-      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      // req.body pode ser objeto (express.json parseou) ou string (CapacitorHttp enviou string crua)
+      const userId = (req.headers["x-user-id"] as string) || "anonymous";
       const payload = req.body;
       const jsonStr =
-        typeof payload === "string"
-          ? payload
-          : JSON.stringify(payload, null, 2);
-      fs.writeFileSync(dbFile, jsonStr, "utf-8");
+        typeof payload === "string" ? payload : JSON.stringify(payload);
+
+      await storage.importDatabase(userId, jsonStr);
+
       // Notify all SSE listeners that data arrived
       for (const client of receiveSSEClients) {
         try {
@@ -1538,10 +1553,11 @@ ${questionText}`;
     }
   });
 
-  app.post("/api/backup/auto", (_req, res) => {
+  app.post("/api/backup/auto", async (req, res) => {
     try {
+      const userId = (req.headers["x-user-id"] as string) || "anonymous";
       const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
+      const dbFile = path.join(dataDir, `database_${userId}.json`);
       if (!fs.existsSync(dbFile)) return res.json({ skipped: true });
       const backupDir = path.join(dataDir, "backups");
       if (!fs.existsSync(backupDir))
@@ -1570,19 +1586,83 @@ ${questionText}`;
     try {
       const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
       const backupDir = path.join(dataDir, "backups");
-      if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
-      const files = fs
-        .readdirSync(backupDir)
-        .filter((f: string) => f.startsWith("backup_"))
-        .sort()
-        .reverse();
+
+      let allFiles: Array<{
+        name: string;
+        date: string;
+        type: string;
+        path: string;
+      }> = [];
+
+      // 1. Scan /backups folder
+      if (fs.existsSync(backupDir)) {
+        const files = fs
+          .readdirSync(backupDir)
+          .filter((f) => f.endsWith(".json"));
+        allFiles = allFiles.concat(
+          files.map((f) => ({
+            name: f,
+            date: f.match(/\d{4}-\d{2}-\d{2}/)?.[0] || "Histórico",
+            type: "backup",
+            path: `backups/${f}`,
+          })),
+        );
+      }
+
+      // 2. Scan root /data folder for database files and migrations
+      if (fs.existsSync(dataDir)) {
+        const rootFiles = fs.readdirSync(dataDir);
+        rootFiles.forEach((f) => {
+          if (f === "database.json") {
+            allFiles.push({
+              name: "Global (database.json)",
+              date: "Legado",
+              type: "legacy",
+              path: f,
+            });
+          } else if (f.startsWith("database_") && f.endsWith(".json")) {
+            allFiles.push({ name: f, date: "Usuário", type: "user", path: f });
+          } else if (f.includes(".migrated.")) {
+            allFiles.push({
+              name: f,
+              date: "Migrado",
+              type: "migration",
+              path: f,
+            });
+          }
+        });
+      }
+
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.json({
-        backups: files.map((f: string) => ({
-          name: f,
-          date: f.replace("backup_", "").replace(".json", ""),
-        })),
+        backups: allFiles.sort((a, b) => b.name.localeCompare(a.name)),
       });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.get("/api/backup/read", (req, res) => {
+    try {
+      const fileName = req.query.file as string;
+      if (!fileName)
+        return res.status(400).json({ error: "Arquivo não especificado" });
+
+      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
+      const filePath = path.join(dataDir, fileName);
+
+      // Security: prevent directory traversal
+      const resolvedPath = path.resolve(filePath);
+      if (!resolvedPath.startsWith(path.resolve(dataDir))) {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      if (!fs.existsSync(resolvedPath))
+        return res.status(404).json({ error: "Arquivo não encontrado" });
+
+      const data = fs.readFileSync(resolvedPath, "utf-8");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.json({ json: data });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

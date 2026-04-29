@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
 
 const isAndroid = Capacitor.isNativePlatform();
 const isDesktop = !isAndroid;
@@ -151,7 +153,18 @@ export default function Sync() {
   const [importLoading, setImportLoading] = useState(false);
   const [driveUrl, setDriveUrl] = useState("");
   const [linkImportLoading, setLinkImportLoading] = useState(false);
+  const [cloudDownloadLoading, setCloudDownloadLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const importMutation = trpc.import.importBackup.useMutation({
+    onSuccess: () => {
+      toast.success("Importado com sucesso!");
+      setTimeout(() => window.location.reload(), 800);
+    },
+    onError: (err) => {
+      toast.error("Erro na importação: " + err.message);
+    },
+  });
 
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
@@ -285,10 +298,14 @@ export default function Sync() {
   const [delta, setDelta] = useState<{ local: any; remote: any } | null>(null);
 
   const confirmImport = async (json: string) => {
-    const { localImportImportBackup } = await import("@/lib/localDb");
-    await localImportImportBackup({ json });
-    toast.success("Dados sincronizados!");
-    setTimeout(() => window.location.reload(), 800);
+    if (Capacitor.isNativePlatform()) {
+      const { localImportImportBackup } = await import("@/lib/localDb");
+      await localImportImportBackup({ json });
+      toast.success("Dados sincronizados localmente!");
+      setTimeout(() => window.location.reload(), 800);
+    } else {
+      await importMutation.mutateAsync({ json });
+    }
   };
 
   const handlePull = useCallback(async () => {
@@ -390,12 +407,22 @@ export default function Sync() {
     setImportLoading(true);
     try {
       const json = await file.text();
-      const { localImportImportBackup } = await import("@/lib/localDb");
-      await localImportImportBackup({ json });
-      toast.success("Importado!");
-      setTimeout(() => window.location.reload(), 800);
-    } catch {
-      toast.error("Arquivo inválido");
+      console.log("[Sync] Selected file size:", file.size);
+      console.log("[Sync] File start (100 chars):", json.substring(0, 100));
+      const parsed = JSON.parse(json);
+      console.log("[Sync] Parsed JSON keys:", Object.keys(parsed).join(", "));
+      console.log("[Sync] Disciplines count:", parsed.disciplines?.length || 0);
+
+      if (Capacitor.isNativePlatform()) {
+        const { localImportImportBackup } = await import("@/lib/localDb");
+        await localImportImportBackup({ json });
+        toast.success("Importado localmente!");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        await importMutation.mutateAsync({ json });
+      }
+    } catch (e: any) {
+      toast.error("Erro: " + (e.message || "Arquivo inválido"));
     } finally {
       setImportLoading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -417,15 +444,238 @@ export default function Sync() {
       );
       if (!res.ok) throw new Error("Acesso negado ao arquivo");
       const json = await res.text();
-      const { localImportImportBackup } = await import("@/lib/localDb");
-      await localImportImportBackup({ json });
-      toast.success("Sincronizado com a nuvem!");
-      setTimeout(() => window.location.reload(), 800);
+
+      if (Capacitor.isNativePlatform()) {
+        const { localImportImportBackup } = await import("@/lib/localDb");
+        await localImportImportBackup({ json });
+        toast.success("Sincronizado com a nuvem!");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        await importMutation.mutateAsync({ json });
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLinkImportLoading(false);
       setDriveUrl("");
+    }
+  };
+
+  const handleCloudDownload = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    console.log("[CloudDownload] Session:", session);
+
+    if (!session?.user?.id) {
+      toast.error("Usuário não autenticado no Supabase");
+      return;
+    }
+
+    setCloudDownloadLoading(true);
+    toast.info("Conectando ao banco de dados...");
+
+    try {
+      const uid = session.user.id;
+      console.log("[CloudDownload] Supabase UUID:", uid);
+
+      // 1. First, find the internal integer ID from the 'users' table
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("id, open_id, email")
+        .eq("open_id", uid)
+        .single();
+
+      console.log(
+        "[CloudDownload] UserData result:",
+        userData,
+        "Error:",
+        userError,
+      );
+
+      if (userError || !userData) {
+        throw new Error(
+          `Vínculo não encontrado. Verifique se o seu UUID (${uid.substring(0, 8)}...) existe na coluna open_id da tabela users.`,
+        );
+      }
+
+      const internalId = userData.id;
+      console.log("[CloudDownload] Supabase User Data:", userData);
+      toast.info(`ID numérico ${internalId} encontrado! Baixando registros...`);
+      console.log(
+        "[CloudDownload] Fetching records for internalId:",
+        internalId,
+      );
+      const results = await Promise.all([
+        supabase.from("disciplines").select("*").eq("user_id", internalId),
+        supabase.from("topics").select("*").eq("user_id", internalId),
+        supabase.from("revisions").select("*").eq("user_id", internalId),
+        supabase.from("study_notes").select("*").eq("user_id", internalId),
+        supabase.from("mock_exams").select("*").eq("user_id", internalId),
+        supabase.from("question_errors").select("*").eq("user_id", internalId),
+      ]);
+
+      const [dRes, tRes, rRes, nRes, mRes, qRes] = results;
+
+      // Check for errors
+      const errorsFound = results.filter((r) => r.error);
+      if (errorsFound.length > 0) {
+        console.error("[CloudDownload] Supabase Errors:", errorsFound);
+        throw new Error(
+          `Erro ao baixar dados do Supabase: ${errorsFound[0].error?.message}`,
+        );
+      }
+
+      const discs = dRes.data || [];
+      const topics = tRes.data || [];
+      const revs = rRes.data || [];
+      const notes = nRes.data || [];
+      const exams = mRes.data || [];
+      const errors = qRes.data || [];
+
+      toast.info(
+        `Dados: ${discs.length} disc, ${topics.length} tóp, ${revs.length} rev.`,
+      );
+      console.log("[CloudDownload] Stats:", {
+        discs: discs.length,
+        topics: topics.length,
+        revs: revs.length,
+      });
+
+      if (discs.length === 0 && topics.length === 0 && revs.length === 0) {
+        toast.error(
+          "Atenção: Nenhum registro encontrado para este ID na nuvem.",
+        );
+      }
+
+      const db = {
+        users: [
+          {
+            id: internalId,
+            openId: uid,
+            name: session.user.user_metadata?.full_name || "Usuário",
+            email: session.user.email,
+            settings: { theme: "light" },
+          },
+        ],
+        disciplines: (discs || []).map((d) => ({
+          id: d.id,
+          userId: uid,
+          name: d.name,
+          color: d.color,
+          weight: Number(d.weight || 1),
+          order: d.order || 0,
+          studyTimeSeconds: d.study_time_seconds || 0,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        })),
+        topics: (topics || []).map((t) => ({
+          id: t.id,
+          userId: uid,
+          disciplineId: t.discipline_id,
+          name: t.name,
+          order: t.order || 0,
+          studyDate: t.study_date,
+          performance: t.performance,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+        })),
+        revisions: (revs || []).map((r) => ({
+          id: r.id,
+          userId: uid,
+          topicId: r.topic_id,
+          scheduledDate: r.scheduled_date,
+          type: r.type,
+          revisionNumber: r.revision_number,
+          completed: !!r.completed,
+          ignored: !!r.ignored,
+          completedAt: r.completed_at,
+          recallRating: r.recall_rating,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })),
+        notes: (notes || []).map((n) => ({
+          id: n.id,
+          userId: uid,
+          disciplineId: n.discipline_id,
+          topicId: n.topic_id,
+          title: n.title,
+          content: n.content,
+          createdAt: n.created_at,
+          updatedAt: n.updated_at,
+        })),
+        mockExams: (exams || []).map((e) => ({
+          id: e.id,
+          userId: uid,
+          name: e.name,
+          date: e.date,
+          correct: e.correct,
+          wrong: e.wrong,
+          blank: e.blank,
+          totalQuestions: e.total_questions,
+          score: e.score,
+          createdAt: e.created_at,
+        })),
+        questionErrors: (errors || []).map((e) => ({
+          id: e.id,
+          userId: uid,
+          topicId: e.topic_id,
+          disciplineId: e.discipline_id,
+          questionId: e.question_id,
+          banca: e.banca,
+          year: e.year,
+          contest: e.contest,
+          statement: e.statement,
+          alternatives: e.alternatives,
+          userAnswer: e.user_answer,
+          correctAnswer: e.correct_answer,
+          errorOrigin: e.error_origin,
+          aiAnalysis: e.ai_analysis,
+          resolution: e.resolution,
+          source: e.source,
+          createdAt: e.created_at,
+        })),
+        counters: {
+          users: 1,
+          disciplines:
+            (discs || []).length > 0
+              ? Math.max(...(discs || []).map((d) => Number(d.id) || 0))
+              : 0,
+          topics:
+            (topics || []).length > 0
+              ? Math.max(...(topics || []).map((t) => Number(t.id) || 0))
+              : 0,
+          revisions:
+            (revs || []).length > 0
+              ? Math.max(...(revs || []).map((r) => Number(r.id) || 0))
+              : 0,
+          notes:
+            (notes || []).length > 0
+              ? Math.max(...(notes || []).map((n) => Number(n.id) || 0))
+              : 0,
+          mockExams:
+            (exams || []).length > 0
+              ? Math.max(...(exams || []).map((e) => Number(e.id) || 0))
+              : 0,
+          questionErrors:
+            (errors || []).length > 0
+              ? Math.max(...(errors || []).map((e) => Number(e.id) || 0))
+              : 0,
+          flashcards: 0,
+        },
+      };
+
+      console.log("[CloudDownload] Final mapped DB:", db);
+      console.log(
+        "[CloudDownload] Sending JSON string length:",
+        JSON.stringify(db).length,
+      );
+      await importMutation.mutateAsync({ json: JSON.stringify(db) });
+      toast.success("Download da nuvem concluído!");
+    } catch (err: any) {
+      toast.error("Falha no download: " + err.message);
+    } finally {
+      setCloudDownloadLoading(false);
     }
   };
 
@@ -752,31 +1002,56 @@ export default function Sync() {
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <input
-                type="text"
-                placeholder="Cole o link do Google Drive aqui..."
-                value={driveUrl}
-                onChange={(e) => setDriveUrl(e.target.value)}
-                className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
-                style={{
-                  background: "var(--input-bg)",
-                  border: "1px solid var(--card-border)",
-                  color: "var(--app-fg)",
-                }}
-              />
-              <button
-                onClick={handleImportFromLink}
-                disabled={linkImportLoading || !driveUrl}
-                className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
-              >
-                {linkImportLoading ? (
-                  <RefreshCw className="animate-spin w-4 h-4" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                Importar
-              </button>
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Cole o link do Google Drive aqui..."
+                  value={driveUrl}
+                  onChange={(e) => setDriveUrl(e.target.value)}
+                  className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
+                  style={{
+                    background: "var(--input-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--app-fg)",
+                  }}
+                />
+                <button
+                  onClick={handleImportFromLink}
+                  disabled={linkImportLoading || !driveUrl}
+                  className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  {linkImportLoading ? (
+                    <RefreshCw className="animate-spin w-4 h-4" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Importar
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-dashed border-white/10 flex flex-col items-center gap-4">
+                <div className="text-center">
+                  <p className="text-sm font-bold opacity-80">
+                    Sincronização Direta Supabase
+                  </p>
+                  <p className="text-[10px] opacity-40 mt-1">
+                    Recupere seus dados salvos na nuvem SOE.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloudDownload}
+                  disabled={cloudDownloadLoading}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                >
+                  {cloudDownloadLoading ? (
+                    <RefreshCw className="animate-spin w-5 h-5" />
+                  ) : (
+                    <Cloud className="w-5 h-5" />
+                  )}
+                  Baixar da Nuvem Supabase
+                </button>
+              </div>
             </div>
             <div className="mt-4 flex items-center gap-2 opacity-30">
               <ShieldCheck size={14} />
@@ -873,15 +1148,51 @@ export default function Sync() {
                 ) : (
                   backups.map((b) => (
                     <div
-                      key={b.name}
-                      className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all"
+                      key={b.path}
+                      onClick={async () => {
+                        try {
+                          setImportLoading(true);
+                          const resp = await fetch(
+                            `http://localhost:3000/api/backup/read?file=${b.path}`,
+                          );
+                          const data = await resp.json();
+                          if (data.json) {
+                            await importMutation.mutateAsync({
+                              json: data.json,
+                            });
+                            toast.success("Backup restaurado do histórico!");
+                            setTimeout(() => window.location.reload(), 1000);
+                          }
+                        } catch (err: any) {
+                          toast.error(
+                            "Erro ao restaurar backup: " + err.message,
+                          );
+                        } finally {
+                          setImportLoading(false);
+                        }
+                      }}
+                      className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[var(--accent-green)]/10 flex items-center justify-center text-[var(--accent-green)]">
-                        <ShieldCheck size={14} />
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          b.type === "legacy"
+                            ? "bg-red-500/10 text-red-500"
+                            : b.type === "migration"
+                              ? "bg-amber-500/10 text-amber-500"
+                              : "bg-[var(--accent-green)]/10 text-[var(--accent-green)]"
+                        }`}
+                      >
+                        {b.type === "legacy" ? (
+                          <ShieldCheck size={14} />
+                        ) : b.type === "migration" ? (
+                          <RotateCw size={14} />
+                        ) : (
+                          <ShieldCheck size={14} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                          {b.date}
+                          {b.date} • {b.type}
                         </p>
                         <p
                           className="text-xs font-bold truncate"
