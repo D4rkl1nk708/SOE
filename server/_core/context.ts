@@ -60,29 +60,37 @@ export async function createContext(
   const authHeader = opts.req.headers.authorization;
   if (authHeader?.startsWith("Bearer ") && supabase) {
     const token = authHeader.split(" ")[1];
-    const {
-      data: { user: authUser },
-      error,
-    } = await supabase.auth.getUser(token);
+    try {
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser(token);
 
-    if (authUser && !error) {
-      const dbUser = await db.getUserByOpenId(authUser.id);
-      if (dbUser) {
-        user = dbUser;
-      } else {
-        await db.upsertUser({
-          openId: authUser.id,
-          name: authUser.user_metadata?.full_name || authUser.email,
-          email: authUser.email,
-          loginMethod: "supabase",
-          role: "user",
-          lastSignedIn: new Date().toISOString(),
-        });
-        const newDbUser = await db.getUserByOpenId(authUser.id);
-        if (newDbUser) {
-          user = newDbUser;
+      if (authUser && !error) {
+        const dbUser = await db.getUserByOpenId(authUser.id);
+        if (dbUser) {
+          user = dbUser;
+        } else {
+          await db.upsertUser({
+            openId: authUser.id,
+            name: authUser.user_metadata?.full_name || authUser.email,
+            email: authUser.email,
+            loginMethod: "supabase",
+            role: "user",
+            lastSignedIn: new Date().toISOString(),
+          });
+          const newDbUser = await db.getUserByOpenId(authUser.id);
+          if (newDbUser) {
+            user = newDbUser;
+          }
         }
       }
+    } catch (err) {
+      console.error(
+        "[Auth] Erro de conexão com Supabase:",
+        err instanceof Error ? err.message : err,
+      );
+      // Mantém user como null para não travar o servidor
     }
   }
 
