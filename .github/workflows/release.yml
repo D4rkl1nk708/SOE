@@ -98,11 +98,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
+          target_commitish: main
           name: SOE v${{ env.VERSION }}
+          make_latest: true
           generate_release_notes: true
           files: |
             Android-SOE-v*.apk
             Linux-SOE-v*.AppImage
             Windows-SOE-v*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
