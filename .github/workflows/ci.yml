@@ -31,6 +31,9 @@ jobs:
         echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
         echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
         echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+        # Copy to client and server for maximum compatibility
+        cp .env client/.env
+        mkdir -p server && cp .env server/.env
 
     - name: Type check
       run: npm run check

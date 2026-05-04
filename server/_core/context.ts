@@ -94,6 +94,10 @@ export async function createContext(
     }
   }
 
+  if (!user && authHeader) {
+    console.log("[Auth] Usuário não encontrado no DB para o token fornecido.");
+  }
+
   return {
     req: opts.req,
     res: opts.res,

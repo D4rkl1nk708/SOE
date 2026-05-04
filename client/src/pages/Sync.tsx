@@ -309,7 +309,7 @@ export default function Sync() {
     const { localImportImportBackup } = await import("@/lib/localDb");
     await localImportImportBackup({ json });
     toast.success("Dados sincronizados!");
-    setTimeout(() => window.location.reload(), 800);
+    setTimeout(() => window.location.reload(), 3000);
   };
 
   const handlePull = useCallback(async () => {
@@ -424,7 +424,7 @@ export default function Sync() {
       }
       toast.success("Banco de dados importado com sucesso!");
       refetchHistory();
-      setTimeout(() => window.location.reload(), 1500);
+      setTimeout(() => window.location.reload(), 3000);
     } catch (err: any) {
       toast.error(err.message || "Arquivo inválido ou vazio");
     } finally {
@@ -451,7 +451,7 @@ export default function Sync() {
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
       toast.success("Sincronizado com a nuvem!");
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 3000);
     } catch (e: any) {
       toast.error(e.message);
     } finally {

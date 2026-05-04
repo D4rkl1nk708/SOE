@@ -1265,6 +1265,22 @@ export async function importDatabaseForUser(
 
     // Remap user ID from imported data to currentUserId if they differ
     if (importedUserId !== undefined) {
+      console.log(
+        `[Import] Remapeando dados de usuário ${importedUserId} para ${currentUserId}`,
+      );
+
+      // Also update current user's settings from the imported user
+      const userIndex = db.users.findIndex((u) => u.id === currentUserId);
+      if (userIndex >= 0 && importedUser.settings) {
+        db.users[userIndex].settings = {
+          ...db.users[userIndex].settings,
+          ...importedUser.settings,
+        };
+        console.log(
+          `[Import] Configurações do usuário ${currentUserId} atualizadas.`,
+        );
+      }
+
       const tables = [
         "disciplines",
         "topics",
