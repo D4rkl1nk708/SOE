@@ -11,6 +11,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    environment: Production
     
     steps:
       - name: Checkout Code
@@ -31,7 +32,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
       - name: Validate Secrets
         run: |
