@@ -120,6 +120,23 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
+
+    // NEW: Don't redirect if we had a connection error (server might be restarting)
+    if (meQuery.isError) {
+      const error = meQuery.error as any;
+      const isConnectionError =
+        error?.data?.code === "TIMEOUT" ||
+        error?.data?.code === "SERVICE_UNAVAILABLE" ||
+        error?.message?.includes("fetch");
+
+      if (isConnectionError) {
+        console.warn(
+          "[Auth] Falha temporária de conexão. Mantendo sessão ativa...",
+        );
+        return;
+      }
+    }
+
     if (window.location.pathname === redirectPath) return;
 
     window.location.href = redirectPath;
@@ -129,6 +146,8 @@ export function useAuth(options?: UseAuthOptions) {
     redirectPath,
     logoutMutation.isPending,
     meQuery.isLoading,
+    meQuery.isError,
+    meQuery.error,
     state.user,
   ]);
 

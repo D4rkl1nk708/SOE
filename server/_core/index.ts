@@ -1600,6 +1600,7 @@ ${questionText}`;
               " " +
               stats.mtime.toISOString().split("T")[1].substring(0, 5),
             timestamp: stats.mtime.getTime(),
+            size: stats.size,
           });
         }
       }
@@ -1618,6 +1619,7 @@ ${questionText}`;
               ? f.replace("backup_", "").replace(".json", "")
               : stats.mtime.toISOString().split("T")[0],
             timestamp: stats.mtime.getTime(),
+            size: stats.size,
           });
         }
       }
@@ -1630,6 +1632,7 @@ ${questionText}`;
           name: f.name,
           date: f.date,
           source: f.path,
+          size: f.size,
         })),
       });
     } catch (e) {

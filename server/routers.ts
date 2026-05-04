@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
@@ -36,7 +37,15 @@ export const appRouter = router({
   system: systemRouter,
   edital: editalRouter,
   auth: router({
-    me: protectedProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => {
+      if (ctx.supabaseError) {
+        throw new TRPCError({
+          code: "SERVICE_UNAVAILABLE",
+          message: "Falha temporária de conexão com o servidor de autenticação",
+        });
+      }
+      return ctx.user;
+    }),
     logout: protectedProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -431,6 +440,9 @@ export const appRouter = router({
       .input(z.object({ base64: z.string(), fileName: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         try {
+          console.log(
+            `[Import] Restaurando arquivo do histórico: ${input.fileName}`,
+          );
           const buffer = Buffer.from(input.base64, "base64");
           const rows = parseXlsxBuffer(buffer);
           const result = await processImportRows(ctx.user.id, rows);
@@ -663,6 +675,9 @@ export const appRouter = router({
             : path.join(dataDir, "backups", input.name);
         if (!fs.existsSync(filePath)) throw new Error("Arquivo não encontrado");
         const json = fs.readFileSync(filePath, "utf-8");
+        console.log(
+          `[Import] Restaurando arquivo do histórico: ${input.name} (${filePath})`,
+        );
         try {
           await storage.importDatabaseForUser(json, ctx.user.id);
           await storage.addSyncHistory(ctx.user.id, {

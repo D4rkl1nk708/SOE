@@ -139,7 +139,12 @@ async function scanQRNative(): Promise<string | null> {
 }
 
 type SyncInfo = { ips: string[]; port: number };
-type BackupEntry = { name: string; date: string; source?: string };
+type BackupEntry = {
+  name: string;
+  date: string;
+  source?: string;
+  size?: number;
+};
 
 export default function Sync() {
   const trpcUtils = trpc.useUtils();
@@ -309,7 +314,7 @@ export default function Sync() {
     const { localImportImportBackup } = await import("@/lib/localDb");
     await localImportImportBackup({ json });
     toast.success("Dados sincronizados!");
-    setTimeout(() => window.location.reload(), 3000);
+    setTimeout(() => window.location.reload(), 5000);
   };
 
   const handlePull = useCallback(async () => {
@@ -424,7 +429,7 @@ export default function Sync() {
       }
       toast.success("Banco de dados importado com sucesso!");
       refetchHistory();
-      setTimeout(() => window.location.reload(), 3000);
+      setTimeout(() => window.location.reload(), 5000);
     } catch (err: any) {
       toast.error(err.message || "Arquivo inválido ou vazio");
     } finally {
@@ -451,7 +456,7 @@ export default function Sync() {
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
       toast.success("Sincronizado com a nuvem!");
-      setTimeout(() => window.location.reload(), 3000);
+      setTimeout(() => window.location.reload(), 5000);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -964,8 +969,15 @@ export default function Sync() {
                         <ShieldCheck size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                          {b.date}
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center justify-between">
+                          <span>{b.date}</span>
+                          {b.size !== undefined && (
+                            <span className="text-[9px] text-[var(--accent-green)]">
+                              {(b.size / 1024).toFixed(1)} KB
+                              {b.size > 1024 * 1024 &&
+                                ` (${(b.size / (1024 * 1024)).toFixed(1)} MB)`}
+                            </span>
+                          )}
                         </p>
                         <p
                           className="text-xs font-bold truncate"
@@ -985,6 +997,9 @@ export default function Sync() {
                             )
                               return;
                             try {
+                              toast.info(
+                                "Iniciando restauração do histórico...",
+                              );
                               await importLocalMutation.mutateAsync({
                                 name: b.name,
                                 source: b.source,

@@ -506,6 +506,11 @@ function readDatabase(): Database {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, "utf-8");
       const db = JSON.parse(data);
+      if (db.users) {
+        console.log(
+          `[Database] Banco carregado. Usuários encontrados: ${db.users.length}`,
+        );
+      }
       // Migration for new fields if they don't exist
       if (!db.mockExams) db.mockExams = [];
       if (!db.notes) db.notes = [];
@@ -608,7 +613,9 @@ function writeDatabase(db: Database): void {
   // Queue the actual disk write behind the lock
   acquireWriteLock(() => {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+      const tempFile = `${DB_FILE}.tmp`;
+      fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), "utf-8");
+      fs.renameSync(tempFile, DB_FILE);
 
       // AUTO-BACKUP (Sincronização em Nuvem Invisível -> via Google Drive local)
       if (db.users && db.users.length > 0) {
@@ -1237,158 +1244,196 @@ export async function importDatabaseForUser(
 ): Promise<void> {
   try {
     const importedDb = JSON.parse(jsonString);
-    if (
-      !importedDb.users ||
-      !importedDb.disciplines ||
-      !importedDb.topics ||
-      !importedDb.revisions
-    ) {
-      throw new Error("Formato de banco de dados inválido ou vazio");
+    if (!importedDb) {
+      throw new Error("O arquivo JSON está vazio ou é inválido.");
     }
 
     const db = readDatabase();
-    const currentUserInfo = db.users.find((u) => u.id === currentUserId);
-    if (!currentUserInfo) throw new Error("Usuário atual não encontrado");
-
-    // Robust user identification in imported database
-    // 1. Try matching by openId
-    // 2. Try matching by email
-    // 3. Fallback to the first user (usually exports have one user)
-    const importedUser =
-      importedDb.users.find(
-        (u: any) =>
-          (u.openId && u.openId === currentUserInfo.openId) ||
-          (u.email && u.email === currentUserInfo.email),
-      ) || importedDb.users[0];
-
-    const importedUserId = importedUser?.id;
-
-    // Remap user ID from imported data to currentUserId if they differ
-    if (importedUserId !== undefined) {
-      console.log(
-        `[Import] Remapeando dados de usuário ${importedUserId} para ${currentUserId}`,
-      );
-
-      // Also update current user's settings from the imported user
-      const userIndex = db.users.findIndex((u) => u.id === currentUserId);
-      if (userIndex >= 0 && importedUser.settings) {
-        db.users[userIndex].settings = {
-          ...db.users[userIndex].settings,
-          ...importedUser.settings,
-        };
-        console.log(
-          `[Import] Configurações do usuário ${currentUserId} atualizadas.`,
-        );
-      }
-
-      const tables = [
-        "disciplines",
-        "topics",
-        "revisions",
-        "mockExams",
-        "notes",
-        "flashcards",
-        "questionErrors",
-        "essays",
-        "tecSnapshots",
-      ];
-      for (const table of tables) {
-        if (importedDb[table]) {
-          for (const item of importedDb[table]) {
-            // Remap if it matches the identified user ID OR if it doesn't have a userId but we assume it belongs to the export
-            if (item.userId === importedUserId || !item.userId) {
-              item.userId = currentUserId;
-            }
-          }
-        }
-      }
-      if (importedDb.cadernosTec && importedDb.cadernosTec[importedUserId]) {
-        importedDb.cadernosTec[currentUserId] =
-          importedDb.cadernosTec[importedUserId];
-        if (importedUserId !== currentUserId)
-          delete importedDb.cadernosTec[importedUserId];
-      }
-    }
-
-    // Now filter ONLY the data that now belongs to currentUserId
-    const importedDisciplines = (importedDb.disciplines || []).filter(
-      (d: any) => d.userId === currentUserId,
+    const currentUserInfo = db.users.find(
+      (u) => String(u.id) === String(currentUserId),
     );
-    const importedTopics = (importedDb.topics || []).filter(
-      (t: any) => t.userId === currentUserId,
-    );
-    const importedRevisions = (importedDb.revisions || []).filter(
-      (r: any) => r.userId === currentUserId,
-    );
-
-    if (
-      importedDisciplines.length === 0 &&
-      importedTopics.length === 0 &&
-      importedRevisions.length === 0
-    ) {
+    if (!currentUserInfo)
       throw new Error(
-        "O arquivo JSON não contém dados pertencentes ao seu usuário.",
+        `Usuário local ${currentUserId} não encontrado no banco.`,
+      );
+
+    console.log(
+      `[Import] DEBUG: Chaves encontradas: ${Object.keys(importedDb).join(", ")}`,
+    );
+    if (importedDb) {
+      console.log(
+        `[Import] DEBUG: Conteúdo detectado - Matérias: ${importedDb.disciplines?.length || 0}, Tópicos: ${importedDb.topics?.length || 0}, Revisões: ${importedDb.revisions?.length || 0}`,
       );
     }
 
-    // Replace the current user's data completely with the imported data
+    // 1. Identify imported user and prepare ID maps
+    let importedUserId: any = undefined;
+    if (Array.isArray(importedDb.users) && importedDb.users.length > 0) {
+      const importedUserMatch =
+        importedDb.users.find(
+          (u: any) =>
+            (u.openId && u.openId === currentUserInfo.openId) ||
+            (u.email && u.email === currentUserInfo.email),
+        ) || importedDb.users[0];
+      importedUserId = importedUserMatch?.id;
+    }
+
+    const idMaps: Record<string, Map<any, any>> = {
+      disciplines: new Map(),
+      topics: new Map(),
+    };
+
+    // 2. Find MAX IDs in current DB
+    const getMaxId = (table: any[]) =>
+      Math.max(0, ...table.map((i) => Number(i.id) || 0));
+    let nextDiscId = getMaxId(db.disciplines) + 1;
+    let nextTopId = getMaxId(db.topics) + 1;
+    let nextRevId = getMaxId(db.revisions) + 1;
+    let nextMockId = getMaxId(db.mockExams || []) + 1;
+    let nextNoteId = getMaxId(db.notes || []) + 1;
+    let nextFlashId = getMaxId(db.flashcards || []) + 1;
+    let nextErrId = getMaxId(db.questionErrors || []) + 1;
+    let nextEssayId = getMaxId(db.essays || []) + 1;
+    let nextSnapId = getMaxId(db.tecSnapshots || []) + 1;
+
+    console.log(
+      `[Import] DEBUG: Iniciando para UserID=${currentUserId} (${currentUserInfo.email})`,
+    );
+
+    // 3. Remap EVERYTHING to currentUserId and generate UNIQUE IDs
+    // We map disciplines first
+    const importedDisciplines = (importedDb.disciplines || []).map((d: any) => {
+      const oldId = d.id;
+      const newId = nextDiscId++;
+      idMaps.disciplines.set(oldId, newId);
+      return { ...d, id: newId, userId: currentUserId };
+    });
+
+    const importedTopics = (importedDb.topics || []).map((t: any) => {
+      const oldId = t.id;
+      const newId = nextTopId++;
+      idMaps.topics.set(oldId, newId);
+      const newDiscId =
+        idMaps.disciplines.get(t.disciplineId) || t.disciplineId;
+      return {
+        ...t,
+        id: newId,
+        userId: currentUserId,
+        disciplineId: newDiscId,
+      };
+    });
+
+    const importedRevisions = (importedDb.revisions || []).map((r: any) => ({
+      ...r,
+      id: nextRevId++,
+      userId: currentUserId,
+      topicId: idMaps.topics.get(r.topicId) || r.topicId,
+    }));
+
+    const importedMockExams = (importedDb.mockExams || []).map((m: any) => ({
+      ...m,
+      id: nextMockId++,
+      userId: currentUserId,
+    }));
+
+    const importedNotes = (importedDb.notes || []).map((n: any) => ({
+      ...n,
+      id: nextNoteId++,
+      userId: currentUserId,
+      topicId: idMaps.topics.get(n.topicId) || n.topicId,
+    }));
+
+    const importedFlashcards = (importedDb.flashcards || []).map((f: any) => ({
+      ...f,
+      id: nextFlashId++,
+      userId: currentUserId,
+      topicId: idMaps.topics.get(f.topicId) || f.topicId,
+    }));
+
+    const importedQuestionErrors = (importedDb.questionErrors || []).map(
+      (q: any) => ({
+        ...q,
+        id: nextErrId++,
+        userId: currentUserId,
+        topicId: idMaps.topics.get(q.topicId) || q.topicId,
+      }),
+    );
+
+    const importedEssays = (importedDb.essays || []).map((e: any) => ({
+      ...e,
+      id: nextEssayId++,
+      userId: currentUserId,
+    }));
+
+    const importedSnapshots = (importedDb.tecSnapshots || []).map((s: any) => ({
+      ...s,
+      id: nextSnapId++,
+      userId: currentUserId,
+      topicId: idMaps.topics.get(s.topicId) || s.topicId,
+    }));
+
+    console.log(
+      `[Import] Finalizado remapeamento: ${importedDisciplines.length} matérias e ${importedTopics.length} tópicos.`,
+    );
+
+    if (importedDisciplines.length === 0 && importedTopics.length === 0) {
+      throw new Error("O arquivo JSON não contém matérias ou tópicos válidos.");
+    }
+
+    // 4. Merge data (Replacement for current user)
     db.disciplines = db.disciplines
-      .filter((d) => d.userId !== currentUserId)
+      .filter((d) => String(d.userId) !== String(currentUserId))
       .concat(importedDisciplines);
     db.topics = db.topics
-      .filter((t) => t.userId !== currentUserId)
+      .filter((t) => String(t.userId) !== String(currentUserId))
       .concat(importedTopics);
     db.revisions = db.revisions
-      .filter((r) => r.userId !== currentUserId)
+      .filter((r) => String(r.userId) !== String(currentUserId))
       .concat(importedRevisions);
     db.mockExams = (db.mockExams || [])
-      .filter((m) => m.userId !== currentUserId)
-      .concat(
-        (importedDb.mockExams || []).filter(
-          (x: any) => x.userId === currentUserId,
-        ),
-      );
+      .filter((m) => String(m.userId) !== String(currentUserId))
+      .concat(importedMockExams);
     db.notes = (db.notes || [])
-      .filter((n) => n.userId !== currentUserId)
-      .concat(
-        (importedDb.notes || []).filter((x: any) => x.userId === currentUserId),
-      );
+      .filter((n) => String(n.userId) !== String(currentUserId))
+      .concat(importedNotes);
     db.flashcards = (db.flashcards || [])
-      .filter((f) => f.userId !== currentUserId)
-      .concat(
-        (importedDb.flashcards || []).filter(
-          (x: any) => x.userId === currentUserId,
-        ),
-      );
+      .filter((f) => String(f.userId) !== String(currentUserId))
+      .concat(importedFlashcards);
     db.questionErrors = (db.questionErrors || [])
-      .filter((q) => q.userId !== currentUserId)
-      .concat(
-        (importedDb.questionErrors || []).filter(
-          (x: any) => x.userId === currentUserId,
-        ),
-      );
+      .filter((q) => String(q.userId) !== String(currentUserId))
+      .concat(importedQuestionErrors);
     db.essays = (db.essays || [])
-      .filter((e) => e.userId !== currentUserId)
-      .concat(
-        (importedDb.essays || []).filter(
-          (x: any) => x.userId === currentUserId,
-        ),
-      );
+      .filter((e) => String(e.userId) !== String(currentUserId))
+      .concat(importedEssays);
     db.tecSnapshots = (db.tecSnapshots || [])
-      .filter((t) => t.userId !== currentUserId)
-      .concat(
-        (importedDb.tecSnapshots || []).filter(
-          (x: any) => x.userId === currentUserId,
-        ),
-      );
+      .filter((s) => String(s.userId) !== String(currentUserId))
+      .concat(importedSnapshots);
 
-    if (importedDb.cadernosTec && importedDb.cadernosTec[currentUserId]) {
+    // 5. Update user settings
+    if (Array.isArray(importedDb.users) && importedDb.users.length > 0) {
+      const idx = db.users.findIndex(
+        (u) => String(u.id) === String(currentUserId),
+      );
+      if (idx >= 0 && importedDb.users[0].settings) {
+        db.users[idx].settings = {
+          ...db.users[idx].settings,
+          ...importedDb.users[0].settings,
+        };
+      }
+    }
+
+    if (
+      importedDb.cadernosTec &&
+      importedUserId !== undefined &&
+      importedDb.cadernosTec[importedUserId]
+    ) {
       if (!db.cadernosTec) db.cadernosTec = {};
-      db.cadernosTec[currentUserId] = importedDb.cadernosTec[currentUserId];
+      db.cadernosTec[currentUserId] = importedDb.cadernosTec[importedUserId];
     }
 
     writeDatabase(db);
   } catch (error) {
+    console.error("[Import] Erro fatal:", error);
     throw new Error("Falha ao importar: " + (error as Error).message);
   }
 }

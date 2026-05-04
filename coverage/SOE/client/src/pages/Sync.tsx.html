@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">28.06% </span>
+                <span class="strong">27.97% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>87/310</span>
+                <span class='fraction'>87/311</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">22.51% </span>
+                <span class="strong">22.05% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>43/191</span>
+                <span class='fraction'>43/195</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">29.41% </span>
+                <span class="strong">29.31% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>85/289</span>
+                <span class='fraction'>85/290</span>
             </div>
         
             
@@ -1246,7 +1246,14 @@
 <a name='L1181'></a><a href='#L1181'>1181</a>
 <a name='L1182'></a><a href='#L1182'>1182</a>
 <a name='L1183'></a><a href='#L1183'>1183</a>
-<a name='L1184'></a><a href='#L1184'>1184</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1184'></a><a href='#L1184'>1184</a>
+<a name='L1185'></a><a href='#L1185'>1185</a>
+<a name='L1186'></a><a href='#L1186'>1186</a>
+<a name='L1187'></a><a href='#L1187'>1187</a>
+<a name='L1188'></a><a href='#L1188'>1188</a>
+<a name='L1189'></a><a href='#L1189'>1189</a>
+<a name='L1190'></a><a href='#L1190'>1190</a>
+<a name='L1191'></a><a href='#L1191'>1191</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2226,11 +2233,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -2570,7 +2584,7 @@ async function <span class="fstat-no" title="function not covered" >scanQRNative
 }
 &nbsp;
 type SyncInfo = { ips: string[]; port: number };
-type BackupEntry = { name: string; date: string; source?: string };
+type BackupEntry = { name: string; date: string; source?: string; size?: number };
 &nbsp;
 export default function Sync() {
   const trpcUtils = trpc.useUtils();
@@ -2740,7 +2754,7 @@ export default function Sync() {
     const { localImportImportBackup } = <span class="cstat-no" title="statement not covered" >await import("@/lib/localDb");</span>
 <span class="cstat-no" title="statement not covered" >    await localImportImportBackup({ json });</span>
 <span class="cstat-no" title="statement not covered" >    toast.success("Dados sincronizados!");</span>
-<span class="cstat-no" title="statement not covered" >    setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 8</span>00);</span>
+<span class="cstat-no" title="statement not covered" >    setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 5</span>000);</span>
   };
 &nbsp;
   const handlePull = useCallback(<span class="fstat-no" title="function not covered" >async () =&gt; {</span>
@@ -2855,7 +2869,7 @@ export default function Sync() {
       }
 <span class="cstat-no" title="statement not covered" >      toast.success("Banco de dados importado com sucesso!");</span>
 <span class="cstat-no" title="statement not covered" >      refetchHistory();</span>
-<span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 1</span>500);</span>
+<span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 5</span>000);</span>
     } catch (err: any) {
 <span class="cstat-no" title="statement not covered" >      toast.error(err.message || "Arquivo inválido ou vazio");</span>
     } finally {
@@ -2882,7 +2896,7 @@ export default function Sync() {
       const { localImportImportBackup } = <span class="cstat-no" title="statement not covered" >await import("@/lib/localDb");</span>
 <span class="cstat-no" title="statement not covered" >      await localImportImportBackup({ json });</span>
 <span class="cstat-no" title="statement not covered" >      toast.success("Sincronizado com a nuvem!");</span>
-<span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 8</span>00);</span>
+<span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >w</span>indow.location.reload(), 5</span>000);</span>
     } catch (e: any) {
 <span class="cstat-no" title="statement not covered" >      toast.error(e.message);</span>
     } finally {
@@ -3395,8 +3409,14 @@ export default function Sync() {
                         &lt;ShieldCheck size={14} /&gt;
                       &lt;/div&gt;
                       &lt;div className="flex-1 min-w-0"&gt;
-                        &lt;p className="text-[10px] font-black uppercase tracking-widest opacity-40"&gt;
-                          {b.date}
+                        &lt;p className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center justify-between"&gt;
+                          &lt;span&gt;{b.date}&lt;/span&gt;
+                          {b.size !== undefined &amp;&amp; (
+                            &lt;span className="text-[9px] text-[var(--accent-green)]"&gt;
+                              {(b.size / 1024).toFixed(1)} KB
+                              {b.size &gt; 1024 * 1024 &amp;&amp; ` (${(b.size / (1024 * 1024)).toFixed(1)} MB)`}
+                            &lt;/span&gt;
+                          )}
                         &lt;/p&gt;
                         &lt;p
                           className="text-xs font-bold truncate"
@@ -3416,6 +3436,7 @@ export default function Sync() {
                             )
 <span class="cstat-no" title="statement not covered" >                              return;</span>
 <span class="cstat-no" title="statement not covered" >                            try {</span>
+<span class="cstat-no" title="statement not covered" >                              toast.info("Iniciando restauração do histórico...");</span>
 <span class="cstat-no" title="statement not covered" >                              await importLocalMutation.mutateAsync({</span>
                                 name: b.name,
                                 source: b.source,
@@ -3619,7 +3640,7 @@ export default function Sync() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-04T03:36:20.799Z
+                at 2026-05-04T20:33:23.242Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

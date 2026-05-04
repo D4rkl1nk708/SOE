@@ -50,51 +50,57 @@ export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
+  supabaseError?: boolean;
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
   let user: User | null = null;
+  let supabaseError = false;
 
   const authHeader = opts.req.headers.authorization;
   if (authHeader?.startsWith("Bearer ") && supabase) {
     const token = authHeader.split(" ")[1];
-    try {
-      const {
-        data: { user: authUser },
-        error,
-      } = await supabase.auth.getUser(token);
 
-      if (authUser && !error) {
-        const dbUser = await db.getUserByOpenId(authUser.id);
-        if (dbUser) {
-          user = dbUser;
-        } else {
-          await db.upsertUser({
-            openId: authUser.id,
-            name: authUser.user_metadata?.full_name || authUser.email,
-            email: authUser.email,
-            loginMethod: "supabase",
-            role: "user",
-            lastSignedIn: new Date().toISOString(),
-          });
-          const newDbUser = await db.getUserByOpenId(authUser.id);
-          if (newDbUser) {
-            user = newDbUser;
+    if (token) {
+      try {
+        const { data: authData, error: authError } =
+          await supabase.auth.getUser(token);
+
+        if (authError) {
+          console.warn("[Auth] Token inválido ou expirado:", authError.message);
+        } else if (authData.user) {
+          const authUser = authData.user;
+          const dbUser = await db.getUserByOpenId(authUser.id);
+          if (dbUser) {
+            user = dbUser;
+          } else {
+            // Auto-register user from Supabase if not in local DB
+            await db.upsertUser({
+              openId: authUser.id,
+              name: authUser.user_metadata?.full_name || authUser.email,
+              email: authUser.email,
+              loginMethod: "supabase",
+              role: "user",
+              lastSignedIn: new Date().toISOString(),
+            });
+            user = (await db.getUserByOpenId(authUser.id)) || null;
           }
         }
+      } catch (err: any) {
+        const isConnectionError =
+          err.message?.includes("fetch") || err.message?.includes("timeout");
+        console.error(
+          `[Auth] ${isConnectionError ? "Timeout" : "Erro"} de conexão com Supabase:`,
+          err.message,
+        );
+        if (isConnectionError) supabaseError = true;
       }
-    } catch (err) {
-      console.error(
-        "[Auth] Erro de conexão com Supabase:",
-        err instanceof Error ? err.message : err,
-      );
-      // Mantém user como null para não travar o servidor
     }
   }
 
-  if (!user && authHeader) {
+  if (!user && authHeader && !supabaseError) {
     console.log("[Auth] Usuário não encontrado no DB para o token fornecido.");
   }
 
@@ -102,5 +108,6 @@ export async function createContext(
     req: opts.req,
     res: opts.res,
     user,
+    supabaseError,
   };
 }

@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">15.07% </span>
+                <span class="strong">15.15% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>74/491</span>
+                <span class='fraction'>75/495</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">2.48% </span>
+                <span class="strong">2.81% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>7/282</span>
+                <span class='fraction'>8/284</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">16.03% </span>
+                <span class="strong">16.11% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>72/449</span>
+                <span class='fraction'>73/453</span>
             </div>
         
             
@@ -2027,7 +2027,19 @@
 <a name='L1962'></a><a href='#L1962'>1962</a>
 <a name='L1963'></a><a href='#L1963'>1963</a>
 <a name='L1964'></a><a href='#L1964'>1964</a>
-<a name='L1965'></a><a href='#L1965'>1965</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1965'></a><a href='#L1965'>1965</a>
+<a name='L1966'></a><a href='#L1966'>1966</a>
+<a name='L1967'></a><a href='#L1967'>1967</a>
+<a name='L1968'></a><a href='#L1968'>1968</a>
+<a name='L1969'></a><a href='#L1969'>1969</a>
+<a name='L1970'></a><a href='#L1970'>1970</a>
+<a name='L1971'></a><a href='#L1971'>1971</a>
+<a name='L1972'></a><a href='#L1972'>1972</a>
+<a name='L1973'></a><a href='#L1973'>1973</a>
+<a name='L1974'></a><a href='#L1974'>1974</a>
+<a name='L1975'></a><a href='#L1975'>1975</a>
+<a name='L1976'></a><a href='#L1976'>1976</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2065,7 +2077,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -2282,7 +2302,7 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">158x</span>
+<span class="cline-any cline-yes">161x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2464,6 +2484,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2690,6 +2711,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -3995,6 +4017,7 @@
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
@@ -4029,7 +4052,15 @@ export const appRouter = router({
   system: systemRouter,
   edital: editalRouter,
   auth: router({
-    me: protectedProcedure.query((opts) =&gt; opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) =&gt; {
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (ctx.supabaseError) {
+<span class="cstat-no" title="statement not covered" >        throw new TRPCError({</span>
+          code: "SERVICE_UNAVAILABLE",
+          message: "Falha temporária de conexão com o servidor de autenticação",
+        });
+      }
+      return ctx.user;
+    }),
     logout: protectedProcedure.mutation(({ ctx }) =&gt; {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -4424,6 +4455,7 @@ export const appRouter = router({
       .input(z.object({ base64: z.string(), fileName: z.string().optional() }))
       .mutation(<span class="fstat-no" title="function not covered" >async ({</span> ctx, input }) =&gt; {
 <span class="cstat-no" title="statement not covered" >        try {</span>
+<span class="cstat-no" title="statement not covered" >          console.log(`[Import] Restaurando arquivo do histórico: ${input.fileName}`);</span>
           const buffer = <span class="cstat-no" title="statement not covered" >Buffer.from(input.base64, "base64");</span>
           const <span class="cstat-no" title="statement not covered" >rows = parseXlsxBuffer(buffer);</span>
           const result = <span class="cstat-no" title="statement not covered" >await processImportRows(ctx.user.id, rows);</span>
@@ -4656,6 +4688,7 @@ export const appRouter = router({
             : path.join(dataDir, "backups", input.name);
 <span class="cstat-no" title="statement not covered" >        if (!fs.existsSync(filePath)) <span class="cstat-no" title="statement not covered" >throw new Error("Arquivo não encontrado");</span></span>
         const json = <span class="cstat-no" title="statement not covered" >fs.readFileSync(filePath, "utf-8");</span>
+<span class="cstat-no" title="statement not covered" >        console.log(`[Import] Restaurando arquivo do histórico: ${input.name} (${filePath})`);</span>
 <span class="cstat-no" title="statement not covered" >        try {</span>
 <span class="cstat-no" title="statement not covered" >          await storage.importDatabaseForUser(json, ctx.user.id);</span>
 <span class="cstat-no" title="statement not covered" >          await storage.addSyncHistory(ctx.user.id, {</span>
@@ -5962,7 +5995,7 @@ export type AppRouter = typeof appRouter;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-04T03:36:20.799Z
+                at 2026-05-04T20:33:23.242Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
