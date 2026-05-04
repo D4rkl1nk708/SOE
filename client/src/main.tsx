@@ -56,9 +56,11 @@ const trpcClient = trpc.createClient({
         url: trpcUrl,
         transformer: superjson,
         fetch(input, init) {
-          const authString = localStorage.getItem(
-            "sb-nhdsmlbybipchjmcrida-auth-token",
-          );
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+          const projectId =
+            supabaseUrl.match(/https:\/\/(.*?)\.supabase/)?.[1] || "default";
+          const authKey = `sb-${projectId}-auth-token`;
+          const authString = localStorage.getItem(authKey);
           let token = "";
           if (authString) {
             try {

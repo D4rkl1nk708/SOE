@@ -13,6 +13,11 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    if (!supabase) {
+      toast.error("Serviço de autenticação não configurado.");
+      setLoading(false);
+      return;
+    }
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -30,6 +35,11 @@ export default function Login() {
 
   const handleRegister = async () => {
     setLoading(true);
+    if (!supabase) {
+      toast.error("Serviço de autenticação não configurado.");
+      setLoading(false);
+      return;
+    }
     try {
       const { error } = await supabase.auth.signUp({
         email,

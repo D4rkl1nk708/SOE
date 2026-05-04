@@ -46,6 +46,8 @@ export function useAuth(options?: UseAuthOptions) {
 
   // Track Supabase session manually to ensure react-query is in sync
   useEffect(() => {
+    if (!supabase) return;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         utils.auth.me.setData(undefined, undefined);
@@ -73,7 +75,9 @@ export function useAuth(options?: UseAuthOptions) {
     }
 
     try {
-      await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
       if (

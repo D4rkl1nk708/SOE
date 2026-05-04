@@ -8,8 +8,6 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import { VitePWA } from "vite-plugin-pwa";
 import packageJson from "./package.json";
 
-
-
 const plugins = [
   react(),
   tailwindcss(),
@@ -50,6 +48,12 @@ export default defineConfig({
   },
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+      process.env.VITE_SUPABASE_URL || "",
+    ),
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(
+      process.env.VITE_SUPABASE_ANON_KEY || "",
+    ),
   },
   server: {
     host: true,
