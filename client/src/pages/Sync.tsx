@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { trpc } from "@/lib/trpc";
 
 const isAndroid = Capacitor.isNativePlatform();
 const isDesktop = !isAndroid;
@@ -138,9 +139,29 @@ async function scanQRNative(): Promise<string | null> {
 }
 
 type SyncInfo = { ips: string[]; port: number };
-type BackupEntry = { name: string; date: string };
+type BackupEntry = { name: string; date: string; source?: string };
 
 export default function Sync() {
+  const trpcUtils = trpc.useUtils();
+  const importBackupMutation = trpc.import.importBackup.useMutation();
+  const importLocalMutation = trpc.import.importLocalBackup.useMutation();
+  const deleteLocalMutation = trpc.import.deleteLocalBackup.useMutation();
+  const syncToSupabaseMutation = trpc.import.syncToSupabase.useMutation();
+  const pullFromSupabaseMutation = trpc.import.pullFromSupabase.useMutation();
+  const syncLocalBackupToSupabaseMutation =
+    trpc.import.syncLocalBackupToSupabase.useMutation();
+
+  const { data: cloudSyncData, refetch: checkCloudSync } =
+    trpc.import.checkSync.useQuery(undefined, {
+      enabled: isDesktop,
+    });
+  const { data: syncHistory, refetch: refetchHistory } =
+    trpc.import.getSyncHistory.useQuery(undefined, {
+      enabled: isDesktop,
+    });
+
+  const [pullingCloud, setPullingCloud] = useState(false);
+  const [pushingCloud, setPushingCloud] = useState(false);
   const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
   const [selectedIp, setSelectedIp] = useState<string>("");
   const [qrPullUrl, setQrPullUrl] = useState<string>("");
@@ -369,8 +390,13 @@ export default function Sync() {
 
   const handleExportFile = async () => {
     try {
-      const { localImportExportBackup } = await import("@/lib/localDb");
-      const json = await localImportExportBackup();
+      let json = "";
+      if (isDesktop) {
+        json = await trpcUtils.import.exportBackup.fetch();
+      } else {
+        const { localImportExportBackup } = await import("@/lib/localDb");
+        json = await localImportExportBackup();
+      }
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -390,12 +416,17 @@ export default function Sync() {
     setImportLoading(true);
     try {
       const json = await file.text();
-      const { localImportImportBackup } = await import("@/lib/localDb");
-      await localImportImportBackup({ json });
-      toast.success("Importado!");
-      setTimeout(() => window.location.reload(), 800);
-    } catch {
-      toast.error("Arquivo inválido");
+      if (isDesktop) {
+        await importBackupMutation.mutateAsync({ json, fileName: file.name });
+      } else {
+        const { localImportImportBackup } = await import("@/lib/localDb");
+        await localImportImportBackup({ json });
+      }
+      toast.success("Banco de dados importado com sucesso!");
+      refetchHistory();
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err: any) {
+      toast.error(err.message || "Arquivo inválido ou vazio");
     } finally {
       setImportLoading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -850,10 +881,63 @@ export default function Sync() {
                   onClick={() => {
                     runAutoBackup();
                     fetchBackups();
+                    checkCloudSync();
+                    refetchHistory();
                   }}
                   className="p-2 rounded-lg hover:bg-white/5 text-white/30 transition-colors"
                 >
                   <RotateCw size={16} />
+                </button>
+              </div>
+
+              {cloudSyncData?.hasNewerOnline && (
+                <div className="mb-4 p-3 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Globe size={14} className="text-[var(--primary)]" />
+                    <span className="text-xs font-bold text-[var(--primary)]">
+                      Nuvem tem dados mais recentes!
+                    </span>
+                  </div>
+                  <button
+                    disabled={pullingCloud}
+                    onClick={async () => {
+                      setPullingCloud(true);
+                      try {
+                        await pullFromSupabaseMutation.mutateAsync();
+                        toast.success("Dados puxados da nuvem!");
+                        setTimeout(() => window.location.reload(), 800);
+                      } catch (e: any) {
+                        toast.error(e.message || "Erro ao puxar dados");
+                      } finally {
+                        setPullingCloud(false);
+                      }
+                    }}
+                    className="py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:brightness-110 disabled:opacity-50"
+                  >
+                    {pullingCloud ? "Baixando..." : "Puxar da Nuvem"}
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  disabled={pushingCloud}
+                  onClick={async () => {
+                    setPushingCloud(true);
+                    try {
+                      await syncToSupabaseMutation.mutateAsync();
+                      toast.success("Dados enviados para nuvem!");
+                      checkCloudSync();
+                    } catch (e: any) {
+                      toast.error(e.message || "Erro ao sincronizar");
+                    } finally {
+                      setPushingCloud(false);
+                    }
+                  }}
+                  className="flex-1 py-2 text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 text-white rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                >
+                  <Cloud size={14} />
+                  {pushingCloud ? "Enviando..." : "Salvar na Nuvem"}
                 </button>
               </div>
 
@@ -886,12 +970,120 @@ export default function Sync() {
                         <p
                           className="text-xs font-bold truncate"
                           style={{ color: "var(--app-fg)" }}
+                          title={b.name}
                         >
                           {b.name}
                         </p>
                       </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                "Restaurar este backup? Os dados atuais serão apagados.",
+                              )
+                            )
+                              return;
+                            try {
+                              await importLocalMutation.mutateAsync({
+                                name: b.name,
+                                source: b.source,
+                              });
+                              toast.success("Backup restaurado!");
+                              setTimeout(() => window.location.reload(), 800);
+                            } catch (e: any) {
+                              toast.error(e.message);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-white/10 rounded-md text-white/70"
+                          title="Importar"
+                        >
+                          <Download size={14} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                "Sincronizar este arquivo de backup específico com a nuvem? Isso substituirá o backup atual na nuvem.",
+                              )
+                            )
+                              return;
+                            try {
+                              await syncLocalBackupToSupabaseMutation.mutateAsync(
+                                { name: b.name, source: b.source },
+                              );
+                              toast.success("Arquivo enviado para nuvem!");
+                              checkCloudSync();
+                            } catch (e: any) {
+                              toast.error(e.message);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-[var(--primary)]/20 rounded-md text-[var(--primary)]"
+                          title="Sincronizar com Nuvem"
+                        >
+                          <Cloud size={14} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Excluir este backup local?")) return;
+                            try {
+                              await deleteLocalMutation.mutateAsync({
+                                name: b.name,
+                                source: b.source,
+                              });
+                              toast.success("Excluído!");
+                              fetchBackups();
+                            } catch (e: any) {
+                              toast.error(e.message);
+                            }
+                          }}
+                          className="p-1.5 hover:bg-red-500/20 rounded-md text-red-400"
+                          title="Excluir"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
                   ))
+                )}
+
+                {/* Operations History */}
+                {syncHistory && syncHistory.length > 0 && (
+                  <div className="mt-8 space-y-3">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2">
+                      Ações Recentes
+                    </h3>
+                    {syncHistory.map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.01] border border-white/5"
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center ${h.type === "upload" ? "bg-blue-500/10 text-blue-400" : "bg-green-500/10 text-green-400"}`}
+                        >
+                          {h.type === "upload" ? (
+                            <ArrowUpFromLine size={10} />
+                          ) : (
+                            <ArrowDownToLine size={10} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold truncate">
+                            {h.fileName ||
+                              (h.type === "upload" ? "Upload" : "Download")}
+                          </p>
+                          <p className="text-[9px] opacity-30 uppercase">
+                            {new Date(h.date).toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                        <div
+                          className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${h.status === "success" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
+                        >
+                          {h.status === "success" ? "OK" : "Erro"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
 

@@ -319,11 +319,7 @@ function RunningScreen({
     if (paused) return;
     const interval = setInterval(() => {
       setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(interval);
-          onFinish(results, totalElapsed.current);
-          return 0;
-        }
+        if (t <= 0) return 0;
         return t - 1;
       });
       totalElapsed.current++;
@@ -331,6 +327,12 @@ function RunningScreen({
     }, 1000);
     return () => clearInterval(interval);
   }, [paused]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && !paused) {
+      onFinish(results, totalElapsed.current);
+    }
+  }, [timeLeft, paused]);
 
   const handleAnswer = (correct: boolean) => {
     const disc = disciplines.find((d: any) => d.id === selectedDiscId);

@@ -188,8 +188,8 @@ export async function createApp() {
       // API de busca JSON do DOU (endpoint interno do Liferay/portal)
       // Descoberto via DevTools no portal in.gov.br
       const endpoints = [
-        // Endpoint 1: API REST do DOU
-        `https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${trimmed}"`)}&s=todos&exactDate=all&sortType=0&delta=20&currentPage=1`,
+        // Endpoint 1: API REST do DOU (delta=100 para pegar mais ocorrências)
+        `https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${trimmed}"`)}&s=todos&exactDate=all&sortType=0&delta=100&currentPage=1`,
         // Endpoint 2: versão alternativa
         `https://in.gov.br/web/guest/consulta/-/buscar/dou?q=${encodeURIComponent(`"${trimmed}"`)}&s=todos`,
       ];
@@ -277,12 +277,23 @@ export async function createApp() {
             }
           }
 
+          // Deduplica resultados pelo ID ou Título
+          const uniqueResults = [];
+          const seen = new Set();
+          for (const r of results) {
+            const key = r.id || r.title;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueResults.push(r);
+            }
+          }
+
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Access-Control-Allow-Origin", "*");
           return res.json({
             source: "html-parsed",
-            results,
-            total,
+            results: uniqueResults,
+            total: Math.max(total, uniqueResults.length),
             rawLength: html.length,
           });
         } catch (err: any) {
@@ -1570,17 +1581,55 @@ ${questionText}`;
     try {
       const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
       const backupDir = path.join(dataDir, "backups");
-      if (!fs.existsSync(backupDir)) return res.json({ backups: [] });
-      const files = fs
-        .readdirSync(backupDir)
-        .filter((f: string) => f.startsWith("backup_"))
-        .sort()
-        .reverse();
+      const allFiles: any[] = [];
+
+      // Check root data dir for old database_*.json exports
+      if (fs.existsSync(dataDir)) {
+        const rootFiles = fs
+          .readdirSync(dataDir)
+          .filter(
+            (f: string) => f.startsWith("database_") && f.endsWith(".json"),
+          );
+        for (const f of rootFiles) {
+          const stats = fs.statSync(path.join(dataDir, f));
+          allFiles.push({
+            name: f,
+            path: "root",
+            date:
+              stats.mtime.toISOString().split("T")[0] +
+              " " +
+              stats.mtime.toISOString().split("T")[1].substring(0, 5),
+            timestamp: stats.mtime.getTime(),
+          });
+        }
+      }
+
+      // Check backups dir
+      if (fs.existsSync(backupDir)) {
+        const backupFiles = fs
+          .readdirSync(backupDir)
+          .filter((f: string) => f.endsWith(".json"));
+        for (const f of backupFiles) {
+          const stats = fs.statSync(path.join(backupDir, f));
+          allFiles.push({
+            name: f,
+            path: "backups",
+            date: f.startsWith("backup_")
+              ? f.replace("backup_", "").replace(".json", "")
+              : stats.mtime.toISOString().split("T")[0],
+            timestamp: stats.mtime.getTime(),
+          });
+        }
+      }
+
+      allFiles.sort((a, b) => b.timestamp - a.timestamp);
+
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.json({
-        backups: files.map((f: string) => ({
-          name: f,
-          date: f.replace("backup_", "").replace(".json", ""),
+        backups: allFiles.map((f) => ({
+          name: f.name,
+          date: f.date,
+          source: f.path,
         })),
       });
     } catch (e) {

@@ -30,9 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">61% </span>
+                <span class="strong">68% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>61/100</span>
+                <span class='fraction'>68/100</span>
             </div>
         
             
@@ -613,11 +613,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
@@ -958,9 +958,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1071,10 +1071,10 @@ export default function Statistics() {
   );
 &nbsp;
   const disciplineStats = (stats?.disciplineStats || <span class="branch-1 cbranch-no" title="branch not covered" >[]) as any[];</span>
-  const totalQuestions = disciplineStats.reduce((acc, d) =&gt; acc + (d.performance?.questionsResolved || <span class="branch-1 cbranch-no" title="branch not covered" >0), 0</span>);
-  const totalCorrect = disciplineStats.reduce((acc, d) =&gt; acc + (d.performance?.correctCount || <span class="branch-1 cbranch-no" title="branch not covered" >0), 0</span>);
+  const totalQuestions = disciplineStats.reduce((acc, d) =&gt; acc + (d.performance?.questionsResolved || 0), 0);
+  const totalCorrect = disciplineStats.reduce((acc, d) =&gt; acc + (d.performance?.correctCount || 0), 0);
   const overallAccuracy = totalQuestions &gt; 0 ? Math.round(totalCorrect / totalQuestions * 100) : 0;
-  const totalStudyTime = disciplineStats.reduce((acc, d) =&gt; acc + (d.studyTimeSeconds || <span class="branch-1 cbranch-no" title="branch not covered" >0), 0</span>);
+  const totalStudyTime = disciplineStats.reduce((acc, d) =&gt; acc + (d.studyTimeSeconds || 0), 0);
   const sessionLogs = (stats?.settings as any)?.studySessionLog || [];
 &nbsp;
   const formatTime = (s: number) =&gt; {
@@ -1087,7 +1087,7 @@ export default function Statistics() {
     .sort(<span class="fstat-no" title="function not covered" >(a</span>, <span class="cstat-no" title="statement not covered" >b) =&gt; (b.performance?.accuracy || 0) - (a.performance?.accuracy || 0))</span>;
 &nbsp;
   const studyTimeData = [...disciplineStats]
-    .filter(d =&gt; (d.studyTimeSeconds || <span class="branch-1 cbranch-no" title="branch not covered" >0) &gt; 0</span>)
+    .filter(d =&gt; (d.studyTimeSeconds || 0) &gt; 0)
     .sort(<span class="fstat-no" title="function not covered" >(a</span>, <span class="cstat-no" title="statement not covered" >b) =&gt; (b.studyTimeSeconds || 0) - (a.studyTimeSeconds || 0))</span>
     .slice(0, 7)
     .map(d =&gt; ({
@@ -1105,7 +1105,7 @@ export default function Statistics() {
   const examChartData = mockExams?.slice().reverse().map(e =&gt; ({
     data: format(new Date(e.date), "dd/MM"),
     acerto: Math.round((e.correct / e.totalQuestions) * 100),
-  })) || <span class="branch-1 cbranch-no" title="branch not covered" >[];</span>
+  })) || [];
 &nbsp;
   const totalRevisions = (revisions?.length || 0) + (completedRevisions?.length || 0);
   const completionRate = totalRevisions &gt; 0
@@ -1409,7 +1409,7 @@ export default function Statistics() {
       )}
 &nbsp;
       {disciplineStats.length === 0 &amp;&amp; (
-        &lt;div className="soe-card p-12 text-center"&gt;
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;div className="soe-card p-12 text-center"&gt;</span>
           &lt;TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-15" style={{ color: "var(--gold)" }} /&gt;
           &lt;p className="text-sm" style={{ color: "var(--muted-text)" }}&gt;Cadastre disciplinas e temas para ver suas estatísticas aqui.&lt;/p&gt;
         &lt;/div&gt;
@@ -1428,15 +1428,15 @@ export default function Statistics() {
             {[...disciplineStats]
               .sort(<span class="fstat-no" title="function not covered" >(a</span>, <span class="cstat-no" title="statement not covered" >b) =&gt; (b.performance?.questionsResolved || 0) - (a.performance?.questionsResolved || 0))</span>
               .map(d =&gt; {
-                const acc = d.performance?.accuracy ?? <span class="branch-1 cbranch-no" title="branch not covered" >null;</span>
-                const acColor = acc === null ? <span class="branch-0 cbranch-no" title="branch not covered" >"var(--muted-text)" : a</span>cc &gt;= 70 ? "var(--accent-green)" : <span class="branch-1 cbranch-no" title="branch not covered" >acc &gt;= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)";</span>
+                const acc = d.performance?.accuracy ?? null;
+                const acColor = acc === null ? "var(--muted-text)" : acc &gt;= 70 ? "var(--accent-green)" : <span class="branch-1 cbranch-no" title="branch not covered" >acc &gt;= 50 ? "var(--accent-amber)" : "var(--accent-red, #dc2626)";</span>
                 return (
                   &lt;div key={d.disciplineId} className="flex items-center gap-3 px-4 py-3 rounded-2xl group transition-all hover:scale-[1.01]"
                     style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}&gt;
                     &lt;div className="w-2.5 h-10 rounded-full flex-shrink-0" style={{ background: d.color }} /&gt;
                     &lt;div className="flex-1 min-w-0"&gt;
                       &lt;p className="text-sm font-bold truncate" style={{ color: "var(--app-fg)" }}&gt;{d.name}&lt;/p&gt;
-                      &lt;p className="text-[10px]" style={{ color: "var(--muted-text)" }}&gt;{d.performance?.questionsResolved || <span class="branch-1 cbranch-no" title="branch not covered" >0} </span>questões resolvidas&lt;/p&gt;
+                      &lt;p className="text-[10px]" style={{ color: "var(--muted-text)" }}&gt;{d.performance?.questionsResolved || 0} questões resolvidas&lt;/p&gt;
                     &lt;/div&gt;
                     &lt;div className="flex items-center gap-3"&gt;
                       {acc !== null &amp;&amp; (
@@ -1480,7 +1480,7 @@ export default function Statistics() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-27T17:20:59.720Z
+                at 2026-05-04T02:38:46.979Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

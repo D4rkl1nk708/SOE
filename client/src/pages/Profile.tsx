@@ -511,7 +511,7 @@ function DiarioOficialTab() {
         </div>
         <div className="lg:col-span-2 space-y-8">
           <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 space-y-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none select-none">
               <FileText size={120} />
             </div>
 
@@ -528,8 +528,9 @@ function DiarioOficialTab() {
                   className="flex-1 px-6 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-primary transition-all shadow-inner"
                 />
                 <button
+                  type="button"
                   onClick={handleSave}
-                  className="px-10 h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-95 transition-all"
+                  className="relative z-10 px-10 h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-95 transition-all hover:brightness-110"
                 >
                   Ativar
                 </button>

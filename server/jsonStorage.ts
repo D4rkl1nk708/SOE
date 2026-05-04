@@ -248,6 +248,14 @@ export interface UserSettings {
     endStudyHour: number;
     alertIssued: boolean;
   }>;
+  /** Sync History - F20 */
+  syncHistory?: Array<{
+    type: "upload" | "download";
+    date: string;
+    fileName?: string;
+    status: "success" | "failure";
+    message?: string;
+  }>;
   /** F07 - Timer intercalação: tempo máximo contínuo na mesma disciplina (min) */
   attentionAlertMinutes?: number; // padrão 45
   /** F08 - Feedback postergado: mostrar gabarito só no final do bloco */
@@ -681,6 +689,11 @@ export async function getUserByOpenId(
 ): Promise<User | undefined> {
   const db = readDatabase();
   return db.users.find((u) => u.openId === openId);
+}
+
+export async function getUserById(userId: number): Promise<User | undefined> {
+  const db = readDatabase();
+  return db.users.find((u) => u.id === userId);
 }
 
 export async function getUserSettings(
@@ -1179,9 +1192,189 @@ export async function deleteNote(id: number, userId: number): Promise<void> {
 
 // ============ BACKUP OPERATIONS ============
 
+export async function exportDatabaseForUser(userId: number): Promise<string> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) throw new Error("Usuário não encontrado");
+
+  // Filter all tables for this user
+  const userDb = {
+    ...db,
+    users: [user],
+    disciplines: db.disciplines.filter((d) => d.userId === userId),
+    topics: db.topics.filter((t) => t.userId === userId),
+    revisions: db.revisions.filter((r) => r.userId === userId),
+    mockExams: db.mockExams?.filter((m) => m.userId === userId) || [],
+    notes: db.notes?.filter((n) => n.userId === userId) || [],
+    flashcards: db.flashcards?.filter((f) => f.userId === userId) || [],
+    questionErrors: db.questionErrors?.filter((q) => q.userId === userId) || [],
+    essays: db.essays?.filter((e) => e.userId === userId) || [],
+    tecSnapshots: db.tecSnapshots?.filter((t) => t.userId === userId) || [],
+    cadernosTec: db.cadernosTec?.[userId]
+      ? { [userId]: db.cadernosTec[userId] }
+      : {},
+  };
+
+  const totalRecords =
+    userDb.disciplines.length + userDb.topics.length + userDb.revisions.length;
+  if (totalRecords === 0) {
+    throw new Error(
+      "O seu banco de dados de estudos está vazio. Sincronize com o Supabase primeiro ou comece a estudar!",
+    );
+  }
+
+  return JSON.stringify(userDb, null, 2);
+}
+
 export async function exportDatabase(): Promise<string> {
   const db = readDatabase();
   return JSON.stringify(db, null, 2);
+}
+
+export async function importDatabaseForUser(
+  jsonString: string,
+  currentUserId: number,
+): Promise<void> {
+  try {
+    const importedDb = JSON.parse(jsonString);
+    if (
+      !importedDb.users ||
+      !importedDb.disciplines ||
+      !importedDb.topics ||
+      !importedDb.revisions
+    ) {
+      throw new Error("Formato de banco de dados inválido ou vazio");
+    }
+
+    const db = readDatabase();
+    const currentUserInfo = db.users.find((u) => u.id === currentUserId);
+    if (!currentUserInfo) throw new Error("Usuário atual não encontrado");
+
+    // Robust user identification in imported database
+    // 1. Try matching by openId
+    // 2. Try matching by email
+    // 3. Fallback to the first user (usually exports have one user)
+    const importedUser =
+      importedDb.users.find(
+        (u: any) =>
+          (u.openId && u.openId === currentUserInfo.openId) ||
+          (u.email && u.email === currentUserInfo.email),
+      ) || importedDb.users[0];
+
+    const importedUserId = importedUser?.id;
+
+    // Remap user ID from imported data to currentUserId if they differ
+    if (importedUserId !== undefined) {
+      const tables = [
+        "disciplines",
+        "topics",
+        "revisions",
+        "mockExams",
+        "notes",
+        "flashcards",
+        "questionErrors",
+        "essays",
+        "tecSnapshots",
+      ];
+      for (const table of tables) {
+        if (importedDb[table]) {
+          for (const item of importedDb[table]) {
+            // Remap if it matches the identified user ID OR if it doesn't have a userId but we assume it belongs to the export
+            if (item.userId === importedUserId || !item.userId) {
+              item.userId = currentUserId;
+            }
+          }
+        }
+      }
+      if (importedDb.cadernosTec && importedDb.cadernosTec[importedUserId]) {
+        importedDb.cadernosTec[currentUserId] =
+          importedDb.cadernosTec[importedUserId];
+        if (importedUserId !== currentUserId)
+          delete importedDb.cadernosTec[importedUserId];
+      }
+    }
+
+    // Now filter ONLY the data that now belongs to currentUserId
+    const importedDisciplines = (importedDb.disciplines || []).filter(
+      (d: any) => d.userId === currentUserId,
+    );
+    const importedTopics = (importedDb.topics || []).filter(
+      (t: any) => t.userId === currentUserId,
+    );
+    const importedRevisions = (importedDb.revisions || []).filter(
+      (r: any) => r.userId === currentUserId,
+    );
+
+    if (
+      importedDisciplines.length === 0 &&
+      importedTopics.length === 0 &&
+      importedRevisions.length === 0
+    ) {
+      throw new Error(
+        "O arquivo JSON não contém dados pertencentes ao seu usuário.",
+      );
+    }
+
+    // Replace the current user's data completely with the imported data
+    db.disciplines = db.disciplines
+      .filter((d) => d.userId !== currentUserId)
+      .concat(importedDisciplines);
+    db.topics = db.topics
+      .filter((t) => t.userId !== currentUserId)
+      .concat(importedTopics);
+    db.revisions = db.revisions
+      .filter((r) => r.userId !== currentUserId)
+      .concat(importedRevisions);
+    db.mockExams = (db.mockExams || [])
+      .filter((m) => m.userId !== currentUserId)
+      .concat(
+        (importedDb.mockExams || []).filter(
+          (x: any) => x.userId === currentUserId,
+        ),
+      );
+    db.notes = (db.notes || [])
+      .filter((n) => n.userId !== currentUserId)
+      .concat(
+        (importedDb.notes || []).filter((x: any) => x.userId === currentUserId),
+      );
+    db.flashcards = (db.flashcards || [])
+      .filter((f) => f.userId !== currentUserId)
+      .concat(
+        (importedDb.flashcards || []).filter(
+          (x: any) => x.userId === currentUserId,
+        ),
+      );
+    db.questionErrors = (db.questionErrors || [])
+      .filter((q) => q.userId !== currentUserId)
+      .concat(
+        (importedDb.questionErrors || []).filter(
+          (x: any) => x.userId === currentUserId,
+        ),
+      );
+    db.essays = (db.essays || [])
+      .filter((e) => e.userId !== currentUserId)
+      .concat(
+        (importedDb.essays || []).filter(
+          (x: any) => x.userId === currentUserId,
+        ),
+      );
+    db.tecSnapshots = (db.tecSnapshots || [])
+      .filter((t) => t.userId !== currentUserId)
+      .concat(
+        (importedDb.tecSnapshots || []).filter(
+          (x: any) => x.userId === currentUserId,
+        ),
+      );
+
+    if (importedDb.cadernosTec && importedDb.cadernosTec[currentUserId]) {
+      if (!db.cadernosTec) db.cadernosTec = {};
+      db.cadernosTec[currentUserId] = importedDb.cadernosTec[currentUserId];
+    }
+
+    writeDatabase(db);
+  } catch (error) {
+    throw new Error("Falha ao importar: " + (error as Error).message);
+  }
 }
 
 export async function importDatabase(jsonString: string): Promise<void> {
@@ -1194,8 +1387,33 @@ export async function importDatabase(jsonString: string): Promise<void> {
       throw new Error("Invalid database format");
     }
   } catch (error) {
-    throw new Error("Failed to import database: " + (error as Error).message);
+    throw new Error("Falha ao importar: " + (error as Error).message);
   }
+}
+
+export async function addSyncHistory(
+  userId: number,
+  entry: {
+    type: "upload" | "download";
+    fileName?: string;
+    status: "success" | "failure";
+    message?: string;
+  },
+) {
+  await runInTransaction((db) => {
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return;
+    if (!user.settings) user.settings = {} as any;
+    if (!user.settings.syncHistory) user.settings.syncHistory = [];
+
+    user.settings.syncHistory.unshift({
+      ...entry,
+      date: new Date().toISOString(),
+    });
+
+    // Keep only last 20 entries (10 of each type roughly, but let's just keep 20 total)
+    user.settings.syncHistory = user.settings.syncHistory.slice(0, 20);
+  });
 }
 
 // ============ CALENDAR & DASHBOARD DATA ============

@@ -36,8 +36,8 @@ export const appRouter = router({
   system: systemRouter,
   edital: editalRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
+    me: protectedProcedure.query((opts) => opts.ctx.user),
+    logout: protectedProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
@@ -526,13 +526,219 @@ export const appRouter = router({
       return { token, path: `/api/ical/${token}` };
     }),
 
-    exportBackup: protectedProcedure.query(async () => {
-      return storage.exportDatabase();
+    exportBackup: protectedProcedure.query(async ({ ctx }) => {
+      return storage.exportDatabaseForUser(ctx.user.id);
     }),
     importBackup: protectedProcedure
-      .input(z.object({ json: z.string() }))
+      .input(z.object({ json: z.string(), fileName: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          await storage.importDatabaseForUser(input.json, ctx.user.id);
+          await storage.addSyncHistory(ctx.user.id, {
+            type: "download",
+            status: "success",
+            fileName: input.fileName || "JSON Externo",
+          });
+          return { success: true };
+        } catch (e: any) {
+          await storage.addSyncHistory(ctx.user.id, {
+            type: "download",
+            status: "failure",
+            message: e.message,
+            fileName: input.fileName,
+          });
+          throw e;
+        }
+      }),
+    checkSync: protectedProcedure.query(async ({ ctx }) => {
+      const user = await storage.getUserById(ctx.user.id);
+      if (!user || !user.openId) return { hasNewerOnline: false };
+      try {
+        const { supabase } = await import("./supabase");
+        const { data, error } = await supabase
+          .from("users")
+          .select("settings, updated_at")
+          .eq("open_id", user.openId)
+          .single();
+        if (error || !data || !data.settings?.cloudBackup)
+          return { hasNewerOnline: false };
+        const localUpdatedAt = new Date(user.updatedAt || 0).getTime();
+        const onlineUpdatedAt = new Date(
+          data.settings.cloudBackup.updatedAt || 0,
+        ).getTime();
+        return {
+          hasNewerOnline: onlineUpdatedAt > localUpdatedAt,
+          onlineUpdatedAt: data.settings.cloudBackup.updatedAt,
+        };
+      } catch (e) {
+        return { hasNewerOnline: false };
+      }
+    }),
+    syncToSupabase: protectedProcedure.mutation(async ({ ctx }) => {
+      const user = await storage.getUserById(ctx.user.id);
+      if (!user || !user.openId)
+        throw new Error("Usuário não configurado para sync online");
+      const json = await storage.exportDatabaseForUser(ctx.user.id);
+      const { supabase } = await import("./supabase");
+      const { data } = await supabase
+        .from("users")
+        .select("settings")
+        .eq("open_id", user.openId)
+        .single();
+      const settings = data?.settings || {};
+      const payload = { json, updatedAt: new Date().toISOString() };
+      const { error } = await supabase
+        .from("users")
+        .update({
+          settings: { ...settings, cloudBackup: payload },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("open_id", user.openId);
+      if (error) {
+        await storage.addSyncHistory(ctx.user.id, {
+          type: "upload",
+          status: "failure",
+          message: error.message,
+          fileName: "Supabase",
+        });
+        throw new Error("Erro ao sincronizar com nuvem");
+      }
+      await storage.addSyncHistory(ctx.user.id, {
+        type: "upload",
+        status: "success",
+        fileName: "Supabase",
+      });
+      return { success: true };
+    }),
+    pullFromSupabase: protectedProcedure.mutation(async ({ ctx }) => {
+      const user = await storage.getUserById(ctx.user.id);
+      if (!user || !user.openId)
+        throw new Error("Usuário não configurado para sync online");
+      const { supabase } = await import("./supabase");
+      const { data, error } = await supabase
+        .from("users")
+        .select("settings")
+        .eq("open_id", user.openId)
+        .single();
+      if (error || !data || !data.settings?.cloudBackup?.json) {
+        await storage.addSyncHistory(ctx.user.id, {
+          type: "download",
+          status: "failure",
+          message: "Backup não encontrado",
+          fileName: "Supabase",
+        });
+        throw new Error("Nenhum backup encontrado na nuvem");
+      }
+      try {
+        await storage.importDatabaseForUser(
+          data.settings.cloudBackup.json,
+          ctx.user.id,
+        );
+        await storage.addSyncHistory(ctx.user.id, {
+          type: "download",
+          status: "success",
+          fileName: "Supabase",
+        });
+      } catch (e: any) {
+        await storage.addSyncHistory(ctx.user.id, {
+          type: "download",
+          status: "failure",
+          message: e.message,
+          fileName: "Supabase",
+        });
+        throw e;
+      }
+      return { success: true };
+    }),
+    importLocalBackup: protectedProcedure
+      .input(z.object({ name: z.string(), source: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const fs = await import("fs");
+        const path = await import("path");
+        const dataDir =
+          process.env.DATA_DIR || path.join(process.cwd(), "data");
+        const filePath =
+          input.source === "root"
+            ? path.join(dataDir, input.name)
+            : path.join(dataDir, "backups", input.name);
+        if (!fs.existsSync(filePath)) throw new Error("Arquivo não encontrado");
+        const json = fs.readFileSync(filePath, "utf-8");
+        try {
+          await storage.importDatabaseForUser(json, ctx.user.id);
+          await storage.addSyncHistory(ctx.user.id, {
+            type: "download",
+            status: "success",
+            fileName: input.name,
+          });
+        } catch (e: any) {
+          await storage.addSyncHistory(ctx.user.id, {
+            type: "download",
+            status: "failure",
+            message: e.message,
+            fileName: input.name,
+          });
+          throw e;
+        }
+        return { success: true };
+      }),
+    deleteLocalBackup: protectedProcedure
+      .input(z.object({ name: z.string(), source: z.string().optional() }))
       .mutation(async ({ input }) => {
-        await storage.importDatabase(input.json);
+        const fs = await import("fs");
+        const path = await import("path");
+        const dataDir =
+          process.env.DATA_DIR || path.join(process.cwd(), "data");
+        const filePath =
+          input.source === "root"
+            ? path.join(dataDir, input.name)
+            : path.join(dataDir, "backups", input.name);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        return { success: true };
+      }),
+
+    getSyncHistory: protectedProcedure.query(async ({ ctx }) => {
+      const settings = await storage.getUserSettings(ctx.user.id);
+      return settings?.syncHistory || [];
+    }),
+
+    syncLocalBackupToSupabase: protectedProcedure
+      .input(z.object({ name: z.string(), source: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const fs = await import("fs");
+        const path = await import("path");
+        const dataDir =
+          process.env.DATA_DIR || path.join(process.cwd(), "data");
+        const filePath =
+          input.source === "root"
+            ? path.join(dataDir, input.name)
+            : path.join(dataDir, "backups", input.name);
+        if (!fs.existsSync(filePath)) throw new Error("Arquivo não encontrado");
+        const json = fs.readFileSync(filePath, "utf-8");
+
+        const user = await storage.getUserById(ctx.user.id);
+        if (!user || !user.openId)
+          throw new Error("Usuário não configurado para sync online");
+
+        const { supabase } = await import("./supabase");
+        const { data } = await supabase
+          .from("users")
+          .select("settings")
+          .eq("open_id", user.openId)
+          .single();
+        const settings = data?.settings || {};
+
+        const payload = { json, updatedAt: new Date().toISOString() };
+        const { error } = await supabase
+          .from("users")
+          .update({
+            settings: { ...settings, cloudBackup: payload },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("open_id", user.openId);
+
+        if (error) throw new Error("Erro ao sincronizar arquivo com nuvem");
         return { success: true };
       }),
   }),

@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { UNAUTHED_ERR_MSG } from '@shared/const';
+import { UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, splitLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
@@ -18,12 +18,13 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
 
-  if (!isUnauthorized) return;
+  const loginUrl = getLoginUrl();
+  if (window.location.pathname === loginUrl) return;
 
-  window.location.href = getLoginUrl();
+  window.location.href = loginUrl;
 };
 
-queryClient.getQueryCache().subscribe(event => {
+queryClient.getQueryCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -31,7 +32,7 @@ queryClient.getQueryCache().subscribe(event => {
   }
 });
 
-queryClient.getMutationCache().subscribe(event => {
+queryClient.getMutationCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -42,7 +43,9 @@ queryClient.getMutationCache().subscribe(event => {
 const isStandalone = Capacitor.isNativePlatform();
 
 const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-const trpcUrl = apiBase ? `${apiBase.replace(/\/$/, "")}/api/trpc` : "/api/trpc";
+const trpcUrl = apiBase
+  ? `${apiBase.replace(/\/$/, "")}/api/trpc`
+  : "/api/trpc";
 
 const trpcClient = trpc.createClient({
   links: [
@@ -53,9 +56,23 @@ const trpcClient = trpc.createClient({
         url: trpcUrl,
         transformer: superjson,
         fetch(input, init) {
+          const authString = localStorage.getItem(
+            "sb-nhdsmlbybipchjmcrida-auth-token",
+          );
+          let token = "";
+          if (authString) {
+            try {
+              const parsed = JSON.parse(authString);
+              token = parsed.access_token;
+            } catch (e) {}
+          }
           return globalThis.fetch(input, {
             ...(init ?? {}),
-            credentials: "include",
+            headers: {
+              ...(init?.headers ?? {}),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            credentials: "omit", // Using JWT instead of cookies
           });
         },
       }),
@@ -71,7 +88,7 @@ if (typeof window !== "undefined" && (window as any).electron) {
       // Invalidar todas as queries para forçar salvamento
       await queryClient.invalidateQueries();
       // Dar um tempo para as requisições serem completadas
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
   }
 }
@@ -81,5 +98,5 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <App />
     </QueryClientProvider>
-  </trpc.Provider>
+  </trpc.Provider>,
 );

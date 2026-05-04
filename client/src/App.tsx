@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { Layout } from "./components/Layout";
 import Dashboard from "@/pages/Dashboard";
+import Login from "@/pages/Login";
 import Disciplines from "@/pages/Disciplines";
 import Topics from "@/pages/Topics";
 import Calendar from "@/pages/Calendar";
@@ -34,8 +35,10 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { GuidedTour } from "./components/GuidedTour";
+import { useAuth } from "./_core/hooks/useAuth";
 
 function Router() {
+  useAuth({ redirectOnUnauthenticated: true });
   useSmartNotifications();
   useNotifications();
   useDiarioOficial();
@@ -286,6 +289,21 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+function MainContent() {
+  const [location] = useLocation();
+
+  if (location === "/login") {
+    return <Login />;
+  }
+
+  return (
+    <Layout>
+      <Router />
+      <GuidedTour />
+    </Layout>
+  );
+}
+
 function App() {
   const [splashDone, setSplashDone] = useState(() => {
     if (
@@ -303,10 +321,7 @@ function App() {
           <Toaster position="top-right" richColors />
           {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
           <div style={{ visibility: splashDone ? "visible" : "hidden" }}>
-            <Layout>
-              <Router />
-              <GuidedTour />
-            </Layout>
+            <MainContent />
           </div>
         </TooltipProvider>
       </ThemeProvider>

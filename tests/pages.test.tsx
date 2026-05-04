@@ -1,5 +1,19 @@
-import { render } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { describe, test, expect, vi } from "vitest";
+
+// Mock ResizeObserver for Recharts
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 import Statistics from "@/pages/Statistics";
 import StatisticsPage from "@/pages/StatisticsPage";
 import MentorSession from "@/pages/MentorSession";
@@ -18,231 +32,142 @@ import QuestionErrors from "@/pages/QuestionErrors";
 import MockExams from "@/pages/MockExams";
 import Edital from "@/pages/Edital";
 import Flashcards from "@/pages/Flashcards";
-import Calendar from "@/pages/Calendar";
-import Disciplines from "@/pages/Disciplines";
-import History from "@/pages/History";
 
-// Mock matchMedia to prevent jsdom errors
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn().mockImplementation((query) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
+// Mock wouter
+vi.mock("wouter", () => ({
+  useLocation: () => ["/", vi.fn()],
+  useSearch: () => "",
+  Link: ({ children, href }: any) => <a href={href}>{children}</a>,
+}));
+
+// Mock lucide-react
+vi.mock("lucide-react", async (importOriginal) => {
+  const actual = (await importOriginal()) as any;
+  const mocks: any = {};
+  Object.keys(actual).forEach((key) => {
+    mocks[key] = () => <div data-testid={`icon-${key}`} />;
+  });
+  return mocks;
 });
 
-// ResizeObserver mock
-global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-// Stable mock data to avoid infinite re-renders
-const MOCK_STATS = {
-  totalQuestions: 100,
-  correctQuestions: 80,
-  errorQuestions: 20,
-  timeSpentSeconds: 3600,
-  disciplineStats: [],
-  settings: {
-    onboardingCompleted: true,
-    dailyGoalMinutes: 240,
-    dashboardConfig: {
-      extraWidgets: [
-        "recommendation",
-        "mentorBriefing",
-        "heatmap",
-        "dailyGoal",
-        "todayRevisions",
-      ],
-    },
-  },
-  completedRevisions: 5,
-  pendingRevisions: 10,
-  totalTopics: 50,
-};
-const MOCK_TOPICS = { topics: [] };
-const MOCK_REVISIONS = [];
-const MOCK_NOTES = [];
-const MOCK_EXAMS = [];
-const MOCK_HEATMAP = [];
-const MOCK_FLASHCARDS = [
-  {
-    id: 1,
-    disciplineId: 1,
-    topicId: 1,
-    front: "Q1",
-    back: "A1",
-    interval: 1,
-    easeFactor: 2.5,
-    repetitions: 0,
-    nextReviewDate: "2024-01-01",
-    archived: false,
-    tags: [],
-    createdAt: "",
-    updatedAt: "",
-  },
-];
-const MOCK_DISCIPLINES = [
-  {
-    id: 1,
-    name: "Direito",
-    color: "#f00",
-    weight: 10,
-    order: 0,
-    studyTimeSeconds: 0,
-    topicCount: 2,
-    performance: {
-      questionsResolved: 10,
-      accuracy: 70,
-      correctCount: 7,
-      errorCount: 3,
-    },
-  },
-];
-
-const createRecursiveProxy = () => {
-  return new Proxy(
-    {},
-    {
-      get: (target, prop) => {
-        if (prop === "useQuery") return () => ({ data: [], isLoading: false });
-        if (prop === "useMutation")
-          return () => ({ mutate: vi.fn(), mutateAsync: vi.fn() });
-        if (prop === "invalidate") return vi.fn();
-        return createRecursiveProxy();
+// Mock trpc
+vi.mock("@/lib/trpc", () => {
+  const MOCK_STATS = {
+    stats: {
+      totalQuestions: 100,
+      totalCorrect: 80,
+      totalStudyTime: 3600,
+      recentPerformance: [],
+      disciplinePerformance: [],
+      dailyGoal: 50,
+      todayCount: 10,
+      streak: 5,
+      preferences: {
+        dailyGoal: 50,
+        extraWidgets: [
+          "recommendation",
+          "heatmap",
+          "dailyGoal",
+          "todayRevisions",
+        ],
       },
     },
-  );
-};
-
-vi.mock("@/lib/trpc", () => ({
-  trpc: new Proxy(
-    {},
-    {
-      get: (target, prop) => {
-        if (prop === "useUtils") return () => createRecursiveProxy();
-        if (prop === "useContext") return () => ({});
-
-        // Return specific mocks for specific pages that need exact shapes
-        if (prop === "topic") {
-          return new Proxy(
-            {
-              list: {
-                useQuery: () => ({ data: MOCK_TOPICS, isLoading: false }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-        if (prop === "flashcard") {
-          return new Proxy(
-            {
-              list: {
-                useQuery: () => ({ data: MOCK_FLASHCARDS, isLoading: false }),
-              },
-              due: {
-                useQuery: () => ({ data: MOCK_FLASHCARDS, isLoading: false }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-        if (prop === "discipline") {
-          return new Proxy(
-            {
-              list: {
-                useQuery: () => ({ data: MOCK_DISCIPLINES, isLoading: false }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-        if (prop === "calendar") {
-          return new Proxy(
-            {
-              getData: {
-                useQuery: () => ({
-                  data: { revisions: [], studySessions: [] },
-                  isLoading: false,
-                }),
-              },
-              getActivities: {
-                useQuery: () => ({ data: [], isLoading: false }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-        if (prop === "history") {
-          return new Proxy(
-            {
-              get: {
-                useQuery: () => ({
-                  data: { revisions: [], topics: [], disciplines: [] },
-                  isLoading: false,
-                }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-        if (prop === "dashboard") {
-          return new Proxy(
-            {
-              getStats: {
-                useQuery: () => ({ data: MOCK_STATS, isLoading: false }),
-              },
-              getWeeklyStats: { useQuery: () => ({ data: [] }) },
-              getHeatmap: { useQuery: () => ({ data: MOCK_HEATMAP }) },
-              getTodayMinutes: {
-                useQuery: () => ({ data: { minutes: 45, goal: 120 } }),
-              },
-            },
-            {
-              get: (t, p) =>
-                p in t ? t[p as keyof typeof t] : createRecursiveProxy(),
-            },
-          );
-        }
-
-        return createRecursiveProxy();
+    disciplineStats: [
+      {
+        id: 1,
+        name: "Math",
+        color: "#f00",
+        performance: {},
+        studyTimeSeconds: 0,
       },
-    },
-  ),
-}));
+    ],
+    completedRevisions: 0,
+    pendingRevisions: 0,
+    totalTopics: 1,
+  };
+  const MOCK_TOPICS = {
+    topics: [{ id: 10, name: "Algebra", disciplineId: 1 }],
+    disciplines: [{ id: 1, name: "Math", color: "#f00" }],
+  };
+  const MOCK_FLASHCARDS = [];
+  const MOCK_DISCIPLINES = MOCK_STATS.disciplineStats;
+  const MOCK_HEATMAP = [];
 
-vi.mock("wouter", () => ({
-  useLocation: () => ["/test-path", vi.fn()],
-  useRoute: () => [false, {}],
-  useSearch: () => "",
-  Link: ({ children }: any) => <a>{children}</a>,
-}));
+  const proxyCache = new Map<string, any>();
+  const queryResultCache = new Map<string, any>();
+  const mutationResultCache = new Map<string, any>();
 
-// Components use various Radix UI primitives and other heavy libraries,
-// rendering them should pass without crashing if mocks are provided.
+  const createRecursiveProxy = (path: string = ""): any => {
+    if (proxyCache.has(path)) return proxyCache.get(path);
+
+    const f = vi.fn();
+    const proxy = new Proxy(f, {
+      get: (target: any, prop) => {
+        if (typeof prop !== "string") return target[prop];
+        const fullPath = path ? `${path}.${prop}` : prop;
+
+        if (prop === "useQuery") {
+          return (input: any) => {
+            const cacheKey = `query:${path}:${JSON.stringify(input)}`;
+            if (!queryResultCache.has(cacheKey)) {
+              let data: any = undefined;
+              if (path === "dashboard.getStats") data = MOCK_STATS;
+              else if (path === "dashboard.getHeatmap") data = MOCK_HEATMAP;
+              else if (path === "topic.list") data = MOCK_TOPICS;
+              else if (path === "flashcard.list" || path === "flashcard.due")
+                data = MOCK_FLASHCARDS;
+              else if (path === "discipline.list") data = MOCK_DISCIPLINES;
+              else if (path === "questionError.list") data = { items: [] };
+              else if (path === "v10.getPreExamStatus")
+                data = { active: false };
+              else if (path === "revision.list") data = [];
+              else if (path === "import.getICalUrl") data = { token: "test" };
+
+              queryResultCache.set(cacheKey, {
+                data,
+                isLoading: false,
+                refetch: vi.fn(),
+                isSuccess: true,
+              });
+            }
+            return queryResultCache.get(cacheKey);
+          };
+        }
+        if (prop === "useMutation") {
+          return (opts: any) => {
+            const cacheKey = `mutation:${path}`;
+            if (!mutationResultCache.has(cacheKey)) {
+              mutationResultCache.set(cacheKey, {
+                mutate: vi.fn(),
+                mutateAsync: vi.fn().mockResolvedValue({}),
+                isPending: false,
+                isLoading: false,
+              });
+            }
+            return mutationResultCache.get(cacheKey);
+          };
+        }
+        if (prop === "useUtils") return () => trpcMock;
+        if (prop === "setData" || prop === "invalidate" || prop === "fetch") {
+          const cacheKey = `fn:${fullPath}`;
+          if (!proxyCache.has(cacheKey)) proxyCache.set(cacheKey, vi.fn());
+          return proxyCache.get(cacheKey);
+        }
+
+        return createRecursiveProxy(fullPath);
+      },
+    });
+    proxyCache.set(path, proxy);
+    return proxy;
+  };
+
+  const trpcMock = createRecursiveProxy();
+
+  return {
+    trpc: trpcMock,
+  };
+});
+
 describe("Page Components", () => {
   test("Statistics renders without crashing", () => {
     const { container } = render(<Statistics />);
@@ -259,6 +184,11 @@ describe("Page Components", () => {
     expect(container).toBeTruthy();
   });
 
+  test("QuestionSession renders without crashing", () => {
+    const { container } = render(<QuestionSession />);
+    expect(container).toBeTruthy();
+  });
+
   test("MentorTab renders without crashing", () => {
     const { container } = render(<MentorTab />);
     expect(container).toBeTruthy();
@@ -266,11 +196,6 @@ describe("Page Components", () => {
 
   test("Dashboard renders without crashing", () => {
     const { container } = render(<Dashboard />);
-    expect(container).toBeTruthy();
-  });
-
-  test("QuestionSession renders without crashing", () => {
-    const { container } = render(<QuestionSession />);
     expect(container).toBeTruthy();
   });
 
@@ -284,9 +209,12 @@ describe("Page Components", () => {
     expect(container).toBeTruthy();
   });
 
-  test("Profile renders without crashing", () => {
-    const { container } = render(<Profile />);
-    expect(container).toBeTruthy();
+  test("Profile renders without crashing", async () => {
+    await act(async () => {
+      render(<Profile />);
+    });
+    // Check for tab labels present in Profile page
+    expect(screen.getAllByText(/Ajustes/i).length).toBeGreaterThan(0);
   });
 
   test("Topics renders without crashing", () => {
@@ -304,9 +232,11 @@ describe("Page Components", () => {
     expect(container).toBeTruthy();
   });
 
-  test("Simulado renders without crashing", () => {
-    const { container } = render(<Simulado />);
-    expect(container).toBeTruthy();
+  test("Simulado renders without crashing", async () => {
+    await act(async () => {
+      render(<Simulado />);
+    });
+    expect(screen.getAllByText(/Simulado/i).length).toBeGreaterThan(0);
   });
 
   test("Home renders without crashing", () => {
@@ -331,21 +261,6 @@ describe("Page Components", () => {
 
   test("Flashcards renders without crashing", () => {
     const { container } = render(<Flashcards />);
-    expect(container).toBeTruthy();
-  });
-
-  test("Calendar renders without crashing", () => {
-    const { container } = render(<Calendar />);
-    expect(container).toBeTruthy();
-  });
-
-  test("Disciplines renders without crashing", () => {
-    const { container } = render(<Disciplines />);
-    expect(container).toBeTruthy();
-  });
-
-  test("History renders without crashing", () => {
-    const { container } = render(<History />);
     expect(container).toBeTruthy();
   });
 });

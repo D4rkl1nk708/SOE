@@ -1,4 +1,5 @@
 import { getLoginUrl, isLocalMode } from "@/const";
+import { supabase } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -23,9 +24,11 @@ const LOCAL_USER = {
 
 export function useAuth(options?: UseAuthOptions) {
   const localMode = isLocalMode();
-  
-  const { redirectOnUnauthenticated = false, redirectPath = localMode ? "" : getLoginUrl() } =
-    options ?? {};
+
+  const {
+    redirectOnUnauthenticated = false,
+    redirectPath = localMode ? "" : getLoginUrl(),
+  } = options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -37,9 +40,30 @@ export function useAuth(options?: UseAuthOptions) {
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
+      utils.auth.me.setData(undefined, undefined);
     },
   });
+
+  // Track Supabase session manually to ensure react-query is in sync
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        utils.auth.me.setData(undefined, undefined);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        meQuery.refetch();
+      } else {
+        utils.auth.me.setData(undefined, undefined);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [utils]);
 
   const logout = useCallback(async () => {
     if (localMode) {
@@ -47,8 +71,9 @@ export function useAuth(options?: UseAuthOptions) {
       window.location.reload();
       return;
     }
-    
+
     try {
+      await supabase.auth.signOut();
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
       if (
@@ -59,25 +84,19 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
-      utils.auth.me.setData(undefined, null);
+      utils.auth.me.setData(undefined, undefined);
       await utils.auth.me.invalidate();
     }
   }, [logoutMutation, utils, localMode]);
 
   const state = useMemo(() => {
-    // In local mode, always return the local user
-    if (localMode) {
-      return {
-        user: LOCAL_USER,
-        loading: false,
-        error: null,
-        isAuthenticated: true,
-      };
-    }
-    
+    // In local mode, always return the local user ONLY IF we don't have a supabase session.
+    // Actually, let's stop forcing LOCAL_USER if the user wants Supabase.
+    // We will rely on meQuery.data.
+
     localStorage.setItem(
       "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
+      JSON.stringify(meQuery.data),
     );
     return {
       user: meQuery.data ?? null,
@@ -103,7 +122,7 @@ export function useAuth(options?: UseAuthOptions) {
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    window.location.href = redirectPath;
   }, [
     localMode,
     redirectOnUnauthenticated,
@@ -115,7 +134,7 @@ export function useAuth(options?: UseAuthOptions) {
 
   return {
     ...state,
-    refresh: () => localMode ? Promise.resolve() : meQuery.refetch(),
+    refresh: () => (localMode ? Promise.resolve() : meQuery.refetch()),
     logout,
     isLocalMode: localMode,
   };

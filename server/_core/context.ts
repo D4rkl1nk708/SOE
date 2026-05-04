@@ -2,7 +2,9 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
 import type { User } from "../jsonStorage";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
+import { supabase } from "../supabase";
 import * as storage from "../jsonStorage";
+import * as db from "../db";
 
 // Default local user for offline mode (when OAuth is not configured)
 const LOCAL_USER: User = {
@@ -12,7 +14,10 @@ const LOCAL_USER: User = {
   email: "local@estudos.local",
   loginMethod: "local",
   role: "admin",
-  settings: { theme: "light", studyStreak: { current: 0, best: 0, lastStudyDate: null } },
+  settings: {
+    theme: "light",
+    studyStreak: { current: 0, best: 0, lastStudyDate: null },
+  },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   lastSignedIn: new Date().toISOString(),
@@ -48,33 +53,36 @@ export type TrpcContext = {
 };
 
 export async function createContext(
-  opts: CreateExpressContextOptions
+  opts: CreateExpressContextOptions,
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
-  // In local mode, always use the local user
-  if (isLocalMode()) {
-    await ensureLocalUser();
-    // Get the actual user from DB to use their real ID
-    const dbUser = await storage.getUserByOpenId("local-user");
-    user = dbUser ? {
-      id: dbUser.id,
-      openId: dbUser.openId,
-      name: dbUser.name,
-      email: dbUser.email,
-      loginMethod: dbUser.loginMethod,
-      role: dbUser.role as "user" | "admin",
-      settings: dbUser.settings,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-      lastSignedIn: dbUser.lastSignedIn,
-    } : LOCAL_USER;
-  } else {
-    try {
-      user = await sdk.authenticateRequest(opts.req);
-    } catch (error) {
-      // Authentication is optional for public procedures.
-      user = null;
+  const authHeader = opts.req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ") && supabase) {
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user: authUser },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    if (authUser && !error) {
+      const dbUser = await db.getUserByOpenId(authUser.id);
+      if (dbUser) {
+        user = dbUser;
+      } else {
+        await db.upsertUser({
+          openId: authUser.id,
+          name: authUser.user_metadata?.full_name || authUser.email,
+          email: authUser.email,
+          loginMethod: "supabase",
+          role: "user",
+          lastSignedIn: new Date().toISOString(),
+        });
+        const newDbUser = await db.getUserByOpenId(authUser.id);
+        if (newDbUser) {
+          user = newDbUser;
+        }
+      }
     }
   }
 

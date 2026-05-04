@@ -505,6 +505,7 @@ export default function QuestionSession() {
                       Disciplina
                     </label>
                     <select
+                      data-testid="discipline-select"
                       className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none"
                       value={selectedDisc ?? ""}
                       onChange={(e) => {
@@ -533,6 +534,7 @@ export default function QuestionSession() {
                       Tema / Assunto
                     </label>
                     <select
+                      data-testid="topic-select"
                       className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none disabled:opacity-20"
                       value={selectedTopic ?? ""}
                       onChange={(e) =>

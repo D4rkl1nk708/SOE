@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.23% </span>
+                <span class="strong">84.61% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>9/13</span>
+                <span class='fraction'>11/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">43.63% </span>
+                <span class="strong">56.36% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>24/55</span>
+                <span class='fraction'>31/55</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/6</span>
+                <span class='fraction'>4/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.23% </span>
+                <span class="strong">84.61% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>9/13</span>
+                <span class='fraction'>11/13</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -454,7 +454,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -482,7 +482,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -681,7 +681,7 @@ export default function Home() {
           subtitle="revisões/testes atrasados"
           icon={Clock}
           valueClass={
-            (stats?.pendingRevisions ?? <span class="branch-1 cbranch-no" title="branch not covered" >0) &gt; 0</span> ? "text-amber-600" : <span class="branch-1 cbranch-no" title="branch not covered" >"text-green-600"</span>
+            (stats?.pendingRevisions ?? <span class="branch-1 cbranch-no" title="branch not covered" >0) &gt; 0</span> ? <span class="branch-0 cbranch-no" title="branch not covered" >"text-amber-600" : "</span>text-green-600"
           }
           loading={isLoading}
         /&gt;
@@ -697,7 +697,7 @@ export default function Home() {
 &nbsp;
       {/* Discipline Overview — shown only when there's data */}
       {hasData &amp;&amp; (stats?.disciplineStats?.length ?? 0) &gt; 0 &amp;&amp; (
-<span class="branch-2 cbranch-no" title="branch not covered" >        &lt;Card&gt;</span>
+        &lt;Card&gt;
           &lt;CardHeader&gt;
             &lt;CardTitle className="flex items-center gap-2"&gt;
               &lt;TrendingUp className="h-5 w-5 text-primary" /&gt;
@@ -707,7 +707,7 @@ export default function Home() {
           &lt;/CardHeader&gt;
           &lt;CardContent className="space-y-3"&gt;
             {stats!.disciplineStats
-              .filter(<span class="fstat-no" title="function not covered" >(<span class="cstat-no" title="statement not covered" >d</span>) =&gt; (d.performance?.questionsResolved ?? 0) &gt; 0)</span>
+              .filter((d) =&gt; (d.performance?.questionsResolved ?? 0) &gt; 0)
               .slice(0, 6)
               .map(<span class="fstat-no" title="function not covered" >(d</span>) =&gt; (
 <span class="cstat-no" title="statement not covered" >                &lt;div key={d.disciplineId} className="flex items-center gap-3"&gt;</span>
@@ -735,7 +735,7 @@ export default function Home() {
                   &lt;/div&gt;
                 &lt;/div&gt;
               ))}
-            {stats!.disciplineStats.every(<span class="fstat-no" title="function not covered" >(<span class="cstat-no" title="statement not covered" >d</span>) =&gt; (d.performance?.questionsResolved ?? 0) === 0)</span> &amp;&amp; (
+            {stats!.disciplineStats.every((d) =&gt; (d.performance?.questionsResolved ?? 0) === 0) &amp;&amp; (
               &lt;p className="text-sm text-muted-foreground text-center py-2"&gt;
                 Nenhuma questão registrada ainda. Importe dados do TEC ou registre manualmente no Dashboard.
               &lt;/p&gt;
@@ -829,7 +829,7 @@ export default function Home() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-27T17:20:59.720Z
+                at 2026-05-04T02:38:46.979Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

@@ -5,24 +5,27 @@
 import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 
-const STORAGE_KEY_NAME     = "dou_monitor_name";
-const STORAGE_KEY_SEEN     = "dou_monitor_seen_ids";
-const STORAGE_KEY_LAST     = "dou_monitor_last_check";
+const STORAGE_KEY_NAME = "dou_monitor_name";
+const STORAGE_KEY_SEEN = "dou_monitor_seen_ids";
+const STORAGE_KEY_LAST = "dou_monitor_last_check";
 const STORAGE_KEY_INTERVAL = "dou_monitor_interval_minutes";
-const DEFAULT_INTERVAL_MS  = 2 * 60 * 60 * 1000;
-const isAndroid            = Capacitor.isNativePlatform();
-const isElectron           = typeof window !== "undefined" && !!(window as any).electron;
-const canFetchDirect       = isAndroid || isElectron;
+const DEFAULT_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const isAndroid = Capacitor.isNativePlatform();
+const isElectron = typeof window !== "undefined" && !!(window as any).electron;
+const canFetchDirect = isAndroid || isElectron;
 
 export const DEFAULT_INTERVAL_MINUTES = 120;
-export const MIN_INTERVAL_MINUTES     = 15;
-export const MAX_INTERVAL_MINUTES     = 480;
+export const MIN_INTERVAL_MINUTES = 15;
+export const MAX_INTERVAL_MINUTES = 480;
 
 export function saveDOUInterval(minutes: number) {
   localStorage.setItem(STORAGE_KEY_INTERVAL, String(minutes));
 }
 export function getDOUInterval(): number {
-  return parseInt(localStorage.getItem(STORAGE_KEY_INTERVAL) ?? String(DEFAULT_INTERVAL_MINUTES));
+  return parseInt(
+    localStorage.getItem(STORAGE_KEY_INTERVAL) ??
+      String(DEFAULT_INTERVAL_MINUTES),
+  );
 }
 
 /** Salva o nome completo que será monitorado */
@@ -45,15 +48,18 @@ function buildSearchURL(name: string): string {
  * - Electron / Android: fetch direto (sem restrição de CORS)
  * - Browser web: usa proxy /api/dou-search no servidor Express
  */
-async function fetchDOUResults(name: string): Promise<{ id: string; title: string; date: string; url: string }[]> {
-  const directURL = `https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${name}"`)}&s=todos&exactDate=all&sortType=0`;
+async function fetchDOUResults(
+  name: string,
+): Promise<{ id: string; title: string; date: string; url: string }[]> {
+  const directURL = `https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${name}"`)}&s=todos&exactDate=all&sortType=0&delta=100`;
 
   if (canFetchDirect) {
     // ── Electron / Android: fetch direto, sem CORS ─────────────────────────
     const response = await fetch(directURL, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,*/*",
+        "User-Agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,*/*",
         "Accept-Language": "pt-BR,pt;q=0.9",
       },
       signal: AbortSignal.timeout(25000),
@@ -66,40 +72,65 @@ async function fetchDOUResults(name: string): Promise<{ id: string; title: strin
 
   // ── Browser web: usa proxy do servidor Express ──────────────────────────
   const proxyURL = `/api/dou-search?name=${encodeURIComponent(name)}`;
-  const response = await fetch(proxyURL, { signal: AbortSignal.timeout(30000) });
+  const response = await fetch(proxyURL, {
+    signal: AbortSignal.timeout(30000),
+  });
   if (!response.ok) throw new Error(`Proxy retornou HTTP ${response.status}`);
 
   const data = await response.json();
   if (data.error) throw new Error(data.error);
 
-  const results: { id: string; title: string; date: string; url: string }[] = [];
+  const results: { id: string; title: string; date: string; url: string }[] =
+    [];
 
   if (data.source === "html-parsed") {
     const raw: any[] = data.results ?? [];
     raw.forEach((r: any, i: number) => {
-      const title = String(r.title || "").replace(/\s+/g, " ").trim();
+      const title = String(r.title || "")
+        .replace(/\s+/g, " ")
+        .trim();
       if (title.length > 3) {
-        results.push({ id: String(r.id || `result-${i}`), title, date: r.date || "", url: r.url || directURL });
+        results.push({
+          id: String(r.id || `result-${i}`),
+          title,
+          date: r.date || "",
+          url: r.url || directURL,
+        });
       }
     });
     if (results.length === 0 && (data.total ?? 0) > 0) {
       for (let i = 0; i < Math.min(data.total, 10); i++) {
-        results.push({ id: `dou-total-${data.total}-${i}`, title: `Publicação no DOU (${i + 1} de ${data.total})`, date: "", url: directURL });
+        results.push({
+          id: `dou-total-${data.total}-${i}`,
+          title: `Publicação no DOU (${i + 1} de ${data.total})`,
+          date: "",
+          url: directURL,
+        });
       }
     }
     if (results.length === 0 && (data.rawLength ?? 0) > 10000) {
-      results.push({ id: `dou-page-${data.rawLength}`, title: "Publicações encontradas no DOU — abra 'Ver no DOU' para ver", date: "", url: directURL });
+      results.push({
+        id: `dou-page-${data.rawLength}`,
+        title: "Publicações encontradas no DOU — abra 'Ver no DOU' para ver",
+        date: "",
+        url: directURL,
+      });
     }
   }
 
   if (data.source === "json") {
-    const items = data.data?.results || data.data?.items || (Array.isArray(data.data) ? data.data : []);
+    const items =
+      data.data?.results ||
+      data.data?.items ||
+      (Array.isArray(data.data) ? data.data : []);
     items.forEach((item: any, i: number) => {
       results.push({
         id: String(item.id || item.urlTitle || `json-${i}`),
         title: item.title || item.titulo || `Resultado ${i + 1}`,
         date: item.pubDate || item.dataPublicacao || "",
-        url: item.url || (item.urlTitle ? `https://www.in.gov.br${item.urlTitle}` : directURL),
+        url:
+          item.url ||
+          (item.urlTitle ? `https://www.in.gov.br${item.urlTitle}` : directURL),
       });
     });
   }
@@ -108,8 +139,12 @@ async function fetchDOUResults(name: string): Promise<{ id: string; title: strin
 }
 
 /** Parseia o HTML do DOU e extrai resultados */
-function parseDOUHtml(html: string, fallbackURL: string): { id: string; title: string; date: string; url: string }[] {
-  const results: { id: string; title: string; date: string; url: string }[] = [];
+function parseDOUHtml(
+  html: string,
+  fallbackURL: string,
+): { id: string; title: string; date: string; url: string }[] {
+  const results: { id: string; title: string; date: string; url: string }[] =
+    [];
 
   // Tenta parsear via DOMParser (disponível no renderer do Electron e no Android)
   try {
@@ -130,13 +165,33 @@ function parseDOUHtml(html: string, fallbackURL: string): { id: string; title: s
       const items = doc.querySelectorAll(sel);
       if (items.length === 0) continue;
       items.forEach((el, i) => {
-        const id = el.getAttribute("data-id") || el.getAttribute("id") || el.querySelector("a")?.getAttribute("href") || `item-${i}`;
-        const title = (el.querySelector("h4,h3,h2,.title,.resultado-title,strong,a") as HTMLElement)?.innerText?.trim()
-                   || el.querySelector("h4,h3,h2,.title,.resultado-title,strong,a")?.textContent?.trim() || "";
-        const date = el.querySelector("time,.date,.data,.publicacao-data")?.textContent?.trim() || "";
+        const id =
+          el.getAttribute("data-id") ||
+          el.getAttribute("id") ||
+          el.querySelector("a")?.getAttribute("href") ||
+          `item-${i}`;
+        const title =
+          (
+            el.querySelector(
+              "h4,h3,h2,.title,.resultado-title,strong,a",
+            ) as HTMLElement
+          )?.innerText?.trim() ||
+          el
+            .querySelector("h4,h3,h2,.title,.resultado-title,strong,a")
+            ?.textContent?.trim() ||
+          "";
+        const date =
+          el
+            .querySelector("time,.date,.data,.publicacao-data")
+            ?.textContent?.trim() || "";
         const href = el.querySelector("a")?.getAttribute("href") || "";
-        const url = href.startsWith("http") ? href : href ? `https://www.in.gov.br${href}` : fallbackURL;
-        if (title.length > 3) results.push({ id: String(id), title, date, url });
+        const url = href.startsWith("http")
+          ? href
+          : href
+            ? `https://www.in.gov.br${href}`
+            : fallbackURL;
+        if (title.length > 3)
+          results.push({ id: String(id), title, date, url });
       });
       if (results.length > 0) break;
     }
@@ -148,11 +203,18 @@ function parseDOUHtml(html: string, fallbackURL: string): { id: string; title: s
       const total = match ? parseInt(match[1]) : 0;
       if (total > 0) {
         for (let i = 0; i < Math.min(total, 10); i++) {
-          results.push({ id: `dou-count-${total}-${i}`, title: `Publicação no DOU (${i + 1} de ${total})`, date: "", url: fallbackURL });
+          results.push({
+            id: `dou-count-${total}-${i}`,
+            title: `Publicação no DOU (${i + 1} de ${total})`,
+            date: "",
+            url: fallbackURL,
+          });
         }
       }
     }
-  } catch { /* ignora erro de parse */ }
+  } catch {
+    /* ignora erro de parse */
+  }
 
   return results;
 }
@@ -160,7 +222,8 @@ function parseDOUHtml(html: string, fallbackURL: string): { id: string; title: s
 async function sendNotification(title: string, body: string) {
   try {
     if (isAndroid) {
-      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      const { LocalNotifications } =
+        await import("@capacitor/local-notifications");
       const perm = await LocalNotifications.requestPermissions();
       if (perm.display !== "granted") return;
 
@@ -174,18 +237,22 @@ async function sendNotification(title: string, body: string) {
           sound: "default",
           vibration: true,
         });
-      } catch { /* canal já existe */ }
+      } catch {
+        /* canal já existe */
+      }
 
       await LocalNotifications.schedule({
-        notifications: [{
-          id: Date.now() % 2147483647,
-          title,
-          body,
-          schedule: { at: new Date(Date.now() + 1000) },
-          sound: "default",
-          smallIcon: "ic_stat_icon",
-          channelId: "soe_dou",
-        }],
+        notifications: [
+          {
+            id: Date.now() % 2147483647,
+            title,
+            body,
+            schedule: { at: new Date(Date.now() + 1000) },
+            sound: "default",
+            smallIcon: "ic_stat_icon",
+            channelId: "soe_dou",
+          },
+        ],
       });
     } else {
       // Web Notification
@@ -246,25 +313,34 @@ export function useDiarioOficial() {
 
     const intervalMs = getDOUInterval() * 60 * 1000;
     const lastCheck = localStorage.getItem(STORAGE_KEY_LAST);
-    const shouldCheckNow = !lastCheck ||
-      (Date.now() - new Date(lastCheck).getTime()) >= intervalMs;
+    const shouldCheckNow =
+      !lastCheck || Date.now() - new Date(lastCheck).getTime() >= intervalMs;
 
     if (shouldCheckNow) checkDOU();
 
     const schedule = () => {
-      timerRef.current = setTimeout(async () => {
-        await checkDOU();
-        schedule();
-      }, getDOUInterval() * 60 * 1000);
+      timerRef.current = setTimeout(
+        async () => {
+          await checkDOU();
+          schedule();
+        },
+        getDOUInterval() * 60 * 1000,
+      );
     };
     schedule();
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 }
 
 /** Força uma verificação manual imediata. Retorna total de resultados encontrados */
-export async function checkDOUNow(): Promise<{ total: number; newCount: number; searchURL: string }> {
+export async function checkDOUNow(): Promise<{
+  total: number;
+  newCount: number;
+  searchURL: string;
+}> {
   const name = getDOUName();
   if (!name) return { total: 0, newCount: 0, searchURL: "" };
 
@@ -285,7 +361,11 @@ export async function checkDOUNow(): Promise<{ total: number; newCount: number; 
   }
 
   localStorage.setItem(STORAGE_KEY_LAST, new Date().toISOString());
-  return { total: results.length, newCount: newResults.length, searchURL: buildSearchURL(name) };
+  return {
+    total: results.length,
+    newCount: newResults.length,
+    searchURL: buildSearchURL(name),
+  };
 }
 
 // ── API usada pela UI do Perfil ───────────────────────────────────────────────
@@ -298,11 +378,19 @@ export async function douGetConfig() {
   };
 }
 
-export async function douSaveConfig(config: { name?: string; intervalMinutes?: number }) {
+export async function douSaveConfig(config: {
+  name?: string;
+  intervalMinutes?: number;
+}) {
   if (config.name !== undefined) saveDOUName(config.name);
-  if (config.intervalMinutes !== undefined) saveDOUInterval(config.intervalMinutes);
+  if (config.intervalMinutes !== undefined)
+    saveDOUInterval(config.intervalMinutes);
 }
 
-export async function douCheckNow(): Promise<{ total: number; newCount: number; searchURL: string }> {
+export async function douCheckNow(): Promise<{
+  total: number;
+  newCount: number;
+  searchURL: string;
+}> {
   return checkDOUNow();
 }
