@@ -51,12 +51,15 @@ jobs:
 
       - name: Get Version
         id: get_version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Check if Tag Exists
         id: check_tag
         run: |
-          if git ls-remote --tags origin refs/tags/v${{ env.VERSION }} | grep -q "refs/tags/v${{ env.VERSION }}"; then
+          if git ls-remote --tags origin refs/tags/v${{ steps.get_version.outputs.VERSION }} | grep -q "refs/tags/v${{ steps.get_version.outputs.VERSION }}"; then
             echo "TAG_EXISTS=true" >> $GITHUB_ENV
           else
             echo "TAG_EXISTS=false" >> $GITHUB_ENV
@@ -67,8 +70,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ env.VERSION }}
-          git push origin v${{ env.VERSION }}
+          git tag v${{ steps.get_version.outputs.VERSION }}
+          git push origin v${{ steps.get_version.outputs.VERSION }}
 
       - name: Install Wine for Windows Build
         run: |
@@ -82,24 +85,23 @@ jobs:
           npx cap sync android
           chmod +x android/gradlew
           ./android/gradlew -p android assembleRelease
-          cp android/app/build/outputs/apk/release/*.apk Android-SOE-v${{ env.VERSION }}.apk
+          cp android/app/build/outputs/apk/release/*.apk Android-SOE-v${{ steps.get_version.outputs.VERSION }}.apk
 
       - name: Build Linux AppImage
         run: |
           npm run desktop:build:linux
-          cp release/*.AppImage Linux-SOE-v${{ env.VERSION }}.AppImage
+          cp release/*.AppImage Linux-SOE-v${{ steps.get_version.outputs.VERSION }}.AppImage
 
       - name: Build Windows Executable
         run: |
           npm run desktop:build:win
-          cp release/*.exe Windows-SOE-v${{ env.VERSION }}.exe
+          cp release/*.exe Windows-SOE-v${{ steps.get_version.outputs.VERSION }}.exe
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          target_commitish: main
-          name: SOE v${{ env.VERSION }}
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          name: SOE v${{ steps.get_version.outputs.VERSION }}
           make_latest: true
           generate_release_notes: true
           files: |
