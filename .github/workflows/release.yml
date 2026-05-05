@@ -37,23 +37,28 @@ jobs:
       - name: Debug and Create .env
         shell: bash
         run: |
-          echo "Verificando segredos..."
+          echo "Checking secrets..."
           if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ]; then
-            echo "::error::ERRO CRÍTICO: VITE_SUPABASE_URL não encontrada nos segredos do repositório!"
+            echo "::error::CRITICAL ERROR: VITE_SUPABASE_URL not found in Repository Secrets!"
             exit 1
-          else
-            echo "VITE_SUPABASE_URL encontrada (tamanho: ${#VITE_SUPABASE_URL})"
           fi
           
+          # Create .env in root
           cat <<EOF > .env
           VITE_SUPABASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
           VITE_SUPABASE_ANON_KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
           SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
           SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
           EOF
+          
+          # Force copy to client/
+          mkdir -p client
           cp .env client/.env
+          
+          echo "Environment files created successfully."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+
 
       - name: Get Version
         id: get_version
