@@ -34,30 +34,34 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
-      - name: Debug and Create .env
+      - name: Hardcode Environment Keys
         shell: bash
         run: |
-          echo "Checking secrets..."
+          echo "Injecting keys into source code..."
           if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ]; then
             echo "::error::CRITICAL ERROR: VITE_SUPABASE_URL not found in Repository Secrets!"
             exit 1
           fi
           
-          # Create .env in root
+          # Sobrescreve o arquivo de ponte com as chaves reais
+          cat <<EOF > client/src/lib/env.ts
+          export const ENV_SUPABASE_URL = "${{ secrets.VITE_SUPABASE_URL }}";
+          export const ENV_SUPABASE_ANON_KEY = "${{ secrets.VITE_SUPABASE_ANON_KEY }}";
+          EOF
+          
+          # Mantém o .env como fallback
           cat <<EOF > .env
           VITE_SUPABASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
           VITE_SUPABASE_ANON_KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
           SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
           SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
           EOF
+          mkdir -p client && cp .env client/.env
           
-          # Force copy to client/
-          mkdir -p client
-          cp .env client/.env
-          
-          echo "Environment files created successfully."
+          echo "Injection successful."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+
 
 
       - name: Get Version
