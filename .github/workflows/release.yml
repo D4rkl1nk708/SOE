@@ -11,12 +11,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    environment: Production
-    env:
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    # Removido environment para usar Repository Secrets globais
     
     steps:
       - name: Checkout Code
@@ -39,15 +34,17 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile --shamefully-hoist
 
-      - name: Validate Secrets
+      - name: Debug and Create .env
+        shell: bash
         run: |
+          echo "Verificando segredos..."
           if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ]; then
-            echo "::error::VITE_SUPABASE_URL is missing! Check your GitHub Repository Secrets."
+            echo "::error::ERRO CRÍTICO: VITE_SUPABASE_URL não encontrada nos segredos do repositório!"
             exit 1
+          else
+            echo "VITE_SUPABASE_URL encontrada (tamanho: ${#VITE_SUPABASE_URL})"
           fi
-
-      - name: Create environment files
-        run: |
+          
           cat <<EOF > .env
           VITE_SUPABASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
           VITE_SUPABASE_ANON_KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
@@ -55,7 +52,8 @@ jobs:
           SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
           EOF
           cp .env client/.env
-
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
 
       - name: Get Version
         id: get_version
@@ -88,6 +86,9 @@ jobs:
           sudo apt-get install -y wine wine64 wine32
 
       - name: Build Android APK
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm run build:clean
           npx cap sync android
@@ -96,11 +97,17 @@ jobs:
           cp android/app/build/outputs/apk/release/*.apk Android-SOE-v${{ steps.get_version.outputs.VERSION }}.apk
 
       - name: Build Linux AppImage
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm run desktop:build:linux
           cp release/*.AppImage Linux-SOE-v${{ steps.get_version.outputs.VERSION }}.AppImage
 
       - name: Build Windows Executable
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm run desktop:build:win
           cp release/*.exe Windows-SOE-v${{ steps.get_version.outputs.VERSION }}.exe
