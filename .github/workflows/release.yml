@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    # Removido environment para usar Repository Secrets globais
+    environment: Production
     
     steps:
       - name: Checkout Code
@@ -39,7 +39,7 @@ jobs:
         run: |
           echo "Injecting keys into source code..."
           if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ]; then
-            echo "::error::CRITICAL ERROR: VITE_SUPABASE_URL not found in Repository Secrets!"
+            echo "::error::CRITICAL ERROR: VITE_SUPABASE_URL not found in Environment Secrets (Production)!"
             exit 1
           fi
           
