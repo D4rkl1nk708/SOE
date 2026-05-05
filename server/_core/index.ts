@@ -34,6 +34,19 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 export async function createApp() {
+  // Garante que existe pelo menos um usuário no banco (necessário para TEC no Electron)
+  try {
+    await storage.upsertUser({
+      openId: "local-user",
+      name: "Usuário Local",
+      email: "local@estudos.local",
+      loginMethod: "local",
+      role: "admin",
+    });
+  } catch (e) {
+    console.error("Error ensuring local user:", e);
+  }
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

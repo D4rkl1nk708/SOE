@@ -34,6 +34,19 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Garante que existe pelo menos um usuário no banco (necessário para TEC no Electron)
+  try {
+    await storage.upsertUser({
+      openId: "local-user",
+      name: "Usuário Local",
+      email: "local@estudos.local",
+      loginMethod: "local",
+      role: "admin",
+    });
+  } catch (e) {
+    console.error("Error ensuring local user:", e);
+  }
+
   const app = express();
   const server = createServer(app);
   app.use(express.json({ limit: "50mb" }));
@@ -300,20 +313,16 @@ async function startServer() {
       const token =
         (req.headers["x-soe-token"] as string) || (req.query.token as string);
       if (!token)
-        return res
-          .status(401)
-          .json({
-            error: "Header X-SOE-Token ausente ou query ?token= não informado",
-          });
+        return res.status(401).json({
+          error: "Header X-SOE-Token ausente ou query ?token= não informado",
+        });
 
       const user = await storage.getUserByPushToken(token);
       if (!user)
-        return res
-          .status(401)
-          .json({
-            error:
-              "Token inválido. Gere um novo token em: Mentor → Cadernos Tempo Real → Gerar Token.",
-          });
+        return res.status(401).json({
+          error:
+            "Token inválido. Gere um novo token em: Mentor → Cadernos Tempo Real → Gerar Token.",
+        });
 
       const {
         cadernoId,
@@ -1035,12 +1044,10 @@ Retorne APENAS um JSON válido, sem blocos de código markdown, sem explicaçõe
             : "openai";
 
         if (!apiKey) {
-          return res
-            .status(500)
-            .json({
-              error:
-                "❌ Chave de API da IA não configurada. Por favor, adicione sua chave Gemini ou OpenAI na aba Perfil > Configurações de IA no SOE Desktop.",
-            });
+          return res.status(500).json({
+            error:
+              "❌ Chave de API da IA não configurada. Por favor, adicione sua chave Gemini ou OpenAI na aba Perfil > Configurações de IA no SOE Desktop.",
+          });
         }
 
         // Memory fetch (procurar notas de sobrevivência)

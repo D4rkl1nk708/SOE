@@ -2900,8 +2900,15 @@ export async function generatePushToken(userId: number): Promise<string> {
 export async function getUserByPushToken(
   token: string,
 ): Promise<User | undefined> {
-  if (!token || token.length < 8) return undefined; // rejeita tokens obviamente inválidos (mínimo 8 para token-123 e 13 para ELECTRON_MODE)
+  if (!token || token.length < 8) return undefined;
   const db = readDatabase();
+
+  // Modo Electron: quando não há push token configurado, o Electron envia "ELECTRON_MODE".
+  // Nesse caso, retornamos o primeiro usuário disponível (desktop é single-user).
+  if (token === "ELECTRON_MODE") {
+    return db.users[0];
+  }
+
   return db.users.find((u) => u.settings?.pushToken === token);
 }
 
