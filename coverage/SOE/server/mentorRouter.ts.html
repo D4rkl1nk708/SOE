@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">46.87% </span>
+                <span class="strong">46.97% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>225/480</span>
+                <span class='fraction'>225/479</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">36.97% </span>
+                <span class="strong">37.04% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>132/357</span>
+                <span class='fraction'>133/359</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">46.8% </span>
+                <span class="strong">46.91% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>205/438</span>
+                <span class='fraction'>205/437</span>
             </div>
         
             
@@ -2069,26 +2069,7 @@
 <a name='L2004'></a><a href='#L2004'>2004</a>
 <a name='L2005'></a><a href='#L2005'>2005</a>
 <a name='L2006'></a><a href='#L2006'>2006</a>
-<a name='L2007'></a><a href='#L2007'>2007</a>
-<a name='L2008'></a><a href='#L2008'>2008</a>
-<a name='L2009'></a><a href='#L2009'>2009</a>
-<a name='L2010'></a><a href='#L2010'>2010</a>
-<a name='L2011'></a><a href='#L2011'>2011</a>
-<a name='L2012'></a><a href='#L2012'>2012</a>
-<a name='L2013'></a><a href='#L2013'>2013</a>
-<a name='L2014'></a><a href='#L2014'>2014</a>
-<a name='L2015'></a><a href='#L2015'>2015</a>
-<a name='L2016'></a><a href='#L2016'>2016</a>
-<a name='L2017'></a><a href='#L2017'>2017</a>
-<a name='L2018'></a><a href='#L2018'>2018</a>
-<a name='L2019'></a><a href='#L2019'>2019</a>
-<a name='L2020'></a><a href='#L2020'>2020</a>
-<a name='L2021'></a><a href='#L2021'>2021</a>
-<a name='L2022'></a><a href='#L2022'>2022</a>
-<a name='L2023'></a><a href='#L2023'>2023</a>
-<a name='L2024'></a><a href='#L2024'>2024</a>
-<a name='L2025'></a><a href='#L2025'>2025</a>
-<a name='L2026'></a><a href='#L2026'>2026</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L2007'></a><a href='#L2007'>2007</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2941,36 +2922,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4934,7 +4896,7 @@ Retorne EXATAMENTE neste formato JSON:
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
       }),
     )
-    .mutation(async ({ ctx: _ctx, input }) =&gt; {
+    .mutation(async ({ ctx, input }) =&gt; {
       const chosenText =
         input.alternatives.find((a) =&gt; a.letter === input.userAnswer)?.text ??
 <span class="branch-1 cbranch-no" title="branch not covered" >        "";</span>
@@ -4942,7 +4904,7 @@ Retorne EXATAMENTE neste formato JSON:
         input.alternatives.find((a) =&gt; a.letter === input.correctAnswer)
           ?.text ?? <span class="branch-1 cbranch-no" title="branch not covered" >"";</span>
 &nbsp;
-      const prompt = `Você é o Mentor SOE — professor particular de concursos. O aluno acabou de errar uma questão na sessão adaptativa. Dê um diagnóstico CIRÚRGICO e IMEDIATO.
+      const prompt = `Você é o Mentor SOE — professor particular de concursos. O aluno acabou de errar uma questão. Dê um diagnóstico CIRÚRGICO.
 &nbsp;
 Disciplina: ${input.disciplineName} | Tópico: ${input.topicName}
 Questão: ${input.statement}
@@ -4950,56 +4912,37 @@ ${input.alternatives.map((a) =&gt; `${a.letter}) ${a.text}`).join("\n")}
 &nbsp;
 Aluno marcou: ${input.userAnswer}) ${chosenText}
 Gabarito: ${input.correctAnswer}) ${correctText}
-Tipo de erro: ${input.errorOrigin ?? "não classificado"}
 &nbsp;
-Responda em JSON exato (sem markdown):
+Responda em JSON exato:
 {
-  "diagnosis": "2-3 linhas: por que a correta é correta e a escolhida está errada — use os textos das alternativas",
-  "concept": "O conceito-chave cobrado em 1 linha",
-  "rule": "Regra ou macete para não errar de novo — máx 20 palavras",
-  "fixationQuestions": [
-    {
-      "statement": "questão de fixação 1 — explora esse mesmo conceito de outro ângulo",
-      "alternatives": [
-        {"letter": "A", "text": "..."},
-        {"letter": "B", "text": "..."},
-        {"letter": "C", "text": "..."},
-        {"letter": "D", "text": "..."}
-      ],
-      "correctAnswer": "letra",
-      "explanation": "por que essa é a correta em 1 linha"
-    },
-    {
-      "statement": "questão de fixação 2 — variação ou exceção do mesmo conceito",
-      "alternatives": [
-        {"letter": "A", "text": "..."},
-        {"letter": "B", "text": "..."},
-        {"letter": "C", "text": "..."},
-        {"letter": "D", "text": "..."}
-      ],
-      "correctAnswer": "letra",
-      "explanation": "por que essa é a correta em 1 linha"
-    }
-  ]
-}`;
+  "diagnosis": "por que errou",
+  "concept": "conceito-chave",
+  "rule": "macete",
+  "detectedConfusion": {
+    "conceptA": "primeiro conceito (ex: Revogação)",
+    "conceptB": "segundo conceito confundido (ex: Anulação)",
+    "explanation": "por que o aluno os confunde?"
+  },
+  "fixationQuestions": [...]
+}
+&nbsp;
+Responda APENAS o JSON.`;
 &nbsp;
       try {
         const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
-        let parsed: any;
-        try {
-          parsed = extractJSON(raw);
-        } catch (parseErr: any) {
-<span class="cstat-no" title="statement not covered" >          console.error("JSON parsing failed:", parseErr.message);</span>
-<span class="cstat-no" title="statement not covered" >          console.error("Raw AI response:", raw);</span>
-<span class="cstat-no" title="statement not covered" >          throw new Error(</span>
-            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
-          );
+        const parsed = extractJSON(raw) as any;
+        
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (parsed.detectedConfusion) {
+          const storage = <span class="cstat-no" title="statement not covered" >await import("./jsonStorage");</span>
+<span class="cstat-no" title="statement not covered" >          await storage.addConceptConfusion(ctx.user.id, parsed.detectedConfusion);</span>
         }
+&nbsp;
         return {
           diagnosis: parsed.diagnosis ?? <span class="branch-1 cbranch-no" title="branch not covered" >"",</span>
           concept: parsed.concept ?? "",
           rule: parsed.rule ?? "",
           fixationQuestions: parsed.fixationQuestions ?? [],
+          detectedConfusion: parsed.detectedConfusion ?? null,
         };
       } catch (err: any) {
 <span class="cstat-no" title="statement not covered" >        throw new Error(`Falha no diagnóstico: ${err.message}`);</span>
@@ -6145,7 +6088,7 @@ Retorne um JSON:
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-12T01:16:59.148Z
+                at 2026-05-12T04:23:59.406Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

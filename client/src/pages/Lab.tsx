@@ -23,7 +23,11 @@ import {
   ChevronRight,
   Info,
   Edit2,
+  Sparkles,
+  ChevronLeft,
+  Lightbulb,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import MinedResolutionPanel from "./MinedResolutionPanel";
@@ -107,10 +111,10 @@ function QueueItemProgress({ item }: { item: QueueItem }) {
   );
 }
 
+type Tab = "mining" | "library" | "strategy" | "mirror";
+
 export default function Lab() {
-  const [activeTab, setActiveTab] = useState<"mining" | "library" | "strategy">(
-    "mining",
-  );
+  const [activeTab, setActiveTab] = useState<Tab>("mining");
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [previewQuestions, setPreviewQuestions] = useState<{
     questions: any[];
@@ -133,6 +137,12 @@ export default function Lab() {
 
   // States para Estratégia e Busca
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [mirrorSession, setMirrorSession] = useState<any>(null);
+  const [mirrorCurrentIdx, setMirrorCurrentIdx] = useState(0);
+  const [mirrorAnswers, setMirrorAnswers] = useState<Record<number, string>>(
+    {},
+  );
+  const [mirrorConfirmed, setMirrorConfirmed] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [coverageData, setCoverageData] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -161,6 +171,10 @@ export default function Lab() {
   const searchOnlineMutation = trpc.lab.searchOnlineExams.useMutation();
   const downloadUrlMutation = trpc.lab.downloadFromUrl.useMutation();
   const renameFileMutation = trpc.lab.renameMinedFile.useMutation();
+  const generateMirrorMutation =
+    trpc.mentor.generateMaliciousMock.useMutation();
+  const { data: confusions, refetch: refetchConfusions } =
+    trpc.mentor.getConceptConfusions.useQuery();
   const utils = trpc.useUtils();
 
   const handleDownloadAndMine = async (url: string, title: string) => {
@@ -404,6 +418,18 @@ export default function Lab() {
             className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "strategy" ? "bg-background text-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
           >
             Estratégia
+          </button>
+          <button
+            onClick={() => setActiveTab("mirror")}
+            className={`h-full px-8 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === "mirror" ? "text-primary" : "text-muted-foreground opacity-40 hover:opacity-100"}`}
+          >
+            {activeTab === "mirror" && (
+              <motion.div
+                layoutId="activeTabLab"
+                className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full shadow-[0_-4px_12px_rgba(var(--primary-rgb),0.5)]"
+              />
+            )}
+            Banca Mirror
           </button>
         </div>
       </div>
@@ -1020,6 +1046,337 @@ export default function Lab() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "mirror" && (
+        <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+          {!mirrorSession ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8 space-y-6">
+                <div className="soe-card p-10 rounded-[3rem] bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-4 rounded-3xl bg-primary text-white shadow-xl shadow-primary/30">
+                      <Zap size={32} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight">
+                        Banca Mirror
+                      </h2>
+                      <p className="text-xs font-bold opacity-60 uppercase tracking-widest">
+                        Desafios Inéditos de Pontos Cegos
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm leading-relaxed opacity-80 max-w-2xl italic">
+                    "O examinador sabe onde você escorrega. O Banca Mirror
+                    detecta suas confusões entre conceitos similares (ex:
+                    Anulação vs Revogação) e gera 3 questões inéditas, maldosas
+                    e focadas exatamente nessas exceções para forçar o seu
+                    aprendizado."
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {confusions && confusions.length > 0 ? (
+                    confusions.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="soe-card p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-primary/40 transition-all group"
+                      >
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] font-black uppercase tracking-widest border-primary/30 text-primary"
+                            >
+                              {c.occurrences} Erros Detectados
+                            </Badge>
+                            <span className="text-[10px] opacity-30 font-bold">
+                              {new Date(c.detectedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col flex-1">
+                              <span className="text-[10px] font-black uppercase opacity-40">
+                                Conceito A
+                              </span>
+                              <span className="text-sm font-black text-primary">
+                                {c.conceptA}
+                              </span>
+                            </div>
+                            <div className="w-px h-8 bg-border/50" />
+                            <div className="flex flex-col flex-1 text-right">
+                              <span className="text-[10px] font-black uppercase opacity-40">
+                                Conceito B
+                              </span>
+                              <span className="text-sm font-black text-rose-500">
+                                {c.conceptB}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-[11px] opacity-60 leading-relaxed border-t border-border/30 pt-4">
+                            {c.explanation}
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const apiKey = (stats?.settings as any)?.aiApiKey;
+                            const provider =
+                              (stats?.settings as any)?.aiProvider ?? "gemini";
+                            if (!apiKey)
+                              return toast.error(
+                                "Configure sua API Key nas configurações.",
+                              );
+
+                            toast.promise(
+                              generateMirrorMutation.mutateAsync({
+                                conceptA: c.conceptA,
+                                conceptB: c.conceptB,
+                                explanation: c.explanation,
+                                apiKey,
+                                provider: provider as any,
+                              }),
+                              {
+                                loading:
+                                  "O examinador está preparando as armadilhas...",
+                                success: (data) => {
+                                  setMirrorSession(data);
+                                  setMirrorCurrentIdx(0);
+                                  setMirrorAnswers({});
+                                  setMirrorConfirmed(false);
+                                  return "Simulado gerado!";
+                                },
+                                error: "Falha ao gerar simulado.",
+                              },
+                            );
+                          }}
+                          className="mt-8 w-full py-4 rounded-2xl bg-secondary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                        >
+                          <Play size={14} className="fill-current" /> Gerar
+                          Desafio Inédito
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full py-20 soe-card rounded-[3rem] border-dashed flex flex-col items-center justify-center opacity-30 space-y-4">
+                      <Target size={48} />
+                      <p className="text-xs font-black uppercase tracking-widest">
+                        Nenhuma confusão grave detectada ainda
+                      </p>
+                      <p className="text-[10px] max-w-xs text-center leading-relaxed">
+                        Continue resolvendo questões na Sessão Adaptativa do
+                        Mentor para que eu identifique seus pontos cegos.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="lg:col-span-4 space-y-6">
+                <div className="soe-card p-8 rounded-[3rem] space-y-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                    <Sparkles size={18} className="text-primary" /> Gerador
+                    Manual
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                        Comparar Conceito A
+                      </label>
+                      <input
+                        id="manualA"
+                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none focus:border-primary/50 transition-all"
+                        placeholder="Ex: Convalidação"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                        Versus Conceito B
+                      </label>
+                      <input
+                        id="manualB"
+                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none focus:border-primary/50 transition-all"
+                        placeholder="Ex: Revogação"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const a = (
+                          document.getElementById("manualA") as HTMLInputElement
+                        ).value;
+                        const b = (
+                          document.getElementById("manualB") as HTMLInputElement
+                        ).value;
+                        if (!a || !b)
+                          return toast.error("Preencha ambos os conceitos.");
+                        const apiKey = (stats?.settings as any)?.aiApiKey;
+                        const provider =
+                          (stats?.settings as any)?.aiProvider ?? "gemini";
+                        if (!apiKey)
+                          return toast.error("Configure sua API Key.");
+
+                        toast.promise(
+                          generateMirrorMutation.mutateAsync({
+                            conceptA: a,
+                            conceptB: b,
+                            explanation: `O aluno deseja focar na diferenciação entre ${a} e ${b}.`,
+                            apiKey,
+                            provider: provider as any,
+                          }),
+                          {
+                            loading: "Criando simulado customizado...",
+                            success: (data) => {
+                              setMirrorSession(data);
+                              setMirrorCurrentIdx(0);
+                              setMirrorAnswers({});
+                              setMirrorConfirmed(false);
+                              return "Desafio pronto!";
+                            },
+                            error: "Erro ao gerar.",
+                          },
+                        );
+                      }}
+                      className="w-full py-4 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all"
+                    >
+                      <Zap size={14} /> Criar Desafio Agora
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-8 pb-20">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setMirrorSession(null)}
+                  className="flex items-center gap-2 text-xs font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all"
+                >
+                  <ChevronLeft size={16} /> Voltar ao Laboratório
+                </button>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                    Questão {mirrorCurrentIdx + 1} de{" "}
+                    {mirrorSession.questions.length}
+                  </span>
+                  <div className="w-48 h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
+                      style={{
+                        width: `${((mirrorCurrentIdx + 1) / mirrorSession.questions.length) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="soe-card p-12 rounded-[4rem] space-y-10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+                  <Target size={120} />
+                </div>
+
+                <div className="space-y-4">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase px-4 py-1.5 rounded-full">
+                    {mirrorSession.mockTitle}
+                  </Badge>
+                  <h3 className="text-2xl font-bold leading-relaxed">
+                    {mirrorSession.questions[mirrorCurrentIdx].statement}
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {mirrorSession.questions[mirrorCurrentIdx].alternatives.map(
+                    (alt: any) => {
+                      const isSelected =
+                        mirrorAnswers[mirrorCurrentIdx] === alt.letter;
+                      const isCorrect =
+                        alt.letter ===
+                        mirrorSession.questions[mirrorCurrentIdx].correctAnswer;
+                      let style =
+                        "bg-secondary/20 border-border/50 hover:bg-secondary/40";
+                      if (mirrorConfirmed) {
+                        if (isCorrect)
+                          style =
+                            "bg-accent-green/10 border-accent-green text-accent-green";
+                        else if (isSelected)
+                          style =
+                            "bg-rose-500/10 border-rose-500 text-rose-500";
+                        else style = "opacity-30 border-border/50";
+                      } else if (isSelected) {
+                        style =
+                          "bg-primary/10 border-primary shadow-lg shadow-primary/10";
+                      }
+
+                      return (
+                        <button
+                          key={alt.letter}
+                          disabled={mirrorConfirmed}
+                          onClick={() =>
+                            setMirrorAnswers({
+                              ...mirrorAnswers,
+                              [mirrorCurrentIdx]: alt.letter,
+                            })
+                          }
+                          className={`p-6 rounded-3xl border-2 text-left transition-all flex items-start gap-4 ${style}`}
+                        >
+                          <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center font-black text-xs shrink-0 border border-border/50">
+                            {alt.letter}
+                          </span>
+                          <span className="text-sm font-medium leading-relaxed pt-1">
+                            {alt.text}
+                          </span>
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
+
+                {mirrorConfirmed &&
+                  mirrorSession.questions[mirrorCurrentIdx].hint && (
+                    <div className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/20 flex gap-4 animate-in slide-in-from-top-2">
+                      <Lightbulb className="text-amber-500 shrink-0" />
+                      <p className="text-xs italic opacity-80 leading-relaxed">
+                        <strong>Comentário do Mentor:</strong>{" "}
+                        {mirrorSession.questions[mirrorCurrentIdx].hint}
+                      </p>
+                    </div>
+                  )}
+
+                <div className="pt-6">
+                  {!mirrorConfirmed ? (
+                    <button
+                      onClick={() => setMirrorConfirmed(true)}
+                      disabled={!mirrorAnswers[mirrorCurrentIdx]}
+                      className="w-full py-5 rounded-3xl bg-primary text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20"
+                    >
+                      Verificar Resposta
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (
+                          mirrorCurrentIdx <
+                          mirrorSession.questions.length - 1
+                        ) {
+                          setMirrorCurrentIdx(mirrorCurrentIdx + 1);
+                          setMirrorConfirmed(false);
+                        } else {
+                          toast.success("Simulado de Maldades Concluído!");
+                          setMirrorSession(null);
+                          refetchConfusions();
+                        }
+                      }}
+                      className="w-full py-5 rounded-3xl bg-secondary text-foreground font-black text-xs uppercase tracking-widest border border-border hover:bg-muted transition-all"
+                    >
+                      {mirrorCurrentIdx < mirrorSession.questions.length - 1
+                        ? "Próxima Questão"
+                        : "Finalizar Simulado"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

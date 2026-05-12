@@ -819,7 +819,7 @@ Retorne EXATAMENTE neste formato JSON:
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
       }),
     )
-    .mutation(async ({ ctx: _ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const chosenText =
         input.alternatives.find((a) => a.letter === input.userAnswer)?.text ??
         "";
@@ -827,7 +827,7 @@ Retorne EXATAMENTE neste formato JSON:
         input.alternatives.find((a) => a.letter === input.correctAnswer)
           ?.text ?? "";
 
-      const prompt = `Você é o Mentor SOE — professor particular de concursos. O aluno acabou de errar uma questão na sessão adaptativa. Dê um diagnóstico CIRÚRGICO e IMEDIATO.
+      const prompt = `Você é o Mentor SOE — professor particular de concursos. O aluno acabou de errar uma questão. Dê um diagnóstico CIRÚRGICO.
 
 Disciplina: ${input.disciplineName} | Tópico: ${input.topicName}
 Questão: ${input.statement}
@@ -835,56 +835,40 @@ ${input.alternatives.map((a) => `${a.letter}) ${a.text}`).join("\n")}
 
 Aluno marcou: ${input.userAnswer}) ${chosenText}
 Gabarito: ${input.correctAnswer}) ${correctText}
-Tipo de erro: ${input.errorOrigin ?? "não classificado"}
 
-Responda em JSON exato (sem markdown):
+Responda em JSON exato:
 {
-  "diagnosis": "2-3 linhas: por que a correta é correta e a escolhida está errada — use os textos das alternativas",
-  "concept": "O conceito-chave cobrado em 1 linha",
-  "rule": "Regra ou macete para não errar de novo — máx 20 palavras",
-  "fixationQuestions": [
-    {
-      "statement": "questão de fixação 1 — explora esse mesmo conceito de outro ângulo",
-      "alternatives": [
-        {"letter": "A", "text": "..."},
-        {"letter": "B", "text": "..."},
-        {"letter": "C", "text": "..."},
-        {"letter": "D", "text": "..."}
-      ],
-      "correctAnswer": "letra",
-      "explanation": "por que essa é a correta em 1 linha"
-    },
-    {
-      "statement": "questão de fixação 2 — variação ou exceção do mesmo conceito",
-      "alternatives": [
-        {"letter": "A", "text": "..."},
-        {"letter": "B", "text": "..."},
-        {"letter": "C", "text": "..."},
-        {"letter": "D", "text": "..."}
-      ],
-      "correctAnswer": "letra",
-      "explanation": "por que essa é a correta em 1 linha"
-    }
-  ]
-}`;
+  "diagnosis": "por que errou",
+  "concept": "conceito-chave",
+  "rule": "macete",
+  "detectedConfusion": {
+    "conceptA": "primeiro conceito (ex: Revogação)",
+    "conceptB": "segundo conceito confundido (ex: Anulação)",
+    "explanation": "por que o aluno os confunde?"
+  },
+  "fixationQuestions": [...]
+}
+
+Responda APENAS o JSON.`;
 
       try {
         const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
-        let parsed: any;
-        try {
-          parsed = extractJSON(raw);
-        } catch (parseErr: any) {
-          console.error("JSON parsing failed:", parseErr.message);
-          console.error("Raw AI response:", raw);
-          throw new Error(
-            `Falha ao processar resposta da IA: ${parseErr.message}. Resposta crua: ${raw.substring(0, 200)}...`,
+        const parsed = extractJSON(raw) as any;
+
+        if (parsed.detectedConfusion) {
+          const storage = await import("./jsonStorage");
+          await storage.addConceptConfusion(
+            ctx.user.id,
+            parsed.detectedConfusion,
           );
         }
+
         return {
           diagnosis: parsed.diagnosis ?? "",
           concept: parsed.concept ?? "",
           rule: parsed.rule ?? "",
           fixationQuestions: parsed.fixationQuestions ?? [],
+          detectedConfusion: parsed.detectedConfusion ?? null,
         };
       } catch (err: any) {
         throw new Error(`Falha no diagnóstico: ${err.message}`);
