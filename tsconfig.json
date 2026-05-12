@@ -21,8 +21,7 @@
       "@shared/*": ["./shared/*"],
       "@assets/*": ["./attached_assets/*"]
     },
-    "types": ["node", "vite/client"],
-    "typeRoots": ["node_modules/@types"]
+    "types": ["node", "vite/client"]
   },
   "include": ["client/src", "server", "shared", "electron", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]

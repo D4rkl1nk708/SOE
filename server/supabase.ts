@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Em vez de quebrar o servidor inteiro caso falte as chaves na build local, usamos um proxy ou try/catch
-export let supabase: ReturnType<typeof createClient>;
+export let supabase: any;
 
 try {
   supabase = createClient(

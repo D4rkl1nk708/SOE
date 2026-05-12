@@ -22,11 +22,21 @@ import {
   BarChart3,
   ChevronRight,
   Info,
+  Edit2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import MinedResolutionPanel from "./MinedResolutionPanel";
 import ReactMarkdown from "react-markdown";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface QueueItem {
   id: string;
@@ -35,11 +45,77 @@ interface QueueItem {
   error?: string;
 }
 
+function QueueItemProgress({ item }: { item: QueueItem }) {
+  const { data: progress } = trpc.lab.getProgress.useQuery(
+    { fileName: item.file.name },
+    {
+      enabled: item.status === "processing",
+      refetchInterval: 1500,
+    },
+  );
+
+  const percentage =
+    progress && progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : 0;
+
+  return (
+    <div className="flex flex-col gap-3 w-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {item.status === "processing" ? (
+            <Loader2 className="animate-spin text-primary" size={18} />
+          ) : item.status === "completed" ? (
+            <CheckCircle2 className="text-accent-green" size={18} />
+          ) : item.status === "error" ? (
+            <XCircle className="text-destructive" size={18} />
+          ) : (
+            <Clock className="opacity-30" size={18} />
+          )}
+          <div className="flex flex-col">
+            <span className="text-xs font-bold truncate max-w-[150px] md:max-w-[200px]">
+              {item.file.name}
+            </span>
+            {item.status === "processing" && progress && progress.total > 0 && (
+              <span className="text-[9px] font-black uppercase text-primary animate-pulse">
+                Processando Parte {progress.current}/{progress.total} (
+                {percentage}%)
+              </span>
+            )}
+            {item.error && (
+              <span className="text-[10px] text-destructive font-medium truncate max-w-[200px]">
+                {item.error}
+              </span>
+            )}
+          </div>
+        </div>
+        <span
+          className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg bg-background border border-border shadow-sm ${item.status === "error" ? "text-destructive border-destructive/20 bg-destructive/5" : "opacity-60"}`}
+        >
+          {item.status}
+        </span>
+      </div>
+      {item.status === "processing" && percentage > 0 && (
+        <div className="w-full bg-secondary/50 h-1.5 rounded-full overflow-hidden border border-border/10">
+          <div
+            className="bg-primary h-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Lab() {
   const [activeTab, setActiveTab] = useState<"mining" | "library" | "strategy">(
     "mining",
   );
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [previewQuestions, setPreviewQuestions] = useState<{
+    questions: any[];
+    fileName: string;
+  } | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [expandedExam, setExpandedExam] = useState<string | null>(null);
   const [filterTopicId, setFilterTopicId] = useState<number | undefined>();
@@ -84,6 +160,7 @@ export default function Lab() {
   const mapEditalMutation = trpc.lab.mapToEdital.useMutation();
   const searchOnlineMutation = trpc.lab.searchOnlineExams.useMutation();
   const downloadUrlMutation = trpc.lab.downloadFromUrl.useMutation();
+  const renameFileMutation = trpc.lab.renameMinedFile.useMutation();
   const utils = trpc.useUtils();
 
   const handleDownloadAndMine = async (url: string, title: string) => {
@@ -229,12 +306,18 @@ export default function Lab() {
           r.onload = () => resolve((r.result as string).split(",")[1]);
           r.readAsDataURL(nextItem.file);
         });
-        await processMutation.mutateAsync({
+        const result = await processMutation.mutateAsync({
           base64,
           fileName: nextItem.file.name,
           apiKey,
           provider,
         });
+
+        setPreviewQuestions({
+          questions: result.questions,
+          fileName: result.fileName,
+        });
+
         setQueue((prev) =>
           prev.map((q) =>
             q.id === nextItem.id ? { ...q, status: "completed" } : q,
@@ -271,6 +354,8 @@ export default function Lab() {
         })),
     ]);
   };
+
+  const [miningSubTab, setMiningSubTab] = useState<"discovery" | "pdf">("pdf");
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-20 pt-10 px-4">
@@ -325,227 +410,259 @@ export default function Lab() {
 
       {activeTab === "mining" && (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 px-4">
-          {/* Filtro Avançado de Descoberta */}
-          <div className="soe-card p-10 rounded-[4rem] bg-primary/5 border-primary/20 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-              <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
-                  Banca Examinadora
-                </label>
-                <input
-                  type="text"
-                  id="search-banca"
-                  placeholder="Ex: FGV, FCC, CEBRASPE"
-                  className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
-                />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
-                  Cargo ou Área
-                </label>
-                <input
-                  type="text"
-                  id="search-cargo"
-                  placeholder="Ex: Auditor de Controle Externo"
-                  className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
-                  Ano
-                </label>
-                <select
-                  id="search-ano"
-                  className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all appearance-none"
-                >
-                  <option>2024</option>
-                  <option>2023</option>
-                  <option>2022</option>
-                  <option>2021</option>
-                  <option>Todos</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-              <p className="text-[10px] text-muted-foreground opacity-60 italic flex items-center gap-2">
-                <Zap size={12} className="text-primary" />A IA vasculha portais
-                de concursos para encontrar PDFs oficiais.
-              </p>
-              <button
-                onClick={async () => {
-                  const banca = (
-                    document.getElementById("search-banca") as HTMLInputElement
-                  ).value;
-                  const cargo = (
-                    document.getElementById("search-cargo") as HTMLInputElement
-                  ).value;
-                  const ano = (
-                    document.getElementById("search-ano") as HTMLSelectElement
-                  ).value;
-
-                  if (!banca || !cargo) {
-                    toast.error("Preencha ao menos a Banca e o Cargo");
-                    return;
-                  }
-
-                  setIsAnalyzing(true);
-                  setSearchResults([]);
-                  toast.info(`Localizando provas no servidor...`);
-
-                  try {
-                    const results = await searchOnlineMutation.mutateAsync({
-                      banca,
-                      cargo,
-                      ano,
-                    });
-                    if (results && results.length > 0) {
-                      setSearchResults(results as any);
-                      toast.success(`Encontrei ${results.length} provas.`);
-                    } else {
-                      toast.error(
-                        "Nenhuma prova encontrada com esses critérios.",
-                      );
-                    }
-                  } catch (err: any) {
-                    toast.error("Erro na busca remota.");
-                  } finally {
-                    setIsAnalyzing(false);
-                  }
-                }}
-                disabled={isAnalyzing}
-                className="h-14 px-12 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <Search size={16} />
-                )}
-                Localizar Provas
-              </button>
-            </div>
+          {/* Sub-abas de Mineração */}
+          <div className="flex items-center gap-6 border-b border-border pb-4 mb-4">
+            <button
+              onClick={() => setMiningSubTab("discovery")}
+              className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all ${miningSubTab === "discovery" ? "text-primary border-b-2 border-primary pb-4 -mb-[18px]" : "opacity-40 hover:opacity-100"}`}
+            >
+              Descoberta Online
+            </button>
+            <button
+              onClick={() => setMiningSubTab("pdf")}
+              className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all ${miningSubTab === "pdf" ? "text-primary border-b-2 border-primary pb-4 -mb-[18px]" : "opacity-40 hover:opacity-100"}`}
+            >
+              Minerador de PDFs (Cursos/Provas)
+            </button>
           </div>
 
-          {/* Lista de Resultados da Busca */}
-          {searchResults.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
-              {searchResults.map((res, i) => (
-                <div
-                  key={i}
-                  className="soe-card p-6 flex items-center justify-between bg-secondary/30 border-primary/20 rounded-[2rem]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                      <FileJson size={20} />
-                    </div>
-                    <div className="space-y-0.5">
-                      <h5 className="text-[11px] font-black uppercase tracking-tight truncate max-w-[200px]">
-                        {res.title}
-                      </h5>
-                      <a
-                        href={res.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[9px] text-primary hover:underline truncate max-w-[200px] block"
-                      >
-                        {res.url}
-                      </a>
-                    </div>
+          {miningSubTab === "discovery" && (
+            <div className="space-y-10">
+              {/* Filtro Avançado de Descoberta */}
+              <div className="soe-card p-10 rounded-[4rem] bg-primary/5 border-primary/20 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+                      Banca Examinadora
+                    </label>
+                    <input
+                      type="text"
+                      id="search-banca"
+                      placeholder="Ex: FGV, FCC, CEBRASPE"
+                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
+                    />
                   </div>
-                  {downloadingUrls.has(res.url) ? (
-                    <div className="flex flex-col items-end gap-2 px-6">
-                      <Loader2
-                        size={20}
-                        className="animate-spin text-primary"
-                      />
-                      <span className="text-[8px] font-black uppercase text-primary animate-pulse">
-                        Processando
-                      </span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleDownloadAndMine(res.url, res.title)}
-                      className="h-10 px-6 rounded-xl bg-primary text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+                      Cargo ou Área
+                    </label>
+                    <input
+                      type="text"
+                      id="search-cargo"
+                      placeholder="Ex: Auditor de Controle Externo"
+                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+                      Ano
+                    </label>
+                    <select
+                      id="search-ano"
+                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all appearance-none"
                     >
-                      Baixar e Minerar
-                    </button>
-                  )}
+                      <option>2024</option>
+                      <option>2023</option>
+                      <option>2022</option>
+                      <option>2021</option>
+                      <option>Todos</option>
+                    </select>
+                  </div>
                 </div>
-              ))}
+
+                <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                  <p className="text-[10px] text-muted-foreground opacity-60 italic flex items-center gap-2">
+                    <Zap size={12} className="text-primary" />A IA vasculha
+                    portais de concursos para encontrar PDFs oficiais.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      const banca = (
+                        document.getElementById(
+                          "search-banca",
+                        ) as HTMLInputElement
+                      ).value;
+                      const cargo = (
+                        document.getElementById(
+                          "search-cargo",
+                        ) as HTMLInputElement
+                      ).value;
+                      const ano = (
+                        document.getElementById(
+                          "search-ano",
+                        ) as HTMLSelectElement
+                      ).value;
+
+                      if (!banca || !cargo) {
+                        toast.error("Preencha ao menos a Banca e o Cargo");
+                        return;
+                      }
+
+                      setIsAnalyzing(true);
+                      setSearchResults([]);
+                      toast.info(`Localizando provas no servidor...`);
+
+                      try {
+                        const results = await searchOnlineMutation.mutateAsync({
+                          banca,
+                          cargo,
+                          ano,
+                        });
+                        if (results && results.length > 0) {
+                          setSearchResults(results as any);
+                          toast.success(`Encontrei ${results.length} provas.`);
+                        } else {
+                          toast.error(
+                            "Nenhuma prova encontrada com esses critérios.",
+                          );
+                        }
+                      } catch (err: any) {
+                        toast.error("Erro na busca remota.");
+                      } finally {
+                        setIsAnalyzing(false);
+                      }
+                    }}
+                    disabled={isAnalyzing}
+                    className="h-14 px-12 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Search size={16} />
+                    )}
+                    Localizar Provas
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Resultados da Busca */}
+              {searchResults.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
+                  {searchResults.map((res, i) => (
+                    <div
+                      key={i}
+                      className="soe-card p-6 flex items-center justify-between bg-secondary/30 border-primary/20 rounded-[2rem]"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                          <FileJson size={20} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <h5 className="text-[11px] font-black uppercase tracking-tight truncate max-w-[200px]">
+                            {res.title}
+                          </h5>
+                          <a
+                            href={res.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[9px] text-primary hover:underline truncate max-w-[200px] block"
+                          >
+                            {res.url}
+                          </a>
+                        </div>
+                      </div>
+                      {downloadingUrls.has(res.url) ? (
+                        <div className="flex flex-col items-end gap-2 px-6">
+                          <Loader2
+                            size={20}
+                            className="animate-spin text-primary"
+                          />
+                          <span className="text-[8px] font-black uppercase text-primary animate-pulse">
+                            Processando
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handleDownloadAndMine(res.url, res.title)
+                          }
+                          className="h-10 px-6 rounded-xl bg-primary text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                        >
+                          Baixar e Minerar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Main Upload Area Premium */}
-          <div className="relative h-80 rounded-[4rem] border-2 border-dashed border-border overflow-hidden bg-secondary/5 group transition-all hover:border-primary/40">
-            <div className="absolute inset-0 opacity-[0.03] grid grid-cols-10 gap-12 p-12 pointer-events-none select-none">
-              {Array.from({ length: 60 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-2">
-                  {i % 4 === 0 ? (
-                    <FileJson size={24} />
-                  ) : i % 4 === 1 ? (
-                    <Database size={24} />
-                  ) : i % 4 === 2 ? (
-                    <Microscope size={24} />
-                  ) : (
-                    <Zap size={24} />
-                  )}
+          {miningSubTab === "pdf" && (
+            <div className="space-y-10 animate-in zoom-in-95 duration-500">
+              {/* Main Upload Area Premium */}
+              <div className="relative h-80 rounded-[4rem] border-2 border-dashed border-border overflow-hidden bg-secondary/5 group transition-all hover:border-primary/40">
+                <div className="absolute inset-0 opacity-[0.03] grid grid-cols-10 gap-12 p-12 pointer-events-none select-none">
+                  {Array.from({ length: 60 }).map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-2">
+                      {i % 4 === 0 ? (
+                        <FileJson size={24} />
+                      ) : i % 4 === 1 ? (
+                        <Database size={24} />
+                      ) : i % 4 === 2 ? (
+                        <Microscope size={24} />
+                      ) : (
+                        <Zap size={24} />
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="relative h-full flex flex-col items-center justify-center gap-8">
-              <div className="w-28 h-28 rounded-[2.5rem] bg-secondary/80 backdrop-blur border border-border flex items-center justify-center text-primary shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                <Upload size={44} strokeWidth={1} />
+                <div className="relative h-full flex flex-col items-center justify-center gap-8">
+                  <div className="w-28 h-28 rounded-[2.5rem] bg-secondary/80 backdrop-blur border border-border flex items-center justify-center text-primary shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                    <Upload size={44} strokeWidth={1} />
+                  </div>
+                  <div className="text-center space-y-3">
+                    <h2 className="text-3xl font-black uppercase tracking-[0.25em] text-foreground">
+                      Extração de PDF
+                    </h2>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40 max-w-sm mx-auto">
+                      Gran, Estratégia, Editais e Materiais Próprios
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf"
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
               </div>
-              <div className="text-center space-y-3">
-                <h2 className="text-3xl font-black uppercase tracking-[0.25em] text-foreground">
-                  Arraste seus PDFs
-                </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40 max-w-sm mx-auto">
-                  Suporta editais, cadernos e provas íntegras
-                </p>
-              </div>
-            </div>
-            <input
-              type="file"
-              multiple
-              accept=".pdf"
-              onChange={handleFileUpload}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
-              <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <Cpu size={32} />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-black uppercase tracking-widest">
-                  OCR Inteligente
-                </h4>
-                <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
-                  Detecta automaticamente enunciados, alternativas e gabaritos
-                  em qualquer layout.
-                </p>
-              </div>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
+                  <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Cpu size={32} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black uppercase tracking-widest">
+                      Varredura Seletiva
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
+                      O SOE lê o material e pergunta se você deseja minerar as
+                      questões encontradas.
+                    </p>
+                  </div>
+                </div>
 
-            <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
-              <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <Share2 size={32} />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-xs font-black uppercase tracking-widest">
-                  Exportação JSON
-                </h4>
-                <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
-                  Salve seus bancos minerados localmente ou exporte para
-                  integração privada.
-                </p>
+                <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
+                  <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Share2 size={32} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black uppercase tracking-widest">
+                      Multi-Plataforma
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
+                      Inteligência adaptada para os layouts mutáveis dos grandes
+                      cursinhos.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {queue.length > 0 && (
             <div className="soe-card p-10 space-y-8 animate-in zoom-in-95 duration-500 rounded-[3rem]">
@@ -560,35 +677,7 @@ export default function Lab() {
                     key={item.id}
                     className="flex items-center justify-between p-6 rounded-3xl bg-secondary/30 border border-border"
                   >
-                    <div className="flex items-center gap-4">
-                      {item.status === "processing" ? (
-                        <Loader2
-                          className="animate-spin text-primary"
-                          size={18}
-                        />
-                      ) : item.status === "completed" ? (
-                        <CheckCircle2 className="text-accent-green" size={18} />
-                      ) : item.status === "error" ? (
-                        <XCircle className="text-destructive" size={18} />
-                      ) : (
-                        <Clock className="opacity-30" size={18} />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold truncate max-w-[200px]">
-                          {item.file.name}
-                        </span>
-                        {item.error && (
-                          <span className="text-[10px] text-destructive font-medium truncate max-w-[200px]">
-                            {item.error}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg bg-background border border-border shadow-sm ${item.status === "error" ? "text-destructive border-destructive/20 bg-destructive/5" : "opacity-60"}`}
-                    >
-                      {item.status}
-                    </span>
+                    <QueueItemProgress item={item} />
                   </div>
                 ))}
               </div>
@@ -700,9 +789,38 @@ export default function Lab() {
                         )
                       }
                     >
-                      <h4 className="text-base font-black truncate leading-tight tracking-tight">
-                        {exam.name.replace("questoes_", "").split("_")[0]}
-                      </h4>
+                      <div className="flex items-center gap-2 group/title">
+                        <h4 className="text-base font-black truncate leading-tight tracking-tight">
+                          {exam.name.replace("questoes_", "").split("_")[0]}
+                        </h4>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const currentName = exam.name
+                              .replace("questoes_", "")
+                              .split("_")[0];
+                            const newName = prompt(
+                              "Novo nome para o arquivo:",
+                              currentName,
+                            );
+                            if (newName && newName.trim() !== "") {
+                              try {
+                                await renameFileMutation.mutateAsync({
+                                  oldFileName: exam.name,
+                                  newName: newName,
+                                });
+                                toast.success("Renomeado!");
+                                refetchHistory();
+                              } catch (err: any) {
+                                toast.error("Erro ao renomear: " + err.message);
+                              }
+                            }
+                          }}
+                          className="p-1.5 rounded-lg opacity-0 group-hover/title:opacity-100 hover:bg-secondary text-primary transition-all"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      </div>
                       <div className="flex items-center gap-3 mt-3">
                         <span className="text-[10px] font-bold opacity-30">
                           {exam.date}
@@ -1057,6 +1175,118 @@ export default function Lab() {
           </div>
         </div>
       )}
+      {/* Modal de Revisão de Questões Mineradas */}
+      <Dialog
+        open={!!previewQuestions}
+        onOpenChange={() => setPreviewQuestions(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col rounded-[3rem] border-primary/20">
+          <DialogHeader className="p-8 bg-primary/5 border-b border-primary/10 shrink-0">
+            <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
+              <Cpu className="text-primary" /> Mineração Concluída
+            </DialogTitle>
+            <DialogDescription className="text-xs font-bold opacity-60">
+              A IA identificou {previewQuestions?.questions.length} questões no
+              seu material. Deseja integrá-las à sua base de dados?
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-8 space-y-8">
+              {previewQuestions?.questions.map((q, idx) => (
+                <div
+                  key={idx}
+                  className="soe-card p-6 bg-secondary/20 border-border/50 rounded-[2rem] space-y-4"
+                >
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1">
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary border-primary/20"
+                      >
+                        {q.subject || "Sem Matéria"}
+                      </Badge>
+                      <h4 className="text-[10px] font-black uppercase opacity-30">
+                        {q.topic || "Assunto Geral"}
+                      </h4>
+                    </div>
+                    <Badge className="bg-accent-green/20 text-accent-green border-accent-green/30 text-[10px] font-bold">
+                      Gabarito: {q.correctAnswer}
+                    </Badge>
+                  </div>
+
+                  <p className="text-sm font-medium leading-relaxed opacity-80">
+                    {q.statement}
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-2 pl-4 border-l-2 border-primary/20">
+                    {Array.isArray(q.alternatives)
+                      ? q.alternatives.map((alt: any, altIdx: number) => (
+                          <div
+                            key={altIdx}
+                            className="text-xs opacity-60 flex gap-2"
+                          >
+                            <span className="font-black text-primary">
+                              {alt.letter})
+                            </span>
+                            <span>{alt.text}</span>
+                          </div>
+                        ))
+                      : Object.entries(q.alternatives || {}).map(
+                          ([letter, text]) => (
+                            <div
+                              key={letter}
+                              className="text-xs opacity-60 flex gap-2"
+                            >
+                              <span className="font-black text-primary">
+                                {letter})
+                              </span>
+                              <span>{String(text)}</span>
+                            </div>
+                          ),
+                        )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="p-8 border-t border-border bg-background flex justify-end gap-4 shrink-0 relative z-50">
+            <button
+              onClick={() => setPreviewQuestions(null)}
+              className="px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-secondary active:scale-95 transition-all cursor-pointer"
+            >
+              Descartar
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  if (!previewQuestions) return;
+                  await integrateMutation.mutateAsync({
+                    fileName: previewQuestions.fileName,
+                  });
+                  toast.success("Questões integradas com sucesso!");
+                  setPreviewQuestions(null);
+                  refetchHistory();
+                } catch (err: any) {
+                  toast.error("Falha na integração: " + err.message);
+                }
+              }}
+              disabled={integrateMutation.isPending}
+              className="px-12 py-3 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {integrateMutation.isPending ? (
+                <>
+                  <Loader2 className="animate-spin" size={14} />
+                  Integrando...
+                </>
+              ) : (
+                "Confirmar e Adicionar ao Banco"
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

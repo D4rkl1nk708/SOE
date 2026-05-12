@@ -9,7 +9,18 @@ import fs from "fs";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+// Global map to track processing progress
+const processingProgress = new Map<
+  string,
+  { current: number; total: number }
+>();
+
 export const labRouter = router({
+  getProgress: protectedProcedure
+    .input(z.object({ fileName: z.string() }))
+    .query(({ input }) => {
+      return processingProgress.get(input.fileName) || { current: 0, total: 0 };
+    }),
   processPdf: protectedProcedure
     .input(
       z.object({
@@ -47,15 +58,26 @@ export const labRouter = router({
 
         console.log(`[Lab] PDF dividido em ${chunks.length} partes.`);
         const allQuestions: any[] = [];
+        processingProgress.set(input.fileName, {
+          current: 0,
+          total: chunks.length,
+        });
 
         for (let i = 0; i < chunks.length; i++) {
           console.log(`[Lab] Processando parte ${i + 1}/${chunks.length}...`);
+          processingProgress.set(input.fileName, {
+            current: i + 1,
+            total: chunks.length,
+          });
           const chunkText = chunks[i];
-          const prompt = `Você é um minerador de questões de elite. Extraia TODAS as questões deste pedaço de PDF.
-REGRAS:
-1. Identifique statement, alternatives, correctAnswer (letra), subject e topic.
-2. Se encontrar textos de apoio, inclua em "supportText".
-3. Retorne APENAS um array JSON. Se não houver questões completas, retorne [].
+          const prompt = `Você é um Especialista em Mineração de Materiais Didáticos (Gran, Estratégia, etc). 
+OBJETIVO: Extrair questões completas do texto bruto do PDF.
+REGRAS DE OURO:
+1. Ignore propagandas, sumários e textos que não fazem parte de questões.
+2. Identifique: "statement" (enunciado), "alternatives" (array de objetos {letter, text}), "correctAnswer" (letra), "subject" (matéria) e "topic" (assunto).
+3. Se houver um texto de apoio compartilhado por várias questões, coloque em "supportText".
+4. Retorne APENAS um array JSON puro. Ex: [{"statement": "...", "alternatives": [...], "correctAnswer": "A", "subject": "...", "topic": "..."}]
+5. Se não houver questões nesta parte do texto, retorne [].
 
 TEXTO DO PDF (PARTE ${i + 1}):
 ${chunkText}`;
@@ -70,7 +92,6 @@ ${chunkText}`;
           try {
             const chunkQuestions = extractJSON(rawAiResponse);
             if (Array.isArray(chunkQuestions)) {
-              // Evitar duplicatas causadas pelo overlap (pelo enunciado)
               for (const q of chunkQuestions) {
                 if (
                   !allQuestions.some(
@@ -82,19 +103,15 @@ ${chunkText}`;
               }
             }
           } catch (e) {
-            console.warn(
-              `[Lab] Falha ao extrair JSON da parte ${i + 1}, pulando...`,
-            );
+            console.warn(`[Lab] Falha ao extrair JSON da parte ${i + 1}`);
           }
         }
 
         if (allQuestions.length === 0) {
-          throw new Error("Não consegui identificar questões válidas.");
+          throw new Error(
+            "Não encontrei questões neste PDF. Verifique se o arquivo tem texto selecionável.",
+          );
         }
-
-        console.log(
-          `[Lab] Mineração concluída. Total: ${allQuestions.length} questões.`,
-        );
 
         const storagePath = path.join(process.cwd(), "data", "mined_exams");
         if (!fs.existsSync(storagePath))
@@ -104,6 +121,7 @@ ${chunkText}`;
           .replace(".pdf", "")
           .replace(/[^a-z0-9]/gi, "_");
         const outputFileName = `questoes_${safeName}_${Date.now()}.json`;
+
         fs.writeFileSync(
           path.join(storagePath, outputFileName),
           JSON.stringify(allQuestions, null, 2),
@@ -112,11 +130,14 @@ ${chunkText}`;
         return {
           success: true,
           count: allQuestions.length,
+          questions: allQuestions,
           fileName: outputFileName,
         };
       } catch (err: any) {
         console.error(`[Lab Error] ${err.message}`);
         throw new Error(err.message);
+      } finally {
+        processingProgress.delete(input.fileName);
       }
     }),
 
@@ -280,62 +301,22 @@ ${chunkText}`;
   integrateExam: protectedProcedure
     .input(z.object({ fileName: z.string() }))
     .mutation(async ({ input, ctx }) => {
+      const storage = await import("./jsonStorage");
       const storagePath = path.join(process.cwd(), "data", "mined_exams");
       const filePath = path.join(storagePath, input.fileName);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(
+          "Arquivo de mineração não encontrado. Tente minerar novamente.",
+        );
+      }
+
       const questions = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       const userId = ctx.user.id;
-      const db = await import("./db");
       const contestId = input.fileName.replace(".json", "");
 
-      for (const q of questions) {
-        const disciplines = await db.getDisciplinesByUser(userId);
-        const subjectName = q.subject || "Geral";
-        let disc = disciplines.find(
-          (d) => d.name.toLowerCase() === subjectName.toLowerCase(),
-        );
-        if (!disc) {
-          const { id } = await db.createDiscipline({
-            userId,
-            name: subjectName,
-            color: "var(--primary)",
-            weight: 1,
-          });
-          disc = { id } as any;
-        }
+      await storage.integrateMinedQuestions(userId, contestId, questions);
 
-        const topics = await db.getTopicsByUser(userId, {
-          disciplineId: (disc as any).id,
-        });
-        const topicName = q.topic || "Geral";
-        let top = topics.find(
-          (t) => t.name.toLowerCase() === topicName.toLowerCase(),
-        );
-        if (!top) {
-          const { id } = await db.createTopic({
-            userId,
-            disciplineId: (disc as any).id,
-            name: topicName,
-            studyDate: new Date().toISOString(),
-            notes: `Minerado: ${contestId}`,
-          });
-          top = { id } as any;
-        }
-
-        await db.saveQuestionError({
-          userId,
-          topicId: (top as any).id,
-          disciplineId: (disc as any).id,
-          banca: "IA",
-          contest: contestId,
-          statement: q.statement,
-          supportText: q.supportText,
-          alternatives: Object.entries(q.alternatives || {}).map(
-            ([letter, text]) => ({ letter, text: String(text) }),
-          ),
-          correctAnswer: q.correctAnswer,
-          source: "mined",
-        });
-      }
       return { success: true };
     }),
 
@@ -524,6 +505,25 @@ ${chunkText}`;
         correctCount: input.isCorrect ? 1 : 0,
         errorCount: input.isCorrect ? 0 : 1,
       });
+      return { success: true };
+    }),
+
+  renameMinedFile: protectedProcedure
+    .input(z.object({ oldFileName: z.string(), newName: z.string() }))
+    .mutation(async ({ input }) => {
+      const storagePath = path.join(process.cwd(), "data", "mined_exams");
+      const oldPath = path.join(storagePath, input.oldFileName);
+
+      let safeNewName = input.newName.replace(/[^a-z0-9 \._-]/gi, "_").trim();
+      if (!safeNewName.endsWith(".json")) safeNewName += ".json";
+      const newPath = path.join(storagePath, safeNewName);
+
+      if (!fs.existsSync(oldPath))
+        throw new Error("Arquivo original não encontrado.");
+      if (fs.existsSync(newPath))
+        throw new Error("Já existe um arquivo com este nome.");
+
+      fs.renameSync(oldPath, newPath);
       return { success: true };
     }),
 });

@@ -2336,6 +2336,100 @@ export async function getDistractorPatternAnalysis(
     .sort((a, b) => b.count - a.count);
 }
 
+export async function integrateMinedQuestions(
+  userId: number,
+  contestId: string,
+  questions: any[],
+): Promise<void> {
+  return await runInTransaction((db) => {
+    for (const q of questions) {
+      // 1. Get or Create Discipline
+      const subjectName = q.subject || "Geral";
+      let disc = db.disciplines.find(
+        (d) =>
+          d.userId === userId &&
+          d.name.toLowerCase() === subjectName.toLowerCase(),
+      );
+      if (!disc) {
+        db.counters.disciplines++;
+        const userDisciplines = db.disciplines.filter(
+          (d) => d.userId === userId,
+        );
+        const nextOrder = userDisciplines.length
+          ? Math.max(...userDisciplines.map((d) => d.order || 0)) + 1
+          : 1;
+
+        disc = {
+          id: db.counters.disciplines,
+          userId,
+          name: subjectName,
+          color: "var(--primary)",
+          weight: 1,
+          order: nextOrder,
+          studyTimeSeconds: 0,
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        db.disciplines.push(disc);
+      }
+
+      // 2. Get or Create Topic
+      const topicName = q.topic || "Geral";
+      let top = db.topics.find(
+        (t) =>
+          t.userId === userId &&
+          t.disciplineId === disc!.id &&
+          t.name.toLowerCase() === topicName.toLowerCase(),
+      );
+      if (!top) {
+        db.counters.topics++;
+        top = {
+          id: db.counters.topics,
+          userId,
+          disciplineId: disc!.id,
+          name: topicName,
+          order: db.counters.topics,
+          studyDate: now(),
+          notes: `Minerado: ${contestId}`,
+          studyTimeSeconds: 0,
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        db.topics.push(top);
+      }
+
+      // 3. Save Question
+      db.counters.questionErrors++;
+      const alternatives = Array.isArray(q.alternatives)
+        ? q.alternatives.map((alt: any) => ({
+            letter: alt.letter,
+            text: String(alt.text),
+          }))
+        : Object.entries(q.alternatives || {}).map(([letter, text]) => ({
+            letter,
+            text: String(text),
+          }));
+
+      const record: QuestionError = {
+        userId,
+        topicId: top.id,
+        disciplineId: disc.id,
+        banca: "IA",
+        contest: contestId,
+        statement: q.statement,
+        supportText: q.supportText,
+        alternatives,
+        correctAnswer: q.correctAnswer,
+        source: "mined",
+        id: db.counters.questionErrors,
+        createdAt: now(),
+      };
+      db.questionErrors.push(record);
+    }
+    writeDatabase(db);
+  });
+}
+
 export async function saveQuestionErrorAnalysis(
   id: number,
   userId: number,

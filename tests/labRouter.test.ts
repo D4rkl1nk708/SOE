@@ -11,13 +11,11 @@ vi.mock("fs");
 
 // Mock pdf-parse
 vi.mock("pdf-parse", () => {
-  return vi
-    .fn()
-    .mockResolvedValue({
-      text:
-        "Sample PDF Text with enough content to pass the 100 char limit check. " +
-        "X".repeat(100),
-    });
+  return vi.fn().mockResolvedValue({
+    text:
+      "Sample PDF Text with enough content to pass the 100 char limit check. " +
+      "X".repeat(100),
+  });
 });
 
 describe("labRouter procedures", () => {
@@ -73,7 +71,7 @@ describe("labRouter procedures", () => {
     const caller = labRouter.createCaller(ctx as any);
     const res = await caller.integrateExam({ fileName: "prova1.json" });
     expect(res.success).toBe(true);
-    expect(storage.saveQuestionError).toHaveBeenCalled();
+    expect(storage.integrateMinedQuestions).toHaveBeenCalled();
   });
 
   it("listHistory returns files with metadata", async () => {
