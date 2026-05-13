@@ -27,126 +27,188 @@ vi.mock("@/components/WeakProfileChart", () => ({
   ),
 }));
 
-const mockGenerateAdaptiveQuestion = vi.fn();
-const mockDiagnoseError = vi.fn();
-const mockSaveSessionResult = vi.fn();
-const mockExecuteAction = vi.fn();
-const mockChat = vi.fn();
+const mocks = vi.hoisted(() => ({
+  mockGenerateAdaptiveQuestion: vi.fn(),
+  mockDiagnoseError: vi.fn(),
+  mockSaveSessionResult: vi.fn(),
+  mockExecuteAction: vi.fn(),
+  mockChat: vi.fn(),
+}));
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
-    useUtils: () => ({
-      mentor: { getWeakProfile: { invalidate: vi.fn() } },
+const {
+  mockGenerateAdaptiveQuestion,
+  mockDiagnoseError,
+  mockSaveSessionResult,
+  mockExecuteAction,
+  mockChat,
+} = mocks;
+
+vi.mock("@/lib/trpc", () => {
+  const mockMutation = (fn?: any, responseData: any = {}) => ({
+    useMutation: (hookOpts: any = {}) => ({
+      mutate: (d: any, mutOpts: any = {}) => {
+        fn?.(d);
+        hookOpts?.onSuccess?.(responseData);
+        mutOpts?.onSuccess?.(responseData);
+      },
+      mutateAsync: async (d: any) => {
+        fn?.(d);
+        return responseData;
+      },
+      isPending: false,
     }),
-    dashboard: {
-      getStats: {
-        useQuery: () => ({
-          data: { settings: { aiApiKey: "test-key", aiProvider: "gemini" } },
-          isLoading: false,
-        }),
+  });
+
+  return {
+    trpc: {
+      useUtils: () => ({
+        mentor: { getWeakProfile: { invalidate: vi.fn() } },
+        dashboard: { getStats: { invalidate: vi.fn() } },
+        topic: { list: { invalidate: vi.fn() } },
+      }),
+      dashboard: {
+        getStats: {
+          useQuery: () => ({
+            data: { settings: { aiApiKey: "test-key", aiProvider: "gemini" } },
+            isLoading: false,
+          }),
+        },
       },
-    },
-    discipline: {
-      list: {
-        useQuery: () => ({
-          data: [{ id: 1, name: "Discipline 1", color: "#f00" }],
-          isLoading: false,
-        }),
+      discipline: {
+        list: {
+          useQuery: () => ({
+            data: [{ id: 1, name: "Discipline 1", color: "#f00" }],
+            isLoading: false,
+          }),
+        },
       },
-    },
-    mentor: {
-      generateAdaptiveQuestion: {
-        useMutation: (hookOpts: any = {}) => ({
-          mutate: (d: any, mutOpts: any = {}) => {
-            mockGenerateAdaptiveQuestion(d);
-            const data = {
-              questionId: "q1",
-              statement: "Test Question?",
-              alternatives: [
-                { letter: "A", text: "Alt A" },
-                { letter: "B", text: "Alt B" },
-              ],
-              correctAnswer: "A",
-              topicName: "Topic 1",
-              disciplineName: "Discipline 1",
-              hint: "A hint",
-            };
-            hookOpts?.onSuccess?.(data);
-            mutOpts?.onSuccess?.(data);
-          },
-        }),
+      topic: {
+        list: {
+          useQuery: () => ({
+            data: { topics: [] },
+            isLoading: false,
+          }),
+        },
       },
-      diagnoseError: {
-        useMutation: (hookOpts: any = {}) => ({
-          mutate: (d: any, mutOpts: any = {}) => {
-            mockDiagnoseError(d);
-            const data = {
-              diagnosis: "Bad logic",
-              concept: "Logic",
-              rule: "Study more",
-              fixationQuestions: [
+      lab: {
+        getLibraryStats: {
+          useQuery: () => ({
+            data: {},
+            isLoading: false,
+          }),
+        },
+      },
+      mentor: {
+        askLibrarian: mockMutation(null, {
+          answer: "Library answer",
+          sources: 1,
+        }),
+        generateCrossfireMock: {
+          useMutation: (hookOpts: any = {}) => ({
+            mutateAsync: async (d: any) => {
+              const data = {
+                mockTitle: "Crossfire Mock",
+                questions: [
+                  {
+                    questionId: "cq1",
+                    statement: "Crossfire Question?",
+                    alternatives: [{ letter: "A", text: "Alt A" }],
+                    correctAnswer: "A",
+                    topicName: "Topic 1",
+                    disciplineName: "Discipline 1",
+                    source: "TEC (Legado)",
+                  },
+                ],
+              };
+              hookOpts?.onSuccess?.(data);
+              return data;
+            },
+          }),
+        },
+        generateAdaptiveQuestion: {
+          useMutation: (hookOpts: any = {}) => ({
+            mutate: (d: any, mutOpts: any = {}) => {
+              mocks.mockGenerateAdaptiveQuestion(d);
+              const data = {
+                questionId: "q1",
+                statement: "Test Question?",
+                alternatives: [
+                  { letter: "A", text: "Alt A" },
+                  { letter: "B", text: "Alt B" },
+                ],
+                correctAnswer: "A",
+                topicName: "Topic 1",
+                disciplineName: "Discipline 1",
+                hint: "A hint",
+              };
+              hookOpts?.onSuccess?.(data);
+              mutOpts?.onSuccess?.(data);
+            },
+          }),
+        },
+        diagnoseError: {
+          useMutation: (hookOpts: any = {}) => ({
+            mutate: (d: any, mutOpts: any = {}) => {
+              mocks.mockDiagnoseError(d);
+              const data = {
+                diagnosis: "Bad logic",
+                concept: "Logic",
+                rule: "Study more",
+                fixationQuestions: [
+                  {
+                    statement: "Fix?",
+                    alternatives: [
+                      { letter: "A", text: "Fix A" },
+                      { letter: "B", text: "Fix B" },
+                    ],
+                    correctAnswer: "B",
+                    explanation: "Because.",
+                  },
+                ],
+              };
+              hookOpts?.onSuccess?.(data);
+              mutOpts?.onSuccess?.(data);
+            },
+          }),
+        },
+        saveSessionResult: mockMutation(mocks.mockSaveSessionResult),
+        getTecRegressions: {
+          useQuery: () => ({
+            data: {
+              regressions: [
                 {
-                  statement: "Fix?",
-                  alternatives: [
-                    { letter: "A", text: "Fix A" },
-                    { letter: "B", text: "Fix B" },
-                  ],
-                  correctAnswer: "B",
-                  explanation: "Because.",
+                  disciplineName: "Discipline 1",
+                  topicName: "Topic 1",
+                  delta: 10,
                 },
               ],
-            };
-            hookOpts?.onSuccess?.(data);
-            mutOpts?.onSuccess?.(data);
-          },
+            },
+            isLoading: false,
+          }),
+        },
+        executeAction: mockMutation(mocks.mockExecuteAction, {
+          message: "Action accepted",
         }),
-      },
-      saveSessionResult: {
-        useMutation: () => ({ mutate: mockSaveSessionResult }),
-      },
-      getTecRegressions: {
-        useQuery: () => ({
-          data: {
-            regressions: [
-              {
-                disciplineName: "Discipline 1",
-                topicName: "Topic 1",
-                delta: 10,
-              },
-            ],
-          },
-          isLoading: false,
-        }),
-      },
-      executeAction: {
-        useMutation: (hookOpts: any = {}) => ({
-          mutate: (d: any, mutOpts: any = {}) => {
-            mockExecuteAction(d);
-            const data = { message: "Action accepted" };
-            hookOpts?.onSuccess?.(data);
-            mutOpts?.onSuccess?.(data);
-          },
-        }),
-      },
-      chat: {
-        useMutation: (hookOpts: any = {}) => ({
-          mutate: (d: any, mutOpts: any = {}) => {
-            mockChat(d);
-            const data = {
-              reply: "Hello",
-              proposals: [
-                { type: "test", description: "Action 1", payload: {} },
-              ],
-            };
-            hookOpts?.onSuccess?.(data);
-            mutOpts?.onSuccess?.(data);
-          },
-          isPending: false,
-        }),
+        chat: {
+          useMutation: (hookOpts: any = {}) => ({
+            mutate: (d: any, mutOpts: any = {}) => {
+              mocks.mockChat(d);
+              const data = {
+                reply: "Hello",
+                proposals: [
+                  { type: "test", description: "Action 1", payload: {} },
+                ],
+              };
+              hookOpts?.onSuccess?.(data);
+              mutOpts?.onSuccess?.(data);
+            },
+            isPending: false,
+          }),
+        },
       },
     },
-  },
-}));
+  };
+});
 
 vi.mock("framer-motion", async () => {
   const actual = await vi.importActual("framer-motion");
@@ -240,10 +302,10 @@ describe("MentorSession Component", () => {
     fireEvent.click(screen.getByText(/Validar Fixação/i));
 
     await waitFor(() => {
-      expect(screen.getByText("Retomar Sessão Principal")).toBeTruthy();
+      expect(screen.getByText("Retomar")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Retomar Sessão Principal"));
+    fireEvent.click(screen.getByText("Retomar"));
   });
 });
 

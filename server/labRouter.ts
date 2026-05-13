@@ -2,6 +2,7 @@ import { router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
+import * as storage from "./jsonStorage";
 import path from "path";
 import fs from "fs";
 
@@ -21,6 +22,9 @@ export const labRouter = router({
     .query(({ input }) => {
       return processingProgress.get(input.fileName) || { current: 0, total: 0 };
     }),
+  getLibraryStats: protectedProcedure.query(async () => {
+    return await storage.getMinedQuestionsCountByTopic();
+  }),
   processPdf: protectedProcedure
     .input(
       z.object({
@@ -48,6 +52,7 @@ export const labRouter = router({
         }
 
         console.log(`[Lab] Texto extraído: ${fullText.length} caracteres.`);
+        await storage.saveLibraryText(input.fileName, fullText);
 
         // Estratégia de Chunks (Pedaços) para lidar com PDFs grandes (200+ questões)
         const CHUNK_SIZE = 35000;

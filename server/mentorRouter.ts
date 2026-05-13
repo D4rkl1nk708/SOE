@@ -2006,4 +2006,117 @@ Retorne um JSON:
       const { testAiKey } = await import("./aiProviders");
       return await testAiKey(input.provider, input.apiKey);
     }),
+
+  askLibrarian: protectedProcedure
+    .input(
+      z.object({
+        query: z.string(),
+        apiKey: z.string(),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const context = await storage.searchLibraryText(input.query, 4);
+      const contextText =
+        context.length > 0
+          ? context.join("\n\n---\n\n")
+          : "Nenhum material específico encontrado na sua biblioteca local sobre este tema.";
+
+      const prompt = `Você é o "Bibliotecário do SOE". Sua tarefa é responder perguntas do aluno baseando-se estritamente no material da biblioteca dele abaixo.
+      Se a informação não estiver no material, avise, mas tente correlacionar com o conhecimento que você tem de concursos.
+      
+      CONTEXTO DA BIBLIOTECA DO ALUNO:
+      ${contextText}
+      
+      PERGUNTA DO ALUNO:
+      ${input.query}
+      
+      Responda de forma técnica, mas didática. Use negrito para destacar termos importantes.`;
+
+      const response = await callAI(input.provider, input.apiKey, prompt, 2500);
+      return {
+        answer: response,
+        sources: context.length,
+      };
+    }),
+
+  generateCrossfireMock: protectedProcedure
+    .input(
+      z.object({
+        apiKey: z.string(),
+        provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      // 1. Pegar questões do TEC JSON
+      const tecQuestions = await storage.getRandomTecJsonQuestions(4);
+
+      // 2. Pegar questões do Lab (Mined)
+      const minedCounts = await storage.getMinedQuestionsCountByTopic();
+      const minedExamsDir = path.join(process.cwd(), "data", "mined_exams");
+      let labQuestions: any[] = [];
+      if (fs.existsSync(minedExamsDir)) {
+        const files = fs
+          .readdirSync(minedExamsDir)
+          .filter((f) => f.endsWith(".json"));
+        if (files.length > 0) {
+          const randomFile = files[Math.floor(Math.random() * files.length)];
+          try {
+            const data = JSON.parse(
+              fs.readFileSync(path.join(minedExamsDir, randomFile), "utf8"),
+            );
+            const qs = Array.isArray(data) ? data : data.questions || [];
+            labQuestions = qs.sort(() => 0.5 - Math.random()).slice(0, 4);
+          } catch (e) {}
+        }
+      }
+
+      // 3. Gerar 2 questões de "Maldade" (Banca Mirror) baseadas nas confusões do usuário
+      const settings = await storage.getUserSettings(1); // TODO: get real userId from ctx
+      const confusions = settings?.conceptConfusions || [];
+      let mirrorQuestions: any[] = [];
+
+      if (confusions.length > 0) {
+        const c = confusions[Math.floor(Math.random() * confusions.length)];
+        const mirrorPrompt = `Gere 2 questões inéditas de múltipla escolha focadas na confusão entre ${c.conceptA} e ${c.conceptB}. 
+        Use o formato JSON: [{"statement": "...", "alternatives": [{"letter": "A", "text": "..."}], "correctAnswer": "A", "hint": "..."}]`;
+        const mirrorRes = await callAI(
+          input.provider,
+          input.apiKey,
+          mirrorPrompt,
+          3000,
+        );
+        try {
+          mirrorQuestions = extractJSON(mirrorRes) as any[];
+        } catch (e) {}
+      } else {
+        // Fallback se não tiver confusões
+        const fallbackPrompt = `Gere 2 questões inéditas de Direito Administrativo nível difícil. 
+        Use o formato JSON: [{"statement": "...", "alternatives": [{"letter": "A", "text": "..."}], "correctAnswer": "A", "hint": "..."}]`;
+        const mirrorRes = await callAI(
+          input.provider,
+          input.apiKey,
+          fallbackPrompt,
+          3000,
+        );
+        try {
+          mirrorQuestions = extractJSON(mirrorRes) as any[];
+        } catch (e) {}
+      }
+
+      // Consolidar e Embaralhar
+      const all = [
+        ...tecQuestions.map((q) => ({ ...q, source: "TEC (Legado)" })),
+        ...labQuestions.map((q) => ({ ...q, source: "Biblioteca Lab" })),
+        ...mirrorQuestions.map((q) => ({
+          ...q,
+          source: "Banca Mirror (Inédita)",
+        })),
+      ].sort(() => 0.5 - Math.random());
+
+      return {
+        mockTitle: `Simulado Fogo Cruzado - ${new Date().toLocaleDateString()}`,
+        questions: all,
+      };
+    }),
 });

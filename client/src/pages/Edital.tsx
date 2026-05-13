@@ -263,6 +263,7 @@ function EditalTab({
 
   const { data: disciplines } = trpc.discipline.list.useQuery();
   const { data: allTopicsData } = trpc.topic.list.useQuery();
+  const { data: libraryStats } = trpc.lab.getLibraryStats.useQuery();
   const allTopics = allTopicsData?.topics || [];
   const utils = trpc.useUtils();
 
@@ -1373,6 +1374,11 @@ function EditalTab({
                                     className="ml-2 scale-75 h-4 border-[var(--primary)] text-[var(--primary)] font-black text-[8px] uppercase tracking-tighter bg-[var(--primary)]/5"
                                   >
                                     Registrado
+                                  </Badge>
+                                )}
+                                {libraryStats?.[t.topic] && (
+                                  <Badge className="ml-2 scale-75 h-4 bg-orange-500 text-white font-black text-[8px] uppercase tracking-tighter border-none shadow-sm animate-pulse">
+                                    {libraryStats[t.topic]} Qs no Lab
                                   </Badge>
                                 )}
                               </span>

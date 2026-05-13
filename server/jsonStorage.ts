@@ -3129,3 +3129,99 @@ export async function checkExamIntegrated(
       q.userId === userId && q.contest?.toLowerCase() === contest.toLowerCase(),
   );
 }
+
+// ============ FUSION FEATURES (RAG & DEEP MAPPING) ============
+
+const LIBRARY_TEXT_DIR = path.join(process.cwd(), "data", "library_text");
+const MINED_EXAMS_DIR = path.join(process.cwd(), "data", "mined_exams");
+
+export async function saveLibraryText(fileName: string, text: string) {
+  if (!fs.existsSync(LIBRARY_TEXT_DIR))
+    fs.mkdirSync(LIBRARY_TEXT_DIR, { recursive: true });
+  const safeName = fileName.replace(/[^a-z0-9]/gi, "_").toLowerCase() + ".txt";
+  fs.writeFileSync(path.join(LIBRARY_TEXT_DIR, safeName), text, "utf8");
+}
+
+export async function searchLibraryText(
+  query: string,
+  limit = 3,
+): Promise<string[]> {
+  if (!fs.existsSync(LIBRARY_TEXT_DIR)) return [];
+  const files = fs.readdirSync(LIBRARY_TEXT_DIR);
+  const snippets: { text: string; score: number }[] = [];
+
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 3);
+
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(LIBRARY_TEXT_DIR, file), "utf8");
+    let score = 0;
+    terms.forEach((term) => {
+      const regex = new RegExp(term, "gi");
+      const matches = content.match(regex);
+      if (matches) score += matches.length;
+    });
+
+    if (score > 0) {
+      // Pega um trecho ao redor do primeiro match
+      const firstMatch = content.toLowerCase().indexOf(terms[0]);
+      const start = Math.max(0, firstMatch - 500);
+      const end = Math.min(content.length, firstMatch + 1500);
+      snippets.push({
+        text: `[Fonte: ${file}] ...${content.substring(start, end)}...`,
+        score,
+      });
+    }
+  }
+
+  return snippets
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.text);
+}
+
+export async function getMinedQuestionsCountByTopic(): Promise<
+  Record<string, number>
+> {
+  const counts: Record<string, number> = {};
+  if (!fs.existsSync(MINED_EXAMS_DIR)) return counts;
+
+  const files = fs.readdirSync(MINED_EXAMS_DIR);
+  for (const file of files) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const content = fs.readFileSync(path.join(MINED_EXAMS_DIR, file), "utf8");
+      const data = JSON.parse(content);
+      const questions = Array.isArray(data) ? data : data.questions || [];
+
+      questions.forEach((q: any) => {
+        const topic = (q.topic || q.assunto || "Geral").trim();
+        counts[topic] = (counts[topic] || 0) + 1;
+      });
+    } catch (e) {}
+  }
+  return counts;
+}
+
+export async function getRandomTecJsonQuestions(limit = 5): Promise<any[]> {
+  const db = readDatabase();
+  // Filtramos por questões que vieram do TEC (geralmente via scraper ou importação massiva no banco)
+  const tecQuestions = db.questionErrors.filter(
+    (q) => (q as any).source === "tec" || q.contest?.includes("TEC"),
+  );
+
+  if (tecQuestions.length === 0) return [];
+
+  const shuffled = [...tecQuestions].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, limit).map((q) => ({
+    id: q.id,
+    statement: q.statement,
+    alternatives: q.alternatives || [],
+    correctAnswer: q.correctAnswer || "",
+    topic: q.contest || "Geral",
+    discipline: "Geral",
+    banca: q.banca || "TEC",
+  }));
+}
