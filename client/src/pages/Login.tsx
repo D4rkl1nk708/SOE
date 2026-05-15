@@ -55,41 +55,43 @@ export default function Login() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-zinc-950">
-      <div className="w-full max-w-md p-8 bg-zinc-900 rounded-xl border border-zinc-800 shadow-2xl">
-        <h1 className="text-3xl font-bold text-center mb-6 text-zinc-100">
-          SOE
-        </h1>
-        <p className="text-center text-zinc-400 mb-8">
-          Entre para acessar seu ambiente de estudos
-        </p>
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="w-full max-w-md p-10 bg-card border border-border rounded-lg shadow-sm">
+        <div className="text-center space-y-2 mb-10">
+          <h1 className="text-4xl font-bold tracking-tighter text-foreground">
+            SOE
+          </h1>
+          <p className="text-sm text-muted-foreground uppercase tracking-widest font-semibold text-[10px]">
+            Sistema de Organização de Estudo
+          </p>
+        </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
+          <div className="space-y-1">
             <Input
               type="email"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-zinc-800 border-zinc-700"
+              className="w-full h-11 bg-secondary border-border"
             />
           </div>
-          <div>
+          <div className="space-y-1">
             <Input
               type="password"
               placeholder="Senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-zinc-800 border-zinc-700"
+              className="w-full h-11 bg-secondary border-border"
             />
           </div>
-          <div className="flex flex-col gap-3 pt-4">
+          <div className="flex flex-col gap-3 pt-6">
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider"
             >
               {loading ? "Entrando..." : "Entrar"}
             </Button>
@@ -98,7 +100,7 @@ export default function Login() {
               variant="outline"
               disabled={loading}
               onClick={handleRegister}
-              className="w-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+              className="w-full h-11 border-border text-muted-foreground hover:text-foreground font-bold text-xs uppercase tracking-wider"
             >
               Registrar
             </Button>

@@ -6,9 +6,6 @@ import { Loader2, Send, User, Sparkles, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 
-/**
- * Message type matching server-side LLM Message interface
- */
 export type AIAction = {
   type: "update_calendar" | "update_notes" | "update_topic" | "other";
   description: string;
@@ -22,114 +19,25 @@ export type Message = {
 };
 
 export type AIChatBoxProps = {
-  /**
-   * Messages array to display in the chat.
-   * Should match the format used by invokeLLM on the server.
-   */
   messages: Message[];
-
-  /**
-   * Callback when user sends a message.
-   * Typically you'll call a tRPC mutation here to invoke the LLM.
-   */
   onSendMessage: (content: string) => void;
-
-  /**
-   * Whether the AI is currently generating a response
-   */
   isLoading?: boolean;
-
-  /**
-   * Placeholder text for the input field
-   */
   placeholder?: string;
-
-  /**
-   * Custom className for the container
-   */
   className?: string;
-
-  /**
-   * Height of the chat box (default: 600px)
-   */
   height?: string | number;
-
-  /**
-   * Empty state message to display when no messages
-   */
   emptyStateMessage?: string;
-
-  /**
-   * Suggested prompts to display in empty state
-   * Click to send directly
-   */
   suggestedPrompts?: string[];
-
-  /**
-   * Callback when user accepts/rejects an AI action
-   */
   onAction?: (action: AIAction, accepted: boolean) => void;
 };
 
-/**
- * A ready-to-use AI chat box component that integrates with the LLM system.
- *
- * Features:
- * - Matches server-side Message interface for seamless integration
- * - Markdown rendering with Streamdown
- * - Auto-scrolls to latest message
- * - Loading states
- * - Uses global theme colors from index.css
- *
- * @example
- * ```tsx
- * const ChatPage = () => {
- *   const [messages, setMessages] = useState<Message[]>([
- *     { role: "system", content: "You are a helpful assistant." }
- *   ]);
- *
- *   const chatMutation = trpc.ai.chat.useMutation({
- *     onSuccess: (response) => {
- *       // Assuming your tRPC endpoint returns the AI response as a string
- *       setMessages(prev => [...prev, {
- *         role: "assistant",
- *         content: response
- *       }]);
- *     },
- *     onError: (error) => {
- *       console.error("Chat error:", error);
- *       // Optionally show error message to user
- *     }
- *   });
- *
- *   const handleSend = (content: string) => {
- *     const newMessages = [...messages, { role: "user", content }];
- *     setMessages(newMessages);
- *     chatMutation.mutate({ messages: newMessages });
- *   };
- *
- *   return (
- *     <AIChatBox
- *       messages={messages}
- *       onSendMessage={handleSend}
- *       isLoading={chatMutation.isPending}
- *       suggestedPrompts={[
- *         "Explain quantum computing",
- *         "Write a hello world in Python"
- *       ]}
- *     />
- *   );
- * };
- * ```
- */
 export function AIChatBox({
   messages,
   onSendMessage,
   isLoading = false,
-  placeholder = "Type your message...",
+  placeholder = "Como posso te ajudar?",
   className,
   height = "600px",
-  emptyStateMessage = "Start a conversation with AI",
+  emptyStateMessage = "Inicie uma conversa estratégica",
   suggestedPrompts,
   onAction,
 }: AIChatBoxProps) {
@@ -139,10 +47,7 @@ export function AIChatBox({
   const inputAreaRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Filter out system messages
   const displayMessages = messages.filter((msg) => msg.role !== "system");
-
-  // Calculate min-height for last assistant message to push user message to top
   const [minHeightForLastMessage, setMinHeightForLastMessage] = useState(0);
 
   useEffect(() => {
@@ -150,31 +55,20 @@ export function AIChatBox({
       const containerHeight = containerRef.current.offsetHeight;
       const inputHeight = inputAreaRef.current.offsetHeight;
       const scrollAreaHeight = containerHeight - inputHeight;
-
-      // Reserve space for:
-      // - padding (p-4 = 32px top+bottom)
-      // - user message: 40px (item height) + 16px (margin-top from space-y-4) = 56px
-      // Note: margin-bottom is not counted because it naturally pushes the assistant message down
       const userMessageReservedHeight = 56;
       const calculatedHeight =
         scrollAreaHeight - 32 - userMessageReservedHeight;
-
       setMinHeightForLastMessage(Math.max(0, calculatedHeight));
     }
   }, []);
 
-  // Scroll to bottom helper function with smooth animation
   const scrollToBottom = () => {
     const viewport = scrollAreaRef.current?.querySelector(
       "[data-radix-scroll-area-viewport]",
     ) as HTMLDivElement;
-
     if (viewport) {
       requestAnimationFrame(() => {
-        viewport.scrollTo({
-          top: viewport.scrollHeight,
-          behavior: "smooth",
-        });
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
       });
     }
   };
@@ -183,14 +77,9 @@ export function AIChatBox({
     e.preventDefault();
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
-
     onSendMessage(trimmedInput);
     setInput("");
-
-    // Scroll immediately after sending
     scrollToBottom();
-
-    // Keep focus on input
     textareaRef.current?.focus();
   };
 
@@ -205,42 +94,42 @@ export function AIChatBox({
     <div
       ref={containerRef}
       className={cn(
-        "flex flex-col glass-morphism rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden",
+        "flex flex-col bg-card border border-border shadow-2xl rounded-md overflow-hidden",
         className,
       )}
       style={{ height }}
     >
-      {/* Messages Area */}
       <div ref={scrollAreaRef} className="flex-1 overflow-hidden">
         {displayMessages.length === 0 ? (
-          <div className="flex h-full flex-col p-4">
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 text-muted-foreground">
-              <div className="flex flex-col items-center gap-3">
-                <Sparkles className="size-12 opacity-20" />
-                <p className="text-sm">{emptyStateMessage}</p>
+          <div className="flex h-full flex-col p-8 items-center justify-center space-y-12 text-center">
+            <div className="space-y-4">
+              <div className="w-16 h-16 rounded-md bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto text-primary/30">
+                <Sparkles size={32} />
               </div>
-
-              {suggestedPrompts && suggestedPrompts.length > 0 && (
-                <div className="flex max-w-2xl flex-wrap justify-center gap-3">
-                  {suggestedPrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onSendMessage(prompt)}
-                      disabled={isLoading}
-                      className="px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-widest transition-all hover:bg-white/10 hover:border-white/20 active:scale-95 disabled:opacity-50"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                {emptyStateMessage}
+              </p>
             </div>
+
+            {suggestedPrompts && suggestedPrompts.length > 0 && (
+              <div className="flex max-w-lg flex-wrap justify-center gap-2">
+                {suggestedPrompts.map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => onSendMessage(prompt)}
+                    disabled={isLoading}
+                    className="px-4 py-2.5 rounded-md bg-secondary/50 border border-border/50 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-secondary hover:border-primary/20 active:scale-95 disabled:opacity-50"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <ScrollArea className="h-full">
-            <div className="flex flex-col space-y-4 p-4">
+            <div className="flex flex-col space-y-8 p-6">
               {displayMessages.map((message, index) => {
-                // Apply min-height to last message only if NOT loading (when loading, the loading indicator gets it)
                 const isLastMessage = index === displayMessages.length - 1;
                 const shouldApplyMinHeight =
                   isLastMessage && !isLoading && minHeightForLastMessage > 0;
@@ -249,10 +138,8 @@ export function AIChatBox({
                   <div
                     key={index}
                     className={cn(
-                      "flex gap-3",
-                      message.role === "user"
-                        ? "justify-end items-start"
-                        : "justify-start items-start",
+                      "flex gap-4",
+                      message.role === "user" ? "flex-row-reverse" : "flex-row",
                     )}
                     style={
                       shouldApplyMinHeight
@@ -260,58 +147,64 @@ export function AIChatBox({
                         : undefined
                     }
                   >
-                    {message.role === "assistant" && (
-                      <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Sparkles className="size-4 text-primary" />
-                      </div>
-                    )}
+                    <div
+                      className={cn(
+                        "size-8 shrink-0 rounded-md flex items-center justify-center border",
+                        message.role === "user"
+                          ? "bg-primary border-primary text-white"
+                          : "bg-secondary/50 border-border text-primary",
+                      )}
+                    >
+                      {message.role === "user" ? (
+                        <User size={14} />
+                      ) : (
+                        <Sparkles size={14} />
+                      )}
+                    </div>
 
                     <div
                       className={cn(
-                        "max-w-[80%] rounded-lg px-4 py-2.5",
+                        "max-w-[85%] rounded-md px-5 py-3 border transition-all",
                         message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground",
+                          ? "bg-secondary/30 border-border/50 text-foreground font-semibold text-sm"
+                          : "bg-transparent border-transparent text-foreground/90",
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <div className="space-y-4">
-                          <div className="soe-prose max-w-none text-sm">
+                        <div className="space-y-6">
+                          <div className="soe-prose prose prose-invert prose-sm max-w-none text-sm leading-relaxed">
                             <Streamdown>{message.content}</Streamdown>
                           </div>
 
                           {message.action && (
-                            <div className="mt-4 p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Sparkles
-                                  size={14}
-                                  className="text-[var(--primary)]"
-                                />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
-                                  Proposta da IA
+                            <div className="p-5 rounded-md bg-primary/5 border border-primary/20 space-y-4 animate-in fade-in slide-in-from-top-2">
+                              <div className="flex items-center gap-2 text-primary opacity-60">
+                                <Sparkles size={14} />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">
+                                  Ação Sugerida
                                 </span>
                               </div>
-                              <p className="text-xs font-bold text-white/80 leading-relaxed">
+                              <p className="text-xs font-bold leading-relaxed">
                                 {message.action.description}
                               </p>
-
-                              <div className="flex gap-2 pt-2">
-                                <button
+                              <div className="flex gap-3 pt-2">
+                                <Button
                                   onClick={() =>
                                     onAction?.(message.action!, true)
                                   }
-                                  className="flex-1 h-10 rounded-xl bg-[var(--primary)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)]/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                  className="flex-1 h-9 rounded-md text-[10px] font-bold uppercase tracking-widest"
                                 >
-                                  <Check size={14} strokeWidth={3} /> Aceitar
-                                </button>
-                                <button
+                                  Aceitar
+                                </Button>
+                                <Button
+                                  variant="outline"
                                   onClick={() =>
                                     onAction?.(message.action!, false)
                                   }
-                                  className="h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/20 transition-all flex items-center justify-center gap-2"
+                                  className="h-9 px-6 rounded-md text-[10px] font-bold uppercase tracking-widest"
                                 >
-                                  <X size={14} strokeWidth={3} /> Recusar
-                                </button>
+                                  Recusar
+                                </Button>
                               </div>
                             </div>
                           )}
@@ -322,30 +215,17 @@ export function AIChatBox({
                         </p>
                       )}
                     </div>
-
-                    {message.role === "user" && (
-                      <div className="size-8 shrink-0 mt-1 rounded-full bg-secondary flex items-center justify-center">
-                        <User className="size-4 text-secondary-foreground" />
-                      </div>
-                    )}
                   </div>
                 );
               })}
 
               {isLoading && (
-                <div
-                  className="flex items-start gap-3"
-                  style={
-                    minHeightForLastMessage > 0
-                      ? { minHeight: `${minHeightForLastMessage}px` }
-                      : undefined
-                  }
-                >
-                  <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="size-4 text-primary" />
+                <div className="flex items-start gap-4">
+                  <div className="size-8 shrink-0 rounded-md bg-secondary/50 border border-border flex items-center justify-center text-primary">
+                    <Sparkles size={14} />
                   </div>
-                  <div className="rounded-lg bg-muted px-4 py-2.5">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  <div className="rounded-md bg-secondary/20 border border-border/30 px-4 py-3">
+                    <Loader2 className="size-4 animate-spin text-primary" />
                   </div>
                 </div>
               )}
@@ -354,34 +234,32 @@ export function AIChatBox({
         )}
       </div>
 
-      {/* Input Area */}
       <form
         ref={inputAreaRef}
         onSubmit={handleSubmit}
-        className="p-6 bg-white/[0.02] border-t border-white/5"
+        className="p-4 bg-secondary/20 border-t border-border"
       >
-        <div className="relative flex items-center gap-3 bg-black/40 border border-white/10 rounded-[2rem] p-2 pl-6 focus-within:border-[var(--primary)] transition-all shadow-inner">
-          <Textarea
+        <div className="relative flex items-center gap-3 bg-card border border-border rounded-md p-1.5 pl-4 focus-within:border-primary/50 transition-all shadow-sm">
+          <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="flex-1 bg-transparent border-none focus-visible:ring-0 resize-none py-3 text-sm min-h-[44px] max-h-32 scrollbar-hide"
+            className="flex-1 bg-transparent border-none outline-none py-2 text-sm font-bold placeholder:text-muted-foreground/30 resize-none min-h-[40px] max-h-32 custom-scrollbar"
             rows={1}
           />
-          <Button
+          <button
             type="submit"
-            size="icon"
             disabled={!input.trim() || isLoading}
-            className="w-12 h-12 rounded-[1.5rem] bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-shadow)]/20 hover:scale-105 active:scale-95 shrink-0"
+            className="w-10 h-10 rounded-md bg-primary text-white flex items-center justify-center transition-all disabled:opacity-20 hover:bg-primary/90"
           >
             {isLoading ? (
-              <Loader2 className="size-5 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Send className="size-5" />
+              <Send size={16} />
             )}
-          </Button>
+          </button>
         </div>
       </form>
     </div>

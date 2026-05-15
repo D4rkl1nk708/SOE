@@ -61,6 +61,12 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogDescription: ({ children }: any) => <div>{children}</div>,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
   DialogTrigger: ({ children }: any) => <div>{children}</div>,
+  useDialogComposition: () => ({
+    isComposing: () => false,
+    setComposing: () => {},
+    justEndedComposing: () => false,
+    markCompositionEnd: () => {},
+  }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -264,7 +270,7 @@ describe("Topics Component", () => {
     fireEvent.click(trashIcon.closest("button")!);
 
     expect(screen.getByText("Excluir Tema?")).toBeTruthy();
-    fireEvent.click(screen.getByText("Excluir Tema"));
+    fireEvent.click(screen.getByText("Excluir"));
 
     expect(mutate).toHaveBeenCalled();
   });
@@ -298,7 +304,7 @@ describe("Topics Component", () => {
       isLoading: true,
     });
     render(<Topics />);
-    expect(screen.getByText("Carregando seus temas...")).toBeTruthy();
+    expect(screen.getByText("Carregando temas...")).toBeTruthy();
   });
 
   test("shows empty state", () => {

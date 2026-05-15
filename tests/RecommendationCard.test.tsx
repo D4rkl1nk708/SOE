@@ -97,8 +97,7 @@ describe("RecommendationCard Component", () => {
 
     expect(screen.getByText("Recomendação do Mentor")).toBeTruthy();
     expect(screen.getByText("Urgente")).toBeTruthy(); // Because priority === "alta"
-    expect(screen.getByText("2 Estagnados")).toBeTruthy();
-    expect(screen.getByText("1 Regressões")).toBeTruthy();
+    expect(screen.getByText("Geral")).toBeTruthy(); // contextTag
     expect(screen.getByText("Direito Admin")).toBeTruthy();
     expect(screen.getByText("Você está estagnado.")).toBeTruthy();
     expect(screen.getByText("Estude mais atos.")).toBeTruthy();

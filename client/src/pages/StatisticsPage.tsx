@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { BarChart3, PieChart, FlaskConical } from "lucide-react";
 import StatisticsContent from "./Statistics";
 import TopicStatsContent from "./TopicStats";
@@ -9,39 +10,52 @@ type Tab = "overview" | "topics" | "analytics";
 export default function StatisticsPage() {
   const hash = window.location.hash.replace("#", "") as Tab;
   const [tab, setTab] = useState<Tab>(
-    hash === "topics" ? "topics"
-    : hash === "analytics" ? "analytics"
-    : "overview"
+    hash === "topics"
+      ? "topics"
+      : hash === "analytics"
+        ? "analytics"
+        : "overview",
   );
 
   const TABS = [
-    { id: "overview"  as Tab, label: "Visão Geral", icon: BarChart3    },
-    { id: "topics"    as Tab, label: "Por Tema",    icon: PieChart     },
-    { id: "analytics" as Tab, label: "Análise",     icon: FlaskConical },
+    { id: "overview" as Tab, label: "Visão Geral", icon: BarChart3 },
+    { id: "topics" as Tab, label: "Por Tema", icon: PieChart },
+    { id: "analytics" as Tab, label: "Análise", icon: FlaskConical },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-1 p-1 rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar" style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>
-        {TABS.map(t => {
+    <div className="space-y-8">
+      <div className="flex border-b border-border w-full overflow-x-auto no-scrollbar gap-8">
+        {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-[11px] sm:text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap"
-              style={{
-                background: active ? "var(--primary)" : "transparent",
-                color: active ? "white" : "var(--muted-text)",
-              }}>
-              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              {t.label}
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`pb-4 flex items-center gap-2 transition-all relative outline-none ${
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
+                {t.label}
+              </span>
+              {active && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                />
+              )}
             </button>
           );
         })}
       </div>
 
-      {tab === "overview"  && <StatisticsContent />}
-      {tab === "topics"    && <TopicStatsContent />}
+      {tab === "overview" && <StatisticsContent />}
+      {tab === "topics" && <TopicStatsContent />}
       {tab === "analytics" && <SOEAnalytics />}
     </div>
   );

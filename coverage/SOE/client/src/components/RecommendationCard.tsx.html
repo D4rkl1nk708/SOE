@@ -30,9 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">94.44% </span>
+                <span class="strong">96.42% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>34/36</span>
+                <span class='fraction'>27/28</span>
             </div>
         
             
@@ -237,32 +237,7 @@
 <a name='L172'></a><a href='#L172'>172</a>
 <a name='L173'></a><a href='#L173'>173</a>
 <a name='L174'></a><a href='#L174'>174</a>
-<a name='L175'></a><a href='#L175'>175</a>
-<a name='L176'></a><a href='#L176'>176</a>
-<a name='L177'></a><a href='#L177'>177</a>
-<a name='L178'></a><a href='#L178'>178</a>
-<a name='L179'></a><a href='#L179'>179</a>
-<a name='L180'></a><a href='#L180'>180</a>
-<a name='L181'></a><a href='#L181'>181</a>
-<a name='L182'></a><a href='#L182'>182</a>
-<a name='L183'></a><a href='#L183'>183</a>
-<a name='L184'></a><a href='#L184'>184</a>
-<a name='L185'></a><a href='#L185'>185</a>
-<a name='L186'></a><a href='#L186'>186</a>
-<a name='L187'></a><a href='#L187'>187</a>
-<a name='L188'></a><a href='#L188'>188</a>
-<a name='L189'></a><a href='#L189'>189</a>
-<a name='L190'></a><a href='#L190'>190</a>
-<a name='L191'></a><a href='#L191'>191</a>
-<a name='L192'></a><a href='#L192'>192</a>
-<a name='L193'></a><a href='#L193'>193</a>
-<a name='L194'></a><a href='#L194'>194</a>
-<a name='L195'></a><a href='#L195'>195</a>
-<a name='L196'></a><a href='#L196'>196</a>
-<a name='L197'></a><a href='#L197'>197</a>
-<a name='L198'></a><a href='#L198'>198</a>
-<a name='L199'></a><a href='#L199'>199</a>
-<a name='L200'></a><a href='#L200'>200</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L175'></a><a href='#L175'>175</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -423,31 +398,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -461,7 +411,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useState, useEffect } from "react";
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Sparkles,
@@ -505,7 +455,7 @@ export function RecommendationCard() {
 &nbsp;
   if (isLoading) {
     return (
-      &lt;div className="soe-card p-6 border-primary/20 bg-primary/5"&gt;
+      &lt;div className="soe-card p-6 border-primary/10 bg-primary/5"&gt;
         &lt;Skeleton className="h-6 w-48 mb-4" /&gt;
         &lt;Skeleton className="h-4 w-full mb-2" /&gt;
         &lt;Skeleton className="h-4 w-2/3" /&gt;
@@ -519,127 +469,102 @@ export function RecommendationCard() {
 &nbsp;
   return (
     &lt;div
-      className={`soe-card p-6 relative overflow-hidden transition-all hover:scale-[1.005] border-2 group ${
+      className={`soe-card p-6 relative overflow-hidden transition-all border group ${
         isHighPriority
-          ? "border-amber-500/30 bg-amber-500/[0.03]"
-          : "border-primary/20 bg-primary/[0.02]"
+          ? "border-amber-500/30 bg-amber-500/[0.02]"
+          : "border-border bg-card"
       }`}
     &gt;
       {/* Background Decor */}
-      &lt;div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-500"&gt;
+      &lt;div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none transition-transform duration-500"&gt;
         &lt;Sparkles className="w-32 h-32" /&gt;
       &lt;/div&gt;
 &nbsp;
       &lt;div className="flex flex-col md:flex-row md:items-start justify-between gap-8 relative z-10"&gt;
-        &lt;div className="space-y-4 flex-1"&gt;
-          &lt;div className="flex items-center gap-3"&gt;
+        &lt;div className="space-y-5 flex-1"&gt;
+          &lt;div className="flex items-center gap-4"&gt;
             &lt;div
-              className={`p-2.5 rounded-xl ${isHighPriority ? "bg-amber-500/20 text-amber-500" : "bg-primary/20 text-primary shadow-lg shadow-primary/10"}`}
+              className={`p-2 rounded-lg ${isHighPriority ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}`}
             &gt;
-              &lt;Target size={20} /&gt;
+              &lt;Target size={18} /&gt;
             &lt;/div&gt;
             &lt;div className="flex flex-col flex-1"&gt;
               &lt;div className="flex items-center justify-between"&gt;
-                &lt;h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50"&gt;
+                &lt;h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60"&gt;
                   Recomendação do Mentor
                 &lt;/h2&gt;
                 &lt;button
                   onClick={() =&gt; refetch()}
                   disabled={isRefetching}
-                  className={`p-1 hover:bg-white/5 rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
                   title="Recalcular Rota"
+                  className={`p-1 hover:bg-secondary rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
                 &gt;
                   &lt;Sparkles size={14} /&gt;
                 &lt;/button&gt;
               &lt;/div&gt;
               &lt;div className="flex items-center gap-2 mt-1"&gt;
-                &lt;span className="text-xs font-bold text-primary/60"&gt;
+                &lt;span className="text-[10px] font-bold text-primary/70"&gt;
                   {rec.contextTag}
                 &lt;/span&gt;
                 {isHighPriority &amp;&amp; (
                   &lt;Badge
                     variant="outline"
-                    className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] h-4 font-black uppercase tracking-tighter animate-pulse"
+                    className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] h-4 font-bold uppercase tracking-wider px-1.5"
                   &gt;
                     Urgente
-                  &lt;/Badge&gt;
-                )}
-                {rec.plateauCount &gt; 0 &amp;&amp; (
-                  &lt;Badge
-                    variant="outline"
-                    className="bg-rose-500/10 text-rose-500 border-rose-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  &gt;
-                    {rec.plateauCount} Estagnados
-                  &lt;/Badge&gt;
-                )}
-                {rec.regressionCount &gt; 0 &amp;&amp; (
-                  &lt;Badge
-                    variant="outline"
-                    className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  &gt;
-                    {rec.regressionCount} Regressões
-                  &lt;/Badge&gt;
-                )}
-                {(rec.bankQuestionCount ?? 0) &gt; 0 &amp;&amp; (
-<span class="branch-1 cbranch-no" title="branch not covered" >                  &lt;Badge</span>
-                    variant="outline"
-                    className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  &gt;
-                    {rec.bankQuestionCount} Questões de Elite
                   &lt;/Badge&gt;
                 )}
               &lt;/div&gt;
             &lt;/div&gt;
           &lt;/div&gt;
 &nbsp;
-          &lt;div className="space-y-2"&gt;
-            &lt;h3 className="text-2xl font-black tracking-tight leading-tight"&gt;
+          &lt;div className="space-y-3"&gt;
+            &lt;h3 className="text-xl font-bold tracking-tight text-foreground leading-tight"&gt;
               Foco de Hoje:{" "}
-              &lt;span
-                className={isHighPriority ? "text-amber-500" : "text-primary"}
-              &gt;
+              &lt;span className={isHighPriority ? "text-amber-500" : "text-primary"}&gt;
                 {rec.disciplineName}
               &lt;/span&gt;
             &lt;/h3&gt;
-            &lt;div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2"&gt;
+            
+            &lt;div className="grid grid-cols-1 lg:grid-cols-2 gap-4"&gt;
               &lt;div className="space-y-1.5"&gt;
-                &lt;p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"&gt;
+                &lt;p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2"&gt;
                   &lt;AlertCircle size={10} /&gt; Diagnóstico Crítico
                 &lt;/p&gt;
-                &lt;div className="border-l-2 border-primary/20 pl-3 py-2.5 bg-white/[0.02] rounded-r-lg min-h-[4rem] flex items-center w-full"&gt;
-                  &lt;p className="text-sm font-bold opacity-90 whitespace-normal break-words leading-relaxed w-full"&gt;
+                &lt;div className="p-4 bg-secondary/30 rounded-md border border-border min-h-[4rem] flex items-center"&gt;
+                  &lt;p className="text-sm font-bold text-foreground/90 leading-relaxed"&gt;
                     {rec.diagnostic}
                   &lt;/p&gt;
                 &lt;/div&gt;
               &lt;/div&gt;
 &nbsp;
               &lt;div className="space-y-1.5"&gt;
-                &lt;p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2"&gt;
+                &lt;p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2"&gt;
                   &lt;TrendingDown size={10} /&gt; Plano de Ação
                 &lt;/p&gt;
-                &lt;div className="bg-primary/5 p-3 rounded-xl border border-primary/10 min-h-[4rem] flex items-center w-full"&gt;
-                  &lt;p className="text-sm opacity-80 leading-relaxed font-medium w-full"&gt;
+                &lt;div className="bg-primary/5 p-4 rounded-md border border-primary/10 min-h-[4rem] flex items-center"&gt;
+                  &lt;p className="text-sm text-foreground/80 leading-relaxed font-semibold"&gt;
                     {rec.actionPlan}
                   &lt;/p&gt;
                 &lt;/div&gt;
               &lt;/div&gt;
             &lt;/div&gt;
 &nbsp;
-            &lt;div className="mt-4 p-3 rounded-2xl bg-rose-500/[0.03] border border-rose-500/10"&gt;
-              &lt;p className="text-[9px] font-black uppercase tracking-widest text-rose-500/50 mb-1"&gt;
+            &lt;div className="p-3 rounded-md bg-destructive/5 border border-destructive/10"&gt;
+              &lt;p className="text-[9px] font-bold uppercase tracking-wider text-destructive/50 mb-1"&gt;
                 Risco na Prova (Previsão)
               &lt;/p&gt;
-              &lt;p className="text-[12px] font-bold text-rose-500/80 italic leading-relaxed"&gt;
+              &lt;p className="text-[11px] font-semibold text-destructive/80 italic leading-relaxed"&gt;
                 "{rec.prediction}"
               &lt;/p&gt;
             &lt;/div&gt;
           &lt;/div&gt;
         &lt;/div&gt;
 &nbsp;
-        &lt;div className="flex flex-col items-start md:items-end gap-4 shrink-0"&gt;
-          &lt;div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner group-hover:border-primary/30 transition-colors"&gt;
-            &lt;Clock size={16} className="opacity-40" /&gt;
-            &lt;span className="text-xs font-black uppercase tracking-widest opacity-60"&gt;
+        &lt;div className="flex flex-col items-start md:items-end gap-3 shrink-0"&gt;
+          &lt;div className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary/30 border border-border"&gt;
+            &lt;Clock size={14} className="text-muted-foreground" /&gt;
+            &lt;span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground"&gt;
               Foco Imediato
             &lt;/span&gt;
           &lt;/div&gt;
@@ -649,9 +574,9 @@ export function RecommendationCard() {
               onClick={<span class="fstat-no" title="function not covered" >() =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >                window.location.href = `/lab?startElite=true&amp;topicId=${rec.topicId}`;</span>
               }}
-              className="btn-apple-primary w-full md:w-auto h-12 px-8 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              className="w-full md:w-auto h-10 px-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-primary/90"
             &gt;
-              &lt;Target size={16} /&gt;
+              &lt;Target size={14} /&gt;
               Treino de Elite ({rec.bankQuestionCount})
             &lt;/button&gt;
           )}
@@ -667,7 +592,7 @@ export function RecommendationCard() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-13T04:13:07.286Z
+                at 2026-05-15T13:23:53.073Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

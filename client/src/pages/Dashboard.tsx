@@ -1,58 +1,36 @@
 import { trpc } from "@/lib/trpc";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
-  BookOpen,
   Clock,
   CheckCircle2,
-  TrendingUp,
   Upload,
   Trophy,
   Target,
-  Settings2,
-  Pencil,
-  Trash2,
+  LayoutDashboard,
   ChevronDown,
   ChevronRight,
-  AlertCircle,
-  LayoutDashboard,
   Eye,
   EyeOff,
-  Plus,
-  Brain,
-  Library,
-  FileText,
-  BarChart2,
-  AlertTriangle,
-  BookMarked,
-  Crosshair,
-  ListChecks,
-  Save,
-  Check,
-  X as XIcon,
 } from "lucide-react";
-import { format, differenceInDays, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { useEffect, useState, useRef } from "react";
+import { differenceInDays, parseISO } from "date-fns";
+import { useState } from "react";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { DailyGoalWidget, TodayRevisions } from "@/components/DashboardWidgets";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { PreExamBanner } from "@/components/PreExamBanner";
 import { MassStudyAlert } from "@/components/MassStudyAlert";
 import { SleepWarning } from "@/components/SleepWarning";
-import { EmotionLogger } from "@/components/EmotionLogger";
 import { ConfusionMatrixWidget } from "@/components/ConfusionMatrixWidget";
 import { PlateauRadarWidget } from "@/components/PlateauRadarWidget";
 import {
@@ -62,15 +40,12 @@ import {
   useQuestionsDialog,
   useDragReorder,
   useDashboardWidgets,
-  useTimeEdit,
   formatStudyTime,
   type DisciplineStat,
 } from "@/hooks/useDashboard";
 import { ScheduleDialog } from "@/components/ScheduleDialog";
-
 import { RecommendationCard } from "@/components/RecommendationCard";
 
-// ─── widget IDs ─────────────────────────────────────────────────────────────
 const EXTRA_WIDGETS = [
   { id: "recommendation", label: "Recomendação (IA)" },
   { id: "heatmap", label: "Histórico de Estudos" },
@@ -84,12 +59,10 @@ const EXTRA_WIDGETS = [
 export default function Dashboard() {
   const utils = trpc.useUtils();
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
-  const { data: notes } = trpc.note.list.useQuery();
   const { data: heatmapData } = trpc.dashboard.getHeatmap.useQuery({
     months: 5,
   });
 
-  // ─── Custom hooks ────────────────────────────────────────────────────────
   const exams = useExams();
   const schedule = useScheduleSettings(() =>
     utils.dashboard.getStats.invalidate(),
@@ -102,41 +75,20 @@ export default function Dashboard() {
   const widgets = useDashboardWidgets(
     stats?.settings as unknown as Record<string, unknown> | null,
   );
-  const timeEdit = useTimeEdit();
 
   const [expandedDiscipline, setExpandedDiscipline] = useState<number | null>(
     null,
   );
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
-  // Mutation for TEC error origin classification (used in TEC error queue dialog)
-  const setTecPerf = trpc.topic.setPerformance.useMutation({
-    onError: (err) => toast.error(err.message),
-  });
-
-  // Onboarding
-  const onboardingCompleted = (
-    stats?.settings as Record<string, unknown> | undefined
-  )?.onboardingCompleted as boolean | undefined;
-  const hasAnyDisciplines = (stats?.disciplineStats ?? []).length > 0;
-  const showOnboarding =
-    !isLoading && !onboardingCompleted && !hasAnyDisciplines;
-
   if (isLoading)
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div
-          className="flex flex-col items-center gap-3"
-          style={{ color: "var(--muted-text)" }}
-        >
-          <div
-            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
-            style={{
-              borderColor: "var(--primary)",
-              borderTopColor: "transparent",
-            }}
-          />
-          <p className="text-sm tracking-wide">Carregando...</p>
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">
+            Carregando...
+          </p>
         </div>
       </div>
     );
@@ -170,10 +122,17 @@ export default function Dashboard() {
       ? "var(--accent-green)"
       : avgAccuracy >= 50
         ? "var(--accent-amber)"
-        : "var(--accent-red, #dc2626)";
+        : "var(--accent-red)";
+
+  const onboardingCompleted = (
+    stats?.settings as Record<string, unknown> | undefined
+  )?.onboardingCompleted as boolean | undefined;
+  const hasAnyDisciplines = (stats?.disciplineStats ?? []).length > 0;
+  const showOnboarding =
+    !isLoading && !onboardingCompleted && !hasAnyDisciplines;
 
   return (
-    <div className="space-y-6 w-full pb-10">
+    <div className="space-y-8 w-full pb-10">
       {showOnboarding && (
         <OnboardingWizard
           onComplete={() => utils.dashboard.getStats.invalidate()}
@@ -186,34 +145,29 @@ export default function Dashboard() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1
-            id="tour-dashboard-header"
-            className="text-3xl font-black tracking-tight flex items-center gap-2.5"
-            style={{ color: "var(--app-fg)" }}
-          >
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Painel
           </h1>
-          <p className="text-sm opacity-60">
+          <p className="text-sm text-muted-foreground">
             Gestão centralizada do seu desempenho.
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
-            size="lg"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest"
+            className="flex-1 sm:flex-none h-10 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
             onClick={() => setCustomizeOpen(true)}
           >
-            <LayoutDashboard className="h-4 w-4 mr-2 opacity-40" /> Personalizar
+            <LayoutDashboard size={14} className="mr-2 opacity-60" />{" "}
+            Personalizar
           </Button>
           <Button
             variant="outline"
-            size="lg"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest"
+            className="flex-1 sm:flex-none h-10 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
             disabled={tec.isImporting}
             onClick={() => tec.setDialogOpen(true)}
           >
-            <Upload className="h-4 w-4 mr-2 opacity-40" />{" "}
+            <Upload size={14} className="mr-2 opacity-60" />{" "}
             {tec.isImporting ? "..." : "Importar"}
           </Button>
           <input
@@ -226,141 +180,120 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {widgets.showExtra("recommendation") && (
-        <div id="tour-recommendation">
-          <RecommendationCard />
-        </div>
-      )}
+      {widgets.showExtra("recommendation") && <RecommendationCard />}
 
-      <div
-        id="tour-stats-grid"
-        className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <div
-          id="tour-accuracy-card"
-          className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Trophy className="w-10 h-10 md:w-12 md:h-12" />
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Aproveitamento */}
+        <div className="soe-card p-5 flex flex-col justify-between relative group">
+          <div className="absolute top-4 right-4 opacity-5">
+            <Trophy size={40} />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
+            <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60 mb-2">
               Aproveitamento
             </p>
             <span
-              className="text-3xl md:text-4xl font-black tabular-nums"
+              className="text-3xl font-bold tabular-nums"
               style={{ color: accuracyColor }}
             >
               {avgAccuracy}%
             </span>
           </div>
-          <div className="mt-3 md:mt-4">
-            <Progress value={avgAccuracy} className="h-1.5" />
-            <p className="text-[10px] md:text-xs mt-2 opacity-60 font-medium">
+          <div className="mt-6 space-y-2">
+            <div className="h-1 rounded-full bg-secondary overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-1000"
+                style={{
+                  width: `${avgAccuracy}%`,
+                  backgroundColor: accuracyColor,
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider opacity-40">
               {totalQuestions} questões resolvidas
             </p>
           </div>
         </div>
 
-        <div
-          id="tour-revisions-card"
-          className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12" />
+        {/* Revisões */}
+        <div className="soe-card p-5 flex flex-col justify-between relative group">
+          <div className="absolute top-4 right-4 opacity-5">
+            <CheckCircle2 size={40} />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
+            <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60 mb-2">
               Revisões
             </p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl md:text-4xl font-black tabular-nums text-emerald-500">
+              <span className="text-3xl font-bold tabular-nums text-emerald-500">
                 {stats?.completedRevisions || 0}
               </span>
-              <span className="text-xs font-bold opacity-40">
+              <span className="text-[10px] font-bold text-muted-foreground opacity-30">
                 / {stats?.pendingRevisions || 0}
               </span>
             </div>
           </div>
-          <div className="mt-3 md:mt-4 flex gap-1 md:gap-1.5">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="mt-6 flex gap-1">
+            {Array.from({ length: 12 }).map((_, i) => (
               <div
                 key={i}
-                className="h-1.5 flex-1 rounded-full"
+                className="h-1 flex-1 rounded-full"
                 style={{
                   background:
-                    i < (stats?.completedRevisions || 0) / 10
+                    i < (stats?.completedRevisions || 0) / 5
                       ? "var(--accent-green)"
-                      : "var(--card-border)",
+                      : "var(--border)",
                 }}
               />
             ))}
           </div>
         </div>
 
+        {/* Tempo de Estudo */}
         <div className="flex flex-col gap-4">
           <div
-            className={`soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group ${widgets.showExtra("dailyGoal") ? "" : "h-full"}`}
+            className={`soe-card p-5 flex flex-col justify-between relative group ${widgets.showExtra("dailyGoal") ? "" : "h-full"}`}
           >
-            <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Clock
-                className={
-                  widgets.showExtra("dailyGoal")
-                    ? "w-8 h-8 md:w-10 md:h-10"
-                    : "w-10 h-10 md:w-12 md:h-12"
-                }
-              />
+            <div className="absolute top-4 right-4 opacity-5">
+              <Clock size={36} />
             </div>
             <div>
-              <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
+              <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60 mb-2">
                 Tempo de Estudo
               </p>
-              <span
-                className={
-                  widgets.showExtra("dailyGoal")
-                    ? "text-2xl md:text-3xl font-black tabular-nums"
-                    : "text-3xl md:text-4xl font-black tabular-nums"
-                }
-                style={{ color: "var(--primary)" }}
-              >
+              <span className="text-3xl font-bold tabular-nums text-primary">
                 {formatStudyTime(totalStudyTime)}
               </span>
             </div>
             {!widgets.showExtra("dailyGoal") && (
-              <div className="mt-3 md:mt-4">
-                <p className="text-[10px] md:text-xs opacity-60 font-medium truncate">
+              <div className="mt-6">
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider opacity-40">
                   {stats?.totalTopics || 0} temas catalogados
                 </p>
               </div>
             )}
           </div>
 
-          {widgets.showExtra("dailyGoal") && (
-            <div id="tour-daily-goal">
-              <DailyGoalWidget />
-            </div>
-          )}
+          {widgets.showExtra("dailyGoal") && <DailyGoalWidget />}
         </div>
 
+        {/* Próxima Prova */}
         <div
-          className="soe-card p-4 md:p-6 flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:bg-white/[0.02] transition-all border-amber-500/10"
+          className="soe-card p-5 flex flex-col justify-between relative group cursor-pointer hover:bg-secondary/30 transition-all border-amber-500/10"
           onClick={() => exams.openCreate()}
         >
-          <div className="absolute top-0 right-0 p-3 md:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Target className="w-10 h-10 md:w-12 md:h-12" />
+          <div className="absolute top-4 right-4 opacity-5">
+            <Target size={40} />
           </div>
           <div>
-            <p className="text-[9px] md:text-[10px] font-black tracking-widest uppercase mb-1 opacity-60">
+            <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60 mb-2">
               Próxima Prova
             </p>
             <div className="flex items-baseline gap-2">
-              <span
-                className="text-3xl md:text-4xl font-black tabular-nums"
-                style={{ color: "var(--accent-amber)" }}
-              >
+              <span className="text-3xl font-bold tabular-nums text-amber-500">
                 {daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}
               </span>
-              <span className="text-[10px] md:text-xs font-black opacity-40 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">
                 Dias
               </span>
             </div>
@@ -369,17 +302,22 @@ export default function Dashboard() {
       </div>
 
       {widgets.showExtra("heatmap") && (
-        <div id="tour-heatmap" className="soe-card p-6">
+        <div className="soe-card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+              Frequência de Estudo
+            </h3>
+          </div>
           <StudyHeatmap logs={heatmapData as any} compact showStreakCard />
         </div>
       )}
 
-      <div id="tour-disciplines" className="soe-card overflow-hidden">
-        <div className="p-3 space-y-3">
+      <div className="soe-card overflow-hidden border-border/50">
+        <div className="divide-y divide-border/30">
           {drag.orderedStats.map((d) => (
             <div key={d.disciplineId}>
               <div
-                className="cursor-pointer rounded-2xl px-4 py-4 hover:bg-white/[0.03] transition-all flex justify-between items-center"
+                className="cursor-pointer px-5 py-4 hover:bg-secondary/20 transition-all flex justify-between items-center"
                 onClick={() =>
                   setExpandedDiscipline(
                     expandedDiscipline === d.disciplineId
@@ -388,29 +326,33 @@ export default function Dashboard() {
                   )
                 }
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div
-                    className="w-4 h-4 rounded-full"
+                    className="w-2.5 h-2.5 rounded-full"
                     style={{ backgroundColor: d.color }}
                   />
-                  <span className="font-black text-sm">{d.name}</span>
+                  <span className="font-bold text-[13px] text-foreground/90">
+                    {d.name}
+                  </span>
                 </div>
                 {expandedDiscipline === d.disciplineId ? (
-                  <ChevronDown size={16} />
+                  <ChevronDown size={14} className="text-muted-foreground" />
                 ) : (
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} className="text-muted-foreground" />
                 )}
               </div>
               {expandedDiscipline === d.disciplineId && (
-                <div className="mx-4 mb-4 space-y-2">
+                <div className="px-5 pb-5 pt-1 space-y-2">
                   {(d.topics ?? []).map((t) => (
                     <div
                       key={t.id}
-                      className="p-4 rounded-xl bg-white/5 flex justify-between items-center cursor-pointer hover:bg-white/10"
+                      className="p-3 rounded-md bg-secondary/30 border border-border/40 flex justify-between items-center cursor-pointer hover:bg-secondary/50 transition-all"
                       onClick={() => questions.openDialog(t)}
                     >
-                      <span className="text-xs font-bold">{t.name}</span>
-                      <span className="text-xs opacity-40">
+                      <span className="text-[11px] font-bold text-foreground/80">
+                        {t.name}
+                      </span>
+                      <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
                         {t.performance?.accuracy ?? 0}%
                       </span>
                     </div>
@@ -424,44 +366,34 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          {widgets.showExtra("plateauRadar") && (
-            <div id="tour-plateau-radar">
-              <PlateauRadarWidget />
-            </div>
-          )}
-          <div id="tour-confusion-matrix">
-            <ConfusionMatrixWidget />
-          </div>
+          {widgets.showExtra("plateauRadar") && <PlateauRadarWidget />}
+          <ConfusionMatrixWidget />
         </div>
         <div className="lg:col-span-3 space-y-6">
-          <div className="grid grid-cols-1 gap-6">
-            {widgets.showExtra("todayRevisions") && (
-              <div id="tour-today-revisions">
-                <TodayRevisions />
-              </div>
-            )}
-          </div>
+          {widgets.showExtra("todayRevisions") && <TodayRevisions />}
         </div>
       </div>
 
       <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-lg border-border bg-card">
           <DialogHeader>
-            <DialogTitle>Personalizar</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              Personalizar Painel
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-2 py-4">
             {EXTRA_WIDGETS.map((w) => (
               <Button
                 key={w.id}
                 variant="ghost"
-                className="w-full justify-between"
+                className="w-full justify-between h-10 px-4 rounded-md text-[11px] font-bold uppercase tracking-wider"
                 onClick={() => widgets.toggleExtra(w.id)}
               >
                 {w.label}{" "}
                 {widgets.showExtra(w.id) ? (
-                  <Eye size={14} />
+                  <Eye size={14} className="text-primary" />
                 ) : (
-                  <EyeOff size={14} />
+                  <EyeOff size={14} className="opacity-30" />
                 )}
               </Button>
             ))}
@@ -483,66 +415,46 @@ export default function Dashboard() {
       />
 
       <Dialog open={questions.open} onOpenChange={questions.setOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-lg border-border bg-card max-w-lg md:max-w-[50%]">
           <DialogHeader>
-            <DialogTitle>Questões</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              Lançar Questões
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Input
-              type="number"
-              placeholder="Acertos"
-              value={questions.correctInput}
-              onChange={(e) => questions.setCorrectInput(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Erros"
-              value={questions.wrongInput}
-              onChange={(e) => questions.setWrongInput(e.target.value)}
-            />
-            <Button className="w-full" onClick={questions.handleSave}>
-              Salvar
-            </Button>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                Acertos
+              </label>
+              <Input
+                type="number"
+                placeholder="Ex: 10"
+                value={questions.correctInput}
+                onChange={(e) => questions.setCorrectInput(e.target.value)}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                Erros
+              </label>
+              <Input
+                type="number"
+                placeholder="Ex: 2"
+                value={questions.wrongInput}
+                onChange={(e) => questions.setWrongInput(e.target.value)}
+                className="bg-secondary border-border"
+              />
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={tec.dialogOpen} onOpenChange={tec.setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Importar TEC</DialogTitle>
-          </DialogHeader>
-          <Button
-            onClick={() => {
-              tec.setDialogOpen(false);
-              tec.fileInputRef.current?.click();
-            }}
-          >
-            Selecionar Arquivo
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={exams.dialogOpen} onOpenChange={exams.setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Provas</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Nome"
-              value={exams.examNameInput}
-              onChange={(e) => exams.setExamNameInput(e.target.value)}
-            />
-            <Input
-              type="date"
-              value={exams.examDateInput}
-              onChange={(e) => exams.setExamDateInput(e.target.value)}
-            />
-            <Button className="w-full" onClick={exams.handleSave}>
-              Salvar
+          <DialogFooter>
+            <Button
+              className="w-full h-10 rounded-md font-bold text-[10px] uppercase tracking-wider"
+              onClick={questions.handleSave}
+            >
+              Salvar Desempenho
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

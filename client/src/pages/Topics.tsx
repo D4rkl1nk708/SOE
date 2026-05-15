@@ -3,14 +3,6 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +10,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -38,24 +29,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Plus,
   Pencil,
   Trash2,
   BookMarked,
-  Calendar,
   Search,
-  Filter,
   X,
   BarChart2,
   Brain,
   BookOpen,
   Clock,
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export function formatStudyTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -83,12 +69,6 @@ export default function Topics() {
     disciplineId: undefined as number | undefined,
     search: "",
   });
-  const [questionsDialog, setQuestionsDialog] = useState<{
-    topicId: number;
-    topicName: string;
-    correctCount: number;
-    errorCount: number;
-  } | null>(null);
   const [preTestDialog, setPreTestDialog] = useState<{
     open: boolean;
     pendingCreate: boolean;
@@ -111,7 +91,7 @@ export default function Topics() {
       setFormData({
         name: "",
         disciplineId: 0,
-        studyDate: "",
+        studyDate: new Date().toISOString().split("T")[0],
         studyTimeMinutes: 60,
         notes: "",
       });
@@ -181,37 +161,35 @@ export default function Topics() {
       {/* Header & Search Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h2
-            className="text-3xl font-black tracking-tight flex items-center gap-2.5"
-            style={{ color: "var(--app-fg)" }}
-          >
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
             Temas
           </h2>
-          <p className="text-sm opacity-60">
+          <p className="text-sm text-muted-foreground">
             Organize o conteúdo programático do seu edital.
           </p>
         </div>
 
-        <button
+        <Button
           onClick={() => setIsCreateOpen(true)}
-          className="h-14 px-8 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center gap-3"
+          className="rounded-md font-bold text-[10px] uppercase tracking-wider h-10 px-6"
         >
-          <Plus size={18} />
+          <Plus size={16} className="mr-2" />
           <span>Registrar Novo Tema</span>
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1 group">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none opacity-20 group-focus-within:opacity-100 transition-opacity">
-            <Search size={18} />
-          </div>
+          <Search
+            size={14}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50"
+          />
           <input
             type="text"
             placeholder="Pesquisar por nome do tema..."
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            className="w-full pl-12 pr-4 h-14 rounded-2xl bg-white/[0.02] border border-white/5 focus:border-[var(--primary)] outline-none transition-all font-bold text-sm"
+            className="w-full pl-10 pr-4 h-10 rounded-md bg-secondary/30 border border-border focus:border-primary outline-none transition-all font-semibold text-xs"
           />
         </div>
 
@@ -223,11 +201,11 @@ export default function Topics() {
               disciplineId: e.target.value ? Number(e.target.value) : undefined,
             })
           }
-          className="h-14 px-6 rounded-2xl bg-white/[0.02] border border-white/5 text-[10px] font-black uppercase tracking-widest outline-none focus:border-[var(--primary)] transition-all"
+          className="h-10 px-4 rounded-md bg-secondary/30 border border-border text-[10px] font-bold uppercase tracking-wider outline-none focus:border-primary transition-all text-muted-foreground"
         >
           <option value="">Todas as Disciplinas</option>
           {disciplinesData?.map((d) => (
-            <option key={d.id} value={d.id} className="bg-slate-900">
+            <option key={d.id} value={d.id}>
               {d.name}
             </option>
           ))}
@@ -236,9 +214,9 @@ export default function Topics() {
         {(filters.search || filters.disciplineId) && (
           <button
             onClick={clearFilters}
-            className="h-14 px-6 rounded-2xl bg-rose-500/5 text-rose-500 border border-rose-500/10 hover:bg-rose-500 hover:text-white transition-all"
+            className="h-10 px-4 rounded-md bg-destructive/5 text-destructive border border-destructive/10 hover:bg-destructive hover:text-white transition-all"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         )}
       </div>
@@ -246,21 +224,21 @@ export default function Topics() {
       {/* Topics List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest animate-pulse">
-            Carregando seus temas...
+          <div className="py-20 text-center text-muted-foreground font-bold uppercase text-[10px] tracking-widest animate-pulse">
+            Carregando temas...
           </div>
         ) : topicsData?.topics.length === 0 ? (
           <div className="soe-card py-20 flex flex-col items-center justify-center border-dashed opacity-40">
-            <BookMarked size={48} className="mb-4" />
-            <p className="text-xl font-black uppercase tracking-widest">
+            <BookMarked size={48} className="mb-4 text-muted-foreground" />
+            <p className="text-lg font-bold uppercase tracking-widest text-foreground">
               Nenhum tema encontrado
             </p>
-            <p className="text-xs mt-2">
+            <p className="text-xs mt-2 text-muted-foreground">
               Use a barra de pesquisa ou mude os filtros.
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {topicsData?.topics.map((topic) => {
               const discipline = getDiscipline(topic.disciplineId);
               const accuracy = (topic as any).performance?.accuracy || 0;
@@ -268,40 +246,37 @@ export default function Topics() {
               return (
                 <div
                   key={topic.id}
-                  className="soe-card group hover:border-[var(--primary-border)] transition-all overflow-hidden relative"
+                  className="soe-card group hover:border-primary/50 transition-all overflow-hidden relative"
                 >
                   <div
-                    className="absolute top-0 left-0 w-1 h-full opacity-20"
+                    className="absolute top-0 left-0 w-1 h-full opacity-30"
                     style={{ backgroundColor: discipline?.color }}
                   />
 
-                  <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-start gap-5">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-[var(--primary)] group-hover:scale-110 transition-transform">
-                        <BookOpen size={20} />
+                  <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-md bg-secondary border border-border flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                        <BookOpen size={16} />
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span
-                            className="text-[9px] font-black uppercase tracking-widest"
+                            className="text-[9px] font-bold uppercase tracking-wider"
                             style={{ color: discipline?.color }}
                           >
                             {discipline?.name}
                           </span>
-                          <div className="w-1 h-1 rounded-full bg-white/10" />
-                          <span className="text-[9px] font-black uppercase tracking-widest opacity-30">
-                            Tema #{topic.id}
+                          <div className="w-1 h-1 rounded-full bg-border" />
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50">
+                            #{topic.id}
                           </span>
                         </div>
-                        <h4
-                          className="text-lg font-black tracking-tight leading-tight"
-                          style={{ color: "var(--app-fg)" }}
-                        >
+                        <h4 className="text-base font-bold tracking-tight text-foreground">
                           {topic.name}
                         </h4>
 
-                        <div className="flex items-center gap-4 mt-2">
-                          <div className="flex items-center gap-1.5 opacity-40">
+                        <div className="flex items-center gap-4 mt-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground/60">
                             <Clock size={12} />
                             <span className="text-[10px] font-bold">
                               {formatStudyTime(
@@ -309,7 +284,7 @@ export default function Topics() {
                               )}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 opacity-40">
+                          <div className="flex items-center gap-1.5 text-muted-foreground/60">
                             <BarChart2 size={12} />
                             <span className="text-[10px] font-bold">
                               {(topic as any).performance?.questionsResolved ||
@@ -321,14 +296,14 @@ export default function Topics() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-4 md:pt-0 border-white/5">
+                    <div className="flex items-center justify-between md:justify-end gap-6">
                       {accuracy > 0 && (
                         <div className="text-right">
-                          <p className="text-[9px] font-black uppercase tracking-widest opacity-30 mb-1">
-                            Aproveitamento
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 mb-0.5">
+                            Acerto
                           </p>
                           <p
-                            className="text-xl font-black"
+                            className="text-lg font-bold tabular-nums"
                             style={{
                               color:
                                 accuracy >= 70
@@ -355,38 +330,37 @@ export default function Topics() {
                                 (topic as any).studyTimeSeconds || 0,
                             })
                           }
-                          className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+                          className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center hover:bg-secondary/80 transition-all text-muted-foreground"
                         >
-                          <Pencil size={16} />
+                          <Pencil size={14} />
                         </button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <button className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all opacity-40 hover:opacity-100">
-                              <Trash2 size={16} />
+                            <button className="w-8 h-8 rounded-md bg-destructive/5 border border-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all">
+                              <Trash2 size={14} />
                             </button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8">
+                          <AlertDialogContent className="rounded-lg border-border bg-card p-6">
                             <AlertDialogHeader>
-                              <AlertDialogTitle className="text-2xl font-black">
+                              <AlertDialogTitle className="text-xl font-bold text-foreground">
                                 Excluir Tema?
                               </AlertDialogTitle>
-                              <AlertDialogDescription className="text-sm opacity-60 mt-2">
-                                Isto removerá permanentemente o tema "
-                                {topic.name}" e todo o histórico de questões
-                                vinculado a ele.
+                              <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
+                                Removerá permanentemente o tema "{topic.name}" e
+                                todo o histórico vinculado.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter className="mt-8 gap-3">
-                              <AlertDialogCancel className="h-12 rounded-2xl border-white/5 font-black uppercase text-[10px] tracking-widest px-8">
+                            <AlertDialogFooter className="mt-6 gap-2">
+                              <AlertDialogCancel className="rounded-md font-bold uppercase text-[10px] tracking-widest px-6 h-10">
                                 Cancelar
                               </AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() =>
                                   deleteMutation.mutate({ id: topic.id })
                                 }
-                                className="h-12 rounded-2xl bg-rose-500 text-white font-black uppercase text-[10px] tracking-widest px-8 shadow-xl shadow-rose-500/20"
+                                className="rounded-md bg-destructive text-destructive-foreground font-bold uppercase text-[10px] tracking-widest px-6 h-10"
                               >
-                                Excluir Tema
+                                Excluir
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -403,34 +377,34 @@ export default function Topics() {
 
       {/* Modals */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8 max-w-lg">
+        <DialogContent className="rounded-lg border-border bg-card p-8 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Novo Tema de Estudo
             </DialogTitle>
-            <DialogDescription className="text-sm opacity-60">
+            <DialogDescription className="text-sm text-muted-foreground">
               Registre um novo assunto no seu cronograma.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 py-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                Disciplina Relacionada
-              </label>
+          <div className="space-y-5 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Disciplina
+              </Label>
               <Select
                 onValueChange={(val) =>
                   setFormData({ ...formData, disciplineId: Number(val) })
                 }
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/5 text-sm font-bold focus:ring-0 focus:ring-offset-0">
+                <SelectTrigger className="h-10 rounded-md bg-secondary border-border text-sm font-semibold">
                   <SelectValue placeholder="Selecione a matéria..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-white/10 bg-[var(--app-bg)]">
+                <SelectContent className="rounded-md border-border bg-card">
                   {disciplinesData?.map((d) => (
                     <SelectItem
                       key={d.id}
                       value={String(d.id)}
-                      className="rounded-xl focus:bg-[var(--primary)] focus:text-white"
+                      className="rounded-md focus:bg-primary focus:text-primary-foreground"
                     >
                       {d.name}
                     </SelectItem>
@@ -438,39 +412,39 @@ export default function Topics() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                Título do Assunto
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Título
+              </Label>
+              <Input
                 placeholder="Ex: Controle de Constitucionalidade"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                className="bg-secondary border-border"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                  Data do Estudo
-                </label>
-                <input
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Data
+                </Label>
+                <Input
                   type="date"
                   value={formData.studyDate}
                   onChange={(e) =>
                     setFormData({ ...formData, studyDate: e.target.value })
                   }
-                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all [color-scheme:dark]"
+                  className="bg-secondary border-border [color-scheme:dark]"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                  Tempo (Minutos)
-                </label>
-                <input
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Minutos
+                </Label>
+                <Input
                   type="number"
                   placeholder="Ex: 60"
                   value={formData.studyTimeMinutes}
@@ -480,16 +454,16 @@ export default function Topics() {
                       studyTimeMinutes: Number(e.target.value),
                     })
                   }
-                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                  className="bg-secondary border-border"
                 />
               </div>
             </div>
-            <button
+            <Button
               onClick={handleCreate}
-              className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all"
+              className="w-full h-10 rounded-md bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest mt-2"
             >
               Salvar no Edital
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -498,32 +472,32 @@ export default function Topics() {
         open={!!editingTopic}
         onOpenChange={(o) => !o && setEditingTopic(null)}
       >
-        <DialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8 max-w-lg">
+        <DialogContent className="rounded-lg border-border bg-card p-8 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Editar Tema
             </DialogTitle>
           </DialogHeader>
           {editingTopic && (
-            <div className="space-y-6 py-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+            <div className="space-y-5 py-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Nome do Tema
-                </label>
-                <input
+                </Label>
+                <Input
                   value={editingTopic.name}
                   onChange={(e) =>
                     setEditingTopic({ ...editingTopic, name: e.target.value })
                   }
-                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                  className="bg-secondary border-border"
                 />
               </div>
-              <button
+              <Button
                 onClick={handleUpdate}
-                className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)]"
+                className="w-full h-10 rounded-md bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest mt-2"
               >
                 Salvar Alterações
-              </button>
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -533,33 +507,33 @@ export default function Topics() {
         open={!!preTestDialog?.open}
         onOpenChange={(o) => !o && setPreTestDialog(null)}
       >
-        <DialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8 max-w-xl">
+        <DialogContent className="rounded-lg border-border bg-card p-8 max-w-xl">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <Brain className="text-[var(--primary)]" size={24} />
-              <DialogTitle className="text-2xl font-black">
+              <Brain className="text-primary" size={24} />
+              <DialogTitle className="text-xl font-bold text-foreground">
                 Briefing de Pré-Estudo
               </DialogTitle>
             </div>
-            <DialogDescription className="text-sm opacity-60">
-              Para otimizar sua retenção, escreva em 2 ou 3 frases o que você já
-              sabe sobre este tema antes de começar.
+            <DialogDescription className="text-sm text-muted-foreground">
+              Escreva em 2 ou 3 frases o que você já sabe sobre este tema antes
+              de começar.
             </DialogDescription>
           </DialogHeader>
           <textarea
             placeholder="Seja breve... (Ex: 'É o controle feito pelo STF sobre as leis...')"
             value={preTestText}
             onChange={(e) => setPreTestText(e.target.value)}
-            rows={6}
-            className="w-full p-6 rounded-3xl bg-white/5 border border-white/5 text-sm font-medium outline-none focus:border-[var(--primary)] transition-all resize-none mt-4"
+            rows={5}
+            className="w-full p-4 rounded-md bg-secondary border border-border text-sm font-medium outline-none focus:border-primary transition-all resize-none mt-4 text-foreground"
           />
-          <DialogFooter className="mt-8">
-            <button
+          <DialogFooter className="mt-6">
+            <Button
               onClick={doCreate}
-              className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)]"
+              className="w-full h-10 rounded-md bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest"
             >
               Finalizar e Cadastrar
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

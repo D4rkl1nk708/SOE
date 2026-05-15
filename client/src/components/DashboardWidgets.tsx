@@ -1,16 +1,8 @@
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
-import {
-  Target,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  Flame,
-  Edit2,
-} from "lucide-react";
+import { Target, CheckCircle2, Clock, ArrowRight, Edit2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 // ── Daily Goal Progress ────────────────────────────────────────────────────────
 export function DailyGoalWidget() {
@@ -49,34 +41,25 @@ export function DailyGoalWidget() {
 
   return (
     <div
-      className="rounded-2xl p-4 space-y-3 h-full flex flex-col justify-center"
+      className="rounded-lg p-4 space-y-3 h-full flex flex-col justify-center bg-card border border-border"
       style={{
-        background: "var(--card-bg, var(--app-bg))",
-        border: `1px solid ${done ? "color-mix(in srgb, var(--accent-green) 40%, var(--card-border))" : "var(--card-border)"}`,
+        border: done
+          ? "1px solid color-mix(in srgb, var(--accent-green) 40%, var(--border))"
+          : "1px solid var(--border)",
       }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target
-            className="h-4 w-4"
+            className="h-3.5 w-3.5"
             style={{ color: done ? "var(--accent-green)" : "var(--primary)" }}
           />
-          <span
-            className="font-bold text-sm"
-            style={{ color: "var(--app-fg)" }}
-          >
+          <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground opacity-60">
             Meta Diária
           </span>
           {done && (
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-semibold"
-              style={{
-                background:
-                  "color-mix(in srgb, var(--accent-green) 15%, transparent)",
-                color: "var(--accent-green)",
-              }}
-            >
-              Atingida!
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-bold uppercase">
+              Atingida
             </span>
           )}
         </div>
@@ -85,10 +68,9 @@ export function DailyGoalWidget() {
             setGoalInput(String(goalMinutes));
             setEditing((e) => !e);
           }}
-          className="p-1.5 rounded-lg transition-all hover:opacity-60"
-          style={{ color: "var(--muted-text)" }}
+          className="p-1 rounded-md transition-all hover:bg-secondary text-muted-foreground opacity-40 hover:opacity-100"
         >
-          <Edit2 className="h-3.5 w-3.5" />
+          <Edit2 className="h-3 w-3" />
         </button>
       </div>
 
@@ -101,64 +83,40 @@ export function DailyGoalWidget() {
             value={goalInput}
             onChange={(e) => setGoalInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSaveGoal()}
-            placeholder="Meta em minutos"
-            className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-            style={{
-              background: "var(--input-bg)",
-              border: "1px solid var(--card-border)",
-              color: "var(--app-fg)",
-            }}
+            placeholder="Minutos"
+            className="flex-1 px-3 py-1.5 rounded-md text-xs outline-none bg-secondary border border-border text-foreground"
           />
           <button
             onClick={handleSaveGoal}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-white"
-            style={{ background: "var(--primary)" }}
+            className="px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground"
           >
             Salvar
           </button>
         </div>
       ) : (
         <>
-          <div className="flex items-end justify-between">
-            <span
-              className="text-2xl font-black"
-              style={{ color: done ? "var(--accent-green)" : "var(--app-fg)" }}
-            >
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold tabular-nums text-foreground">
               {formatMin(todayMinutes)}
             </span>
-            <span
-              className="text-sm font-medium"
-              style={{ color: "var(--muted-text)" }}
-            >
+            <span className="text-[10px] font-bold text-muted-foreground opacity-30">
               / {formatMin(goalMinutes)}
             </span>
           </div>
-          <div>
-            <div
-              className="h-3 rounded-full overflow-hidden"
-              style={{ background: "var(--stat-bg)" }}
-            >
+          <div className="space-y-1.5">
+            <div className="h-1 rounded-full bg-secondary overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${progress}%`,
-                  background: done
-                    ? "var(--accent-green)"
-                    : progress >= 75
-                      ? "var(--primary)"
-                      : progress >= 50
-                        ? "var(--accent-amber)"
-                        : "var(--primary)",
+                  background: done ? "var(--accent-green)" : "var(--primary)",
                 }}
               />
             </div>
-            <p
-              className="text-xs mt-1.5"
-              style={{ color: "var(--muted-text)" }}
-            >
+            <p className="text-[9px] font-semibold text-muted-foreground opacity-60">
               {done
-                ? `Meta cumprida! ${formatMin(todayMinutes - goalMinutes)} além do objetivo`
-                : `Faltam ${formatMin(goalMinutes - todayMinutes)} para atingir a meta`}
+                ? `Objetivo alcançado (+${formatMin(todayMinutes - goalMinutes)})`
+                : `Faltam ${formatMin(goalMinutes - todayMinutes)} para concluir`}
             </p>
           </div>
         </>
@@ -172,7 +130,6 @@ export function TodayRevisions() {
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  // Get due revisions from stats
   const allTopics = (stats?.disciplineStats ?? []).flatMap((d: any) =>
     (d.topics ?? []).map((t: any) => ({
       ...t,
@@ -188,78 +145,55 @@ export function TodayRevisions() {
 
   return (
     <div
-      className="rounded-2xl p-4 space-y-3"
+      className="rounded-lg p-4 space-y-4 bg-card border border-border"
       style={{
         background:
-          "color-mix(in srgb, var(--accent-amber) 6%, var(--card-bg, var(--app-bg)))",
+          "color-mix(in srgb, var(--accent-amber) 4%, var(--card-bg))",
         border:
-          "1px solid color-mix(in srgb, var(--accent-amber) 25%, var(--card-border))",
+          "1px solid color-mix(in srgb, var(--accent-amber) 20%, var(--border))",
       }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CheckCircle2
-            className="h-4 w-4"
-            style={{ color: "var(--accent-amber)" }}
-          />
-          <span
-            className="font-bold text-sm"
-            style={{ color: "var(--app-fg)" }}
-          >
+          <CheckCircle2 size={14} className="text-amber-500" />
+          <span className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground opacity-60">
             Revisar Hoje
           </span>
-          <span
-            className="text-xs font-bold px-2 py-0.5 rounded-full"
-            style={{ background: "var(--accent-amber)", color: "white" }}
-          >
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-white">
             {todayRevisions.length}
           </span>
         </div>
         <Link
           href="/revisions"
-          className="flex items-center gap-1 text-xs font-semibold"
-          style={{ color: "var(--accent-amber)" }}
+          className="text-[9px] font-bold uppercase tracking-wider text-amber-500 hover:opacity-70 transition-opacity flex items-center gap-1"
         >
-          Ver todas <ArrowRight className="h-3 w-3" />
+          Ver todas <ArrowRight size={10} />
         </Link>
       </div>
-      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+      <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
         {todayRevisions.slice(0, 5).map((t: any) => (
           <div
             key={t.id}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-            style={{
-              background: "var(--stat-bg)",
-              border: "1px solid var(--card-border)",
-            }}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-secondary/30 border border-border/50"
           >
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
+            <div
+              className="w-2 h-2 rounded-full shrink-0"
               style={{ background: t.disciplineColor }}
             />
             <div className="flex-1 min-w-0">
-              <p
-                className="text-xs font-semibold truncate"
-                style={{ color: "var(--app-fg)" }}
-              >
+              <p className="text-[11px] font-bold text-foreground truncate">
                 {t.name}
               </p>
-              <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>
+              <p className="text-[9px] font-medium text-muted-foreground opacity-60 truncate">
                 {t.disciplineName}
               </p>
             </div>
-            <Clock
-              className="h-3 w-3 shrink-0"
-              style={{ color: "var(--accent-amber)" }}
-            />
+            <Clock size={10} className="text-amber-500/50" />
           </div>
         ))}
         {todayRevisions.length > 5 && (
-          <p
-            className="text-xs text-center py-1"
-            style={{ color: "var(--muted-text)" }}
-          >
-            + {todayRevisions.length - 5} mais...
+          <p className="text-[9px] text-center font-bold text-muted-foreground opacity-40 pt-1">
+            + {todayRevisions.length - 5} OUTROS TEMAS
           </p>
         )}
       </div>

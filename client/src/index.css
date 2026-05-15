@@ -4,14 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ══════════════════════════════════════════════════════════════════════
-   APPLE DESIGN SYSTEM — SF Pro Typography & Binary Color Palette
+   LINEAR DESIGN SYSTEM — Minimalist, Precision-driven & Monochrome
    ══════════════════════════════════════════════════════════════════════ */
 
 @theme inline {
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -46,328 +47,144 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   LIGHT MODE — Apple Binary: Pure White Background with Light Gray Sections
-   ══════════════════════════════════════════════════════════════════════ */
 :root {
-  /* Apple Color Palette */
-  --apple-black: #000000;
-  --apple-white: #ffffff;
-  --apple-light-gray: #f5f5f7;
-  --apple-near-black: #1d1d1f;
-  --apple-blue: #0071e3;
-  --apple-link-blue: #0066cc;
-  --apple-bright-blue: #2997ff;
-
-  --primary: #0071e3;
+  /* Precision Palette */
+  --primary: #4f46e5; /* Indigo 600 - Sharp and professional */
   --primary-foreground: #ffffff;
 
-  /* Sidebar active — Apple subtle highlight */
-  --sidebar-active-bg: rgba(0, 113, 227, 0.08);
-  --sidebar-active-fg: #0071e3;
-  --sidebar-active-border: rgba(0, 113, 227, 0.16);
+  --background: #fafafa;
+  --foreground: #09090b;
 
-  /* Gold alias — removed, using Apple Blue instead */
-  --gold: #0071e3;
-  --gold-light: #0071e3;
-  --gold-dark: #0066cc;
-
-  /* Semantic accents — Apple focused */
-  --accent-green: #34c759;
-  --accent-blue: #0071e3;
-  --accent-amber: #ff9500;
-  --accent-red: #ff3b30;
-  --accent-violet: #af52de;
-
-  /* ── LIGHT surfaces — Apple clean and minimal ── */
-  --app-bg: #ffffff;
-  --app-fg: #1d1d1f;
-  --sidebar-bg: #f5f5f7;
-  --sidebar-fg: #1d1d1f;
-  --sidebar-border-color: #e5e5ea;
-  --header-bg: rgba(255, 255, 255, 0.8);
-  --header-border: #e5e5ea;
-  --card-bg: #ffffff;
-  --card-border: #e5e5ea;
-  --stat-bg: #f5f5f7;
-  --stat-border: #e5e5ea;
-  --muted-text: rgba(0, 0, 0, 0.48);
-  --input-bg: #ffffff;
-
-  /* shadcn — Apple palette */
-  --radius: 8px;
-  --background: #ffffff;
-  --foreground: #1d1d1f;
   --card: #ffffff;
-  --card-foreground: #1d1d1f;
+  --card-foreground: #09090b;
+
   --popover: #ffffff;
-  --popover-foreground: #1d1d1f;
-  --secondary: #f5f5f7;
-  --secondary-foreground: #1d1d1f;
-  --muted: #f5f5f7;
-  --muted-foreground: rgba(0, 0, 0, 0.48);
-  --accent: #0071e3;
-  --accent-foreground: #ffffff;
-  --destructive: #ff3b30;
-  --destructive-foreground: #ffffff;
-  --border: #e5e5ea;
-  --input: #e5e5ea;
-  --ring: #0071e3;
-  --sidebar: #f5f5f7;
-  --sidebar-foreground: #1d1d1f;
-  --sidebar-primary: #0071e3;
+  --popover-foreground: #09090b;
+
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #4f46e5;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #4f46e5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(0, 113, 227, 0.06);
-  --sidebar-accent-foreground: #0071e3;
-  --sidebar-border: #e5e5ea;
-  --sidebar-ring: #0071e3;
-  --chart-1: #0071e3;
-  --chart-2: #34c759;
-  --chart-3: #ff9500;
-  --chart-4: #ff3b30;
-  --chart-5: #af52de;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #4f46e5;
+
+  --radius: 0.5rem;
+
+  /* Custom Functional Colors */
+  --accent-green: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --app-bg: var(--background);
+  --app-fg: var(--foreground);
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   DARK MODE — Apple Binary: Pure Black with Dark Surfaces
-   ══════════════════════════════════════════════════════════════════════ */
 .dark {
-  /* Apple Dark Palette */
-  --accent-green: #30b0c0;
-  --accent-blue: #0a84ff;
-  --accent-amber: #ff9500;
-  --accent-red: #ff453a;
-  --accent-violet: #bf5af0;
+  --background: #09090b;
+  --foreground: #fafafa;
 
-  --app-bg: #000000;
-  --app-fg: #ffffff;
-  --sidebar-bg: #1a1a1a;
-  --sidebar-fg: #ffffff;
-  --sidebar-border-color: rgba(255, 255, 255, 0.1);
-  --header-bg: rgba(0, 0, 0, 0.8);
-  --header-border: rgba(255, 255, 255, 0.1);
-  --card-bg: #1a1a1a;
-  --card-border: #424245;
-  --stat-bg: #272729;
-  --stat-border: #424245;
-  --muted-text: rgba(255, 255, 255, 0.6);
-  --input-bg: #1a1a1a;
+  --card: #09090b;
+  --card-foreground: #fafafa;
 
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #1a1a1a;
-  --card-foreground: #ffffff;
-  --popover: #1a1a1a;
-  --popover-foreground: #ffffff;
-  --secondary: #272729;
-  --secondary-foreground: #ffffff;
-  --muted: #272729;
-  --muted-foreground: rgba(255, 255, 255, 0.6);
-  --accent: #0a84ff;
-  --accent-foreground: #000000;
-  --destructive: #ff453a;
-  --destructive-foreground: #000000;
-  --border: #424245;
-  --input: #424245;
-  --sidebar: #1a1a1a;
-  --sidebar-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --popover: #09090b;
+  --popover-foreground: #fafafa;
+
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fafafa;
+
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #6366f1;
+
+  --sidebar: #09090b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #6366f1;
+
+  --accent-green: #059669;
+  --accent-amber: #d97706;
+  --accent-red: #b91c1c;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-
   body {
     @apply bg-background text-foreground antialiased;
-    background-color: var(--app-bg) !important;
-    color: var(--app-fg) !important;
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    letter-spacing: -0.374px;
-  }
-
-  /* Apple Typography Scale */
-  h1 {
-    font-size: 3.5rem;
-    font-weight: 600;
-    line-height: 1.07;
-    letter-spacing: -0.28px;
-  }
-
-  h2 {
-    font-size: 2.5rem;
-    font-weight: 600;
-    line-height: 1.1;
-    letter-spacing: normal;
-  }
-
-  h3 {
-    font-size: 1.75rem;
-    font-weight: 400;
-    line-height: 1.14;
-    letter-spacing: 0.196px;
-  }
-
-  h4 {
-    font-size: 1.31rem;
-    font-weight: 600;
-    line-height: 1.19;
-    letter-spacing: 0.231px;
-  }
-
-  h5 {
-    font-size: 1.06rem;
-    font-weight: 600;
-    line-height: 1.24;
-    letter-spacing: -0.374px;
-  }
-
-  p {
-    font-size: 1.06rem;
-    line-height: 1.47;
-    letter-spacing: -0.374px;
-  }
-
-  small {
-    font-size: 0.88rem;
-    line-height: 1.43;
-    letter-spacing: -0.224px;
-  }
-
-  /* ── Mobile Layout Fixes ── */
-  @media (max-width: 640px) {
-    h1 {
-      font-size: 2.25rem;
-    }
-    h2 {
-      font-size: 1.75rem;
-    }
-    h3 {
-      font-size: 1.25rem;
-    }
-
-    .soe-card {
-      padding: 1rem !important;
-      border-radius: 1.5rem !important;
-    }
-
-    .btn-apple-primary {
-      height: 3rem !important;
-      font-size: 0.875rem !important;
-    }
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
 @layer components {
-  /* Apple Button Styles */
-  .btn-apple-primary {
-    @apply bg-blue-600 text-white px-4 py-2 rounded-lg border border-transparent font-medium transition-colors hover:bg-blue-700 active:bg-blue-800;
-  }
-
-  .btn-apple-pill {
-    @apply bg-transparent text-blue-600 px-4 py-2 rounded-full border border-blue-600 font-medium transition-all hover:underline;
-  }
-
-  .dark .btn-apple-pill {
-    @apply text-blue-400 border-blue-400;
-  }
-
-  /* Apple Card Styles */
-  .card-apple {
-    @apply bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-4 transition-shadow hover:shadow-md dark:hover:shadow-lg;
-  }
-
-  /* Apple Section Alternation */
-  .section-apple-dark {
-    @apply bg-black text-white;
-  }
-
-  .section-apple-light {
-    @apply bg-gray-100 text-gray-900;
-  }
-
-  /* Utility Classes */
+  /* Linear-style Card */
   .soe-card {
-    @apply bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-4;
+    @apply bg-card border border-border rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)];
   }
 
+  .dark .soe-card {
+    @apply shadow-[0_1px_3px_rgba(0,0,0,0.4)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)];
+  }
+
+  /* Thin Linear Borders */
+  .border-thin {
+    @apply border border-border/60;
+  }
+
+  /* Linear Stat Card */
   .soe-stat-card {
-    @apply bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl p-4;
-  }
-
-  .soe-gold-text {
-    @apply text-blue-600 dark:text-blue-400;
+    @apply bg-card border border-border rounded-lg p-6 flex flex-col justify-between;
   }
 }
 
-html {
-  -webkit-tap-highlight-color: transparent;
-  overflow-x: hidden;
-  width: 100%;
-}
+/* Hide Scrollbar */
 * {
-  -webkit-tap-highlight-color: transparent;
-  box-sizing: border-box;
-}
-
-/* ── Mobile Utility Classes ── */
-.mobile-stack {
-  @apply flex flex-col gap-4 sm:flex-row sm:items-center;
-}
-
-.mobile-grid-1 {
-  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
-}
-
-.touch-target {
-  @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
-}
-
-.glass-morphism {
-  @apply backdrop-blur-xl bg-white/10 border border-white/20;
-}
-
-.dark .glass-morphism {
-  @apply bg-black/40 border-white/10;
-}
-
-/* ── Scrollbar global invisível ─────────────────────────────────── */
-* {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 *::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera */
+  display: none;
 }
 
-/* ── Font scale — controlada dinamicamente via JS (FontSizeControl.tsx) ──── */
-html {
-  font-size: 15px;
+/* Precision Typography */
+h1,
+h2,
+h3,
+h4,
+h5 {
+  @apply font-semibold tracking-tight text-foreground;
 }
-/* ── Typography Polishing ─────────────────────────────────────── */
-.soe-prose {
-  line-height: 1.6;
-}
-.soe-prose p {
-  margin-bottom: 1.25rem;
-}
-.soe-prose h1,
-.soe-prose h2,
-.soe-prose h3 {
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  font-weight: 800;
-}
-.soe-prose ul,
-.soe-prose ol {
-  margin-bottom: 1.25rem;
-  padding-left: 1.25rem;
-}
-.soe-prose li {
-  margin-bottom: 0.5rem;
-}
-.soe-prose strong {
-  color: var(--primary);
+
+p {
+  @apply text-muted-foreground leading-relaxed;
 }

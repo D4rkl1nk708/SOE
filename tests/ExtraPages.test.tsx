@@ -364,7 +364,7 @@ describe("Statistics Component", () => {
     render(<Statistics />);
 
     // Hero Stats
-    expect(screen.getByText("Tempo de Estudo")).toBeTruthy();
+    expect(screen.getByText("Estudo Total")).toBeTruthy();
     expect(screen.getAllByText("80%").length).toBeGreaterThan(0); // accuracy
 
     // Mentor Insight should appear
@@ -374,14 +374,14 @@ describe("Statistics Component", () => {
     });
 
     // Reset Stats
-    const resetBtn = screen.getByTitle("Zerar estatísticas de questões");
+    const resetBtn = screen.getByTitle("Zerar estatísticas");
     fireEvent.click(resetBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Zerar Agora")).toBeTruthy();
+      expect(screen.getByText("Zerar Tudo")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Zerar Agora"));
+    fireEvent.click(screen.getByText("Zerar Tudo"));
     expect(mockResetAllStats).toHaveBeenCalled();
   });
 });

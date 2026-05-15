@@ -68,6 +68,12 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogTitle: ({ children }: any) => <div>{children}</div>,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
   DialogDescription: ({ children }: any) => <div>{children}</div>,
+  useDialogComposition: () => ({
+    isComposing: () => false,
+    setComposing: () => {},
+    justEndedComposing: () => false,
+    markCompositionEnd: () => {},
+  }),
 }));
 
 // Mock specialized components

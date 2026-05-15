@@ -109,15 +109,12 @@ function isActivePath(location: string, path: string) {
 function SoeLogo({ size = 28 }: { size?: number }) {
   return (
     <div
-      className="rounded-xl flex items-center justify-center flex-shrink-0 soe-logo-icon relative overflow-hidden"
+      className="rounded-lg flex items-center justify-center flex-shrink-0 border border-primary/20 bg-card shadow-sm"
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(135deg, var(--primary) 0%, #a855f7 100%)",
-        boxShadow: "0 4px 15px rgba(var(--primary-rgb), 0.4)",
       }}
     >
-      <div className="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity" />
       <svg
         width={Math.round(size * 0.5)}
         height={Math.round(size * 0.5)}
@@ -126,16 +123,16 @@ function SoeLogo({ size = 28 }: { size?: number }) {
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
-          d="M4 12C4 10.8954 4.89543 10 6 10H23C24.1046 10 25 10.8954 25 12V38C25 39.1046 24.1046 40 23 40H6C4.89543 40 4 39.1046 4 38V12Z"
-          stroke="white"
-          strokeWidth="5"
+          d="M4 12H25V38H4V12Z"
+          className="stroke-primary"
+          strokeWidth="6"
         />
         <path
-          d="M27 12C27 10.8954 27.8954 10 29 10H46C47.1046 10 48 10.8954 48 12V38C48 39.1046 47.1046 40 46 40H29C27.8954 40 27 39.1046 27 38V12Z"
-          stroke="white"
-          strokeWidth="5"
+          d="M27 12H48V38H27V12Z"
+          className="stroke-primary"
+          strokeWidth="6"
         />
-        <circle cx="26" cy="42" r="3" fill="white" opacity="0.8" />
+        <rect x="23" y="38" width="6" height="6" className="fill-primary" />
       </svg>
     </div>
   );
@@ -160,32 +157,24 @@ function NavItem({
       href={path}
       id={`tour-nav-${path.replace("/", "") || "home"}`}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-full transition-all duration-300 group ${collapsed ? "justify-center mx-1" : "mx-2"}`}
-      style={
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative ${collapsed ? "justify-center mx-1" : "mx-2"} ${
         active
-          ? {
-              background: "rgba(var(--primary-rgb), 0.25)",
-              color: "var(--primary)",
-              border: "1px solid var(--primary)",
-              boxShadow: "0 0 15px rgba(var(--primary-rgb), 0.1)",
-            }
-          : {
-              color: "var(--sidebar-fg)",
-              opacity: 0.6,
-              border: "1px solid transparent",
-            }
-      }
+          ? "bg-secondary text-primary border border-border shadow-sm"
+          : "text-muted-foreground hover:bg-secondary/30 hover:text-foreground border border-transparent"
+      }`}
     >
       <Icon
-        className={`w-[16px] h-[16px] flex-shrink-0 transition-transform group-hover:scale-110 ${active ? "opacity-100" : "opacity-80"}`}
+        className={`w-4 h-4 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
       />
       {!collapsed && (
         <span
-          className={active ? "font-black" : "font-medium"}
-          style={{ fontSize: "0.825rem", letterSpacing: "-0.2px" }}
+          className={`text-[11px] uppercase tracking-wider ${active ? "font-bold" : "font-semibold"}`}
         >
           {label}
         </span>
+      )}
+      {active && !collapsed && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-full" />
       )}
     </Link>
   );
@@ -203,29 +192,21 @@ function Sidebar({
 }) {
   return (
     <aside
-      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-500 ease-in-out relative ${collapsed ? "w-[72px]" : "w-[220px]"}`}
-      style={{
-        background: "var(--sidebar-bg)",
-        borderRight: "1px solid rgba(255,255,255,0.04)",
-        boxShadow: "10px 0 30px rgba(0,0,0,0.05)",
-      }}
+      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out relative ${collapsed ? "w-[64px]" : "w-[200px]"} bg-sidebar border-r border-border`}
     >
       {/* Logo row */}
       <div
-        className={`px-5 py-8 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}
+        className={`px-4 py-6 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}
       >
         <Link
           href="/"
-          className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}
+          className={`flex items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}
         >
-          <SoeLogo size={32} />
+          <SoeLogo size={24} />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-black text-[18px] tracking-[-0.8px] leading-none text-white">
+              <span className="font-bold text-lg tracking-tighter leading-none text-foreground">
                 SOE
-              </span>
-              <span className="text-[8px] font-black tracking-[0.2em] text-primary/60 uppercase">
-                Ecossistema
               </span>
             </div>
           )}
@@ -288,22 +269,19 @@ function Sidebar({
         <Link
           href="/profile"
           title={collapsed ? "Configurações" : undefined}
-          className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all group ${collapsed ? "justify-center mx-1" : "mx-2"}`}
-          style={
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all group ${collapsed ? "justify-center mx-1" : "mx-2"} ${
             isActivePath(location, "/profile")
-              ? {
-                  background: "rgba(var(--primary-rgb), 0.08)",
-                  color: "var(--primary)",
-                  boxShadow: "0 0 0 1px rgba(var(--primary-rgb), 0.12)",
-                }
-              : { color: "var(--sidebar-fg)", opacity: 0.6 }
-          }
+              ? "bg-secondary text-primary border border-border shadow-sm"
+              : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground border border-transparent"
+          }`}
         >
-          <Settings className="w-[16px] h-[16px] flex-shrink-0 group-hover:rotate-45 transition-transform" />
+          <Settings
+            className={`w-4 h-4 flex-shrink-0 transition-transform ${isActivePath(location, "/profile") ? "text-primary" : ""}`}
+          />
           {!collapsed && (
             <span
-              className="font-bold"
-              style={{ fontSize: "0.825rem", letterSpacing: "-0.2px" }}
+              className={`text-xs ${isActivePath(location, "/profile") ? "font-semibold" : "font-medium"}`}
+              style={{ letterSpacing: "-0.2px" }}
             >
               Configurações
             </span>
@@ -315,13 +293,10 @@ function Sidebar({
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("soe-open-features"))
               }
-              className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--primary)]/10 to-transparent border border-[var(--primary)]/20 hover:border-[var(--primary)]/40 transition-all group mb-2"
+              className="flex items-center gap-3 px-4 py-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all group mb-2 shadow-sm"
             >
-              <Sparkles
-                size={14}
-                className="text-[var(--primary)] group-hover:scale-125 transition-transform"
-              />
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white">
+              <Sparkles size={14} className="text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
                 Recursos
               </span>
             </button>
@@ -434,14 +409,13 @@ export function Layout({ children }: { children: ReactNode }) {
             </Link>
             <Link
               href="/profile"
-              className="p-[2px] rounded-xl active:scale-95 transition-all overflow-hidden flex items-center justify-center border-2 border-primary"
+              className="p-[1px] rounded-lg active:scale-95 transition-all overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
               style={{
-                width: "36px",
-                height: "36px",
-                boxShadow: "0 0 10px rgba(var(--primary-rgb), 0.2)",
+                width: "32px",
+                height: "32px",
               }}
             >
-              <div className="w-full h-full rounded-[9px] overflow-hidden bg-secondary flex items-center justify-center">
+              <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
                 {user?.settings?.profileImage ? (
                   <img
                     src={user.settings.profileImage}
@@ -449,10 +423,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <UserCircle2
-                    className="w-[22px] h-[22px]"
-                    style={{ color: "var(--primary)" }}
-                  />
+                  <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
                 )}
               </div>
             </Link>
@@ -494,25 +465,24 @@ export function Layout({ children }: { children: ReactNode }) {
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("soe-start-tour"))
               }
-              className="p-2 rounded-xl hover:bg-primary/10 text-primary transition-all flex items-center gap-1.5"
+              className="p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-all flex items-center gap-1.5"
               title="Iniciar Tour Guiado"
             >
-              <Zap size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline">
+              <Zap size={14} />
+              <span className="text-[10px] font-bold uppercase tracking-wider hidden lg:inline">
                 Tour
               </span>
             </button>
             <Link
               href="/profile"
-              className="p-[2px] rounded-xl hover:opacity-80 transition-all ml-0.5 overflow-hidden flex items-center justify-center border-2 border-primary shadow-sm"
+              className="p-[1px] rounded-lg hover:border-primary transition-all ml-1 overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
               style={{
-                width: "32px",
-                height: "32px",
-                boxShadow: "0 0 10px rgba(var(--primary-rgb), 0.2)",
+                width: "30px",
+                height: "30px",
               }}
               title="Configurações"
             >
-              <div className="w-full h-full rounded-[9px] overflow-hidden bg-secondary flex items-center justify-center">
+              <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
                 {user?.settings?.profileImage ? (
                   <img
                     src={user.settings.profileImage}
@@ -520,10 +490,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <UserCircle2
-                    className="w-[18px] h-[18px]"
-                    style={{ color: "var(--primary)" }}
-                  />
+                  <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
                 )}
               </div>
             </Link>

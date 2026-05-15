@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Sparkles,
@@ -42,7 +42,7 @@ export function RecommendationCard() {
 
   if (isLoading) {
     return (
-      <div className="soe-card p-6 border-primary/20 bg-primary/5">
+      <div className="soe-card p-6 border-primary/10 bg-primary/5">
         <Skeleton className="h-6 w-48 mb-4" />
         <Skeleton className="h-4 w-full mb-2" />
         <Skeleton className="h-4 w-2/3" />
@@ -56,81 +56,57 @@ export function RecommendationCard() {
 
   return (
     <div
-      className={`soe-card p-6 relative overflow-hidden transition-all hover:scale-[1.005] border-2 group ${
+      className={`soe-card p-6 relative overflow-hidden transition-all border group ${
         isHighPriority
-          ? "border-amber-500/30 bg-amber-500/[0.03]"
-          : "border-primary/20 bg-primary/[0.02]"
+          ? "border-amber-500/30 bg-amber-500/[0.02]"
+          : "border-border bg-card"
       }`}
     >
       {/* Background Decor */}
-      <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-500">
+      <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none transition-transform duration-500">
         <Sparkles className="w-32 h-32" />
       </div>
 
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 relative z-10">
-        <div className="space-y-4 flex-1">
-          <div className="flex items-center gap-3">
+        <div className="space-y-5 flex-1">
+          <div className="flex items-center gap-4">
             <div
-              className={`p-2.5 rounded-xl ${isHighPriority ? "bg-amber-500/20 text-amber-500" : "bg-primary/20 text-primary shadow-lg shadow-primary/10"}`}
+              className={`p-2 rounded-lg ${isHighPriority ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}`}
             >
-              <Target size={20} />
+              <Target size={18} />
             </div>
             <div className="flex flex-col flex-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">
+                <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                   Recomendação do Mentor
                 </h2>
                 <button
                   onClick={() => refetch()}
                   disabled={isRefetching}
-                  className={`p-1 hover:bg-white/5 rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
                   title="Recalcular Rota"
+                  className={`p-1 hover:bg-secondary rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
                 >
                   <Sparkles size={14} />
                 </button>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-bold text-primary/60">
+                <span className="text-[10px] font-bold text-primary/70">
                   {rec.contextTag}
                 </span>
                 {isHighPriority && (
                   <Badge
                     variant="outline"
-                    className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] h-4 font-black uppercase tracking-tighter animate-pulse"
+                    className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] h-4 font-bold uppercase tracking-wider px-1.5"
                   >
                     Urgente
-                  </Badge>
-                )}
-                {rec.plateauCount > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="bg-rose-500/10 text-rose-500 border-rose-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  >
-                    {rec.plateauCount} Estagnados
-                  </Badge>
-                )}
-                {rec.regressionCount > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="bg-orange-500/10 text-orange-500 border-orange-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  >
-                    {rec.regressionCount} Regressões
-                  </Badge>
-                )}
-                {(rec.bankQuestionCount ?? 0) > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] h-4 font-black uppercase tracking-tighter"
-                  >
-                    {rec.bankQuestionCount} Questões de Elite
                   </Badge>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h3 className="text-2xl font-black tracking-tight leading-tight">
+          <div className="space-y-3">
+            <h3 className="text-xl font-bold tracking-tight text-foreground leading-tight">
               Foco de Hoje:{" "}
               <span
                 className={isHighPriority ? "text-amber-500" : "text-primary"}
@@ -138,45 +114,46 @@ export function RecommendationCard() {
                 {rec.disciplineName}
               </span>
             </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2">
                   <AlertCircle size={10} /> Diagnóstico Crítico
                 </p>
-                <div className="border-l-2 border-primary/20 pl-3 py-2.5 bg-white/[0.02] rounded-r-lg min-h-[4rem] flex items-center w-full">
-                  <p className="text-sm font-bold opacity-90 whitespace-normal break-words leading-relaxed w-full">
+                <div className="p-4 bg-secondary/30 rounded-md border border-border min-h-[4rem] flex items-center">
+                  <p className="text-sm font-bold text-foreground/90 leading-relaxed">
                     {rec.diagnostic}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2">
                   <TrendingDown size={10} /> Plano de Ação
                 </p>
-                <div className="bg-primary/5 p-3 rounded-xl border border-primary/10 min-h-[4rem] flex items-center w-full">
-                  <p className="text-sm opacity-80 leading-relaxed font-medium w-full">
+                <div className="bg-primary/5 p-4 rounded-md border border-primary/10 min-h-[4rem] flex items-center">
+                  <p className="text-sm text-foreground/80 leading-relaxed font-semibold">
                     {rec.actionPlan}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 p-3 rounded-2xl bg-rose-500/[0.03] border border-rose-500/10">
-              <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/50 mb-1">
+            <div className="p-3 rounded-md bg-destructive/5 border border-destructive/10">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-destructive/50 mb-1">
                 Risco na Prova (Previsão)
               </p>
-              <p className="text-[12px] font-bold text-rose-500/80 italic leading-relaxed">
+              <p className="text-[11px] font-semibold text-destructive/80 italic leading-relaxed">
                 "{rec.prediction}"
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-start md:items-end gap-4 shrink-0">
-          <div className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner group-hover:border-primary/30 transition-colors">
-            <Clock size={16} className="opacity-40" />
-            <span className="text-xs font-black uppercase tracking-widest opacity-60">
+        <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary/30 border border-border">
+            <Clock size={14} className="text-muted-foreground" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Foco Imediato
             </span>
           </div>
@@ -186,9 +163,9 @@ export function RecommendationCard() {
               onClick={() => {
                 window.location.href = `/lab?startElite=true&topicId=${rec.topicId}`;
               }}
-              className="btn-apple-primary w-full md:w-auto h-12 px-8 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              className="w-full md:w-auto h-10 px-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-primary/90"
             >
-              <Target size={16} />
+              <Target size={14} />
               Treino de Elite ({rec.bankQuestionCount})
             </button>
           )}

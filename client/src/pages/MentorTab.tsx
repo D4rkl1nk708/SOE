@@ -9,7 +9,6 @@ import {
   Bot,
   Loader2,
   ChevronDown,
-  ChevronUp,
   TrendingDown,
   Activity,
   Trash2,
@@ -18,10 +17,8 @@ import {
   History,
   MessageSquare,
   ShieldAlert,
-  Zap,
   Search,
   Wand2,
-  Info,
   ChevronRight,
   GraduationCap,
   X,
@@ -34,10 +31,12 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 function RenderText({ text }: { text: string }) {
   return (
-    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-xl">
+    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-p:mb-6 prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-md">
       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
         {text}
       </ReactMarkdown>
@@ -159,7 +158,7 @@ export default function MentorTab() {
         data.proposals.forEach((p: any) => {
           newMsgs.push({
             role: "assistant",
-            content: "", // Content empty as we'll render the action card
+            content: "",
             action: p,
           });
         });
@@ -181,7 +180,6 @@ export default function MentorTab() {
     if (accepted) {
       execAction.mutate({ type: action.type, payload: action.payload });
     }
-    // Remove a mensagem de ação do histórico após a escolha
     setMessages((prev) => prev.filter((_, i) => i !== msgIndex));
   };
 
@@ -205,30 +203,24 @@ export default function MentorTab() {
   };
 
   const SidebarContent = (
-    <div className="flex flex-col h-full">
-      <div className="p-6 space-y-6">
-        <button
+    <div className="flex flex-col h-full bg-secondary/20 border-r border-border/50">
+      <div className="p-6 space-y-8">
+        <Button
           onClick={createNewSession}
-          className="group relative w-full overflow-hidden p-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all"
+          className="w-full h-11 rounded-md font-bold text-[10px] uppercase tracking-widest shadow-none border border-primary/20"
         >
-          <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-          <div className="relative flex items-center justify-center gap-3">
-            <Plus size={18} />
-            <span className="text-xs font-black uppercase tracking-widest">
-              Nova Sessão
-            </span>
-          </div>
-        </button>
+          <Plus size={16} className="mr-2" /> Nova Conversa
+        </Button>
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-2 opacity-30">
             <History size={12} />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              Histórico
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              Sessões Recentes
             </span>
           </div>
 
-          <div className="space-y-1.5 custom-scrollbar max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
+          <div className="space-y-1 custom-scrollbar max-h-[calc(100vh-20rem)] overflow-y-auto">
             {sessions.map((s) => (
               <div
                 key={s.id}
@@ -236,29 +228,39 @@ export default function MentorTab() {
                   setActiveSessionId(s.id);
                   setIsSidebarOpen(false);
                 }}
-                className={`group relative p-5 rounded-2xl cursor-pointer transition-all border ${activeSessionId === s.id ? "bg-[var(--primary-bg-subtle)] border-[var(--primary-border)]" : "border-transparent hover:bg-white/5"}`}
+                className={cn(
+                  "group relative px-4 py-3 rounded-md cursor-pointer transition-all border",
+                  activeSessionId === s.id
+                    ? "bg-secondary border-border/60"
+                    : "border-transparent hover:bg-secondary/40",
+                )}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <MessageSquare
-                      size={16}
-                      className={
+                      size={14}
+                      className={cn(
                         activeSessionId === s.id
-                          ? "text-[var(--primary)]"
-                          : "opacity-20"
-                      }
+                          ? "text-primary"
+                          : "text-muted-foreground opacity-30",
+                      )}
                     />
                     <span
-                      className={`text-[13px] md:text-[11px] font-bold truncate ${activeSessionId === s.id ? "text-[var(--primary)]" : "text-white/60"}`}
+                      className={cn(
+                        "text-[11px] font-bold truncate",
+                        activeSessionId === s.id
+                          ? "text-foreground"
+                          : "text-muted-foreground",
+                      )}
                     >
                       {s.title}
                     </span>
                   </div>
                   <button
                     onClick={(e) => deleteSession(s.id, e)}
-                    className="p-2 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all"
+                    className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-all"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
               </div>
@@ -267,19 +269,16 @@ export default function MentorTab() {
         </div>
       </div>
 
-      <div className="mt-auto p-6 border-t border-white/5">
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-2">
-          <div className="flex items-center gap-2">
-            <Activity size={14} className="text-[var(--primary)]" />
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
-              Motor Ativo
+      <div className="mt-auto p-6 border-t border-border/30">
+        <div className="p-4 rounded-md bg-secondary/30 border border-border/50 space-y-2">
+          <div className="flex items-center gap-2 opacity-40">
+            <Activity size={12} />
+            <span className="text-[9px] font-bold uppercase tracking-widest">
+              Motor Estratégico
             </span>
           </div>
-          <p
-            className="text-[11px] font-bold truncate opacity-80"
-            style={{ color: "var(--app-fg)" }}
-          >
-            {provider.toUpperCase()} AI Engine
+          <p className="text-[10px] font-bold text-foreground/80 uppercase">
+            {provider} v2.5.0
           </p>
         </div>
       </div>
@@ -287,13 +286,11 @@ export default function MentorTab() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-[var(--app-bg)]">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col w-72 shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl">
+    <div className="flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-background">
+      <div className="hidden md:flex flex-col w-72 shrink-0">
         {SidebarContent}
       </div>
 
-      {/* Mobile Drawer Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
@@ -301,26 +298,24 @@ export default function MentorTab() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+            className="md:hidden fixed inset-0 z-[100] bg-background/80 backdrop-blur-md"
           />
         )}
       </AnimatePresence>
 
-      {/* Mobile Sidebar */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="md:hidden fixed top-0 left-0 bottom-0 w-[80vw] max-w-[300px] z-[101] bg-[var(--app-bg)] border-r border-white/10 shadow-2xl"
+            className="md:hidden fixed top-0 left-0 bottom-0 w-[85vw] max-w-[320px] z-[101] border-r border-border shadow-2xl"
           >
-            <div className="flex flex-col h-full">
-              <div className="p-4 flex justify-end">
+            <div className="flex flex-col h-full bg-background">
+              <div className="p-4 flex justify-end border-b border-border/30">
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 rounded-xl bg-white/5"
+                  className="p-2 rounded-md bg-secondary/50 text-muted-foreground"
                 >
                   <X size={20} />
                 </button>
@@ -331,135 +326,111 @@ export default function MentorTab() {
         )}
       </AnimatePresence>
 
-      {/* Main Area */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Background Mesh Gradient (Subtle) */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03]">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[var(--primary)] blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[var(--accent-blue)] blur-[120px]" />
-        </div>
-
-        {/* Header */}
-        <div className="relative px-4 md:px-8 py-3 md:py-4 border-b border-white/5 backdrop-blur-md bg-white/[0.01] flex items-center justify-between z-10">
-          <div className="flex items-center gap-3 md:gap-4">
+        <div className="relative px-6 h-14 shrink-0 border-b border-border bg-card/50 backdrop-blur-md flex items-center justify-between z-10">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 text-[var(--primary)] active:scale-95 transition-all"
+              className="md:hidden flex items-center gap-2 p-2 rounded-md bg-secondary/50 text-primary active:scale-95 transition-all"
             >
               <Menu size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                Sessões
-              </span>
             </button>
-            <div className="hidden xs:block w-px h-4 bg-white/10 mx-1 md:hidden" />
-            <div className="relative">
-              <div className="absolute inset-0 bg-[var(--primary)] blur-xl opacity-20" />
-              <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent-amber)] flex items-center justify-center text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]">
-                <Brain size={18} className="md:w-5 md:h-5" />
-              </div>
+
+            <div className="w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Brain size={16} />
             </div>
-            <div>
-              <h2
-                className="text-[11px] md:text-sm font-black uppercase tracking-widest"
-                style={{ color: "var(--app-fg)" }}
-              >
-                Mentor IA
+
+            <div className="hidden xs:block">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
+                Mentor Estratégico
               </h2>
-              <p className="text-[9px] md:text-[10px] font-bold opacity-40 truncate max-w-[120px] md:max-w-none">
+              <p className="text-[11px] font-bold text-foreground truncate max-w-[200px]">
                 {activeSession.title}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-3">
             {hasRegressions && (
               <button
                 onClick={() => setShowRegressions(!showRegressions)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-widest animate-pulse"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-[10px] font-bold uppercase tracking-wider animate-pulse"
               >
-                <ShieldAlert size={10} />{" "}
-                <span className="hidden xs:inline">
-                  {regressions.length} Alertas
+                <ShieldAlert size={12} />
+                <span className="hidden sm:inline">
+                  {regressions.length} Alertas de Queda
                 </span>
-                <span className="xs:hidden">{regressions.length}</span>
               </button>
             )}
-            <div className="h-4 w-px bg-white/10" />
+            <div className="h-4 w-px bg-border mx-1" />
             <button
               onClick={() =>
                 setMessages(() => [
                   { role: "assistant", content: "Como posso ajudar agora?" },
                 ])
               }
-              className="p-2 rounded-xl hover:bg-white/5 text-white/20 hover:text-white transition-all"
+              className="p-2 rounded-md hover:bg-secondary text-muted-foreground transition-colors"
               title="Limpar conversa"
             >
-              <Trash2 size={14} />
+              <Trash2 size={16} />
             </button>
           </div>
         </div>
 
-        {/* Regressions Overlay */}
         <AnimatePresence>
           {showRegressions && hasRegressions && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="relative z-20 border-b border-rose-500/20 bg-rose-500/[0.02] overflow-hidden"
+              className="relative z-20 border-b border-destructive/20 bg-destructive/5 overflow-hidden"
             >
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 custom-scrollbar max-h-[40vh] overflow-y-auto">
                 {regressions.map((r: any, i: number) => (
                   <div
                     key={i}
-                    className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-4"
+                    className="p-4 rounded-md bg-card border border-border/50 flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0">
-                      <p
-                        className="text-[10px] font-black uppercase tracking-widest truncate"
-                        style={{ color: "var(--app-fg)" }}
-                      >
+                      <p className="text-[10px] font-bold uppercase tracking-widest truncate text-foreground">
                         {r.topicName}
                       </p>
-                      <p className="text-[9px] opacity-40 truncate">
+                      <p className="text-[9px] font-bold opacity-30 truncate uppercase">
                         {r.disciplineName}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0">
                       <button
                         onClick={() => {
                           if (!apiKey) {
-                            toast.error("Configure sua chave no perfil.");
+                            toast.error("Configure sua chave.");
                             return;
                           }
-                          const topicName = r.topicName;
                           setMessages((prev) => [
                             ...prev,
                             {
                               role: "user",
-                              content: `Gere um mnemônico para o tópico: ${topicName}`,
+                              content: `Gere um mnemônico para: ${r.topicName}`,
                             },
                           ]);
                           chatMut.mutate({
-                            message: `Gere um mnemônico bizarro e inesquecível para o tópico "${topicName}" da disciplina "${r.disciplineName}". Foque no motivo da minha queda de desempenho.`,
+                            message: `Gere um mnemônico estratégico para "${r.topicName}" (${r.disciplineName}). Tive uma queda de ${r.delta}pp.`,
                             history: [],
                             apiKey,
                             provider,
                           });
                           setShowRegressions(false);
                         }}
-                        className="p-2 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all"
                         title="Gerar Mnemônico"
+                        className="w-8 h-8 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-white transition-all"
                       >
-                        <Wand2 size={12} />
+                        <Wand2 size={14} />
                       </button>
-                      <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-1.5">
-                          <TrendingDown size={14} className="text-rose-500" />
-                          <span className="text-xs font-black text-rose-500">
-                            -{r.delta}pp
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-1.5 text-destructive">
+                        <TrendingDown size={14} />
+                        <span className="text-[11px] font-bold tabular-nums">
+                          -{r.delta}pp
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -469,38 +440,26 @@ export default function MentorTab() {
           )}
         </AnimatePresence>
 
-        {/* Chat Canvas */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 z-10 pb-32 md:pb-32">
-          <div className="max-w-3xl mx-auto space-y-6 md:space-y-10">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 z-10 pb-32">
+          <div className="max-w-4xl mx-auto space-y-12">
             {!apiKey ? (
-              <div className="h-full flex flex-col items-center justify-center py-10 md:py-20 text-center gap-6 md:gap-8">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-rose-500 blur-3xl opacity-10" />
-                  <div className="relative p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] bg-white/[0.02] border border-white/5">
-                    <Lock
-                      size={32}
-                      className="text-rose-500/40 md:w-12 md:h-12"
-                    />
-                  </div>
+              <div className="h-full flex flex-col items-center justify-center py-20 text-center space-y-8">
+                <div className="w-16 h-16 rounded-lg bg-secondary/50 border border-border flex items-center justify-center text-muted-foreground/30">
+                  <Lock size={32} />
                 </div>
-                <div className="space-y-2 md:space-y-3">
-                  <h3
-                    className="text-xl md:text-2xl font-black"
-                    style={{ color: "var(--app-fg)" }}
-                  >
-                    Acesso Restrito
-                  </h3>
-                  <p className="text-xs md:text-sm opacity-40 max-w-[240px] md:max-w-xs mx-auto leading-relaxed">
-                    Configure suas chaves de API no perfil para liberar o
-                    potencial do seu Mentor.
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold">Mentor Bloqueado</h3>
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                    Configure sua chave de API nas configurações para ativar a
+                    inteligência estratégica do SOE.
                   </p>
                 </div>
-                <button
+                <Button
                   onClick={() => navigate("/profile#settings")}
-                  className="px-6 md:px-8 h-12 md:h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-95 transition-all"
+                  className="h-12 px-10 rounded-md font-bold text-[11px] uppercase tracking-widest"
                 >
-                  Ir para Perfil
-                </button>
+                  Ir para Configurações
+                </Button>
               </div>
             ) : (
               <>
@@ -509,63 +468,70 @@ export default function MentorTab() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     key={i}
-                    className={`flex gap-3 md:gap-6 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                    className={cn(
+                      "flex gap-4 md:gap-8",
+                      m.role === "user" ? "flex-row-reverse" : "flex-row",
+                    )}
                   >
                     <div
-                      className={`shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg transition-all ${m.role === "user" ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[var(--primary-shadow)]" : "bg-white/5 text-[var(--primary)]"}`}
+                      className={cn(
+                        "shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-md flex items-center justify-center border transition-all",
+                        m.role === "user"
+                          ? "bg-primary border-primary text-white"
+                          : "bg-secondary/50 border-border text-primary",
+                      )}
                     >
                       {m.role === "user" ? (
-                        <User size={14} className="md:w-[18px] md:h-[18px]" />
+                        <User size={16} />
                       ) : (
-                        <GraduationCap
-                          size={14}
-                          className="md:w-[18px] md:h-[18px]"
-                        />
+                        <GraduationCap size={16} />
                       )}
                     </div>
                     <div
-                      className={`relative p-4 md:p-6 rounded-2xl md:rounded-[2rem] max-w-[88%] md:max-w-[85%] border ${m.role === "user" ? "bg-white/5 border-white/10 text-[var(--app-fg)]" : m.action ? "bg-white/[0.02] border-white/10" : "bg-transparent border-transparent text-[var(--app-fg)]"}`}
+                      className={cn(
+                        "relative p-5 md:p-6 rounded-md max-w-[85%] border",
+                        m.role === "user"
+                          ? "bg-secondary/30 border-border/50"
+                          : "bg-transparent border-transparent",
+                      )}
                     >
                       {m.role === "assistant" && m.content ? (
                         <RenderText text={m.content} />
                       ) : m.role === "user" ? (
-                        <p className="text-sm leading-relaxed opacity-90">
+                        <p className="text-sm font-semibold leading-relaxed text-foreground/90">
                           {m.content}
                         </p>
                       ) : null}
 
                       {(m as any).action && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Sparkles
-                              size={14}
-                              className="text-[var(--primary)]"
-                            />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
-                              Proposta da IA
+                        <div className="mt-6 p-5 rounded-md bg-primary/5 border border-primary/20 space-y-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex items-center gap-2 text-primary opacity-60">
+                            <Sparkles size={14} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">
+                              Ação Proposta
                             </span>
                           </div>
-                          <p className="text-xs font-bold text-white/80 leading-relaxed">
+                          <p className="text-xs font-bold leading-relaxed">
                             {(m as any).action.description}
                           </p>
-
-                          <div className="flex gap-2 pt-2">
-                            <button
+                          <div className="flex gap-3 pt-2">
+                            <Button
                               onClick={() =>
                                 handleAction(i, (m as any).action, true)
                               }
-                              className="flex-1 h-10 rounded-xl bg-[var(--primary)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)]/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                              className="flex-1 h-10 rounded-md text-[10px] font-bold uppercase tracking-widest"
                             >
-                              <Check size={14} strokeWidth={3} /> Aceitar
-                            </button>
-                            <button
+                              <Check size={14} className="mr-2" /> Aceitar
+                            </Button>
+                            <Button
+                              variant="outline"
                               onClick={() =>
                                 handleAction(i, (m as any).action, false)
                               }
-                              className="h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/20 transition-all flex items-center justify-center gap-2"
+                              className="h-10 px-6 rounded-md text-[10px] font-bold uppercase tracking-widest"
                             >
-                              <X size={14} strokeWidth={3} /> Recusar
-                            </button>
+                              Recusar
+                            </Button>
                           </div>
                         </div>
                       )}
@@ -573,41 +539,36 @@ export default function MentorTab() {
                   </motion.div>
                 ))}
                 {chatMut.isPending && (
-                  <div className="flex gap-6 flex-row items-center opacity-40 animate-pulse">
-                    <div className="shrink-0 w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-[var(--primary)]">
+                  <div className="flex gap-8 items-center opacity-40">
+                    <div className="shrink-0 w-9 h-9 rounded-md bg-secondary/50 border border-border flex items-center justify-center text-primary">
                       <Bot size={18} />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       <div
-                        className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce"
+                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
                         style={{ animationDelay: "0ms" }}
                       />
                       <div
-                        className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce"
+                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
                         style={{ animationDelay: "150ms" }}
                       />
                       <div
-                        className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-bounce"
+                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
                         style={{ animationDelay: "300ms" }}
                       />
                     </div>
                   </div>
                 )}
-                <div ref={endRef} className="h-20" />
+                <div ref={endRef} className="h-24" />
               </>
             )}
           </div>
         </div>
 
-        {/* Floating Input Dock */}
         {apiKey && (
-          <div className="absolute bottom-4 md:bottom-8 left-0 right-0 px-4 md:px-8 z-20">
-            <div className="max-w-3xl mx-auto relative group">
-              <div className="absolute inset-0 bg-black/40 blur-2xl opacity-50 group-focus-within:opacity-80 transition-opacity" />
-              <div className="relative p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2rem] bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-2xl flex items-center gap-1 md:gap-2">
-                <div className="pl-3 md:pl-4 text-[var(--primary)] opacity-40">
-                  <Sparkles size={16} />
-                </div>
+          <div className="absolute bottom-8 left-0 right-0 px-6 z-20">
+            <div className="max-w-4xl mx-auto">
+              <div className="relative p-2 rounded-md bg-card border border-border shadow-2xl flex items-center gap-3">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -617,24 +578,20 @@ export default function MentorTab() {
                       handleSend();
                     }
                   }}
-                  placeholder="Mensagem..."
+                  placeholder="Como posso otimizar seu estudo hoje?"
                   disabled={chatMut.isPending}
                   rows={1}
-                  className="flex-1 bg-transparent border-none outline-none py-3 md:py-4 text-sm font-medium placeholder:opacity-20 resize-none min-h-[48px] md:min-h-[56px] max-h-32 custom-scrollbar"
-                  style={{ color: "var(--app-fg)" }}
+                  className="flex-1 bg-transparent border-none outline-none py-3 px-4 text-sm font-bold placeholder:text-muted-foreground/30 resize-none min-h-[48px] max-h-32 custom-scrollbar"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || chatMut.isPending}
-                  className="p-3 md:p-4 rounded-xl md:rounded-[1.5rem] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xl shadow-[var(--primary-shadow)] hover:scale-105 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
+                  className="w-11 h-11 shrink-0 rounded-md bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-20"
                 >
                   {chatMut.isPending ? (
-                    <Loader2
-                      size={16}
-                      className="animate-spin md:w-[18px] md:h-[18px]"
-                    />
+                    <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    <Send size={16} className="md:w-[18px] md:h-[18px]" />
+                    <Send size={18} />
                   )}
                 </button>
               </div>

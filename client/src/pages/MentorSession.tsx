@@ -270,35 +270,32 @@ export default function MentorSession() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/")}
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
+            className="p-2.5 bg-card border border-border hover:bg-secondary rounded-lg transition-all"
           >
-            <ChevronLeft size={20} className="opacity-60" />
+            <ChevronLeft size={18} className="text-muted-foreground" />
           </button>
-          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
-            <Brain className="w-6 h-6 text-[var(--primary)]" />
+          <div className="p-2.5 bg-secondary rounded-lg border border-border">
+            <Brain className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1
-              className="text-3xl font-black tracking-tight"
-              style={{ color: "var(--app-fg)" }}
-            >
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Mentor IA
             </h1>
-            <p className="text-sm opacity-60">
+            <p className="text-sm text-muted-foreground">
               Sessão adaptativa baseada em pontos fracos.
             </p>
           </div>
         </div>
 
         {history.length > 0 && (
-          <div className="flex items-center gap-4 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/5">
+          <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-card border border-border shadow-sm">
             <div className="flex items-center gap-2">
-              <Activity size={14} className="text-[var(--primary)]" />
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
+              <Activity size={12} className="text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Eficiência
               </span>
               <span
-                className="text-xs font-black"
+                className="text-xs font-bold"
                 style={{
                   color:
                     accuracy >= 70
@@ -309,8 +306,8 @@ export default function MentorSession() {
                 {accuracy}%
               </span>
             </div>
-            <div className="w-px h-4 bg-white/10" />
-            <div className="text-[10px] font-black uppercase tracking-widest opacity-40">
+            <div className="w-px h-3 bg-border" />
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Questão {history.length} / {SESSION_SIZE}
             </div>
           </div>
@@ -327,24 +324,19 @@ export default function MentorSession() {
           >
             <div className="soe-card p-8 space-y-8">
               <div className="flex items-center gap-3">
-                <Lock size={18} className="text-[var(--primary)]" />
-                <h2
-                  className="text-xl font-black"
-                  style={{ color: "var(--app-fg)" }}
-                >
-                  Configuração de IA
-                </h2>
+                <Lock size={18} className="text-primary" />
+                <h2 className="text-lg font-bold">Configuração de IA</h2>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground ml-1">
                     Provedor
                   </label>
                   <select
                     value={provider}
                     onChange={(e) => setProvider(e.target.value as any)}
-                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/5 text-sm outline-none appearance-none"
+                    className="w-full px-4 py-2.5 rounded-md bg-secondary border border-border text-sm outline-none appearance-none"
                   >
                     <option value="gemini">Google Gemini (Flash 1.5)</option>
                     <option value="claude">Anthropic Claude 3</option>
@@ -354,10 +346,10 @@ export default function MentorSession() {
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between ml-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       Chaves de API
                     </label>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--primary)]">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-primary">
                       Auto-Rotação Ativa
                     </span>
                   </div>
@@ -365,21 +357,21 @@ export default function MentorSession() {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Uma ou mais chaves (uma por linha)..."
-                    className="w-full px-4 py-4 rounded-2xl bg-white/5 border border-white/5 text-xs outline-none min-h-[120px] resize-none focus:border-[var(--primary-border)] transition-all"
+                    className="w-full px-4 py-3 rounded-md bg-secondary border border-border text-xs outline-none min-h-[100px] resize-none focus:border-primary transition-all"
                   />
                 </div>
               </div>
 
               <Button
                 onClick={saveConfig}
-                className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]"
+                className="w-full py-3 rounded-md font-bold text-[10px] uppercase tracking-wider"
               >
                 Próximo Passo <ChevronRight size={14} className="ml-1" />
               </Button>
             </div>
 
             <div
-              className="soe-card p-10 rounded-[3rem] bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20 relative overflow-hidden group hover:scale-[1.01] transition-all cursor-pointer"
+              className="soe-card p-10 rounded-xl bg-card border border-border relative overflow-hidden group hover:border-primary/50 transition-all cursor-pointer"
               onClick={() => {
                 toast.promise(
                   generateCrossfire.mutateAsync({
@@ -402,23 +394,26 @@ export default function MentorSession() {
                 );
               }}
             >
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all group-hover:rotate-12">
-                <Zap size={80} />
+              <div className="absolute top-4 right-4 opacity-5 group-hover:opacity-10 transition-all">
+                <Zap size={64} />
               </div>
               <div className="relative z-10 space-y-4">
-                <Badge className="bg-orange-500 text-white border-none text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg shadow-orange-500/20">
+                <Badge
+                  variant="outline"
+                  className="text-primary border-primary/20 text-[9px] font-bold px-3 py-1 rounded-md"
+                >
                   NOVO MODO
                 </Badge>
-                <h2 className="text-3xl font-black uppercase tracking-tight">
+                <h2 className="text-2xl font-bold uppercase tracking-tight">
                   Simulado Fogo Cruzado
                 </h2>
-                <p className="text-sm opacity-60 leading-relaxed max-w-xl">
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
                   O teste definitivo: misturamos questões reais (TEC), questões
                   da sua biblioteca (Lab) e armadilhas inéditas da IA (Banca
                   Mirror) em um único desafio aleatório.
                 </p>
-                <div className="flex items-center gap-2 text-orange-500 font-black text-xs uppercase tracking-widest mt-4 group-hover:gap-4 transition-all">
-                  Iniciar Desafio <ArrowRight size={16} />
+                <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider mt-4 group-hover:gap-3 transition-all">
+                  Iniciar Desafio <ArrowRight size={14} />
                 </div>
               </div>
             </div>
@@ -551,9 +546,9 @@ export default function MentorSession() {
             className="max-w-3xl mx-auto space-y-6"
           >
             <div className="flex justify-between items-center">
-              <div className="h-1.5 w-full max-w-[60%] bg-white/5 rounded-full overflow-hidden">
+              <div className="h-1 w-full max-w-[60%] bg-secondary rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent-amber)]"
+                  className="h-full bg-primary"
                   initial={{ width: 0 }}
                   animate={{
                     width: `${(history.length / SESSION_SIZE) * 100}%`,
@@ -564,7 +559,7 @@ export default function MentorSession() {
               <Button
                 variant="ghost"
                 onClick={() => setLibrarianOpen(true)}
-                className="text-[10px] gap-2 h-auto py-2 font-black uppercase tracking-widest opacity-60 hover:opacity-100"
+                className="text-[10px] gap-2 h-auto py-2 font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
               >
                 <BookOpen size={14} /> Consultar Biblio
               </Button>
@@ -626,9 +621,9 @@ export default function MentorSession() {
                           key={alt.letter}
                           disabled={confirmed}
                           onClick={() => setSelectedAnswer(alt.letter)}
-                          className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition-all text-left ${statusStyle}`}
+                          className={`flex items-start gap-3 p-4 rounded-lg border transition-all text-left ${statusStyle}`}
                         >
-                          <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-black text-xs shrink-0">
+                          <span className="w-7 h-7 rounded bg-secondary flex items-center justify-center font-bold text-xs shrink-0">
                             {alt.letter}
                           </span>
                           <span className="text-xs font-medium leading-relaxed flex-1">
@@ -639,12 +634,12 @@ export default function MentorSession() {
                     })}
                   </div>
 
-                  <div className="pt-6">
+                  <div className="pt-4">
                     {!confirmed ? (
                       <Button
                         onClick={confirmAnswer}
                         disabled={!selectedAnswer}
-                        className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)]"
+                        className="w-full py-3 rounded-md font-bold text-[10px] uppercase tracking-wider"
                       >
                         Confirmar Resposta{" "}
                         <ArrowRight size={14} className="ml-2" />
@@ -652,7 +647,7 @@ export default function MentorSession() {
                     ) : (
                       <Button
                         onClick={() => checkEndOfSession(history)}
-                        className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest bg-white/5 hover:bg-white/10"
+                        className="w-full py-3 rounded-md font-bold text-[10px] uppercase tracking-wider bg-secondary hover:bg-muted"
                       >
                         Próxima <ChevronRight size={14} className="ml-2" />
                       </Button>

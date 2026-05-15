@@ -319,21 +319,29 @@ describe("MentorTab Component", () => {
     render(<MentorTab />);
 
     // Should render input since apiKey is "test-key"
-    expect(screen.getByPlaceholderText("Mensagem...")).toBeTruthy();
+    expect(
+      screen.getByPlaceholderText("Como posso otimizar seu estudo hoje?"),
+    ).toBeTruthy();
 
     // Type a message
-    fireEvent.change(screen.getByPlaceholderText("Mensagem..."), {
-      target: { value: "Quero ajuda" },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText("Como posso otimizar seu estudo hoje?"),
+      {
+        target: { value: "Quero ajuda" },
+      },
+    );
 
     // Click send
     const sendBtn = screen
       .getAllByRole("button")
       .find((b) => b.innerHTML.includes("lucide")); // Hack to find send button
-    fireEvent.keyDown(screen.getByPlaceholderText("Mensagem..."), {
-      key: "Enter",
-      code: "Enter",
-    });
+    fireEvent.keyDown(
+      screen.getByPlaceholderText("Como posso otimizar seu estudo hoje?"),
+      {
+        key: "Enter",
+        code: "Enter",
+      },
+    );
 
     await waitFor(() => {
       expect(mockChat).toHaveBeenCalled();
@@ -350,7 +358,7 @@ describe("MentorTab Component", () => {
 
     // Test regression mnemonic trigger
     // Click the regressions alert
-    const alertBtn = screen.getByText(/Alertas/i);
+    const alertBtn = screen.getByText(/Alertas de Queda/i);
     fireEvent.click(alertBtn);
 
     await waitFor(() => {

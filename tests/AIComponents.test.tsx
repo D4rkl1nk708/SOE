@@ -118,7 +118,7 @@ describe("AIChatBox Component", () => {
     const onSendMessage = vi.fn();
     render(<AIChatBox messages={messages} onSendMessage={onSendMessage} />);
 
-    const textarea = screen.getByPlaceholderText("Type your message...");
+    const textarea = screen.getByPlaceholderText("Como posso te ajudar?");
     fireEvent.change(textarea, { target: { value: "Pergunta teste" } });
 
     const submitBtn = screen.getByTestId("icon-send");

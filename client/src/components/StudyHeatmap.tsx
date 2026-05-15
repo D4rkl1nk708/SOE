@@ -1,7 +1,18 @@
 import { useMemo } from "react";
-import { format, subDays, startOfToday, eachDayOfInterval, isSameDay } from "date-fns";
+import {
+  format,
+  subDays,
+  startOfToday,
+  eachDayOfInterval,
+  isSameDay,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SessionLog {
   date: string;
@@ -15,20 +26,24 @@ interface StudyHeatmapProps {
   showStreakCard?: boolean;
 }
 
-export function StudyHeatmap({ logs = [], compact, showStreakCard }: StudyHeatmapProps) {
+export function StudyHeatmap({
+  logs = [],
+  compact,
+  showStreakCard,
+}: StudyHeatmapProps) {
   const days = useMemo(() => {
     const end = startOfToday();
     const start = subDays(end, 18 * 7 - 1); // 18 weeks
     const interval = eachDayOfInterval({ start, end });
-    
+
     // Group logs by date
     const logMap: Record<string, number> = {};
-    logs.forEach(l => {
+    logs.forEach((l) => {
       const mins = (l as any).minutes ?? l.durationMin ?? 0;
       logMap[l.date] = (logMap[l.date] || 0) + mins;
     });
 
-    return interval.map(date => {
+    return interval.map((date) => {
       const dateStr = format(date, "yyyy-MM-dd");
       const duration = logMap[dateStr] || 0;
       let level = 0;
@@ -41,7 +56,7 @@ export function StudyHeatmap({ logs = [], compact, showStreakCard }: StudyHeatma
         date,
         dateStr,
         duration,
-        level
+        level,
       };
     });
   }, [logs]);
@@ -57,32 +72,49 @@ export function StudyHeatmap({ logs = [], compact, showStreakCard }: StudyHeatma
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-2">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>Consistência (18 semanas)</span>
-          <div className="flex items-center gap-1">
-            <span className="text-[9px]" style={{ color: "var(--muted-text)" }}>Menos</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+            Consistência (18 semanas)
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-bold uppercase opacity-30 tracking-tighter">
+              Menos
+            </span>
             {levelColors.map((c, i) => (
-              <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ background: c, border: "1px solid var(--card-border)" }} />
+              <div
+                key={i}
+                className="w-2.5 h-2.5 rounded-sm border border-border/50"
+                style={{ background: c }}
+              />
             ))}
-            <span className="text-[9px]" style={{ color: "var(--muted-text)" }}>Mais</span>
+            <span className="text-[9px] font-bold uppercase opacity-30 tracking-tighter">
+              Mais
+            </span>
           </div>
         </div>
-        
+
         <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
           {days.map((d, i) => (
             <Tooltip key={d.dateStr}>
               <TooltipTrigger asChild>
-                <div 
+                <div
                   className="w-3.5 h-3.5 rounded-[3px] transition-all hover:scale-125 cursor-help"
-                  style={{ 
+                  style={{
                     background: levelColors[d.level],
-                    border: d.level === 0 ? "1px solid var(--card-border)" : "none"
+                    border:
+                      d.level === 0 ? "1px solid var(--card-border)" : "none",
                   }}
                 />
               </TooltipTrigger>
               <TooltipContent side="top" className="text-[10px] py-1 px-2">
-                <p className="font-bold">{format(d.date, "dd 'de' MMMM", { locale: ptBR })}</p>
-                <p>{d.duration === 0 ? "Nenhum estudo" : `${d.duration} minutos de estudo`}</p>
+                <p className="font-bold">
+                  {format(d.date, "dd 'de' MMMM", { locale: ptBR })}
+                </p>
+                <p>
+                  {d.duration === 0
+                    ? "Nenhum estudo"
+                    : `${d.duration} minutos de estudo`}
+                </p>
               </TooltipContent>
             </Tooltip>
           ))}

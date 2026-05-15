@@ -9,9 +9,7 @@ import {
   Save,
   Search,
   ChevronDown,
-  ChevronUp,
   CheckCircle2,
-  Circle,
   CalendarDays,
   X,
   Settings2,
@@ -49,8 +47,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
+import { cn } from "@/lib/utils";
 
 type CycleType = "numbered" | "weekdays";
+type Tab = "edital" | "ciclos";
 
 type CycleConfig = {
   type: CycleType;
@@ -69,8 +69,6 @@ const WEEKDAY_FULL = [
   "Sábado",
 ];
 const WEEKDAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-const createId = () => `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
 function getCycleLabel(config: CycleConfig, index: number): string {
   if (config.type === "numbered") return `Ciclo ${index + 1}`;
@@ -128,10 +126,10 @@ function groupRows(rows: EditalTopico[]): GroupedDiscipline[] {
 
 function hitColor(acerto?: number): string {
   if (acerto === undefined || acerto === null || isNaN(acerto))
-    return "var(--muted-text)";
+    return "var(--muted-foreground)";
   if (acerto >= 0.75) return "var(--accent-green)";
   if (acerto >= 0.5) return "var(--accent-amber)";
-  return "var(--accent-red, #dc2626)";
+  return "var(--accent-red)";
 }
 
 function parseXlsxRows(wb: any): EditalTopico[] {
@@ -146,11 +144,9 @@ function parseXlsxRows(wb: any): EditalTopico[] {
     });
     if (!data || data.length === 0) continue;
 
-    // Row 0 is the header row for this discipline
     const headerRow = data[0];
     if (!headerRow) continue;
 
-    // Detect column positions
     const headerStr = headerRow.map((c: any) => String(c || "").toLowerCase());
     const idxIndice = headerStr.findIndex(
       (h: string) =>
@@ -163,7 +159,7 @@ function parseXlsxRows(wb: any): EditalTopico[] {
       (h: string) =>
         h.includes("porcentagem") || h.includes("percent") || h.includes("%"),
     );
-    const idxAcerto = 0; // first col is acerto
+    const idxAcerto = 0;
     const idxRevisar = headerStr.findIndex((h: string) =>
       h.includes("revisar"),
     );
@@ -172,7 +168,6 @@ function parseXlsxRows(wb: any): EditalTopico[] {
       h.includes("discursiva"),
     );
 
-    // Row 0 is header for the discipline itself
     const discName =
       idxIndice >= 0 && data[1]?.[idxIndice]
         ? String(data[1][idxIndice]).trim()
@@ -195,7 +190,6 @@ function parseXlsxRows(wb: any): EditalTopico[] {
       incidencia: 1,
     });
 
-    // Rows 1+ are topics
     for (let i = 2; i < data.length; i++) {
       const row = data[i];
       if (!row) continue;
@@ -234,11 +228,10 @@ function parseXlsxRows(wb: any): EditalTopico[] {
   return rows;
 }
 
-// ─── Edital Tab (new rich version) ───────────────────────────────────────────
+// ─── Edital Tab ─────────────────────────────────────────────────────────────
 function EditalTab({
   rows,
   setRows,
-  data,
 }: {
   rows: EditalTopico[];
   setRows: React.Dispatch<React.SetStateAction<EditalTopico[]>>;
@@ -255,16 +248,12 @@ function EditalTab({
     "all" | "revisar" | "avancar" | "discursiva" | "sem_acerto"
   >("all");
   const [importing, setImporting] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTopicText, setEditingTopicText] = useState("");
   const [showGuide, setShowGuide] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: disciplines } = trpc.discipline.list.useQuery();
-  const { data: allTopicsData } = trpc.topic.list.useQuery();
-  const { data: libraryStats } = trpc.lab.getLibraryStats.useQuery();
-  const allTopics = allTopicsData?.topics || [];
   const utils = trpc.useUtils();
 
   const [studyModal, setStudyModal] = useState<{
@@ -283,7 +272,7 @@ function EditalTab({
 
   const createTopic = trpc.topic.create.useMutation({
     onSuccess: () => {
-      toast.success("Estudo registrado e revisões agendadas!");
+      toast.success("Estudo registrado!");
       setStudyModal({ open: false, topic: null });
       utils.topic.list.invalidate();
       utils.dashboard.getStats.invalidate();
@@ -292,7 +281,6 @@ function EditalTab({
   });
 
   const openRegisterStudy = (t: EditalTopico) => {
-    // Tenta encontrar a disciplina pelo nome (case insensitive)
     const disc = disciplines?.find(
       (d) => d.name.toLowerCase() === t.discipline.toLowerCase(),
     );
@@ -317,7 +305,6 @@ function EditalTab({
     });
   };
 
-  // --- Novas funções de importação ---
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [iaForm, setIaForm] = useState({
     role: "",
@@ -328,30 +315,32 @@ function EditalTab({
 
   const parseEditalAi = trpc.edital.parseEdital.useMutation({
     onSuccess: (data) => {
-      setRows([...rows, ...data]);
-      saveAll([...rows, ...data]);
+      const updated = [...rows, ...data];
+      setRows(updated);
+      saveAll(updated);
       setImportModalOpen(false);
       setIaForm({ role: "", text: "", file: null });
-      toast.success(`${data.length} tópicos extraídos via IA!`);
+      toast.success(`${data.length} tópicos extraídos!`);
     },
     onError: (err) => toast.error(err.message),
   });
 
   const quickAddManual = trpc.edital.quickAddManual.useMutation({
     onSuccess: (data) => {
-      setRows([...rows, ...data]);
-      saveAll([...rows, ...data]);
+      const updated = [...rows, ...data];
+      setRows(updated);
+      saveAll(updated);
       setImportModalOpen(false);
       setManualForm({ discipline: "", topics: "" });
-      toast.success(`${data.length} tópicos adicionados manualmente!`);
+      toast.success(`${data.length} tópicos adicionados!`);
     },
     onError: (err) => toast.error(err.message),
   });
 
   const handleAiSubmit = async () => {
-    if (!iaForm.role) return toast.error("Informe o cargo pretendido.");
+    if (!iaForm.role) return toast.error("Informe o cargo.");
     if (!iaForm.text && !iaForm.file)
-      return toast.error("Informe o texto ou envie um PDF.");
+      return toast.error("Forneça texto ou PDF.");
 
     let pdfBase64: string | undefined;
     if (iaForm.file) {
@@ -427,11 +416,6 @@ function EditalTab({
     saveAll(updated);
   };
 
-  const startEditTopic = (t: EditalTopico) => {
-    setEditingId(t.id);
-    setEditingTopicText(t.topic);
-  };
-
   const saveEditTopic = (id: string) => {
     if (!editingTopicText.trim()) return;
     const updated = rows.map((r) =>
@@ -446,21 +430,13 @@ function EditalTab({
     const updated = rows.filter((r) => r.id !== id);
     setRows(updated);
     saveAll(updated);
-    toast.success("Tópico removido.");
   };
 
   const deleteDiscipline = (disciplineName: string) => {
     const updated = rows.filter((r) => r.discipline !== disciplineName);
     setRows(updated);
     saveAll(updated);
-    toast.success(`Disciplina "${disciplineName}" removida.`);
-  };
-
-  const clearAll = () => {
-    setRows([]);
-    saveAll([]);
-    setConfirmClear(false);
-    toast.success("Conteúdo programático limpo.");
+    toast.success(`Disciplina removida.`);
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -473,12 +449,7 @@ function EditalTab({
       const newRows = parseXlsxRows(wb);
       setRows(newRows);
       saveAll(newRows);
-      const discCount = wb.SheetNames.filter(
-        (n: string) => n !== "CONTROLE",
-      ).length;
-      toast.success(
-        `${newRows.length} itens importados de ${discCount} disciplinas!`,
-      );
+      toast.success(`Itens importados com sucesso!`);
     } catch (err) {
       toast.error("Erro ao importar planilha.");
     } finally {
@@ -489,7 +460,6 @@ function EditalTab({
 
   const grouped = groupRows(rows);
 
-  // Filter
   const filteredGrouped = grouped
     .map((g) => ({
       ...g,
@@ -513,1099 +483,423 @@ function EditalTab({
     }))
     .filter((g) => g.topics.length > 0 || (!search && filterFlag === "all"));
 
-  const totalTopics = rows.filter((r) => !r.isHeader).length;
-  const completedTopics = rows.filter((r) => !r.isHeader && r.completed).length;
-  const revisarCount = rows.filter((r) => !r.isHeader && r.revisar).length;
-  const avancarCount = rows.filter((r) => !r.isHeader && r.avancar).length;
-
-  const inputStyle = {
-    background: "var(--input-bg)",
-    border: "1px solid var(--card-border)",
-    color: "var(--app-fg)",
+  const toggleCollapse = (name: string) => {
+    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header Imersivo */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)]">
-              <FileSpreadsheet className="w-6 h-6 text-[var(--primary)]" />
-            </div>
-            <div>
-              <h1
-                className="text-3xl font-black tracking-tight"
-                style={{ color: "var(--app-fg)" }}
-              >
-                Conteúdo Programático
-              </h1>
-              <p className="text-sm opacity-60">
-                Mapeamento completo do seu edital e evolução por tópico.
-              </p>
-            </div>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Conteúdo Programático
+            </h1>
+            <p className="text-[11px] font-medium text-muted-foreground opacity-60 uppercase tracking-wider">
+              Mapeamento de Edital e Desempenho
+            </p>
           </div>
         </div>
-        {/* Guide modal */}
-        {showGuide && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{
-              background: "rgba(0,0,0,0.65)",
-              backdropFilter: "blur(4px)",
-            }}
-            onClick={() => setShowGuide(false)}
-          >
-            <div
-              className="w-full max-w-2xl rounded-2xl overflow-y-auto max-h-[90vh]"
-              style={{
-                background: "var(--app-bg)",
-                border: "1px solid var(--card-border)",
-                boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div
-                className="px-6 py-4 flex items-center justify-between sticky top-0 z-10"
-                style={{
-                  borderBottom: "1px solid var(--card-border)",
-                  background: "var(--app-bg)",
-                }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{
-                      background:
-                        "color-mix(in srgb, var(--primary) 12%, transparent)",
-                    }}
-                  >
-                    <HelpCircle
-                      className="h-4 w-4"
-                      style={{ color: "var(--primary)" }}
-                    />
-                  </div>
-                  <div>
-                    <h2
-                      className="font-black text-base"
-                      style={{ color: "var(--app-fg)" }}
-                    >
-                      Como montar sua planilha
-                    </h2>
-                    <p
-                      className="text-xs"
-                      style={{ color: "var(--muted-text)" }}
-                    >
-                      Formato compatível com TEC Concursos
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowGuide(false)}
-                  className="p-1.5 rounded-lg hover:opacity-70"
-                  style={{ color: "var(--muted-text)" }}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {/* Step 1 — Tabs */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-[var(--primary-foreground)] shrink-0"
-                      style={{ background: "var(--primary)" }}
-                    >
-                      1
-                    </div>
-                    <h3
-                      className="font-bold text-sm"
-                      style={{ color: "var(--app-fg)" }}
-                    >
-                      Cada disciplina é uma aba separada
-                    </h3>
-                  </div>
-                  {/* Visual mockup of Excel tabs */}
-                  <div
-                    className="rounded-xl overflow-hidden"
-                    style={{ border: "1px solid var(--card-border)" }}
-                  >
-                    <div
-                      className="px-4 py-2 text-xs font-semibold uppercase tracking-wider"
-                      style={{
-                        background: "var(--stat-bg)",
-                        borderBottom: "1px solid var(--card-border)",
-                        color: "var(--muted-text)",
-                      }}
-                    >
-                      Arquivo: edital_pf_2025.xlsx
-                    </div>
-                    <div
-                      className="p-3 flex flex-wrap gap-2"
-                      style={{ background: "var(--app-bg)" }}
-                    >
-                      {[
-                        "Português",
-                        "Dir. Administrativo",
-                        "Dir. Constitucional",
-                        "Informática",
-                        "Raciocínio Lógico",
-                      ].map((tab, i) => (
-                        <div
-                          key={tab}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-                          style={{
-                            background:
-                              i === 0 ? "var(--primary)" : "var(--stat-bg)",
-                            color:
-                              i === 0
-                                ? "var(--primary-foreground)"
-                                : "var(--muted-text)",
-                            borderColor:
-                              i === 0 ? "var(--primary)" : "var(--card-border)",
-                          }}
-                        >
-                          <BookOpen className="h-3 w-3" /> {tab}
-                        </div>
-                      ))}
-                      <div
-                        className="flex items-center gap-1 px-2 py-1.5 text-xs"
-                        style={{ color: "var(--muted-text)" }}
-                      >
-                        <Plus className="h-3 w-3" /> mais…
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 2 — Visual table */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-[var(--primary-foreground)] shrink-0"
-                      style={{ background: "var(--primary)" }}
-                    >
-                      2
-                    </div>
-                    <h3
-                      className="font-bold text-sm"
-                      style={{ color: "var(--app-fg)" }}
-                    >
-                      Estrutura das colunas dentro de cada aba
-                    </h3>
-                  </div>
-                  <div
-                    className="rounded-xl overflow-hidden"
-                    style={{ border: "1px solid var(--card-border)" }}
-                  >
-                    {/* Header row */}
-                    <div
-                      className="grid text-[11px] font-black uppercase tracking-wider"
-                      style={{
-                        gridTemplateColumns: "2rem 2fr 1fr 1fr 1fr 1fr 1fr",
-                        background: "var(--stat-bg)",
-                        borderBottom: "2px solid var(--primary)",
-                      }}
-                    >
-                      {[
-                        "#",
-                        "Índice",
-                        "Acerto",
-                        "Quantidade",
-                        "Porcentagem",
-                        "Revisar",
-                        "Avançar",
-                      ].map((h, i) => (
-                        <div
-                          key={h}
-                          className="px-2 py-2.5 truncate"
-                          style={{
-                            color:
-                              i >= 5
-                                ? "var(--accent-amber)"
-                                : i === 0
-                                  ? "var(--muted-text)"
-                                  : "var(--primary)",
-                          }}
-                        >
-                          {i >= 5 ? "" : ""}
-                          {h}
-                          {i === 0 ? (
-                            ""
-                          ) : (
-                            <span className="ml-1 text-[9px] opacity-50 font-normal">
-                              col {String.fromCharCode(64 + i)}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Row 2 — discipline summary (highlighted) */}
-                    {[
-                      {
-                        n: "2",
-                        idx: "Português (GERAL)",
-                        ac: "0.72",
-                        qtd: "4820",
-                        pct: "1.00",
-                        rev: "",
-                        av: "",
-                        isHeader: true,
-                      },
-                      {
-                        n: "3",
-                        idx: "Interpretação de Texto",
-                        ac: "0.68",
-                        qtd: "950",
-                        pct: "0.22",
-                        rev: "X",
-                        av: "",
-                      },
-                      {
-                        n: "4",
-                        idx: "Ortografia e Gramática",
-                        ac: "0.55",
-                        qtd: "620",
-                        pct: "0.15",
-                        rev: "",
-                        av: "X",
-                      },
-                      {
-                        n: "5",
-                        idx: "Coesão e Coerência",
-                        ac: "0.80",
-                        qtd: "410",
-                        pct: "0.10",
-                        rev: "",
-                        av: "",
-                      },
-                    ].map((row) => (
-                      <div
-                        key={row.n}
-                        className="grid text-[11px] transition-colors"
-                        style={{
-                          gridTemplateColumns: "2rem 2fr 1fr 1fr 1fr 1fr 1fr",
-                          borderBottom: "1px solid var(--card-border)",
-                          background: row.isHeader
-                            ? "color-mix(in srgb, var(--primary) 6%, transparent)"
-                            : "transparent",
-                        }}
-                      >
-                        <div
-                          className="px-2 py-2"
-                          style={{ color: "var(--muted-text)", opacity: 0.5 }}
-                        >
-                          {row.n}
-                        </div>
-                        <div
-                          className="px-2 py-2 font-semibold truncate"
-                          style={{
-                            color: row.isHeader
-                              ? "var(--primary)"
-                              : "var(--app-fg)",
-                          }}
-                        >
-                          {row.isHeader && "⭐ "}
-                          {row.idx}
-                        </div>
-                        <div
-                          className="px-2 py-2 font-mono"
-                          style={{
-                            color:
-                              parseFloat(row.ac) >= 0.7
-                                ? "var(--accent-green)"
-                                : parseFloat(row.ac) >= 0.5
-                                  ? "var(--accent-amber)"
-                                  : "var(--accent-red,#dc2626)",
-                          }}
-                        >
-                          {row.ac}
-                        </div>
-                        <div
-                          className="px-2 py-2 font-mono"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          {row.qtd}
-                        </div>
-                        <div
-                          className="px-2 py-2 font-mono"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          {row.pct}
-                        </div>
-                        <div
-                          className="px-2 py-2 text-center font-bold"
-                          style={{ color: "var(--accent-amber)" }}
-                        >
-                          {row.rev}
-                        </div>
-                        <div
-                          className="px-2 py-2 text-center font-bold"
-                          style={{ color: "var(--accent-amber)" }}
-                        >
-                          {row.av}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div
-                      className="flex items-start gap-2 p-2 rounded-lg"
-                      style={{
-                        background:
-                          "color-mix(in srgb, var(--primary) 6%, transparent)",
-                        border:
-                          "1px solid color-mix(in srgb, var(--primary) 18%, transparent)",
-                      }}
-                    >
-                      <span className="text-base leading-none">⭐</span>
-                      <div>
-                        <p
-                          className="font-semibold"
-                          style={{ color: "var(--primary)" }}
-                        >
-                          Linha 2 = Resumo da disciplina
-                        </p>
-                        <p style={{ color: "var(--muted-text)" }}>
-                          Acerto médio + total de questões. Acerto = 1.00 (100%
-                          do peso).
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className="flex items-start gap-2 p-2 rounded-lg"
-                      style={{
-                        background:
-                          "color-mix(in srgb, var(--accent-amber) 6%, transparent)",
-                        border:
-                          "1px solid color-mix(in srgb, var(--accent-amber) 18%, transparent)",
-                      }}
-                    >
-                      <span className="text-base leading-none"></span>
-                      <div>
-                        <p
-                          className="font-semibold"
-                          style={{ color: "var(--accent-amber)" }}
-                        >
-                          Revisar / Avançar / Discursiva
-                        </p>
-                        <p style={{ color: "var(--muted-text)" }}>
-                          Escreva X na célula para ativar a flag no tópico.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 3 — TEC tip */}
-                <div
-                  className="flex items-start gap-3 p-4 rounded-xl"
-                  style={{
-                    background:
-                      "color-mix(in srgb, var(--accent-green) 6%, transparent)",
-                    border:
-                      "1px solid color-mix(in srgb, var(--accent-green) 20%, transparent)",
-                  }}
-                >
-                  <span
-                    className="text-xl leading-none shrink-0 font-bold"
-                    style={{ color: "var(--accent-amber)" }}
-                  >
-                    !
-                  </span>
-                  <div className="text-sm">
-                    <p
-                      className="font-semibold"
-                      style={{ color: "var(--accent-green)" }}
-                    >
-                      Dica: exportar direto do TEC Concursos
-                    </p>
-                    <p
-                      className="mt-1 text-xs"
-                      style={{ color: "var(--muted-text)" }}
-                    >
-                      No site do TEC Concursos, vá em{" "}
-                      <strong style={{ color: "var(--app-fg)" }}>
-                        Estatísticas → Exportar Excel
-                      </strong>
-                      . O arquivo já vem no formato correto com todas as
-                      colunas. Basta fazer o upload aqui!
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 pb-6">
-                <button
-                  onClick={() => setShowGuide(false)}
-                  className="w-full py-3 rounded-xl font-bold text-[var(--primary-foreground)] text-sm transition-all hover:opacity-85"
-                  style={{ background: "var(--primary)" }}
-                >
-                  Entendido, vou importar!
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Confirm clear modal */}
-        {confirmClear && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.65)" }}
-          >
-            <div
-              className="w-full max-sm rounded-2xl p-6 space-y-4"
-              style={{
-                background: "var(--card-bg, var(--app-bg))",
-                border: "1px solid var(--card-border)",
-              }}
-            >
-              <h3
-                className="font-black text-base"
-                style={{ color: "var(--app-fg)" }}
-              >
-                Limpar conteúdo?
-              </h3>
-              <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-                Isso apaga todos os tópicos. Não pode ser desfeito.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmClear(false)}
-                  className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                  style={{
-                    background: "var(--stat-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--app-fg)",
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={clearAll}
-                  className="flex-1 py-2 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: "var(--accent-red, #dc2626)" }}
-                >
-                  Limpar tudo
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-48">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
-              style={{ color: "var(--muted-text)" }}
-            />
-            <input
-              placeholder="Pesquisar tópico..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none"
-              style={inputStyle}
-            />
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={handleImport}
-          />
-          <button
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
             onClick={() => setShowGuide(true)}
-            title="Como montar a planilha"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium hover:opacity-80"
-            style={{
-              background: "var(--stat-bg)",
-              border: "1px solid var(--card-border)",
-              color: "var(--muted-text)",
-            }}
           >
-            <HelpCircle className="h-4 w-4" /> Guia
-          </button>
-          <button
+            <HelpCircle size={14} className="mr-2" /> Guia
+          </Button>
+          <Button
+            className="h-9 px-6 rounded-md text-[10px] font-bold uppercase tracking-wider"
             onClick={() => setImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-85"
-            style={{
-              background: "var(--primary)",
-              color: "var(--primary-foreground)",
-            }}
           >
-            <Sparkles className="h-4 w-4" /> Importar Conteúdo (IA)
-          </button>
-          {rows.length > 0 && (
-            <button
-              onClick={() => setConfirmClear(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium hover:opacity-80"
-              style={{
-                background: "var(--stat-bg)",
-                border: "1px solid var(--accent-red, #dc2626)",
-                color: "var(--accent-red, #dc2626)",
-              }}
-            >
-              <Trash2 className="h-4 w-4" /> Limpar
-            </button>
-          )}
+            <Plus size={14} className="mr-2" /> Importar Conteúdo (IA)
+          </Button>
         </div>
-
-        {/* Stats bar */}
-        {totalTopics > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {
-                label: "Total de tópicos",
-                value: totalTopics,
-                color: "var(--primary)",
-                icon: BookOpen,
-              },
-              {
-                label: "Concluídos",
-                value: completedTopics,
-                color: "#10b981",
-                icon: CheckCircle2,
-              },
-              {
-                label: "Para revisar",
-                value: revisarCount,
-                color: "#f59e0b",
-                icon: TrendingUp,
-              },
-              {
-                label: "Para avançar",
-                value: avancarCount,
-                color: "#3b82f6",
-                icon: ChevronRight,
-              },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="soe-card p-5 relative overflow-hidden group"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                    {s.label}
-                  </p>
-                  <s.icon
-                    className="w-4 h-4 opacity-20 group-hover:opacity-100 transition-opacity"
-                    style={{ color: s.color }}
-                  />
-                </div>
-                <p
-                  className="text-3xl font-black tabular-nums"
-                  style={{ color: s.color }}
-                >
-                  {s.value}
-                </p>
-                <div
-                  className="absolute bottom-0 left-0 h-1 bg-current opacity-10 transition-all group-hover:opacity-30"
-                  style={{ width: "100%", color: s.color }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Filter chips */}
-        {totalTopics > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["all", "Todos", null],
-                ["revisar", "Revisar", "var(--accent-amber)"],
-                ["avancar", "Avançar", "var(--accent-blue, #2563eb)"],
-                ["discursiva", "Discursiva", "var(--accent-violet, #7c3aed)"],
-                ["sem_acerto", "Sem acerto", "var(--muted-text)"],
-              ] as [string, string, string | null][]
-            ).map(([val, label, color]) => (
-              <button
-                key={val}
-                onClick={() => setFilterFlag(val as any)}
-                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${filterFlag === val ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]" : "bg-white/5 text-white/30 border-white/5 hover:bg-white/10"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {rows.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 gap-6 rounded-[2rem] border-2 border-dashed border-white/5 bg-white/[0.02]">
-            <div className="w-24 h-24 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)]">
-              <Upload className="h-10 w-10 text-[var(--primary)] animate-bounce" />
-            </div>
-            <div className="text-center space-y-2">
-              <p
-                className="font-black text-2xl"
-                style={{ color: "var(--app-fg)" }}
-              >
-                Sua jornada começa aqui.
-              </p>
-              <p className="text-sm max-w-sm opacity-50 mx-auto leading-relaxed">
-                Importe sua planilha do TEC Concursos ou siga nosso guia para
-                montar seu mapeamento personalizado.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowGuide(true)}
-                className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-all"
-              >
-                Ver Guia
-              </button>
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] transition-all active:scale-95"
-                style={{ background: "var(--primary)" }}
-              >
-                <Upload className="h-4 w-4" /> Importar Agora
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Discipline groups */}
-        {filteredGrouped.map((group) => {
-          const isCollapsed = collapsed[group.name];
-          const header = group.header;
-          const completedInGroup = group.topics.filter(
-            (t) => t.completed,
-          ).length;
-          const progressPct =
-            group.topics.length > 0
-              ? Math.round((completedInGroup / group.topics.length) * 100)
-              : 0;
-
-          return (
-            <div
-              key={group.name}
-              className="soe-card overflow-hidden group/disc"
-            >
-              {/* Discipline header */}
-              <div
-                className="flex items-center gap-4 px-6 py-4 select-none cursor-pointer hover:bg-white/[0.02] transition-colors"
-                onClick={() =>
-                  setCollapsed((c) => ({ ...c, [group.name]: !c[group.name] }))
-                }
-              >
-                <div
-                  className={`p-2 rounded-lg transition-all ${isCollapsed ? "bg-white/5 text-white/40" : "bg-[var(--primary-bg-subtle)] text-[var(--primary)]"}`}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span
-                      className="font-black text-lg tracking-tight"
-                      style={{ color: "var(--app-fg)" }}
-                    >
-                      {group.name}
-                    </span>
-                    {header?.acerto !== undefined && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
-                        <div
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: hitColor(header.acerto) }}
-                        />
-                        <span
-                          className="text-[10px] font-black uppercase tracking-widest"
-                          style={{ color: hitColor(header.acerto) }}
-                        >
-                          {Math.round(header.acerto * 100)}% acerto
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {group.topics.length > 0 && (
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden max-w-[200px]">
-                        <div
-                          className="h-full bg-[var(--primary)] shadow-[0_0_8px_var(--primary-shadow)] transition-all duration-500"
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-black opacity-30 uppercase tracking-widest">
-                        {completedInGroup} / {group.topics.length} concluídos
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <button
-                  title="Remover disciplina"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteDiscipline(group.name);
-                  }}
-                  className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-500/20 hover:text-rose-500 transition-all opacity-0 group-hover/disc:opacity-100"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Topics table */}
-              {!isCollapsed && group.topics.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table
-                    className="w-full text-xs"
-                    style={{ background: "var(--card-bg, var(--app-bg))" }}
-                  >
-                    <thead>
-                      <tr
-                        style={{
-                          borderBottom: "1px solid var(--card-border)",
-                          background: "var(--stat-bg)",
-                        }}
-                      >
-                        <th
-                          className="text-left px-4 py-2 font-semibold w-6"
-                          style={{ color: "var(--muted-text)" }}
-                        ></th>
-                        <th
-                          className="text-left px-2 py-2 font-semibold"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          Tópico
-                        </th>
-                        <th
-                          className="text-center px-2 py-2 font-semibold whitespace-nowrap"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          Questões
-                        </th>
-                        <th
-                          className="text-center px-2 py-2 font-semibold whitespace-nowrap"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          Incidência
-                        </th>
-                        <th
-                          className="text-center px-2 py-2 font-semibold whitespace-nowrap"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          Acerto
-                        </th>
-                        <th
-                          className="text-center px-2 py-2 font-semibold"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          Flags
-                        </th>
-                        <th className="px-2 py-2 w-8"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.topics.map((t, i) => (
-                        <tr
-                          key={t.id}
-                          className="transition-all hover:bg-white/[0.01]"
-                          style={{
-                            borderBottom:
-                              i < group.topics.length - 1
-                                ? "1px solid var(--card-border)"
-                                : "none",
-                            opacity: t.completed ? 0.4 : 1,
-                            background: t.completed
-                              ? "rgba(16, 185, 129, 0.02)"
-                              : "transparent",
-                          }}
-                        >
-                          {/* Checkbox */}
-                          <td className="px-4 py-2.5">
-                            <button
-                              onClick={() => toggleCompleted(t.id)}
-                              style={{
-                                color: t.completed
-                                  ? "var(--accent-green)"
-                                  : "var(--muted-text)",
-                              }}
-                            >
-                              {t.completed ? (
-                                <CheckCircle2 className="h-4 w-4" />
-                              ) : (
-                                <Circle className="h-4 w-4" />
-                              )}
-                            </button>
-                          </td>
-                          {/* Topic name — inline editable */}
-                          <td className="px-2 py-2.5 max-w-xs">
-                            {editingId === `name-${t.id}` ? (
-                              <input
-                                autoFocus
-                                defaultValue={editingTopicText}
-                                onChange={(e) =>
-                                  setEditingTopicText(e.target.value)
-                                }
-                                onBlur={() => saveEditTopic(t.id)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveEditTopic(t.id);
-                                  if (e.key === "Escape") setEditingId(null);
-                                }}
-                                className="w-full px-2 py-1 rounded-lg outline-none text-xs"
-                                style={{
-                                  background: "var(--input-bg)",
-                                  border: "1px solid var(--primary)",
-                                  color: "var(--app-fg)",
-                                }}
-                              />
-                            ) : (
-                              <span
-                                className={`leading-tight ${t.completed ? "line-through" : ""}`}
-                                style={{ color: "var(--app-fg)" }}
-                              >
-                                {t.topic}
-                                {allTopics.some(
-                                  (at) =>
-                                    at.name.toLowerCase() ===
-                                    t.topic.toLowerCase(),
-                                ) && (
-                                  <Badge
-                                    variant="outline"
-                                    className="ml-2 scale-75 h-4 border-[var(--primary)] text-[var(--primary)] font-black text-[8px] uppercase tracking-tighter bg-[var(--primary)]/5"
-                                  >
-                                    Registrado
-                                  </Badge>
-                                )}
-                                {libraryStats?.[t.topic] && (
-                                  <Badge className="ml-2 scale-75 h-4 bg-orange-500 text-white font-black text-[8px] uppercase tracking-tighter border-none shadow-sm animate-pulse">
-                                    {libraryStats[t.topic]} Qs no Lab
-                                  </Badge>
-                                )}
-                              </span>
-                            )}
-                          </td>
-                          {/* Quantidade */}
-                          <td
-                            className="px-2 py-2.5 text-center whitespace-nowrap"
-                            style={{ color: "var(--muted-text)" }}
-                          >
-                            {t.quantidade?.toLocaleString() ?? "—"}
-                          </td>
-                          {/* Incidência bar */}
-                          <td className="px-2 py-2.5 text-center">
-                            {t.incidencia !== undefined ? (
-                              <div className="flex items-center gap-2 justify-center">
-                                <div className="w-12 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                  <div
-                                    className="h-full bg-[var(--primary)] opacity-60"
-                                    style={{
-                                      width: `${Math.round(t.incidencia * 100)}%`,
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-[10px] font-black opacity-30">
-                                  {(t.incidencia * 100).toFixed(0)}%
-                                </span>
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          {/* Acerto — editable */}
-                          <td className="px-2 py-2.5 text-center">
-                            {editingId === t.id ? (
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={1}
-                                defaultValue={
-                                  t.acerto !== undefined
-                                    ? Math.round(t.acerto * 100)
-                                    : ""
-                                }
-                                autoFocus
-                                onBlur={(e) => {
-                                  updateAcerto(t.id, e.target.value);
-                                  setEditingId(null);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter")
-                                    (e.target as HTMLInputElement).blur();
-                                  if (e.key === "Escape") setEditingId(null);
-                                }}
-                                className="w-16 text-center px-2 py-1 rounded-lg outline-none text-xs"
-                                style={inputStyle}
-                              />
-                            ) : (
-                              <button
-                                onClick={() => setEditingId(t.id)}
-                                className="font-bold px-2 py-0.5 rounded-lg transition-all hover:opacity-70"
-                                style={{
-                                  color: hitColor(t.acerto),
-                                  background: `${hitColor(t.acerto)}18`,
-                                }}
-                              >
-                                {t.acerto !== undefined
-                                  ? `${Math.round(t.acerto * 100)}%`
-                                  : "—"}
-                              </button>
-                            )}
-                          </td>
-                          {/* Flags */}
-                          <td className="px-2 py-2.5">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {(
-                                [
-                                  [
-                                    "revisar",
-                                    "R",
-                                    "var(--accent-amber)",
-                                    "Revisar",
-                                  ],
-                                  [
-                                    "avancar",
-                                    "A",
-                                    "var(--accent-blue, #2563eb)",
-                                    "Avançar",
-                                  ],
-                                  [
-                                    "discursiva",
-                                    "D",
-                                    "var(--accent-violet, #7c3aed)",
-                                    "Discursiva",
-                                  ],
-                                ] as [
-                                  keyof EditalTopico,
-                                  string,
-                                  string,
-                                  string,
-                                ][]
-                              ).map(([flag, letter, color, title]) => (
-                                <button
-                                  key={flag}
-                                  title={title}
-                                  onClick={() =>
-                                    toggleFlag(
-                                      t.id,
-                                      flag as
-                                        | "revisar"
-                                        | "avancar"
-                                        | "discursiva",
-                                    )
-                                  }
-                                  className={`w-6 h-6 rounded-lg text-[10px] font-black transition-all flex items-center justify-center border ${t[flag] ? "text-white shadow-sm" : "text-white/10 border-white/5 bg-white/[0.02] hover:text-white/30"}`}
-                                  style={{
-                                    backgroundColor: t[flag]
-                                      ? color
-                                      : undefined,
-                                    borderColor: t[flag] ? color : undefined,
-                                  }}
-                                >
-                                  {letter}
-                                </button>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-2 py-2.5">
-                            <div className="flex items-center gap-1">
-                              <button
-                                title="Registrar Estudo (Teoria)"
-                                onClick={() => openRegisterStudy(t)}
-                                className="p-1 rounded-lg hover:bg-[var(--primary)]/10 text-[var(--primary)] transition-all"
-                              >
-                                <Clock className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                title="Editar nome"
-                                onClick={() => {
-                                  setEditingId(`name-${t.id}`);
-                                  setEditingTopicText(t.topic);
-                                }}
-                                className="p-1 rounded-lg hover:opacity-70 transition-all"
-                                style={{ color: "var(--muted-text)" }}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                title="Remover tópico"
-                                onClick={() => deleteTopic(t.id)}
-                                className="p-1 rounded-lg hover:opacity-70 transition-all"
-                                style={{ color: "var(--accent-red, #dc2626)" }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
 
-      {/* Modal de Registro de Estudo */}
+      {showGuide && (
+        <Dialog open={showGuide} onOpenChange={setShowGuide}>
+          <DialogContent className="max-w-2xl rounded-lg border-border bg-card p-0 overflow-hidden">
+            <DialogHeader className="p-6 border-b border-border bg-secondary/30">
+              <DialogTitle className="text-lg font-bold">
+                Guia de Organização
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Como estruturar seu material para importação perfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <CheckCircle2 size={14} /> 1. Disciplinas por Abas
+                </h4>
+                <p className="text-sm opacity-70 leading-relaxed">
+                  No Excel, cada disciplina deve ser uma aba (Sheet) separada. A
+                  IA identificará o nome da matéria pelo nome da aba.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <CheckCircle2 size={14} /> 2. Colunas Padrão (TEC)
+                </h4>
+                <p className="text-sm opacity-70 leading-relaxed">
+                  A primeira coluna deve ser o **% de Acerto**. A coluna de
+                  **Índice** deve conter os nomes dos tópicos.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                  <CheckCircle2 size={14} /> 3. Importação via IA
+                </h4>
+                <p className="text-sm opacity-70 leading-relaxed">
+                  Você pode simplesmente colar o texto do edital oficial ou
+                  subir o PDF. Nossa IA vai estruturar as matérias e tópicos
+                  para você automaticamente.
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="p-4 bg-secondary/30 border-t border-border">
+              <Button
+                onClick={() => setShowGuide(false)}
+                className="h-10 px-8 rounded-md font-bold text-[10px] uppercase tracking-wider"
+              >
+                Entendi
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="soe-card flex flex-col items-center justify-center py-24 px-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary/30">
+            <Upload size={32} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold">Sua jornada começa aqui.</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              Importe sua planilha do TEC Concursos ou utilize nossa IA para
+              mapear o conteúdo do seu edital automaticamente.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowGuide(true)}
+              className="h-11 rounded-md px-8 text-[10px] font-bold uppercase tracking-widest"
+            >
+              Ver Guia
+            </Button>
+            <Button
+              onClick={() => setImportModalOpen(true)}
+              className="h-11 rounded-md px-10 text-[10px] font-bold uppercase tracking-widest"
+            >
+              Importar Agora
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-40 group-focus-within:opacity-100 transition-opacity" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pesquisar tópico..."
+                className="w-full h-10 pl-10 pr-4 rounded-md bg-secondary/50 border border-border text-sm font-medium outline-none focus:border-primary transition-all"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+              {[
+                { id: "all", label: "Tudo" },
+                { id: "sem_acerto", label: "Sem Dados" },
+                { id: "revisar", label: "Revisar" },
+                { id: "avancar", label: "Avançar" },
+                { id: "discursiva", label: "Discursiva" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilterFlag(f.id as any)}
+                  className={cn(
+                    "h-10 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all border",
+                    filterFlag === f.id
+                      ? "bg-primary text-white border-primary"
+                      : "bg-secondary/30 border-border/50 text-muted-foreground hover:bg-secondary/50",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {filteredGrouped.map((group) => (
+              <div key={group.name} className="soe-card overflow-hidden">
+                <div
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-secondary/20 transition-all border-b border-border/30"
+                  onClick={() => toggleCollapse(group.name)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-1.5 h-6 rounded-full bg-primary" />
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">
+                        {group.name}
+                      </h3>
+                      <p className="text-[10px] font-bold text-muted-foreground opacity-40 uppercase tracking-widest">
+                        {group.topics.length} tópicos •{" "}
+                        {Math.round(
+                          (group.topics.filter((t) => t.completed).length /
+                            group.topics.length) *
+                            100,
+                        ) || 0}
+                        % concluído
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteDiscipline(group.name);
+                      }}
+                      className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <ChevronDown
+                      size={16}
+                      className={cn(
+                        "text-muted-foreground transition-transform duration-300",
+                        collapsed[group.name] ? "-rotate-90" : "",
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {!collapsed[group.name] && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <table className="w-full text-left">
+                        <thead className="bg-secondary/20 border-b border-border/20 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                          <tr>
+                            <th className="px-5 py-3 w-10">Status</th>
+                            <th className="px-5 py-3">Tópico</th>
+                            <th className="px-5 py-3 text-right">Acerto</th>
+                            <th className="px-5 py-3 text-center">Foco</th>
+                            <th className="px-5 py-3 w-32">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/20">
+                          {group.topics.map((t) => (
+                            <tr
+                              key={t.id}
+                              className="hover:bg-secondary/10 transition-colors group/row"
+                            >
+                              <td className="px-5 py-4">
+                                <button
+                                  onClick={() => toggleCompleted(t.id)}
+                                  className={cn(
+                                    "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                                    t.completed
+                                      ? "bg-primary border-primary text-white"
+                                      : "bg-background border-border/50 text-transparent hover:border-primary/50",
+                                  )}
+                                >
+                                  <Check size={12} strokeWidth={4} />
+                                </button>
+                              </td>
+                              <td className="px-5 py-4">
+                                {editingId === t.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      autoFocus
+                                      value={editingTopicText}
+                                      onChange={(e) =>
+                                        setEditingTopicText(e.target.value)
+                                      }
+                                      onKeyDown={(e) =>
+                                        e.key === "Enter" && saveEditTopic(t.id)
+                                      }
+                                      className="flex-1 h-8 bg-background border border-primary rounded px-2 text-xs font-medium outline-none"
+                                    />
+                                    <button
+                                      onClick={() => saveEditTopic(t.id)}
+                                      className="p-1 rounded bg-primary text-white"
+                                    >
+                                      <Check size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span
+                                    className={cn(
+                                      "text-xs font-semibold text-foreground/80",
+                                      t.completed && "opacity-40 line-through",
+                                    )}
+                                  >
+                                    {t.topic}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  <span
+                                    className="text-[10px] font-bold tabular-nums"
+                                    style={{ color: hitColor(t.acerto) }}
+                                  >
+                                    {t.acerto !== undefined
+                                      ? `${Math.round(t.acerto * 100)}%`
+                                      : "—"}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    className="w-10 h-7 bg-secondary/50 border border-border/30 rounded text-[10px] font-bold text-center outline-none focus:border-primary opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                    placeholder="%"
+                                    onChange={(e) =>
+                                      updateAcerto(t.id, e.target.value)
+                                    }
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {[
+                                    {
+                                      id: "revisar",
+                                      label: "R",
+                                      color: "var(--accent-amber)",
+                                    },
+                                    {
+                                      id: "avancar",
+                                      label: "A",
+                                      color: "var(--primary)",
+                                    },
+                                    {
+                                      id: "discursiva",
+                                      label: "D",
+                                      color: "var(--accent-green)",
+                                    },
+                                  ].map((flag) => (
+                                    <button
+                                      key={flag.id}
+                                      onClick={() =>
+                                        toggleFlag(t.id, flag.id as any)
+                                      }
+                                      className={cn(
+                                        "w-6 h-6 rounded-md text-[9px] font-black border transition-all",
+                                        t[flag.id as keyof EditalTopico]
+                                          ? "text-white border-transparent"
+                                          : "bg-background border-border/30 text-muted-foreground opacity-30 hover:opacity-100",
+                                      )}
+                                      style={{
+                                        background: t[
+                                          flag.id as keyof EditalTopico
+                                        ]
+                                          ? flag.color
+                                          : undefined,
+                                      }}
+                                    >
+                                      {flag.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => openRegisterStudy(t)}
+                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-all"
+                                    title="Estudar Agora"
+                                  >
+                                    <Clock size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingId(t.id);
+                                      setEditingTopicText(t.topic);
+                                    }}
+                                    className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground transition-all"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteTopic(t.id)}
+                                    className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-all"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Register Study Modal */}
       <Dialog
         open={studyModal.open}
         onOpenChange={(o) => !o && setStudyModal({ open: false, topic: null })}
       >
-        <DialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-8 max-w-lg">
+        <DialogContent className="rounded-lg border-border bg-card p-6 max-w-md">
           <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-[var(--primary-bg-subtle)] flex items-center justify-center text-[var(--primary)] mb-4">
-              <Clock size={24} />
-            </div>
-            <DialogTitle className="text-2xl font-black">
+            <DialogTitle className="text-xl font-bold">
               Registrar Estudo
             </DialogTitle>
-            <DialogDescription className="text-sm opacity-60">
-              Confirme os detalhes do estudo para gerar o ciclo de revisões.
+            <DialogDescription className="text-xs">
+              Inicie uma sessão de estudo para este tópico.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                 Disciplina
               </label>
               <Select
                 value={String(studyForm.disciplineId)}
-                onValueChange={(val) =>
-                  setStudyForm({ ...studyForm, disciplineId: Number(val) })
+                onValueChange={(v) =>
+                  setStudyForm({ ...studyForm, disciplineId: Number(v) })
                 }
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/5 text-sm font-bold focus:ring-0">
-                  <SelectValue placeholder="Selecione a disciplina..." />
+                <SelectTrigger className="h-10 rounded-md bg-secondary/50 border-border font-bold text-xs">
+                  <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-white/10 bg-[var(--app-bg)]">
+                <SelectContent className="rounded-md border-border bg-card">
                   {disciplines?.map((d) => (
-                    <SelectItem
-                      key={d.id}
-                      value={String(d.id)}
-                      className="rounded-xl"
-                    >
+                    <SelectItem key={d.id} value={String(d.id)}>
                       {d.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                 Tópico
               </label>
-              <div className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold flex items-center opacity-60">
+              <div className="p-3 bg-secondary/30 rounded-md border border-border/50 text-xs font-bold text-muted-foreground">
                 {studyModal.topic?.topic}
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                   Data
                 </label>
                 <input
@@ -1614,11 +908,11 @@ function EditalTab({
                   onChange={(e) =>
                     setStudyForm({ ...studyForm, studyDate: e.target.value })
                   }
-                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all [color-scheme:dark]"
+                  className="w-full h-10 px-3 rounded-md bg-secondary/50 border-border text-xs font-bold [color-scheme:dark]"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                   Tempo (Min)
                 </label>
                 <input
@@ -1630,104 +924,97 @@ function EditalTab({
                       studyTimeMinutes: Number(e.target.value),
                     })
                   }
-                  className="w-full px-5 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                  className="w-full h-10 px-3 rounded-md bg-secondary/50 border-border text-xs font-bold"
                 />
               </div>
             </div>
-
-            <button
+          </div>
+          <DialogFooter>
+            <Button
               onClick={handleRegisterStudy}
               disabled={createTopic.isPending}
-              className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-md font-bold text-[11px] uppercase tracking-widest"
             >
-              {createTopic.isPending ? (
-                "Registrando..."
-              ) : (
-                <>
-                  <Check size={16} strokeWidth={3} /> Registrar e Agendar
-                  Revisões
-                </>
-              )}
-            </button>
-          </div>
+              {createTopic.isPending
+                ? "Processando..."
+                : "Iniciar e Agendar Revisões"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* NOVO MODAL DE IMPORTAÇÃO */}
+      {/* Import Modal */}
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-        <DialogContent className="rounded-[2.5rem] border-white/10 bg-[var(--app-bg)] p-0 max-w-2xl overflow-hidden">
-          <div className="p-8 space-y-6">
-            <DialogHeader>
-              <div className="w-12 h-12 rounded-2xl bg-[var(--primary-bg-subtle)] flex items-center justify-center text-[var(--primary)] mb-4">
-                <Wand2 size={24} />
+        <DialogContent className="max-w-2xl rounded-lg border-border bg-card p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b border-border bg-secondary/30">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                <Wand2 size={20} />
               </div>
-              <DialogTitle className="text-2xl font-black">
-                Importar Conteúdo
-              </DialogTitle>
-              <DialogDescription className="text-sm opacity-60">
-                Escolha a melhor forma de alimentar seu conteúdo programático.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Tabs defaultValue="ia" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-white/5 p-1 h-12 mb-6">
-                <TabsTrigger
-                  value="ia"
-                  className="rounded-xl data-[state=active]:bg-[var(--primary)] data-[state=active]:text-white font-bold text-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 mr-2" /> Extrair via IA
-                </TabsTrigger>
-                <TabsTrigger
-                  value="manual"
-                  className="rounded-xl data-[state=active]:bg-[var(--primary)] data-[state=active]:text-white font-bold text-xs"
-                >
-                  <FileText className="w-3.5 h-3.5 mr-2" /> Colar Texto
-                </TabsTrigger>
-                <TabsTrigger
-                  value="xlsx"
-                  className="rounded-xl data-[state=active]:bg-[var(--primary)] data-[state=active]:text-white font-bold text-xs"
-                >
-                  <UploadCloud className="w-3.5 h-3.5 mr-2" /> Planilha (LEGACY)
-                </TabsTrigger>
-              </TabsList>
-
+              <div>
+                <DialogTitle className="text-xl font-bold">
+                  Importar Conteúdo
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Alimente seu edital usando IA ou colando seu material.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <Tabs defaultValue="ia" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-secondary/30 h-12 p-1 rounded-none border-b border-border">
+              <TabsTrigger
+                value="ia"
+                className="text-[10px] font-bold uppercase tracking-wider"
+              >
+                Extrair via IA
+              </TabsTrigger>
+              <TabsTrigger
+                value="manual"
+                className="text-[10px] font-bold uppercase tracking-wider"
+              >
+                Manual
+              </TabsTrigger>
+              <TabsTrigger
+                value="xlsx"
+                className="text-[10px] font-bold uppercase tracking-wider"
+              >
+                Planilha
+              </TabsTrigger>
+            </TabsList>
+            <div className="p-8">
               <TabsContent
                 value="ia"
-                className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                className="space-y-6 animate-in fade-in slide-in-from-bottom-2"
               >
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                       Cargo Pretendido
                     </label>
                     <input
-                      placeholder="Ex: Agente da Polícia Federal"
-                      className="w-full px-5 h-12 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                      placeholder="Ex: Auditor da Receita Federal"
                       value={iaForm.role}
                       onChange={(e) =>
                         setIaForm({ ...iaForm, role: e.target.value })
                       }
+                      className="w-full h-10 px-4 rounded-md bg-secondary/30 border border-border text-sm font-bold outline-none focus:border-primary transition-all"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                        Upload PDF
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                        Arquivo PDF
                       </label>
-                      <label className="flex flex-col items-center justify-center w-full h-32 rounded-2xl border-2 border-dashed border-white/5 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all group">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-6 h-6 mb-2 opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                          <p className="text-[10px] font-bold opacity-40 group-hover:opacity-100">
-                            {iaForm.file
-                              ? iaForm.file.name
-                              : "Clique ou arraste o PDF"}
-                          </p>
-                        </div>
+                      <label className="flex flex-col items-center justify-center h-32 rounded-md border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer transition-all">
+                        <UploadCloud size={24} className="mb-2 opacity-30" />
+                        <span className="text-[10px] font-bold opacity-60">
+                          {iaForm.file ? iaForm.file.name : "Subir PDF"}
+                        </span>
                         <input
                           type="file"
-                          className="hidden"
                           accept=".pdf"
+                          className="hidden"
                           onChange={(e) =>
                             setIaForm({
                               ...iaForm,
@@ -1737,49 +1024,42 @@ function EditalTab({
                         />
                       </label>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                        Ou cole o texto aqui
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                        Texto do Edital
                       </label>
                       <Textarea
-                        placeholder="Copie e cole o texto do edital..."
-                        className="h-32 rounded-2xl bg-white/5 border-white/5 resize-none text-xs focus-visible:ring-[var(--primary)]"
+                        placeholder="Cole aqui..."
                         value={iaForm.text}
                         onChange={(e) =>
                           setIaForm({ ...iaForm, text: e.target.value })
                         }
+                        className="h-32 rounded-md bg-secondary/30 border-border text-xs resize-none"
                       />
                     </div>
                   </div>
                 </div>
-
-                <button
+                <Button
                   onClick={handleAiSubmit}
                   disabled={parseEditalAi.isPending}
-                  className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full h-12 rounded-md font-bold text-[11px] uppercase tracking-widest"
                 >
-                  {parseEditalAi.isPending ? (
-                    "Processando Edital..."
-                  ) : (
-                    <>
-                      <Wand2 size={16} /> Deixar que a IA organize tudo
-                    </>
-                  )}
-                </button>
+                  {parseEditalAi.isPending
+                    ? "Processando..."
+                    : "Extrair Estrutura com IA"}
+                </Button>
               </TabsContent>
-
               <TabsContent
                 value="manual"
-                className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                className="space-y-6 animate-in fade-in slide-in-from-bottom-2"
               >
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
                       Nome da Disciplina
                     </label>
                     <input
-                      placeholder="Ex: Direito Constitucional"
-                      className="w-full px-5 h-12 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-[var(--primary)] transition-all"
+                      placeholder="Ex: Português"
                       value={manualForm.discipline}
                       onChange={(e) =>
                         setManualForm({
@@ -1787,64 +1067,74 @@ function EditalTab({
                           discipline: e.target.value,
                         })
                       }
+                      className="w-full h-10 px-4 rounded-md bg-secondary/30 border border-border text-sm font-bold outline-none focus:border-primary transition-all"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                      Tópicos (um por linha ou separados por vírgula)
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                      Tópicos (um por linha)
                     </label>
                     <Textarea
-                      placeholder="Ortografia&#10;Acentuação Gráfica&#10;Pontuação..."
-                      className="h-40 rounded-2xl bg-white/5 border-white/5 resize-none text-sm focus-visible:ring-[var(--primary)]"
+                      placeholder="Ex:&#10;Interpretação de Texto&#10;Sintaxe..."
                       value={manualForm.topics}
                       onChange={(e) =>
                         setManualForm({ ...manualForm, topics: e.target.value })
                       }
+                      className="h-40 rounded-md bg-secondary/30 border-border text-xs resize-none"
                     />
                   </div>
                 </div>
-                <button
+                <Button
                   onClick={handleManualSubmit}
                   disabled={quickAddManual.isPending}
-                  className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full h-12 rounded-md font-bold text-[11px] uppercase tracking-widest"
                 >
                   {quickAddManual.isPending
                     ? "Adicionando..."
-                    : "Adicionar Tópicos"}
-                </button>
+                    : "Criar Disciplina e Tópicos"}
+                </Button>
               </TabsContent>
-
               <TabsContent
                 value="xlsx"
-                className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 py-10 text-center"
+                className="py-12 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-2"
               >
-                <div className="flex flex-col items-center gap-4">
-                  <Upload className="w-12 h-12 opacity-10" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-sm">Método de Planilha</p>
-                    <p className="text-xs opacity-50 px-10">
-                      Mantenha o padrão TEC Concursos se preferir usar Excel.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    disabled={importing}
-                    className="mt-4 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-semibold transition-all bg-white/5 border border-white/10 hover:bg-white/10"
-                  >
-                    {importing ? "Importando..." : "Selecionar Arquivo .xlsx"}
-                  </button>
+                <div className="w-20 h-20 rounded-full bg-secondary/30 flex items-center justify-center border border-border">
+                  <UploadCloud size={32} className="opacity-20" />
                 </div>
+                <div className="text-center space-y-2">
+                  <h4 className="text-sm font-bold">
+                    Importação Legada (Excel)
+                  </h4>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    Use este método se você já possui a planilha estruturada do
+                    TEC Concursos.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => fileRef.current?.click()}
+                  variant="outline"
+                  className="h-10 px-8 rounded-md font-bold text-[10px] uppercase tracking-widest"
+                >
+                  {importing ? "Importando..." : "Selecionar .XLSX"}
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls"
+                  onChange={handleImport}
+                />
               </TabsContent>
-            </Tabs>
-          </div>
+            </div>
+          </Tabs>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
+// ─── Cycle Components ────────────────────────────────────────────────────────
 function AssignDropdown({
-  cycleKey,
   unassigned,
   onAssign,
 }: {
@@ -1857,25 +1147,17 @@ function AssignDropdown({
   return (
     <div className="relative px-2 pb-2">
       <button
-        className="w-full text-xs py-1.5 rounded-lg flex items-center justify-center gap-1.5 border border-dashed hover:opacity-70 transition-opacity"
-        style={{ color: "var(--primary)", borderColor: "var(--primary)" }}
+        className="w-full text-[9px] font-bold uppercase tracking-wider py-2 rounded-md border border-dashed border-primary/40 text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
         onClick={() => setOpen((v) => !v)}
       >
-        <Plus className="w-3.5 h-3.5" /> Adicionar disciplina
+        <Plus className="w-3.5 h-3.5" /> Adicionar
       </button>
       {open && (
-        <div
-          className="absolute bottom-full left-2 right-2 mb-1 rounded-lg shadow-xl z-20 overflow-hidden max-h-48 overflow-y-auto"
-          style={{
-            background: "var(--app-bg)",
-            border: "1px solid var(--card-border)",
-          }}
-        >
+        <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md shadow-2xl z-20 overflow-hidden max-h-48 overflow-y-auto bg-card border border-border">
           {unassigned.map((d) => (
             <button
               key={d.id}
-              className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:opacity-70 transition-opacity"
-              style={{ borderBottom: "1px solid var(--card-border)" }}
+              className="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-tight flex items-center gap-2 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
               onClick={() => {
                 onAssign(d.id);
                 setOpen(false);
@@ -1885,7 +1167,7 @@ function AssignDropdown({
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ background: d.color }}
               />
-              <span style={{ color: "var(--app-fg)" }}>{d.name}</span>
+              <span className="text-foreground">{d.name}</span>
             </button>
           ))}
         </div>
@@ -1894,7 +1176,6 @@ function AssignDropdown({
   );
 }
 
-// ─── Discipline Progress Table ────────────────────────────────────────────────
 function DisciplineProgressTable({
   disciplines,
   expandedDisc,
@@ -1927,242 +1208,129 @@ function DisciplineProgressTable({
 
   return (
     <div className="soe-card overflow-hidden">
-      <div
-        className="px-4 py-3 flex items-center gap-2"
-        style={{
-          borderBottom: "1px solid var(--card-border)",
-          background: "var(--stat-bg)",
-        }}
-      >
-        <TrendingUp className="w-4 h-4" style={{ color: "var(--primary)" }} />
-        <span
-          className="text-sm font-semibold"
-          style={{ color: "var(--app-fg)" }}
-        >
-          Avanço por Disciplina e Tema
-        </span>
-        <span
-          className="text-xs ml-auto"
-          style={{ color: "var(--muted-text)" }}
-        >
-          Clique para expandir temas
-        </span>
+      <div className="px-5 py-4 border-b border-border bg-secondary/20 flex items-center gap-3">
+        <TrendingUp className="w-4 h-4 text-primary" />
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground">
+          Acompanhamento de Progresso
+        </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr
-              style={{
-                background: "var(--stat-bg)",
-                borderBottom: "1px solid var(--card-border)",
-              }}
-            >
-              <th
-                className="text-left px-4 py-2.5 text-xs font-semibold"
-                style={{ color: "var(--muted-text)" }}
-              >
-                Disciplina / Tema
-              </th>
-              <th
-                className="text-right px-3 py-2.5 text-xs font-semibold w-[80px]"
-                style={{ color: "var(--muted-text)" }}
-              >
-                Questões
-              </th>
-              <th
-                className="text-right px-3 py-2.5 text-xs font-semibold w-[70px]"
-                style={{ color: "var(--muted-text)" }}
-              >
-                Acerto
-              </th>
-              <th
-                className="px-4 py-2.5 text-xs font-semibold w-[100px]"
-                style={{ color: "var(--muted-text)" }}
-              >
-                Progresso
-              </th>
-              <th
-                className="text-right px-3 py-2.5 text-xs font-semibold w-[70px]"
-                style={{ color: "var(--muted-text)" }}
-              >
-                Tempo
-              </th>
+          <thead className="bg-secondary/10 border-b border-border/50 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            <tr>
+              <th className="text-left px-5 py-3">Disciplina / Tema</th>
+              <th className="text-right px-3 py-3 w-[100px]">Questões</th>
+              <th className="text-right px-3 py-3 w-[80px]">Acerto</th>
+              <th className="px-5 py-3 w-[120px]">Evolução</th>
+              <th className="text-right px-5 py-3 w-[100px]">Tempo</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border/20">
             {disciplines.map((disc) => {
               const acc = disc.performance?.accuracy;
               const q = disc.performance?.questionsResolved ?? 0;
-              const accColor =
-                acc == null
-                  ? "var(--muted-text)"
-                  : acc >= 70
-                    ? "var(--accent-green)"
-                    : acc >= 50
-                      ? "#f59e0b"
-                      : "var(--accent-red)";
               const isExpanded = expandedDisc === disc.id;
               return (
                 <Fragment key={disc.id}>
                   <tr
-                    className="cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ borderBottom: "1px solid var(--card-border)" }}
+                    className="cursor-pointer hover:bg-secondary/10 transition-colors"
                     onClick={() => onExpand(isExpanded ? null : disc.id)}
                   >
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
                         <ChevronRight
-                          className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                          style={{ color: "var(--muted-text)" }}
+                          className={cn(
+                            "w-3.5 h-3.5 transition-transform duration-300 opacity-30",
+                            isExpanded && "rotate-90 opacity-100 text-primary",
+                          )}
                         />
                         <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          className="w-2.5 h-2.5 rounded-full"
                           style={{ background: disc.color }}
                         />
-                        <span
-                          className="font-semibold text-xs"
-                          style={{ color: "var(--app-fg)" }}
-                        >
-                          {disc.name}
-                        </span>
+                        <span className="font-bold text-xs">{disc.name}</span>
                       </div>
                     </td>
-                    <td
-                      className="text-right px-3 py-2.5 text-xs"
-                      style={{ color: "var(--app-fg)" }}
-                    >
+                    <td className="text-right px-3 py-3 text-[10px] font-bold tabular-nums">
                       {q > 0 ? q : "—"}
                     </td>
                     <td
-                      className="text-right px-3 py-2.5 text-xs font-bold"
-                      style={{ color: accColor }}
+                      className="text-right px-3 py-3 text-[10px] font-black tabular-nums"
+                      style={{
+                        color: hitColor(acc != null ? acc / 100 : undefined),
+                      }}
                     >
                       {acc != null ? `${Math.round(acc)}%` : "—"}
                     </td>
-                    <td className="px-4 py-2.5">
-                      {acc != null ? (
-                        <div
-                          className="h-2 rounded-full overflow-hidden"
-                          style={{ background: "var(--stat-border)" }}
-                        >
+                    <td className="px-5 py-3">
+                      {acc != null && (
+                        <div className="h-1.5 rounded-full bg-secondary/50 overflow-hidden">
                           <div
-                            className="h-full rounded-full"
+                            className="h-full rounded-full transition-all duration-1000"
                             style={{
-                              width: `${Math.min(acc, 100)}%`,
-                              background: accColor,
+                              width: `${acc}%`,
+                              background: hitColor(acc / 100),
                             }}
                           />
                         </div>
-                      ) : (
-                        <span
-                          className="text-xs"
-                          style={{ color: "var(--muted-text)" }}
-                        >
-                          sem dados
-                        </span>
                       )}
                     </td>
-                    <td
-                      className="text-right px-3 py-2.5 text-xs"
-                      style={{ color: "var(--muted-text)" }}
-                    >
+                    <td className="text-right px-5 py-3 text-[10px] font-bold text-muted-foreground">
                       {disc.studyTimeSeconds > 0
                         ? fmtTime(disc.studyTimeSeconds)
                         : "—"}
                     </td>
                   </tr>
-                  {isExpanded && topics.length === 0 && (
-                    <tr
-                      style={{ borderBottom: "1px solid var(--card-border)" }}
-                    >
-                      <td
-                        colSpan={5}
-                        className="px-10 py-2 text-xs"
-                        style={{
-                          color: "var(--muted-text)",
-                          background: "var(--stat-bg)",
-                        }}
-                      >
-                        Nenhum tema cadastrado para esta disciplina
-                      </td>
-                    </tr>
-                  )}
-                  {isExpanded &&
-                    topics.map((topic, ti) => {
-                      const tacc = topic.performance?.accuracy;
-                      const tq = topic.performance?.questionsResolved ?? 0;
-                      const tc =
-                        tacc == null
-                          ? "var(--muted-text)"
-                          : tacc >= 70
-                            ? "var(--accent-green)"
-                            : tacc >= 50
-                              ? "#f59e0b"
-                              : "var(--accent-red)";
-                      return (
+                  {isExpanded && (
+                    <>
+                      {topics.length === 0 && (
+                        <tr className="bg-secondary/5">
+                          <td
+                            colSpan={5}
+                            className="px-12 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-30"
+                          >
+                            Nenhum tema registrado
+                          </td>
+                        </tr>
+                      )}
+                      {topics.map((topic) => (
                         <tr
-                          key={`topic-${topic.id}`}
-                          style={{
-                            borderBottom:
-                              ti < topics.length - 1
-                                ? "1px solid var(--card-border)"
-                                : "1px solid var(--card-border)",
-                            background: "var(--stat-bg)",
-                          }}
+                          key={topic.id}
+                          className="bg-secondary/5 group/topic hover:bg-secondary/10 transition-colors"
                         >
-                          <td className="px-4 py-2">
-                            <div className="flex items-center gap-2 pl-7">
+                          <td className="px-12 py-2">
+                            <div className="flex items-center gap-3">
                               <BookOpen
-                                className="w-3 h-3 flex-shrink-0"
-                                style={{ color: disc.color, opacity: 0.7 }}
+                                className="w-3 h-3 opacity-20"
+                                style={{ color: disc.color }}
                               />
-                              <span
-                                className="text-xs"
-                                style={{ color: "var(--muted-text)" }}
-                              >
+                              <span className="text-[11px] font-medium text-foreground/60">
                                 {topic.name}
                               </span>
                             </div>
                           </td>
-                          <td
-                            className="text-right px-3 py-2 text-xs"
-                            style={{ color: "var(--muted-text)" }}
-                          >
-                            {tq > 0 ? tq : "—"}
+                          <td className="text-right px-3 py-2 text-[9px] font-bold tabular-nums opacity-40">
+                            {topic.performance?.questionsResolved || "—"}
                           </td>
                           <td
-                            className="text-right px-3 py-2 text-xs font-semibold"
-                            style={{ color: tc }}
+                            className="text-right px-3 py-2 text-[9px] font-bold tabular-nums"
+                            style={{
+                              color: hitColor(
+                                topic.performance?.accuracy != null
+                                  ? topic.performance.accuracy / 100
+                                  : undefined,
+                              ),
+                            }}
                           >
-                            {tacc != null ? `${Math.round(tacc)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2">
-                            {tacc != null && (
-                              <div
-                                className="h-1.5 rounded-full overflow-hidden"
-                                style={{ background: "var(--stat-border)" }}
-                              >
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.min(tacc, 100)}%`,
-                                    background: tc,
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </td>
-                          <td
-                            className="text-right px-3 py-2 text-xs"
-                            style={{ color: "var(--muted-text)" }}
-                          >
-                            {topic.studyTimeSeconds > 0
-                              ? fmtTime(topic.studyTimeSeconds)
+                            {topic.performance?.accuracy != null
+                              ? `${Math.round(topic.performance.accuracy)}%`
                               : "—"}
                           </td>
+                          <td colSpan={2} />
                         </tr>
-                      );
-                    })}
+                      ))}
+                    </>
+                  )}
                 </Fragment>
               );
             })}
@@ -2173,7 +1341,6 @@ function DisciplineProgressTable({
   );
 }
 
-// ─── Cycle Config Panel ───────────────────────────────────────────────────────
 function CycleConfigPanel({
   config,
   onSave,
@@ -2195,187 +1362,121 @@ function CycleConfigPanel({
         ? prev.filter((d) => d !== day)
         : [...prev, day].sort(),
     );
+
   const effectiveCount = type === "weekdays" ? selectedDays.length : count;
 
-  const handleSave = () => {
-    if (type === "weekdays" && selectedDays.length === 0) {
-      toast.error("Selecione ao menos um dia da semana.");
-      return;
-    }
-    onSave({
-      type,
-      count: effectiveCount,
-      selectedDays: type === "weekdays" ? selectedDays : undefined,
-      assignments: config.assignments,
-    });
-  };
-
   return (
-    <div
-      className="soe-card p-4 space-y-4"
-      style={{ border: "1px solid var(--primary)" }}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold" style={{ color: "var(--app-fg)" }}>
-          Configurar Ciclos
-        </span>
+    <div className="soe-card p-6 space-y-6 border-primary/30 bg-primary/[0.02]">
+      <div className="flex items-center justify-between border-b border-border/50 pb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">
+          Configurações do Ciclo
+        </h3>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:opacity-60"
-          style={{ color: "var(--muted-text)" }}
+          className="p-1 rounded-md hover:bg-secondary text-muted-foreground"
         >
-          <X className="w-4 h-4" />
+          <X size={16} />
         </button>
       </div>
 
-      <div className="space-y-2">
-        <label
-          className="text-xs font-semibold uppercase tracking-wide"
-          style={{ color: "var(--muted-text)" }}
-        >
-          Tipo de nomenclatura
-        </label>
-        <div className="flex gap-2">
-          {(
-            [
-              ["numbered", "Ciclo 1, 2, 3..."],
-              ["weekdays", "Dias da semana"],
-            ] as [CycleType, string][]
-          ).map(([t, label]) => (
-            <button
-              key={t}
-              className="flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all"
-              style={{
-                background: type === t ? "var(--primary)" : "var(--stat-bg)",
-                color: type === t ? "white" : "var(--app-fg)",
-                border: `1px solid ${type === t ? "var(--primary)" : "var(--card-border)"}`,
-              }}
-              onClick={() => setType(t)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {type === "numbered" && (
-        <div className="space-y-2">
-          <label
-            className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--muted-text)" }}
-          >
-            Número de ciclos:{" "}
-            <span style={{ color: "var(--primary)" }}>{count}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-4">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+            Tipo de Nomenclatura
           </label>
-          <div className="flex items-center gap-2 flex-wrap">
-            {[2, 3, 4, 5, 6, 7].map((n) => (
+          <div className="flex gap-2 p-1 bg-secondary/30 rounded-lg">
+            {(["numbered", "weekdays"] as const).map((t) => (
               <button
-                key={n}
-                className="w-10 h-10 rounded-full text-sm font-bold transition-all"
-                style={{
-                  background: count === n ? "var(--primary)" : "var(--stat-bg)",
-                  color: count === n ? "white" : "var(--app-fg)",
-                  border: `1px solid ${count === n ? "var(--primary)" : "var(--card-border)"}`,
-                }}
-                onClick={() => setCount(n)}
+                key={t}
+                onClick={() => setType(t)}
+                className={cn(
+                  "flex-1 h-9 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+                  type === t
+                    ? "bg-card text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
-                {n}
+                {t === "numbered" ? "Numérico (1, 2...)" : "Dias da Semana"}
               </button>
             ))}
           </div>
         </div>
-      )}
 
-      {type === "weekdays" && (
-        <div className="space-y-2">
-          <label
-            className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "var(--muted-text)" }}
-          >
-            Dias de estudo ({selectedDays.length} selecionados)
-          </label>
-          <div className="flex gap-1.5 flex-wrap">
-            {[0, 1, 2, 3, 4, 5, 6].map((day) => {
-              const sel = selectedDays.includes(day);
-              return (
+        {type === "numbered" ? (
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+              Número de Slots: {count}
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCount(n)}
+                  className={cn(
+                    "w-9 h-9 rounded-md text-xs font-bold transition-all border",
+                    count === n
+                      ? "bg-primary border-primary text-white"
+                      : "bg-secondary/30 border-border/50 text-muted-foreground hover:border-primary/50",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+              Dias de Estudo
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {[0, 1, 2, 3, 4, 5, 6].map((day) => (
                 <button
                   key={day}
-                  className="w-10 h-10 rounded-full text-xs font-bold transition-all"
-                  style={{
-                    background: sel ? "var(--primary)" : "var(--stat-bg)",
-                    color: sel ? "white" : "var(--app-fg)",
-                    border: `1px solid ${sel ? "var(--primary)" : "var(--card-border)"}`,
-                  }}
                   onClick={() => toggleDay(day)}
+                  className={cn(
+                    "w-9 h-9 rounded-md text-[9px] font-bold uppercase transition-all border",
+                    selectedDays.includes(day)
+                      ? "bg-primary border-primary text-white"
+                      : "bg-secondary/30 border-border/50 text-muted-foreground",
+                  )}
                 >
                   {WEEKDAY_NAMES[day]}
                 </button>
-              );
-            })}
-          </div>
-          {selectedDays.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {selectedDays.map((d, i) => (
-                <span
-                  key={d}
-                  className="text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{
-                    background: "var(--primary)",
-                    color: "white",
-                    opacity: 0.9,
-                  }}
-                >
-                  {i + 1}. {WEEKDAY_FULL[d]}
-                </span>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      <div
-        className="rounded-lg p-3"
-        style={{
-          background: "var(--stat-bg)",
-          border: "1px solid var(--card-border)",
-        }}
-      >
-        <p
-          className="text-xs font-semibold mb-2"
-          style={{ color: "var(--muted-text)" }}
-        >
-          PRÉVIA
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: effectiveCount }, (_, i) => (
-            <span
-              key={i}
-              className="text-xs px-2.5 py-1 rounded-lg font-medium"
-              style={{
-                background: "var(--card-bg, var(--app-bg))",
-                border: "1px solid var(--card-border)",
-                color: "var(--app-fg)",
-              }}
-            >
-              {getCycleLabel({ type, count: effectiveCount, selectedDays }, i)}
-            </span>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onClose}>
+      <div className="pt-4 flex justify-end gap-3 border-t border-border/50 mt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onClose}
+          className="h-9 px-6 rounded-md font-bold text-[10px] uppercase tracking-wider"
+        >
           Cancelar
         </Button>
-        <Button size="sm" onClick={handleSave} className="gap-2">
-          <Save className="w-4 h-4" /> Salvar
+        <Button
+          size="sm"
+          onClick={() =>
+            onSave({
+              type,
+              count: effectiveCount,
+              selectedDays: type === "weekdays" ? selectedDays : undefined,
+              assignments: config.assignments,
+            })
+          }
+          className="h-9 px-8 rounded-md font-bold text-[10px] uppercase tracking-wider"
+        >
+          Salvar Configuração
         </Button>
       </div>
     </div>
   );
 }
 
-// ─── Ciclos Tab ───────────────────────────────────────────────────────────────
 function CiclosTab({ data }: { data: any }) {
   const utils = trpc.useUtils();
   const updateSettings = trpc.auth.updateSettings.useMutation({
@@ -2403,7 +1504,7 @@ function CiclosTab({ data }: { data: any }) {
       const newConfig = { ...config, assignments: suggestions };
       setConfig(newConfig);
       updateSettings.mutate({ cycleConfig: newConfig });
-      toast.success("Ciclo otimizado estrategicamente pela IA!");
+      toast.success("Otimizado estrategicamente!");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -2417,16 +1518,11 @@ function CiclosTab({ data }: { data: any }) {
   const assignments: { cycleKey: string; disciplineId: number }[] =
     config.assignments || [];
 
-  type DisciplineItem = NonNullable<typeof disciplines>[0];
-
-  const getDisciplinesInCycle = (cycleKey: string): DisciplineItem[] =>
+  const getDisciplinesInCycle = (cycleKey: string) =>
     assignments
       .filter((a) => a.cycleKey === cycleKey)
       .map((a) => disciplines?.find((d) => d.id === a.disciplineId))
-      .filter((d): d is DisciplineItem => Boolean(d));
-
-  const getAssignedCycleKey = (disciplineId: number) =>
-    assignments.find((a) => a.disciplineId === disciplineId)?.cycleKey ?? null;
+      .filter(Boolean);
 
   const assignDiscipline = (disciplineId: number, cycleKey: string | null) => {
     let newAssignments = assignments.filter(
@@ -2439,47 +1535,32 @@ function CiclosTab({ data }: { data: any }) {
     updateSettings.mutate({ cycleConfig: newConfig });
   };
 
-  const saveCycleConfig = (newConfig: CycleConfig) => {
-    const keys = getCycleKeys(newConfig);
-    const filtered = (newConfig.assignments || []).filter((a) =>
-      keys.includes(a.cycleKey),
-    );
-    const final = { ...newConfig, assignments: filtered };
-    setConfig(final);
-    setConfigOpen(false);
-    updateSettings.mutate({ cycleConfig: final });
-  };
-
   const unassignedDisciplines = (disciplines ?? []).filter(
-    (d) => !getAssignedCycleKey(d.id),
-  );
-  const cols = Math.min(
-    cycleKeys.length,
-    cycleKeys.length <= 3
-      ? cycleKeys.length
-      : cycleKeys.length <= 5
-        ? Math.ceil(cycleKeys.length / 2)
-        : 3,
+    (d) => !assignments.some((a) => a.disciplineId === d.id),
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2
-            className="font-bold text-base"
-            style={{ color: "var(--app-fg)" }}
-          >
-            Controle de Ciclos
-          </h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>
-            Organize suas disciplinas por ciclo e acompanhe o avanço por tema
-          </p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+            <CalendarDays className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              Ciclos de Estudo
+            </h2>
+            <p className="text-[11px] font-medium text-muted-foreground opacity-60 uppercase tracking-wider">
+              Planejamento e Otimização de Carga
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50 border-primary/20 text-primary"
             onClick={() => {
-              if (!disciplines || disciplines.length === 0)
+              if (!disciplines?.length)
                 return toast.error("Cadastre disciplinas primeiro.");
               optimizeCycle.mutate({
                 disciplines: disciplines.map((d) => ({
@@ -2493,24 +1574,19 @@ function CiclosTab({ data }: { data: any }) {
               });
             }}
             disabled={optimizeCycle.isPending}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-85 shadow-lg shadow-[var(--primary-shadow)]"
-            style={{ background: "var(--primary)", color: "white" }}
           >
-            {optimizeCycle.isPending ? (
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
+            <Sparkles
+              size={14}
+              className={cn("mr-2", optimizeCycle.isPending && "animate-pulse")}
+            />{" "}
             {optimizeCycle.isPending ? "Otimizando..." : "Otimizar via IA"}
-          </button>
+          </Button>
           <Button
             variant="outline"
-            size="sm"
-            className="gap-2 rounded-xl"
-            onClick={() => setConfigOpen((v) => !v)}
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+            onClick={() => setConfigOpen(!configOpen)}
           >
-            <Settings2 className="w-4 h-4" />
-            Configurar
+            <Settings2 size={14} className="mr-2" /> Configurar
           </Button>
         </div>
       </div>
@@ -2518,246 +1594,151 @@ function CiclosTab({ data }: { data: any }) {
       {configOpen && (
         <CycleConfigPanel
           config={config}
-          onSave={saveCycleConfig}
+          onSave={(c) => {
+            setConfig(c);
+            setConfigOpen(false);
+            updateSettings.mutate({ cycleConfig: c });
+          }}
           onClose={() => setConfigOpen(false)}
         />
       )}
 
-      {/* Insight Section */}
       {disciplines && disciplines.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="soe-card p-5 border-l-4 border-l-[var(--primary)]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-[var(--primary-bg-subtle)] text-[var(--primary)]">
-                <TrendingUp size={16} />
-              </div>
-              <h4 className="text-xs font-black uppercase tracking-widest opacity-40">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="soe-card p-5 border-l-2 border-primary bg-primary/[0.02]">
+            <div className="flex items-center gap-2 mb-2 opacity-60">
+              <TrendingUp size={14} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">
                 Carga por Slot
-              </h4>
+              </span>
             </div>
-            <p className="text-2xl font-black">
+            <p className="text-2xl font-bold tabular-nums">
               {data?.settings?.dailyGoalMinutes
                 ? Math.round(
                     data.settings.dailyGoalMinutes / (cycleKeys.length || 1),
                   )
-                : 0}{" "}
-              min{" "}
-              <span className="text-[10px] opacity-40 font-bold uppercase">
-                / slot
+                : 0}
+              <span className="text-xs font-bold text-muted-foreground ml-2 opacity-40">
+                MIN / DIA
               </span>
             </p>
           </div>
-
-          <div className="soe-card p-5 border-l-4 border-l-[#10b981]">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-green-500/10 text-green-500">
-                <CheckCircle2 size={16} />
-              </div>
-              <h4 className="text-xs font-black uppercase tracking-widest opacity-40">
+          <div className="soe-card p-5 border-l-2 border-emerald-500 bg-emerald-500/[0.02]">
+            <div className="flex items-center gap-2 mb-2 opacity-60">
+              <CheckCircle2 size={14} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">
                 Saúde do Ciclo
-              </h4>
+              </span>
             </div>
-            <p className="text-2xl font-black">
-              {assignments.length >= (disciplines?.length || 0)
-                ? "100%"
-                : `${Math.round((assignments.length / (disciplines?.length || 1)) * 100)}%`}
-              <span className="text-[10px] opacity-40 font-bold uppercase ml-2">
-                cobertura
+            <p className="text-2xl font-bold tabular-nums">
+              {Math.round(
+                (assignments.length / (disciplines?.length || 1)) * 100,
+              )}
+              %
+              <span className="text-xs font-bold text-muted-foreground ml-2 opacity-40">
+                COBERTURA
               </span>
             </p>
           </div>
-
-          <div className="soe-card p-5 border-l-4 border-l-[#f59e0b] relative overflow-hidden group">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
-                <Clock size={16} />
-              </div>
-              <h4 className="text-xs font-black uppercase tracking-widest opacity-40">
-                Próximo no Ciclo
-              </h4>
+          <div className="soe-card p-5 border-l-2 border-amber-500 bg-amber-500/[0.02]">
+            <div className="flex items-center gap-2 mb-2 opacity-60">
+              <Clock size={14} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">
+                Próximo Slot
+              </span>
             </div>
-            <p className="text-base font-black truncate">
-              {getDisciplinesInCycle(cycleKeys[0])?.[0]?.name ||
-                "Configurar agora"}
+            <p className="text-sm font-bold truncate">
+              {getDisciplinesInCycle(cycleKeys[0])?.[0]?.name || "Não definido"}
             </p>
-            <Wand2 className="absolute -bottom-2 -right-2 w-12 h-12 opacity-5 -rotate-12 group-hover:rotate-0 group-hover:scale-110 transition-all" />
           </div>
         </div>
       )}
 
-      {/* No disciplines warning */}
-      {(!disciplines || disciplines.length === 0) && (
-        <div className="soe-card p-8 text-center">
-          <BookOpen
-            className="w-10 h-10 mx-auto mb-3 opacity-20"
-            style={{ color: "var(--primary)" }}
-          />
-          <p
-            className="font-semibold text-sm mb-1"
-            style={{ color: "var(--app-fg)" }}
-          >
-            Nenhuma disciplina cadastrada
-          </p>
-          <p className="text-xs" style={{ color: "var(--muted-text)" }}>
-            Cadastre suas disciplinas em "Disciplinas" primeiro para organizar
-            os ciclos.
-          </p>
-        </div>
-      )}
-
-      {/* Cycles grid */}
-      {disciplines && disciplines.length > 0 && (
-        <div
-          className="grid gap-3"
-          style={{
-            gridTemplateColumns: `repeat(${cycleKeys.length <= 3 ? cycleKeys.length : cycleKeys.length <= 5 ? "2" : "3"}, minmax(0, 1fr))`,
-          }}
-        >
-          {cycleKeys.map((key, idx) => {
-            const discsInCycle = getDisciplinesInCycle(key);
-            const label = getCycleLabel(config, idx);
-            return (
-              <div
-                key={key}
-                className="soe-card overflow-visible flex flex-col"
-              >
-                <div
-                  className="px-3 py-2.5 flex items-center justify-between"
-                  style={{
-                    borderBottom: "1px solid var(--card-border)",
-                    background: "var(--stat-bg)",
-                    borderRadius: "inherit",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ background: "var(--primary)", color: "white" }}
-                    >
-                      {idx + 1}
-                    </div>
-                    <span
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "var(--app-fg)" }}
-                    >
-                      {label}
-                    </span>
+      <div
+        className={cn(
+          "grid gap-6",
+          cycleKeys.length <= 3
+            ? "grid-cols-1 md:grid-cols-3"
+            : "grid-cols-1 md:grid-cols-3 lg:grid-cols-4",
+        )}
+      >
+        {cycleKeys.map((key, idx) => {
+          const discs = getDisciplinesInCycle(key);
+          const label = getCycleLabel(config, idx);
+          return (
+            <div key={key} className="soe-card flex flex-col min-h-[180px]">
+              <div className="px-4 py-3 border-b border-border bg-secondary/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-md bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                    {idx + 1}
                   </div>
-                  <span
-                    className="text-xs flex-shrink-0 ml-1"
-                    style={{ color: "var(--muted-text)" }}
-                  >
-                    {discsInCycle.length}
+                  <span className="text-[11px] font-bold uppercase tracking-tight text-foreground/80">
+                    {label}
                   </span>
                 </div>
-                <div className="flex-1 p-2 space-y-1.5 min-h-[70px]">
-                  {discsInCycle.length === 0 && (
-                    <div
-                      className="flex items-center justify-center h-10 text-xs rounded-lg border-2 border-dashed"
-                      style={{
-                        color: "var(--muted-text)",
-                        borderColor: "var(--card-border)",
-                      }}
-                    >
-                      Vazio
-                    </div>
-                  )}
-                  {discsInCycle.map((disc) => {
-                    const acc = disc.performance?.accuracy;
-                    const accColor =
-                      acc == null
-                        ? "var(--muted-text)"
-                        : acc >= 70
-                          ? "var(--accent-green)"
-                          : acc >= 50
-                            ? "#f59e0b"
-                            : "var(--accent-red)";
-                    return (
-                      <motion.div
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        key={disc.id}
-                        className="rounded-lg px-2.5 py-2 flex items-center gap-2 group relative overflow-hidden"
-                        style={{
-                          background: disc.color + "18",
-                          border: `1px solid ${disc.color}30`,
-                        }}
-                      >
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: disc.color }}
-                        />
-                        <span
-                          className="text-xs font-medium flex-1 truncate"
-                          style={{ color: "var(--app-fg)" }}
-                        >
-                          {disc.name}
-                        </span>
-                        {acc != null && (
-                          <span
-                            className="text-xs font-bold flex-shrink-0"
-                            style={{ color: accColor }}
-                          >
-                            {Math.round(acc)}%
-                          </span>
-                        )}
-                        <button
-                          className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                          style={{ color: "var(--muted-text)" }}
-                          onClick={() => assignDiscipline(disc.id, null)}
-                          title="Remover do ciclo"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                      </motion.div>
-                    );
-                  })}
-                </div>
-                <AssignDropdown
-                  cycleKey={key}
-                  unassigned={unassignedDisciplines}
-                  onAssign={(id) => assignDiscipline(id, key)}
-                />
+                <Badge
+                  variant="outline"
+                  className="text-[9px] border-border/50 opacity-40"
+                >
+                  {discs.length}
+                </Badge>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <div className="p-3 flex-1 space-y-2">
+                {discs.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full py-4 opacity-10 border-2 border-dashed border-border rounded-md">
+                    <Plus size={20} />
+                  </div>
+                )}
+                {discs.map((disc: any) => (
+                  <div
+                    key={disc.id}
+                    className="group relative px-3 py-2 rounded-md border border-border/40 bg-secondary/10 flex items-center justify-between overflow-hidden"
+                    style={{ borderLeft: `3px solid ${disc.color}` }}
+                  >
+                    <span className="text-[11px] font-bold truncate pr-6">
+                      {disc.name}
+                    </span>
+                    <button
+                      onClick={() => assignDiscipline(disc.id, null)}
+                      className="absolute right-1 p-1 rounded-md bg-card border border-border opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <AssignDropdown
+                cycleKey={key}
+                unassigned={unassignedDisciplines}
+                onAssign={(id) => assignDiscipline(id, key)}
+              />
+            </div>
+          );
+        })}
+      </div>
 
-      {/* Unassigned disciplines */}
       {unassignedDisciplines.length > 0 && (
-        <div className="soe-card p-3">
-          <p
-            className="text-xs font-semibold mb-2"
-            style={{ color: "var(--muted-text)" }}
-          >
-            SEM CICLO ATRIBUÍDO
+        <div className="soe-card p-4 bg-secondary/10 border-dashed">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-60 mb-3 ml-1">
+            Disciplinas sem Ciclo
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {unassignedDisciplines.map((d) => (
-              <span
+              <div
                 key={d.id}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
-                style={{
-                  background: d.color + "18",
-                  border: `1px solid ${d.color}30`,
-                  color: "var(--app-fg)",
-                }}
+                className="px-3 py-1.5 rounded-md border border-border/50 bg-card text-[10px] font-bold flex items-center gap-2"
               >
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{ background: d.color }}
                 />
                 {d.name}
-              </span>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Progress table */}
       <DisciplineProgressTable
         disciplines={disciplines ?? []}
         onExpand={setExpandedDisc}
@@ -2766,9 +1747,6 @@ function CiclosTab({ data }: { data: any }) {
     </div>
   );
 }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-type Tab = "edital" | "ciclos";
 
 export default function Edital() {
   const { data } = trpc.dashboard.getStats.useQuery();
@@ -2780,48 +1758,39 @@ export default function Edital() {
     setRows(saved);
   }, [data?.settings?.editalRows]);
 
-  return (
-    <div className="w-full space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight soe-gold-text flex items-center gap-2">
-          <FileSpreadsheet className="w-6 h-6" />
-          Edital & Ciclos
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--muted-text)" }}>
-          Gerencie o conteúdo programático e organize seus ciclos de estudo
-        </p>
-      </div>
+  const tabs = [
+    { id: "edital", label: "Conteúdo Programático", icon: FileSpreadsheet },
+    { id: "ciclos", label: "Ciclos de Estudo", icon: CalendarDays },
+  ];
 
-      {/* Tab bar */}
-      <div
-        className="flex gap-1 p-1 rounded-xl w-fit"
-        style={{
-          background: "var(--stat-bg)",
-          border: "1px solid var(--card-border)",
-        }}
-      >
-        {(
-          [
-            ["edital", "Conteúdo Programático", FileSpreadsheet],
-            ["ciclos", "Ciclos de Estudo", CalendarDays],
-          ] as [Tab, string, any][]
-        ).map(([t, label, Icon]) => (
-          <button
-            key={t}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{
-              background: tab === t ? "var(--primary)" : "transparent",
-              color: tab === t ? "white" : "var(--muted-text)",
-            }}
-            onClick={() => setTab(t)}
-          >
-            <Icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{label}</span>
-            <span className="sm:hidden">
-              {t === "edital" ? "Edital" : "Ciclos"}
-            </span>
-          </button>
-        ))}
+  return (
+    <div className="w-full space-y-10 pb-10">
+      <div className="flex items-center gap-8 border-b border-border">
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          const isActive = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id as Tab)}
+              className={cn(
+                "flex items-center gap-2 pb-4 -mb-[1px] text-[11px] font-bold uppercase tracking-wider transition-all relative",
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100",
+              )}
+            >
+              <Icon size={14} />
+              {t.label}
+              {isActive && (
+                <motion.div
+                  layoutId="edital-tab-active"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "edital" && (

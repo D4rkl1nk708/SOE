@@ -7,11 +7,9 @@ import {
   Search,
   Download,
   Microscope,
-  AlertTriangle,
   Clock,
   XCircle,
   Database,
-  ListChecks,
   Play,
   Trash2,
   Cpu,
@@ -38,9 +36,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface QueueItem {
   id: string;
@@ -70,7 +71,7 @@ function QueueItemProgress({ item }: { item: QueueItem }) {
           {item.status === "processing" ? (
             <Loader2 className="animate-spin text-primary" size={18} />
           ) : item.status === "completed" ? (
-            <CheckCircle2 className="text-accent-green" size={18} />
+            <CheckCircle2 className="text-emerald-500" size={18} />
           ) : item.status === "error" ? (
             <XCircle className="text-destructive" size={18} />
           ) : (
@@ -81,7 +82,7 @@ function QueueItemProgress({ item }: { item: QueueItem }) {
               {item.file.name}
             </span>
             {item.status === "processing" && progress && progress.total > 0 && (
-              <span className="text-[9px] font-black uppercase text-primary animate-pulse">
+              <span className="text-[9px] font-bold uppercase text-primary animate-pulse tracking-wider">
                 Processando Parte {progress.current}/{progress.total} (
                 {percentage}%)
               </span>
@@ -94,15 +95,20 @@ function QueueItemProgress({ item }: { item: QueueItem }) {
           </div>
         </div>
         <span
-          className={`text-[9px] font-black uppercase px-3 py-1 rounded-lg bg-background border border-border shadow-sm ${item.status === "error" ? "text-destructive border-destructive/20 bg-destructive/5" : "opacity-60"}`}
+          className={cn(
+            "text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border tracking-wider",
+            item.status === "error"
+              ? "text-destructive border-destructive/20 bg-destructive/5"
+              : "bg-secondary/50 border-border opacity-60",
+          )}
         >
           {item.status}
         </span>
       </div>
       {item.status === "processing" && percentage > 0 && (
-        <div className="w-full bg-secondary/50 h-1.5 rounded-full overflow-hidden border border-border/10">
+        <div className="w-full bg-secondary/50 h-1 rounded-full overflow-hidden">
           <div
-            className="bg-primary h-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
+            className="bg-primary h-full transition-all duration-700 ease-out"
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -124,7 +130,6 @@ export default function Lab() {
   const [expandedExam, setExpandedExam] = useState<string | null>(null);
   const [filterTopicId, setFilterTopicId] = useState<number | undefined>();
 
-  // Detectar início automático via URL (Treino de Elite Direto)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("startElite") === "true") {
@@ -135,7 +140,6 @@ export default function Lab() {
     }
   }, []);
 
-  // States para Estratégia e Busca
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [mirrorSession, setMirrorSession] = useState<any>(null);
   const [mirrorCurrentIdx, setMirrorCurrentIdx] = useState(0);
@@ -371,6 +375,13 @@ export default function Lab() {
 
   const [miningSubTab, setMiningSubTab] = useState<"discovery" | "pdf">("pdf");
 
+  const tabs = [
+    { id: "mining", label: "Minerar", icon: FlaskConical },
+    { id: "library", label: "Biblioteca", icon: Database },
+    { id: "strategy", label: "Estratégia", icon: BarChart3 },
+    { id: "mirror", label: "Banca Mirror", icon: Target },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-20 pt-10 px-4">
       {showPlayer && (
@@ -383,109 +394,119 @@ export default function Lab() {
         />
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
-        <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/50 border border-primary/20">
+      <div className="flex flex-col gap-8">
+        <div className="space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 border border-primary/20">
             <FlaskConical size={14} className="text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
               SOE Intelligent Mining
             </span>
           </div>
-          <h1 className="text-6xl font-black tracking-tighter leading-none">
-            Laboratório de <span className="text-primary/80">Provas</span>
+          <h1 className="text-5xl font-bold tracking-tight leading-none text-foreground">
+            Laboratório de <span className="text-primary">Provas</span>
           </h1>
-          <p className="text-muted-foreground text-sm max-w-xl opacity-60">
+          <p className="text-muted-foreground text-sm max-w-xl leading-relaxed">
             Sua central privada de mineração e estruturação de dados acadêmicos
-            com Inteligência Artificial.
+            com Inteligência Artificial integrada.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-secondary/30 p-1.5 rounded-[1.5rem] border border-border">
-          <button
-            onClick={() => setActiveTab("mining")}
-            className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "mining" ? "bg-background text-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Minerar
-          </button>
-          <button
-            onClick={() => setActiveTab("library")}
-            className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "library" ? "bg-background text-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Biblioteca
-          </button>
-          <button
-            onClick={() => setActiveTab("strategy")}
-            className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "strategy" ? "bg-background text-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Estratégia
-          </button>
-          <button
-            onClick={() => setActiveTab("mirror")}
-            className={`h-full px-8 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === "mirror" ? "text-primary" : "text-muted-foreground opacity-40 hover:opacity-100"}`}
-          >
-            {activeTab === "mirror" && (
-              <motion.div
-                layoutId="activeTabLab"
-                className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full shadow-[0_-4px_12px_rgba(var(--primary-rgb),0.5)]"
-              />
-            )}
-            Banca Mirror
-          </button>
+        {/* Tab Navigation (Linear) */}
+        <div className="flex items-center gap-8 border-b border-border">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as Tab)}
+                className={cn(
+                  "flex items-center gap-2 pb-4 -mb-[1px] text-[11px] font-bold uppercase tracking-wider transition-all relative",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100",
+                )}
+              >
+                <Icon size={14} />
+                {tab.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="lab-tab-active"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {activeTab === "mining" && (
-        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 px-4">
-          {/* Sub-abas de Mineração */}
-          <div className="flex items-center gap-6 border-b border-border pb-4 mb-4">
+        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-6 border-b border-border/50 pb-4">
             <button
               onClick={() => setMiningSubTab("discovery")}
-              className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all ${miningSubTab === "discovery" ? "text-primary border-b-2 border-primary pb-4 -mb-[18px]" : "opacity-40 hover:opacity-100"}`}
+              className={cn(
+                "text-[10px] font-bold uppercase tracking-wider transition-all relative",
+                miningSubTab === "discovery"
+                  ? "text-primary"
+                  : "text-muted-foreground opacity-60 hover:opacity-100",
+              )}
             >
               Descoberta Online
+              {miningSubTab === "discovery" && (
+                <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-primary" />
+              )}
             </button>
             <button
               onClick={() => setMiningSubTab("pdf")}
-              className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all ${miningSubTab === "pdf" ? "text-primary border-b-2 border-primary pb-4 -mb-[18px]" : "opacity-40 hover:opacity-100"}`}
+              className={cn(
+                "text-[10px] font-bold uppercase tracking-wider transition-all relative",
+                miningSubTab === "pdf"
+                  ? "text-primary"
+                  : "text-muted-foreground opacity-60 hover:opacity-100",
+              )}
             >
-              Minerador de PDFs (Cursos/Provas)
+              Minerador de PDFs
+              {miningSubTab === "pdf" && (
+                <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-primary" />
+              )}
             </button>
           </div>
 
           {miningSubTab === "discovery" && (
-            <div className="space-y-10">
-              {/* Filtro Avançado de Descoberta */}
-              <div className="soe-card p-10 rounded-[4rem] bg-primary/5 border-primary/20 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+            <div className="space-y-8">
+              <div className="soe-card p-8 bg-secondary/20 border-border space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60 ml-1">
                       Banca Examinadora
                     </label>
                     <input
                       type="text"
                       id="search-banca"
-                      placeholder="Ex: FGV, FCC, CEBRASPE"
-                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
+                      placeholder="Ex: FGV, CEBRASPE"
+                      className="w-full h-10 px-4 rounded-md bg-background border border-border text-sm font-semibold focus:border-primary transition-all outline-none"
                     />
                   </div>
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60 ml-1">
                       Cargo ou Área
                     </label>
                     <input
                       type="text"
                       id="search-cargo"
                       placeholder="Ex: Auditor de Controle Externo"
-                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all"
+                      className="w-full h-10 px-4 rounded-md bg-background border border-border text-sm font-semibold focus:border-primary transition-all outline-none"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 ml-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60 ml-1">
                       Ano
                     </label>
                     <select
                       id="search-ano"
-                      className="w-full h-14 px-6 rounded-2xl bg-background border-border text-xs font-bold focus:border-primary transition-all appearance-none"
+                      className="w-full h-10 px-4 rounded-md bg-background border border-border text-sm font-semibold focus:border-primary transition-all outline-none"
                     >
                       <option>2024</option>
                       <option>2023</option>
@@ -496,12 +517,12 @@ export default function Lab() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                  <p className="text-[10px] text-muted-foreground opacity-60 italic flex items-center gap-2">
-                    <Zap size={12} className="text-primary" />A IA vasculha
-                    portais de concursos para encontrar PDFs oficiais.
+                <div className="flex items-center justify-between pt-6 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-2">
+                    <Zap size={12} className="text-primary" /> IA vasculha bases
+                    oficiais para localizar arquivos PDF.
                   </p>
-                  <button
+                  <Button
                     onClick={async () => {
                       const banca = (
                         document.getElementById(
@@ -526,7 +547,7 @@ export default function Lab() {
 
                       setIsAnalyzing(true);
                       setSearchResults([]);
-                      toast.info(`Localizando provas no servidor...`);
+                      toast.info(`Localizando provas...`);
 
                       try {
                         const results = await searchOnlineMutation.mutateAsync({
@@ -538,9 +559,7 @@ export default function Lab() {
                           setSearchResults(results as any);
                           toast.success(`Encontrei ${results.length} provas.`);
                         } else {
-                          toast.error(
-                            "Nenhuma prova encontrada com esses critérios.",
-                          );
+                          toast.error("Nenhuma prova encontrada.");
                         }
                       } catch (err: any) {
                         toast.error("Erro na busca remota.");
@@ -549,64 +568,66 @@ export default function Lab() {
                       }
                     }}
                     disabled={isAnalyzing}
-                    className="h-14 px-12 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                    className="h-10 px-8 rounded-md bg-primary font-bold text-[10px] uppercase tracking-wider"
                   >
                     {isAnalyzing ? (
-                      <Loader2 className="animate-spin" size={16} />
+                      <Loader2 className="animate-spin mr-2" size={14} />
                     ) : (
-                      <Search size={16} />
+                      <Search size={14} className="mr-2" />
                     )}
                     Localizar Provas
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              {/* Lista de Resultados da Busca */}
               {searchResults.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in zoom-in-95 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {searchResults.map((res, i) => (
                     <div
                       key={i}
-                      className="soe-card p-6 flex items-center justify-between bg-secondary/30 border-primary/20 rounded-[2rem]"
+                      className="soe-card p-4 flex items-center justify-between bg-secondary/10 border-border"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                          <FileJson size={20} />
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2.5 rounded-md bg-primary/10 text-primary shrink-0">
+                          <FileJson size={18} />
                         </div>
-                        <div className="space-y-0.5">
-                          <h5 className="text-[11px] font-black uppercase tracking-tight truncate max-w-[200px]">
+                        <div className="min-w-0">
+                          <h5 className="text-[11px] font-bold uppercase tracking-tight truncate">
                             {res.title}
                           </h5>
                           <a
                             href={res.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[9px] text-primary hover:underline truncate max-w-[200px] block"
+                            className="text-[9px] text-primary hover:underline truncate block opacity-70"
                           >
                             {res.url}
                           </a>
                         </div>
                       </div>
-                      {downloadingUrls.has(res.url) ? (
-                        <div className="flex flex-col items-end gap-2 px-6">
-                          <Loader2
-                            size={20}
-                            className="animate-spin text-primary"
-                          />
-                          <span className="text-[8px] font-black uppercase text-primary animate-pulse">
-                            Processando
-                          </span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            handleDownloadAndMine(res.url, res.title)
-                          }
-                          className="h-10 px-6 rounded-xl bg-primary text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all"
-                        >
-                          Baixar e Minerar
-                        </button>
-                      )}
+                      <div className="shrink-0 ml-4">
+                        {downloadingUrls.has(res.url) ? (
+                          <div className="flex items-center gap-2 px-4 py-2">
+                            <Loader2
+                              size={14}
+                              className="animate-spin text-primary"
+                            />
+                            <span className="text-[9px] font-bold uppercase text-primary animate-pulse tracking-wider">
+                              Processando
+                            </span>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              handleDownloadAndMine(res.url, res.title)
+                            }
+                            className="h-8 px-4 rounded-md text-[9px] font-bold uppercase tracking-wider"
+                          >
+                            Baixar e Minerar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -615,37 +636,18 @@ export default function Lab() {
           )}
 
           {miningSubTab === "pdf" && (
-            <div className="space-y-10 animate-in zoom-in-95 duration-500">
-              {/* Main Upload Area Premium */}
-              <div className="relative h-80 rounded-[4rem] border-2 border-dashed border-border overflow-hidden bg-secondary/5 group transition-all hover:border-primary/40">
-                <div className="absolute inset-0 opacity-[0.03] grid grid-cols-10 gap-12 p-12 pointer-events-none select-none">
-                  {Array.from({ length: 60 }).map((_, i) => (
-                    <div key={i} className="flex flex-col items-center gap-2">
-                      {i % 4 === 0 ? (
-                        <FileJson size={24} />
-                      ) : i % 4 === 1 ? (
-                        <Database size={24} />
-                      ) : i % 4 === 2 ? (
-                        <Microscope size={24} />
-                      ) : (
-                        <Zap size={24} />
-                      )}
-                    </div>
-                  ))}
+            <div className="space-y-10">
+              <div className="relative h-64 rounded-lg border-2 border-dashed border-border overflow-hidden bg-secondary/5 group hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-6">
+                <div className="w-20 h-20 rounded-xl bg-background border border-border flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500 shadow-sm">
+                  <Upload size={32} />
                 </div>
-
-                <div className="relative h-full flex flex-col items-center justify-center gap-8">
-                  <div className="w-28 h-28 rounded-[2.5rem] bg-secondary/80 backdrop-blur border border-border flex items-center justify-center text-primary shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                    <Upload size={44} strokeWidth={1} />
-                  </div>
-                  <div className="text-center space-y-3">
-                    <h2 className="text-3xl font-black uppercase tracking-[0.25em] text-foreground">
-                      Extração de PDF
-                    </h2>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40 max-w-sm mx-auto">
-                      Gran, Estratégia, Editais e Materiais Próprios
-                    </p>
-                  </div>
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-bold uppercase tracking-wider text-foreground">
+                    Extração de PDF
+                  </h2>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-40">
+                    Clique ou arraste Editais, Provas e Materiais
+                  </p>
                 </div>
                 <input
                   type="file"
@@ -656,33 +658,33 @@ export default function Lab() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
-                  <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <Cpu size={32} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="soe-card p-6 flex items-center gap-6 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Cpu size={24} />
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-black uppercase tracking-widest">
+                  <div className="space-y-0.5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground">
                       Varredura Seletiva
                     </h4>
-                    <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
-                      O SOE lê o material e pergunta se você deseja minerar as
-                      questões encontradas.
+                    <p className="text-[11px] text-muted-foreground opacity-70 leading-relaxed">
+                      O SOE lê o material e identifica questões, leis e temas
+                      automaticamente via IA.
                     </p>
                   </div>
                 </div>
 
-                <div className="soe-card p-10 flex items-center gap-8 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all rounded-[3rem]">
-                  <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <Share2 size={32} />
+                <div className="soe-card p-6 flex items-center gap-6 bg-secondary/10 border-border/50 group hover:border-primary/30 transition-all">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Share2 size={24} />
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-black uppercase tracking-widest">
+                  <div className="space-y-0.5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-foreground">
                       Multi-Plataforma
                     </h4>
-                    <p className="text-[11px] text-muted-foreground opacity-50 leading-relaxed">
-                      Inteligência adaptada para os layouts mutáveis dos grandes
-                      cursinhos.
+                    <p className="text-[11px] text-muted-foreground opacity-70 leading-relaxed">
+                      Compatível com layouts do Gran, Estratégia, Tec e outros
+                      grandes portais.
                     </p>
                   </div>
                 </div>
@@ -691,17 +693,17 @@ export default function Lab() {
           )}
 
           {queue.length > 0 && (
-            <div className="soe-card p-10 space-y-8 animate-in zoom-in-95 duration-500 rounded-[3rem]">
-              <div className="flex items-center justify-between border-b border-border pb-6">
-                <h5 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 opacity-50">
-                  <Clock size={16} /> Fila de Trabalho ({queue.length})
+            <div className="soe-card p-8 space-y-6 bg-card border-border">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <h5 className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 opacity-50">
+                  <Clock size={14} /> Fila de Trabalho ({queue.length})
                 </h5>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {queue.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-6 rounded-3xl bg-secondary/30 border border-border"
+                    className="p-5 rounded-md bg-secondary/30 border border-border"
                   >
                     <QueueItemProgress item={item} />
                   </div>
@@ -713,37 +715,41 @@ export default function Lab() {
       )}
 
       {activeTab === "library" && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex justify-between items-center mb-8">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex justify-between items-center">
             {history && history.some((h: any) => h.isIntegrated) ? (
-              <button
+              <Button
                 onClick={() => setShowPlayer(true)}
-                className="btn-apple-primary flex items-center gap-3 h-12 px-8 rounded-2xl shadow-xl shadow-primary/20 text-xs font-black uppercase tracking-widest transition-all hover:scale-105"
+                className="h-10 px-8 rounded-md font-bold text-[10px] uppercase tracking-wider"
               >
-                <Play size={16} fill="white" /> Iniciar Treino de Elite
-              </button>
+                <Play size={14} className="mr-2 fill-current" /> Iniciar Treino
+                de Elite
+              </Button>
             ) : (
               <div />
             )}
 
-            <div className="relative h-12">
+            <div className="relative h-10">
               <input
                 type="file"
                 accept=".json"
                 onChange={handleImportJson}
                 className="absolute inset-0 opacity-0 cursor-pointer z-10"
               />
-              <button className="flex items-center gap-2 h-full px-6 rounded-2xl bg-secondary hover:bg-muted transition-colors text-xs font-black uppercase tracking-widest border border-border">
-                <Database size={16} /> Importar JSON
-              </button>
+              <Button
+                variant="outline"
+                className="h-full px-6 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+              >
+                <Database size={14} className="mr-2 opacity-60" /> Importar JSON
+              </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {!history || history.length === 0 ? (
-              <div className="col-span-full py-20 text-center opacity-30">
-                <Search size={48} className="mx-auto mb-4" />
-                <p className="text-xs font-black uppercase tracking-widest">
+              <div className="col-span-full py-20 text-center opacity-30 flex flex-col items-center gap-4">
+                <Search size={40} />
+                <p className="text-[10px] font-bold uppercase tracking-widest">
                   Biblioteca Vazia
                 </p>
               </div>
@@ -751,23 +757,28 @@ export default function Lab() {
               history.map((exam: any, idx: number) => (
                 <div key={idx} className="flex flex-col gap-3">
                   <div
-                    className={`soe-card p-8 rounded-[2.5rem] transition-all ${expandedExam === exam.name ? "ring-2 ring-primary border-primary/50" : "hover:border-primary/30"}`}
+                    className={cn(
+                      "soe-card p-6 transition-all relative group",
+                      expandedExam === exam.name
+                        ? "border-primary bg-primary/5"
+                        : "hover:border-primary/50",
+                    )}
                   >
                     <div className="flex items-center justify-between mb-6">
                       <div
-                        className="w-12 h-12 rounded-2xl bg-secondary text-primary cursor-pointer flex items-center justify-center shadow-inner"
+                        className="w-10 h-10 rounded-md bg-secondary text-primary cursor-pointer flex items-center justify-center border border-border/50"
                         onClick={() =>
                           setExpandedExam(
                             expandedExam === exam.name ? null : exam.name,
                           )
                         }
                       >
-                        <FileJson size={24} />
+                        <FileJson size={20} />
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col items-end gap-1 mr-2">
-                          <span className="text-[8px] font-black uppercase opacity-30">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[8px] font-bold uppercase opacity-30 tracking-wider">
                             Integração
                           </span>
                           <button
@@ -777,18 +788,24 @@ export default function Lab() {
                                 exam.isIntegrated,
                               )
                             }
-                            className={`relative w-9 h-5 rounded-full transition-all duration-300 ${exam.isIntegrated ? "bg-[var(--primary)]" : "bg-border/50"}`}
+                            className={cn(
+                              "relative w-8 h-4 rounded-full transition-all duration-300",
+                              exam.isIntegrated ? "bg-primary" : "bg-border/50",
+                            )}
                           >
                             <div
-                              className={`absolute top-1 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300 ${exam.isIntegrated ? "left-5" : "left-1"}`}
+                              className={cn(
+                                "absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-300",
+                                exam.isIntegrated ? "left-4.5" : "left-0.5",
+                              )}
                             />
                           </button>
                         </div>
                         <button
                           onClick={() => handleExportJson(exam.name)}
-                          className="p-2.5 rounded-xl hover:bg-secondary text-muted-foreground transition-colors"
+                          className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground opacity-60 hover:opacity-100 transition-all"
                         >
-                          <Download size={18} />
+                          <Download size={16} />
                         </button>
                         <button
                           onClick={async () => {
@@ -796,19 +813,19 @@ export default function Lab() {
                               await deleteFileMutation.mutateAsync({
                                 fileName: exam.name,
                               });
-                              toast.success("Apagado");
+                              toast.success("Arquivo apagado");
                               refetchHistory();
                             }
                           }}
-                          className="p-2.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                          className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
 
                     <div
-                      className="cursor-pointer"
+                      className="cursor-pointer space-y-1.5"
                       onClick={() =>
                         setExpandedExam(
                           expandedExam === exam.name ? null : exam.name,
@@ -816,7 +833,7 @@ export default function Lab() {
                       }
                     >
                       <div className="flex items-center gap-2 group/title">
-                        <h4 className="text-base font-black truncate leading-tight tracking-tight">
+                        <h4 className="text-sm font-bold truncate leading-tight tracking-tight text-foreground">
                           {exam.name.replace("questoes_", "").split("_")[0]}
                         </h4>
                         <button
@@ -825,10 +842,7 @@ export default function Lab() {
                             const currentName = exam.name
                               .replace("questoes_", "")
                               .split("_")[0];
-                            const newName = prompt(
-                              "Novo nome para o arquivo:",
-                              currentName,
-                            );
+                            const newName = prompt("Novo nome:", currentName);
                             if (newName && newName.trim() !== "") {
                               try {
                                 await renameFileMutation.mutateAsync({
@@ -842,17 +856,17 @@ export default function Lab() {
                               }
                             }
                           }}
-                          className="p-1.5 rounded-lg opacity-0 group-hover/title:opacity-100 hover:bg-secondary text-primary transition-all"
+                          className="p-1 rounded-md opacity-0 group-hover/title:opacity-100 hover:bg-secondary text-primary transition-all"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={10} />
                         </button>
                       </div>
-                      <div className="flex items-center gap-3 mt-3">
-                        <span className="text-[10px] font-bold opacity-30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-muted-foreground opacity-40 tabular-nums">
                           {exam.date}
                         </span>
-                        <span className="w-1 h-1 rounded-full bg-border" />
-                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                        <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
                           {exam.questionCount} Questões
                         </span>
                       </div>
@@ -860,20 +874,20 @@ export default function Lab() {
                   </div>
 
                   {expandedExam === exam.name && (
-                    <div className="animate-in slide-in-from-top-2 duration-300 px-4">
-                      <div className="soe-card bg-secondary/20 rounded-[2rem] max-h-72 overflow-y-auto p-6 space-y-4 shadow-inner">
-                        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-border pb-3">
+                    <div className="px-2 animate-in slide-in-from-top-2 duration-300">
+                      <div className="soe-card bg-secondary/20 rounded-md max-h-64 overflow-y-auto p-4 space-y-3 shadow-inner custom-scrollbar border-border/40">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border/30 pb-2">
                           Conteúdo Extraído
                         </p>
                         {exam.questions.map((q: any, qIdx: number) => (
                           <div
                             key={qIdx}
-                            className="space-y-1.5 pb-2 border-b border-border/30 last:border-0"
+                            className="space-y-1 pb-2 border-b border-border/20 last:border-0"
                           >
                             <p className="text-[11px] font-medium leading-relaxed opacity-70 line-clamp-2">
                               {q.statement}
                             </p>
-                            <span className="text-[9px] font-black text-primary uppercase tracking-widest">
+                            <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
                               {q.subject}
                             </span>
                           </div>
@@ -889,21 +903,20 @@ export default function Lab() {
       )}
 
       {activeTab === "strategy" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in slide-in-from-bottom-4 duration-500">
-          {/* Menu Lateral de Seleção */}
-          <div className="lg:col-span-4 space-y-8">
-            <div className="soe-card p-8 rounded-[3rem] space-y-6">
-              <div className="space-y-2 border-b border-border pb-4">
-                <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                  <Target size={18} className="text-primary" /> Seleção de
-                  Fontes
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="lg:col-span-4 space-y-6">
+            <div className="soe-card p-6 bg-card border-border space-y-6">
+              <div className="space-y-1 border-b border-border/50 pb-4">
+                <h3 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
+                  <Target size={16} className="text-primary" /> Fontes de
+                  Análise
                 </h3>
                 <p className="text-[10px] text-muted-foreground opacity-60">
-                  Escolha as provas para análise estratégica.
+                  Escolha os materiais para o Raio-X.
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
+              <div className="space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
                 {history?.map((exam) => (
                   <button
                     key={exam.name}
@@ -914,131 +927,137 @@ export default function Lab() {
                         );
                       else setSelectedExams([...selectedExams, exam.name]);
                     }}
-                    className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${selectedExams.includes(exam.name) ? "bg-primary/10 border-primary text-primary" : "bg-secondary/20 border-border/50 text-muted-foreground hover:bg-secondary"}`}
+                    className={cn(
+                      "w-full p-3 rounded-md border text-left transition-all flex items-center justify-between group",
+                      selectedExams.includes(exam.name)
+                        ? "bg-primary/5 border-primary text-primary"
+                        : "bg-secondary/20 border-border/50 text-muted-foreground hover:bg-secondary/40",
+                    )}
                   >
-                    <span className="text-[11px] font-bold truncate max-w-[200px]">
+                    <span className="text-[11px] font-bold truncate max-w-[180px]">
                       {exam.name.replace("questoes_", "").split("_")[0]}
                     </span>
                     {selectedExams.includes(exam.name) && (
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 size={12} className="shrink-0" />
                     )}
                   </button>
                 ))}
               </div>
 
-              <div className="pt-4 grid grid-cols-1 gap-3">
-                <button
+              <div className="pt-4 space-y-3">
+                <Button
                   onClick={handleBancaAnalysis}
                   disabled={selectedExams.length === 0 || isAnalyzing}
-                  className="w-full h-14 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 flex items-center justify-center gap-3 disabled:opacity-20 active:scale-95 transition-all"
+                  className="w-full h-11 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all"
                 >
                   {isAnalyzing ? (
-                    <Loader2 className="animate-spin" size={16} />
+                    <Loader2 className="animate-spin mr-2" size={14} />
                   ) : (
-                    <BarChart3 size={16} />
+                    <BarChart3 size={14} className="mr-2" />
                   )}
                   Raio-X da Banca
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleEditalMapping}
                   disabled={selectedExams.length !== 1 || isAnalyzing}
-                  className="w-full h-14 rounded-2xl bg-secondary border border-border text-foreground text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-20 active:scale-95 transition-all"
+                  className="w-full h-11 rounded-md text-[10px] font-bold uppercase tracking-widest bg-secondary/30"
                 >
                   {isAnalyzing ? (
-                    <Loader2 className="animate-spin" size={16} />
+                    <Loader2 className="animate-spin mr-2" size={14} />
                   ) : (
-                    <Target size={16} />
+                    <Target size={14} className="mr-2" />
                   )}
                   Mapear Edital
-                </button>
+                </Button>
               </div>
             </div>
 
-            <div className="soe-card p-8 bg-primary/5 border-primary/10 rounded-[3rem] space-y-4">
-              <div className="flex items-center gap-3 text-primary">
-                <Info size={18} />
-                <h5 className="text-[10px] font-black uppercase tracking-widest">
+            <div className="soe-card p-6 bg-primary/5 border-primary/10 space-y-3">
+              <div className="flex items-center gap-2 text-primary opacity-70">
+                <Info size={16} />
+                <h5 className="text-[10px] font-bold uppercase tracking-widest">
                   Dica Estratégica
                 </h5>
               </div>
-              <p className="text-[11px] opacity-60 leading-relaxed italic">
-                "O Raio-X funciona melhor com 3 ou mais provas da mesma banca.
-                Para o Mapeamento de Edital, selecione apenas a prova que deseja
-                analisar a cobertura."
+              <p className="text-[11px] text-foreground/60 leading-relaxed italic">
+                O Raio-X identifica padrões recorrentes na banca. O Mapeamento
+                de Edital verifica quais temas estão cobertos no material.
               </p>
             </div>
           </div>
 
-          {/* Área de Resultados */}
           <div className="lg:col-span-8">
-            <div className="soe-card p-12 rounded-[4rem] min-h-[600px] bg-secondary/5 border-border/50 relative overflow-hidden">
+            <div className="soe-card p-10 min-h-[500px] bg-secondary/5 border-border relative overflow-hidden flex flex-col items-center justify-center">
               {!analysisResult && !coverageData && !isAnalyzing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20 text-center p-20 space-y-6">
-                  <div className="w-20 h-20 rounded-full border-4 border-dashed border-muted-foreground flex items-center justify-center">
-                    <Zap size={32} />
+                <div className="flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-muted-foreground flex items-center justify-center">
+                    <Zap size={24} />
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-black uppercase tracking-widest">
+                  <div className="space-y-1">
+                    <h4 className="text-[11px] font-bold uppercase tracking-widest">
                       Painel de Inteligência
                     </h4>
-                    <p className="text-xs font-medium">
-                      Selecione provas e execute uma análise para ver os dados
-                      estratégicos.
+                    <p className="text-[10px] font-medium">
+                      Execute uma análise para visualizar os dados.
                     </p>
                   </div>
                 </div>
               )}
 
               {isAnalyzing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center space-y-6 bg-background/50 backdrop-blur-sm z-10">
-                  <Loader2 className="animate-spin text-primary" size={48} />
-                  <p className="text-xs font-black uppercase tracking-widest animate-pulse">
-                    Cruzando Dados com IA...
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm z-10 gap-4">
+                  <Loader2 className="animate-spin text-primary" size={32} />
+                  <p className="text-[10px] font-bold uppercase tracking-widest animate-pulse opacity-60">
+                    Processando Inteligência de Dados...
                   </p>
                 </div>
               )}
 
               {coverageData && (
-                <div className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
-                  <div className="flex items-center gap-3 border-b border-border pb-6 mb-8">
-                    <div className="p-3 rounded-2xl bg-secondary text-primary">
-                      <Target size={24} />
+                <div className="w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="flex items-center gap-4 border-b border-border/50 pb-6">
+                    <div className="p-3 rounded-md bg-primary/10 text-primary border border-primary/20">
+                      <Target size={20} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-black uppercase tracking-tight m-0">
+                      <h2 className="text-xl font-bold uppercase tracking-tight text-foreground m-0">
                         Cobertura de Edital
                       </h2>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest m-0 opacity-40">
-                        Mapeamento de Conteúdo Programático
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest m-0 opacity-40">
+                        Mapeamento Programático
                       </p>
                     </div>
                     <div className="ml-auto text-right">
-                      <p className="text-4xl font-black text-primary m-0 tabular-nums">
+                      <p className="text-4xl font-bold text-primary m-0 tabular-nums leading-none">
                         {coverageData.coveragePercentage}
                       </p>
-                      <p className="text-[9px] font-black uppercase tracking-widest m-0 opacity-40">
-                        Taxa de Cobertura
+                      <p className="text-[8px] font-bold uppercase tracking-widest m-0 opacity-40">
+                        Taxa Geral
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 gap-3">
                     {coverageData.mappedItems?.map((item: any, i: number) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-6 rounded-3xl bg-secondary/20 border border-border group hover:bg-primary/5 transition-all"
+                        className="flex items-center justify-between p-4 rounded-md bg-secondary/20 border border-border/50 hover:bg-primary/5 transition-all group"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center text-[10px] font-black border border-border group-hover:bg-primary group-hover:text-white transition-all">
-                            {i + 1}
-                          </div>
-                          <span className="text-xs font-bold">
+                          <span className="text-[10px] font-bold text-muted-foreground opacity-30 tabular-nums">
+                            {(i + 1).toString().padStart(2, "0")}
+                          </span>
+                          <span className="text-xs font-bold text-foreground/80">
                             {item.topic}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border text-[10px] font-black uppercase tracking-widest opacity-60">
-                          {item.questionsCount} Questões
-                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-bold uppercase tracking-wider bg-background border-border/50 text-muted-foreground opacity-60"
+                        >
+                          {item.questionsCount} QUESTÕES
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -1054,26 +1073,27 @@ export default function Lab() {
           {!mirrorSession ? (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-8 space-y-6">
-                <div className="soe-card p-10 rounded-[3rem] bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="p-4 rounded-3xl bg-primary text-white shadow-xl shadow-primary/30">
-                      <Zap size={32} />
+                <div className="soe-card p-10 bg-primary/[0.02] border-primary/20 flex flex-col gap-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                    <Sparkles size={120} />
+                  </div>
+                  <div className="flex items-center gap-5">
+                    <div className="p-3.5 rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                      <Zap size={24} />
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-black uppercase tracking-tight">
+                    <div className="space-y-0.5">
+                      <h2 className="text-2xl font-bold uppercase tracking-tight text-foreground">
                         Banca Mirror
                       </h2>
-                      <p className="text-xs font-bold opacity-60 uppercase tracking-widest">
-                        Desafios Inéditos de Pontos Cegos
+                      <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">
+                        Simulados Inéditos de Pontos Cegos
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm leading-relaxed opacity-80 max-w-2xl italic">
-                    "O examinador sabe onde você escorrega. O Banca Mirror
-                    detecta suas confusões entre conceitos similares (ex:
-                    Anulação vs Revogação) e gera 3 questões inéditas, maldosas
-                    e focadas exatamente nessas exceções para forçar o seu
-                    aprendizado."
+                  <p className="text-[13px] leading-relaxed text-muted-foreground max-w-2xl italic border-l-2 border-primary/30 pl-6 py-2">
+                    "O examinador foca em suas confusões conceituais. O Banca
+                    Mirror detecta erros recorrentes (ex: Anulação vs Revogação)
+                    e gera desafios maldosos para forçar o domínio da exceção."
                   </p>
                 </div>
 
@@ -1082,53 +1102,47 @@ export default function Lab() {
                     confusions.map((c: any) => (
                       <div
                         key={c.id}
-                        className="soe-card p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-primary/40 transition-all group"
+                        className="soe-card p-6 flex flex-col justify-between hover:border-primary/40 transition-all group bg-card border-border"
                       >
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between border-b border-border/30 pb-3">
                             <Badge
                               variant="outline"
-                              className="text-[9px] font-black uppercase tracking-widest border-primary/30 text-primary"
+                              className="text-[9px] font-bold uppercase tracking-widest border-primary/30 text-primary bg-primary/5"
                             >
-                              {c.occurrences} Erros Detectados
+                              {c.occurrences} Erros Críticos
                             </Badge>
-                            <span className="text-[10px] opacity-30 font-bold">
+                            <span className="text-[9px] opacity-40 font-bold tabular-nums">
                               {new Date(c.detectedAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex flex-col flex-1">
-                              <span className="text-[10px] font-black uppercase opacity-40">
+                          <div className="flex items-center gap-4 py-2">
+                            <div className="flex flex-col flex-1 gap-0.5">
+                              <span className="text-[8px] font-bold uppercase opacity-30 tracking-wider">
                                 Conceito A
                               </span>
-                              <span className="text-sm font-black text-primary">
+                              <span className="text-xs font-bold text-primary truncate">
                                 {c.conceptA}
                               </span>
                             </div>
-                            <div className="w-px h-8 bg-border/50" />
-                            <div className="flex flex-col flex-1 text-right">
-                              <span className="text-[10px] font-black uppercase opacity-40">
+                            <div className="w-px h-6 bg-border/50 shrink-0" />
+                            <div className="flex flex-col flex-1 text-right gap-0.5">
+                              <span className="text-[8px] font-bold uppercase opacity-30 tracking-wider">
                                 Conceito B
                               </span>
-                              <span className="text-sm font-black text-rose-500">
+                              <span className="text-xs font-bold text-destructive truncate">
                                 {c.conceptB}
                               </span>
                             </div>
                           </div>
-                          <p className="text-[11px] opacity-60 leading-relaxed border-t border-border/30 pt-4">
+                          <p className="text-[11px] text-muted-foreground leading-relaxed bg-secondary/30 p-3 rounded-md border border-border/30 italic">
                             {c.explanation}
                           </p>
                         </div>
-                        <button
+                        <Button
                           onClick={async () => {
-                            const apiKey = (stats?.settings as any)?.aiApiKey;
-                            const provider =
-                              (stats?.settings as any)?.aiProvider ?? "gemini";
                             if (!apiKey)
-                              return toast.error(
-                                "Configure sua API Key nas configurações.",
-                              );
-
+                              return toast.error("Configure sua API Key.");
                             toast.promise(
                               generateMirrorMutation.mutateAsync({
                                 conceptA: c.conceptA,
@@ -1147,26 +1161,26 @@ export default function Lab() {
                                   setMirrorConfirmed(false);
                                   return "Simulado gerado!";
                                 },
-                                error: "Falha ao gerar simulado.",
+                                error: "Falha ao gerar desafio.",
                               },
                             );
                           }}
-                          className="mt-8 w-full py-4 rounded-2xl bg-secondary hover:bg-primary hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                          className="mt-6 w-full h-10 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all bg-secondary/50 hover:bg-primary hover:text-white"
                         >
-                          <Play size={14} className="fill-current" /> Gerar
+                          <Play size={14} className="mr-2 fill-current" /> Gerar
                           Desafio Inédito
-                        </button>
+                        </Button>
                       </div>
                     ))
                   ) : (
-                    <div className="col-span-full py-20 soe-card rounded-[3rem] border-dashed flex flex-col items-center justify-center opacity-30 space-y-4">
-                      <Target size={48} />
-                      <p className="text-xs font-black uppercase tracking-widest">
-                        Nenhuma confusão grave detectada ainda
+                    <div className="col-span-full py-16 soe-card border-dashed flex flex-col items-center justify-center opacity-30 space-y-4">
+                      <Target size={40} />
+                      <p className="text-[10px] font-bold uppercase tracking-widest">
+                        Nenhum ponto cego crítico detectado
                       </p>
-                      <p className="text-[10px] max-w-xs text-center leading-relaxed">
-                        Continue resolvendo questões na Sessão Adaptativa do
-                        Mentor para que eu identifique seus pontos cegos.
+                      <p className="text-[10px] max-w-xs text-center leading-relaxed font-medium">
+                        Continue minerando e resolvendo questões para que eu
+                        identifique suas confusões conceituais.
                       </p>
                     </div>
                   )}
@@ -1174,33 +1188,33 @@ export default function Lab() {
               </div>
 
               <div className="lg:col-span-4 space-y-6">
-                <div className="soe-card p-8 rounded-[3rem] space-y-6">
-                  <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles size={18} className="text-primary" /> Gerador
-                    Manual
+                <div className="soe-card p-6 bg-card border-border space-y-6">
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
+                    <Sparkles size={16} className="text-primary" /> Gerador
+                    Customizado
                   </h3>
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                        Comparar Conceito A
+                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-1">
+                        Conceito A
                       </label>
                       <input
                         id="manualA"
-                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none focus:border-primary/50 transition-all"
-                        placeholder="Ex: Convalidação"
+                        className="w-full px-4 py-2.5 rounded-md bg-secondary/30 border border-border/50 text-sm font-semibold outline-none focus:border-primary transition-all"
+                        placeholder="Ex: Atos Vinculados"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">
-                        Versus Conceito B
+                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 ml-1">
+                        Conceito B
                       </label>
                       <input
                         id="manualB"
-                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none focus:border-primary/50 transition-all"
-                        placeholder="Ex: Revogação"
+                        className="w-full px-4 py-2.5 rounded-md bg-secondary/30 border border-border/50 text-sm font-semibold outline-none focus:border-primary transition-all"
+                        placeholder="Ex: Atos Discricionários"
                       />
                     </div>
-                    <button
+                    <Button
                       onClick={() => {
                         const a = (
                           document.getElementById("manualA") as HTMLInputElement
@@ -1210,9 +1224,6 @@ export default function Lab() {
                         ).value;
                         if (!a || !b)
                           return toast.error("Preencha ambos os conceitos.");
-                        const apiKey = (stats?.settings as any)?.aiApiKey;
-                        const provider =
-                          (stats?.settings as any)?.aiProvider ?? "gemini";
                         if (!apiKey)
                           return toast.error("Configure sua API Key.");
 
@@ -1220,7 +1231,7 @@ export default function Lab() {
                           generateMirrorMutation.mutateAsync({
                             conceptA: a,
                             conceptB: b,
-                            explanation: `O aluno deseja focar na diferenciação entre ${a} e ${b}.`,
+                            explanation: `O aluno deseja focar na diferenciação estratégica entre ${a} e ${b}.`,
                             apiKey,
                             provider: provider as any,
                           }),
@@ -1237,10 +1248,10 @@ export default function Lab() {
                           },
                         );
                       }}
-                      className="w-full py-4 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all"
+                      className="w-full h-11 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all"
                     >
-                      <Zap size={14} /> Criar Desafio Agora
-                    </button>
+                      <Zap size={14} className="mr-2" /> Criar Desafio Agora
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1250,16 +1261,16 @@ export default function Lab() {
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setMirrorSession(null)}
-                  className="flex items-center gap-2 text-xs font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all"
+                  className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all"
                 >
                   <ChevronLeft size={16} /> Voltar ao Laboratório
                 </button>
                 <div className="flex items-center gap-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                    Questão {mirrorCurrentIdx + 1} de{" "}
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-40 tabular-nums">
+                    Questão {mirrorCurrentIdx + 1} /{" "}
                     {mirrorSession.questions.length}
                   </span>
-                  <div className="w-48 h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div className="w-40 h-1 bg-secondary rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary transition-all duration-500"
                       style={{
@@ -1270,21 +1281,24 @@ export default function Lab() {
                 </div>
               </div>
 
-              <div className="soe-card p-12 rounded-[4rem] space-y-10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+              <div className="soe-card p-12 space-y-10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-[0.02] pointer-events-none">
                   <Target size={120} />
                 </div>
 
                 <div className="space-y-4">
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase px-4 py-1.5 rounded-full">
+                  <Badge
+                    variant="outline"
+                    className="bg-primary/5 text-primary border-primary/20 text-[9px] font-bold uppercase px-3 py-1 rounded-md tracking-wider"
+                  >
                     {mirrorSession.mockTitle}
                   </Badge>
-                  <h3 className="text-2xl font-bold leading-relaxed">
+                  <h3 className="text-2xl font-bold leading-relaxed text-foreground tracking-tight">
                     {mirrorSession.questions[mirrorCurrentIdx].statement}
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-3">
                   {mirrorSession.questions[mirrorCurrentIdx].alternatives.map(
                     (alt: any) => {
                       const isSelected =
@@ -1293,18 +1307,17 @@ export default function Lab() {
                         alt.letter ===
                         mirrorSession.questions[mirrorCurrentIdx].correctAnswer;
                       let style =
-                        "bg-secondary/20 border-border/50 hover:bg-secondary/40";
+                        "bg-secondary/10 border-border hover:bg-secondary/30";
                       if (mirrorConfirmed) {
                         if (isCorrect)
                           style =
-                            "bg-accent-green/10 border-accent-green text-accent-green";
+                            "bg-emerald-500/10 border-emerald-500 text-emerald-500";
                         else if (isSelected)
                           style =
-                            "bg-rose-500/10 border-rose-500 text-rose-500";
-                        else style = "opacity-30 border-border/50";
+                            "bg-destructive/10 border-destructive text-destructive";
+                        else style = "opacity-40 border-border/50";
                       } else if (isSelected) {
-                        style =
-                          "bg-primary/10 border-primary shadow-lg shadow-primary/10";
+                        style = "bg-primary/10 border-primary text-primary";
                       }
 
                       return (
@@ -1317,12 +1330,15 @@ export default function Lab() {
                               [mirrorCurrentIdx]: alt.letter,
                             })
                           }
-                          className={`p-6 rounded-3xl border-2 text-left transition-all flex items-start gap-4 ${style}`}
+                          className={cn(
+                            "p-5 rounded-md border-2 text-left transition-all flex items-start gap-4",
+                            style,
+                          )}
                         >
-                          <span className="w-8 h-8 rounded-xl bg-background flex items-center justify-center font-black text-xs shrink-0 border border-border/50">
+                          <span className="w-8 h-8 rounded-md bg-background flex items-center justify-center font-bold text-xs shrink-0 border border-border">
                             {alt.letter}
                           </span>
-                          <span className="text-sm font-medium leading-relaxed pt-1">
+                          <span className="text-sm font-semibold leading-relaxed pt-1 flex-1">
                             {alt.text}
                           </span>
                         </button>
@@ -1333,10 +1349,15 @@ export default function Lab() {
 
                 {mirrorConfirmed &&
                   mirrorSession.questions[mirrorCurrentIdx].hint && (
-                    <div className="p-6 rounded-3xl bg-amber-500/5 border border-amber-500/20 flex gap-4 animate-in slide-in-from-top-2">
-                      <Lightbulb className="text-amber-500 shrink-0" />
-                      <p className="text-xs italic opacity-80 leading-relaxed">
-                        <strong>Comentário do Mentor:</strong>{" "}
+                    <div className="p-5 rounded-md bg-amber-500/5 border border-amber-500/20 flex gap-4 animate-in slide-in-from-top-2">
+                      <Lightbulb
+                        className="text-amber-500 shrink-0"
+                        size={20}
+                      />
+                      <p className="text-xs italic text-foreground/80 leading-relaxed font-medium">
+                        <span className="font-bold text-amber-500 uppercase text-[9px] tracking-wider block mb-1">
+                          Feedback do Mentor
+                        </span>
                         {mirrorSession.questions[mirrorCurrentIdx].hint}
                       </p>
                     </div>
@@ -1344,15 +1365,16 @@ export default function Lab() {
 
                 <div className="pt-6">
                   {!mirrorConfirmed ? (
-                    <button
+                    <Button
                       onClick={() => setMirrorConfirmed(true)}
                       disabled={!mirrorAnswers[mirrorCurrentIdx]}
-                      className="w-full py-5 rounded-3xl bg-primary text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20"
+                      className="w-full h-12 rounded-md font-bold text-[11px] uppercase tracking-widest transition-all"
                     >
-                      Verificar Resposta
-                    </button>
+                      Confirmar Resposta
+                    </Button>
                   ) : (
-                    <button
+                    <Button
+                      variant="secondary"
                       onClick={() => {
                         if (
                           mirrorCurrentIdx <
@@ -1361,17 +1383,17 @@ export default function Lab() {
                           setMirrorCurrentIdx(mirrorCurrentIdx + 1);
                           setMirrorConfirmed(false);
                         } else {
-                          toast.success("Simulado de Maldades Concluído!");
+                          toast.success("Maldade Concluída!");
                           setMirrorSession(null);
                           refetchConfusions();
                         }
                       }}
-                      className="w-full py-5 rounded-3xl bg-secondary text-foreground font-black text-xs uppercase tracking-widest border border-border hover:bg-muted transition-all"
+                      className="w-full h-12 rounded-md font-bold text-[11px] uppercase tracking-widest transition-all border border-border"
                     >
                       {mirrorCurrentIdx < mirrorSession.questions.length - 1
                         ? "Próxima Questão"
                         : "Finalizar Simulado"}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1380,114 +1402,99 @@ export default function Lab() {
         </div>
       )}
 
-      {/* Modal de Raio-X de Tendência (Design Premium) */}
       {analysisResult && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12 animate-in fade-in duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
           <div
-            className="absolute inset-0 bg-background/60 backdrop-blur-3xl"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setAnalysisResult(null)}
           />
-
-          <div className="relative w-full max-w-5xl max-h-[90vh] bg-secondary/80 border border-white/10 rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-in slide-in-from-bottom-10 duration-700">
-            {/* Header Elegante */}
-            <div className="px-12 py-10 flex items-center justify-between border-b border-white/5 bg-gradient-to-r from-primary/10 to-transparent">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]">
-                  <BarChart3 size={32} className="text-white" />
+          <div className="relative w-full max-w-5xl max-h-[90vh] bg-card border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500">
+            <div className="px-8 py-6 flex items-center justify-between border-b border-border bg-secondary/20">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-md bg-primary flex items-center justify-center">
+                  <BarChart3 size={24} className="text-primary-foreground" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-3xl font-black uppercase tracking-tight leading-none">
-                      Raio-X Estratégico
-                    </h2>
-                    <span className="px-3 py-1 rounded-full bg-primary/20 text-[8px] font-black uppercase tracking-[0.2em] text-primary border border-primary/20">
-                      CONFIDENCIAL
-                    </span>
-                  </div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.4em] opacity-50">
-                    Inteligência Competitiva de Dados
+                <div className="space-y-0.5">
+                  <h2 className="text-xl font-bold uppercase tracking-tight text-foreground">
+                    Raio-X Estratégico
+                  </h2>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+                    Análise de Dados Competitivos
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setAnalysisResult(null)}
-                className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all group"
+                className="w-10 h-10 rounded-full hover:bg-secondary flex items-center justify-center transition-all"
               >
-                <XCircle
-                  size={24}
-                  className="opacity-30 group-hover:opacity-100 transition-opacity"
-                />
+                <XCircle size={20} className="opacity-30 hover:opacity-100" />
               </button>
             </div>
 
-            {/* Corpo do Relatório com Renderização de Tabelas */}
-            <div className="flex-1 overflow-y-auto p-12 md:px-20 custom-scrollbar bg-gradient-to-b from-transparent to-black/20">
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-card/50">
               <div className="prose prose-invert max-w-none">
-                <div className="text-foreground/80 leading-relaxed font-medium selection:bg-primary/40">
+                <div className="text-foreground/90 leading-relaxed font-medium selection:bg-primary/20">
                   <ReactMarkdown
                     components={{
-                      h1: ({ node, ...props }) => (
+                      h1: ({ ...props }) => (
                         <h1
-                          className="text-4xl font-black mb-10 border-b border-white/10 pb-4 text-white"
+                          className="text-3xl font-bold mb-8 border-b border-border pb-4 text-foreground"
                           {...props}
                         />
                       ),
-                      h2: ({ node, ...props }) => (
+                      h2: ({ ...props }) => (
                         <h2
-                          className="text-2xl font-black mt-12 mb-6 text-primary flex items-center gap-3 before:w-1 before:h-6 before:bg-primary before:rounded-full"
+                          className="text-xl font-bold mt-10 mb-5 text-primary flex items-center gap-2 border-l-4 border-primary pl-4"
                           {...props}
                         />
                       ),
-                      h3: ({ node, ...props }) => (
+                      h3: ({ ...props }) => (
                         <h3
-                          className="text-lg font-black mt-8 mb-4 text-white/90"
+                          className="text-lg font-bold mt-8 mb-4 text-foreground/90"
                           {...props}
                         />
                       ),
-                      p: ({ node, ...props }) => (
+                      p: ({ ...props }) => (
                         <p
-                          className="text-sm leading-8 mb-6 opacity-70"
+                          className="text-sm leading-relaxed mb-6 opacity-80"
                           {...props}
                         />
                       ),
-                      table: ({ node, ...props }) => (
-                        <div className="my-10 overflow-hidden rounded-3xl border border-white/5 bg-black/20 shadow-inner">
+                      table: ({ ...props }) => (
+                        <div className="my-8 overflow-hidden rounded-md border border-border bg-secondary/10">
                           <table
                             className="w-full text-left border-collapse"
                             {...props}
                           />
                         </div>
                       ),
-                      thead: ({ node, ...props }) => (
-                        <thead className="bg-primary/10" {...props} />
+                      thead: ({ ...props }) => (
+                        <thead className="bg-secondary/30" {...props} />
                       ),
-                      th: ({ node, ...props }) => (
+                      th: ({ ...props }) => (
                         <th
-                          className="p-5 text-[10px] font-black uppercase tracking-widest text-primary border-b border-white/5"
+                          className="p-4 text-[10px] font-bold uppercase tracking-widest text-primary border-b border-border"
                           {...props}
                         />
                       ),
-                      td: ({ node, ...props }) => (
+                      td: ({ ...props }) => (
                         <td
-                          className="p-5 text-xs border-b border-white/5 opacity-70"
+                          className="p-4 text-xs border-b border-border/50 opacity-80 tabular-nums"
                           {...props}
                         />
                       ),
-                      strong: ({ node, ...props }) => (
-                        <strong
-                          className="font-black text-primary/90"
-                          {...props}
-                        />
+                      strong: ({ ...props }) => (
+                        <strong className="font-bold text-primary" {...props} />
                       ),
-                      ul: ({ node, ...props }) => (
+                      ul: ({ ...props }) => (
                         <ul
-                          className="space-y-4 my-6 list-none p-0"
+                          className="space-y-3 my-6 list-none p-0"
                           {...props}
                         />
                       ),
-                      li: ({ node, ...props }) => (
+                      li: ({ ...props }) => (
                         <li
-                          className="flex items-start gap-3 text-sm opacity-70 before:w-1.5 before:h-1.5 before:bg-primary before:rounded-full before:mt-2 before:shrink-0"
+                          className="flex items-start gap-3 text-sm opacity-80 before:w-1.5 before:h-1.5 before:bg-primary before:rounded-full before:mt-2 before:shrink-0"
                           {...props}
                         />
                       ),
@@ -1499,91 +1506,88 @@ export default function Lab() {
               </div>
             </div>
 
-            {/* Footer de Assinatura */}
-            <div className="px-12 py-8 border-t border-white/5 bg-black/40 flex justify-between items-center">
-              <div className="flex items-center gap-8">
-                <div className="space-y-1">
-                  <p className="text-[8px] font-black uppercase tracking-widest opacity-30">
-                    Gerado pelo Sistema
+            <div className="px-8 py-5 border-t border-border bg-secondary/20 flex justify-between items-center">
+              <div className="flex items-center gap-6">
+                <div className="space-y-0.5">
+                  <p className="text-[8px] font-bold uppercase tracking-widest opacity-40">
+                    Data do Relatório
                   </p>
                   <p className="text-[10px] font-bold tabular-nums">
-                    {new Date().toLocaleDateString()} •{" "}
-                    {new Date().toLocaleTimeString()}
+                    {new Date().toLocaleDateString()}
                   </p>
                 </div>
-                <div className="w-px h-8 bg-white/5" />
-                <div className="space-y-1">
-                  <p className="text-[8px] font-black uppercase tracking-widest opacity-30">
-                    Fontes Analisadas
+                <div className="w-px h-6 bg-border" />
+                <div className="space-y-0.5">
+                  <p className="text-[8px] font-bold uppercase tracking-widest opacity-40">
+                    Materiais
                   </p>
                   <p className="text-[10px] font-bold">
-                    {selectedExams.length} Provas Mineradas
+                    {selectedExams.length} Fontes
                   </p>
                 </div>
               </div>
-
-              <button
+              <Button
                 onClick={() => window.print()}
-                className="btn-apple-primary h-12 px-8 rounded-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-primary/20"
+                className="h-10 px-6 rounded-md text-[10px] font-bold uppercase tracking-widest"
               >
-                <Download size={16} /> Exportar Dossiê
-              </button>
+                <Download size={14} className="mr-2" /> Exportar Dossiê
+              </Button>
             </div>
           </div>
         </div>
       )}
-      {/* Modal de Revisão de Questões Mineradas */}
+
       <Dialog
         open={!!previewQuestions}
         onOpenChange={() => setPreviewQuestions(null)}
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col rounded-[3rem] border-primary/20">
-          <DialogHeader className="p-8 bg-primary/5 border-b border-primary/10 shrink-0">
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
-              <Cpu className="text-primary" /> Mineração Concluída
+        <DialogContent className="max-w-4xl max-h-[85vh] p-0 overflow-hidden flex flex-col rounded-lg border-border">
+          <DialogHeader className="p-6 bg-secondary/30 border-b border-border shrink-0">
+            <DialogTitle className="text-xl font-bold uppercase tracking-tight flex items-center gap-3">
+              <Cpu className="text-primary" /> Extração Concluída
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold opacity-60">
-              A IA identificou {previewQuestions?.questions.length} questões no
-              seu material. Deseja integrá-las à sua base de dados?
+            <DialogDescription className="text-xs font-semibold opacity-60">
+              Identificamos {previewQuestions?.questions.length} questões
+              estruturadas. Deseja integrá-las?
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="p-8 space-y-8">
+          <ScrollArea className="flex-1 min-h-0 bg-card">
+            <div className="p-6 space-y-6">
               {previewQuestions?.questions.map((q, idx) => (
                 <div
                   key={idx}
-                  className="soe-card p-6 bg-secondary/20 border-border/50 rounded-[2rem] space-y-4"
+                  className="soe-card p-5 bg-secondary/10 border-border rounded-md space-y-4"
                 >
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
                       <Badge
                         variant="outline"
-                        className="text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary border-primary/20"
+                        className="text-[9px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/20"
                       >
                         {q.subject || "Sem Matéria"}
                       </Badge>
-                      <h4 className="text-[10px] font-black uppercase opacity-30">
+                      <h4 className="text-[10px] font-bold uppercase opacity-40 tracking-wider block">
                         {q.topic || "Assunto Geral"}
                       </h4>
                     </div>
-                    <Badge className="bg-accent-green/20 text-accent-green border-accent-green/30 text-[10px] font-bold">
+                    <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] font-bold rounded-sm">
                       Gabarito: {q.correctAnswer}
                     </Badge>
                   </div>
 
-                  <p className="text-sm font-medium leading-relaxed opacity-80">
+                  <p className="text-sm font-semibold leading-relaxed text-foreground/80">
                     {q.statement}
                   </p>
 
-                  <div className="grid grid-cols-1 gap-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid grid-cols-1 gap-1.5 pl-4 border-l-2 border-primary/20">
                     {Array.isArray(q.alternatives)
                       ? q.alternatives.map((alt: any, altIdx: number) => (
                           <div
                             key={altIdx}
-                            className="text-xs opacity-60 flex gap-2"
+                            className="text-xs opacity-70 flex gap-2 font-medium"
                           >
-                            <span className="font-black text-primary">
+                            <span className="font-bold text-primary">
                               {alt.letter})
                             </span>
                             <span>{alt.text}</span>
@@ -1593,12 +1597,12 @@ export default function Lab() {
                           ([letter, text]) => (
                             <div
                               key={letter}
-                              className="text-xs opacity-60 flex gap-2"
+                              className="text-xs opacity-70 flex gap-2 font-medium"
                             >
-                              <span className="font-black text-primary">
+                              <span className="font-bold text-primary">
                                 {letter})
                               </span>
-                              <span>{String(text)}</span>
+                              <span>{text as any}</span>
                             </div>
                           ),
                         )}
@@ -1608,40 +1612,21 @@ export default function Lab() {
             </div>
           </ScrollArea>
 
-          <div className="p-8 border-t border-border bg-background flex justify-end gap-4 shrink-0 relative z-50">
-            <button
+          <DialogFooter className="p-4 bg-secondary/30 border-t border-border gap-2">
+            <Button
+              variant="outline"
               onClick={() => setPreviewQuestions(null)}
-              className="px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-secondary active:scale-95 transition-all cursor-pointer"
+              className="h-10 px-6 rounded-md font-bold text-[10px] uppercase tracking-widest"
             >
               Descartar
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  if (!previewQuestions) return;
-                  await integrateMutation.mutateAsync({
-                    fileName: previewQuestions.fileName,
-                  });
-                  toast.success("Questões integradas com sucesso!");
-                  setPreviewQuestions(null);
-                  refetchHistory();
-                } catch (err: any) {
-                  toast.error("Falha na integração: " + err.message);
-                }
-              }}
-              disabled={integrateMutation.isPending}
-              className="px-12 py-3 rounded-2xl bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            </Button>
+            <Button
+              onClick={() => setPreviewQuestions(null)}
+              className="h-10 px-8 rounded-md font-bold text-[10px] uppercase tracking-widest"
             >
-              {integrateMutation.isPending ? (
-                <>
-                  <Loader2 className="animate-spin" size={14} />
-                  Integrando...
-                </>
-              ) : (
-                "Confirmar e Adicionar ao Banco"
-              )}
-            </button>
-          </div>
+              Confirmar Integração
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

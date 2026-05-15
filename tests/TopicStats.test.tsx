@@ -64,7 +64,7 @@ describe("TopicStats Component", () => {
           },
           {
             id: 202,
-            name: "Sem Dados",
+            name: "Topic Without Data",
             studyTimeSeconds: 0,
             performance: null,
           },
@@ -82,8 +82,8 @@ describe("TopicStats Component", () => {
 
   test("renders summary cards and topic table", () => {
     render(<TopicStats />);
-    expect(screen.getByText("Por Tema")).toBeTruthy();
-    expect(screen.getByText("Total de temas")).toBeTruthy();
+    expect(screen.getByText("Relatório Detalhado")).toBeTruthy();
+    expect(screen.getByText("Temas Mapeados")).toBeTruthy();
     expect(screen.getByText("4")).toBeTruthy(); // Total topics
 
     expect(screen.getByText("Atos Administrativos")).toBeTruthy();
@@ -96,7 +96,7 @@ describe("TopicStats Component", () => {
 
   test("filters by search input", () => {
     render(<TopicStats />);
-    const searchInput = screen.getByPlaceholderText("Buscar tema...");
+    const searchInput = screen.getByPlaceholderText("Pesquisar tema...");
     fireEvent.change(searchInput, { target: { value: "Atos" } });
 
     expect(screen.getByText("Atos Administrativos")).toBeTruthy();
@@ -115,20 +115,20 @@ describe("TopicStats Component", () => {
   test("filters by performance tab", () => {
     render(<TopicStats />);
 
-    // Filter strong (>= 70%)
-    fireEvent.click(screen.getByText("Forte ≥70%"));
+    // Filter strong (>= 75%)
+    fireEvent.click(screen.getByText("Forte"));
     expect(screen.getByText("Atos Administrativos")).toBeTruthy();
     expect(screen.getByText("Direitos Fundamentais")).toBeTruthy();
     expect(screen.queryByText("Poderes")).toBeNull();
 
     // Filter weak (< 50%)
-    fireEvent.click(screen.getByText("Fraco <50%"));
+    fireEvent.click(screen.getByText("Crítico"));
     expect(screen.getByText("Poderes")).toBeTruthy();
     expect(screen.queryByText("Atos Administrativos")).toBeNull();
 
     // Filter no data
-    fireEvent.click(screen.getByText("Sem dados"));
-    expect(screen.getByText("Sem Dados")).toBeTruthy();
+    fireEvent.click(screen.getByText("Sem Dados"));
+    expect(screen.getByText("Topic Without Data")).toBeTruthy();
     expect(screen.queryByText("Poderes")).toBeNull();
   });
 
@@ -155,31 +155,24 @@ describe("TopicStats Component", () => {
       data: { disciplineStats: [] },
     });
     render(<TopicStats />);
-    expect(screen.getByText("Nenhum dado disponível ainda.")).toBeTruthy();
+    expect(
+      screen.getByText("Nenhum tema encontrado para os filtros ativos"),
+    ).toBeTruthy();
   });
 
   test("handles no results found with filters", () => {
     render(<TopicStats />);
-    const searchInput = screen.getByPlaceholderText("Buscar tema...");
+    const searchInput = screen.getByPlaceholderText("Pesquisar tema...");
     fireEvent.change(searchInput, { target: { value: "Nonexistent" } });
     expect(
-      screen.getByText("Nenhum tema encontrado com esses filtros."),
+      screen.getByText("Nenhum tema encontrado para os filtros ativos"),
     ).toBeTruthy();
-  });
-
-  test("renders row hover background change", () => {
-    render(<TopicStats />);
-    const row = screen.getByText("Atos Administrativos").closest("tr")!;
-    fireEvent.mouseEnter(row);
-    expect(row.style.background).toBe("var(--stat-bg)");
-    fireEvent.mouseLeave(row);
-    expect(row.style.background).toBe("transparent");
   });
 
   test("formats study time correctly", () => {
     render(<TopicStats />);
-    expect(screen.getByText("1h 0m")).toBeTruthy(); // 3600s
+    expect(screen.getByText("1h")).toBeTruthy(); // 3600s
     expect(screen.getByText("30m")).toBeTruthy(); // 1800s
-    expect(screen.getByText("2h 0m")).toBeTruthy(); // 7200s
+    expect(screen.getByText("2h")).toBeTruthy(); // 7200s
   });
 });
