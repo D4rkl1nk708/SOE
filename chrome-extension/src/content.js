@@ -185,11 +185,11 @@
     try {
       const selMateria = document.querySelector(
         '[class*="materia"], [class*="disciplina"], [class*="subject"], ' +
-        '[data-materia], [data-disciplina], .question-subject'
+        '[data-materia], [data-disciplina], .question-subject, .q-disciplina, .q-materia'
       );
       const selAssunto = document.querySelector(
         '[class*="assunto"], [class*="topico"], [class*="topic"], ' +
-        '[data-assunto], [data-topico], .question-topic'
+        '[data-assunto], [data-topico], .question-topic, .q-assunto, .q-topico'
       );
       if (selMateria && selAssunto) {
         const disciplina = cleanBtns(selMateria.textContent || '');
@@ -266,12 +266,22 @@
       domId = qEl?.getAttribute('data-questao-id') || qEl?.getAttribute('data-question-id') || qEl?.getAttribute('data-id') || null;
     } catch (_) {}
 
-    const questionId = headerMatch?.[1] || urlIdMatch?.[1] || domId || null;
+    const questionId = 
+      headerMatch?.[1] || 
+      bodyText.match(/Questão\s+#?(\d+)/i)?.[1] ||
+      bodyText.match(/#(\d+)/)?.[1] ||
+      urlIdMatch?.[1] || 
+      domId || 
+      null;
 
-    const acertoMatch = bodyText.match(/Você acertou!|Resposta correta|Alternativa correta|Parabéns|Acertou/i) ||
-                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"], .feedback-success, .is-correct');
-    const erroMatch   = bodyText.match(/Você errou!|Resposta errada|Alternativa incorreta|Errou/i) ||
-                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], .feedback-error, .is-wrong');
+    if ((acertoMatch || erroMatch) && !questionId) {
+      console.warn('[SOE v2] Resultado detectado, mas ID da questão não encontrado. Usando URL como fallback.');
+    }
+
+    const acertoMatch = bodyText.match(/Você acertou!|Resposta correta|Alternativa correta|Parabéns|Acertou|Gabarito Correto|Gabarito: Certo/i) ||
+                        document.querySelector('.correta, .q-certa, .success, .text-success, [class*="acertou"], [class*="correct"], [class*="success"], [class*="bg-success"], .feedback-success, .is-correct, i.fa-check, svg.text-success, .resposta-correta, [style*="rgb(223, 240, 216)"]');
+    const erroMatch   = bodyText.match(/Você errou!|Resposta errada|Alternativa incorreta|Errou|Gabarito Incorreto|Gabarito: Errado/i) ||
+                        document.querySelector('.errada, .q-errada, .wrong, .danger, .text-danger, [class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], [class*="bg-danger"], .feedback-error, .is-wrong, i.fa-times, svg.text-danger, .resposta-errada');
 
     // If we can't find questionId at all, use URL as dedup key
     const dedupKey = questionId || location.href;
@@ -381,8 +391,8 @@
   }
 
   function scrapeWrongQuestion(text, bodyElement) {
-    if (!text.match(/Você errou!/i)) return null;
-    const errorMatch = text.match(/Você errou!(?:[\s\S]{0,500}Gabarito:\s*([A-E]|[CERTORADcertorad]+\b))?/i);
+    if (!text.match(/Você errou!|Resposta errada|Incorreta|Gabarito Incorreto/i)) return null;
+    const errorMatch = text.match(/(?:Você errou!|Resposta errada|Incorreta|Gabarito Incorreto)(?:[\s\S]{0,500}Gabarito:\s*([A-E]|[CERTORADcertorad]+\b))?/i);
     const headerMatch = text.match(/#(\d+)\s+([^\-]+)\s*-\s*(\d{4})?\s*-\s*([^\n]+)/);
     const questionId = headerMatch ? headerMatch[1] : '';
     const banca = headerMatch ? headerMatch[2].trim() : '';
