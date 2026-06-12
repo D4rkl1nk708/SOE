@@ -17,25 +17,7 @@ if (typeof window !== "undefined") {
 }
 
 
-// Relay from content.js (isolated window) -> React host
-window.addEventListener("message", (e) => {
-  if (e.data && e.data._soe_internal) {
-    if (e.data.type && !e.data.type.endsWith('_RESPONSE')) {
-      ipcRenderer.send("soe-tec-message", e.data);
-    }
-  }
-});
 
-// Relay from React host -> content.js (isolated window)
-ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
-  window.postMessage({
-    type: type + "_RESPONSE",
-    messageId,
-    response,
-    error,
-    _soe_internal: true
-  }, "*");
-});
 
 // ── INJECT CONTENT SCRIPT NATIVELY IN ISOLATED WORLD ──
 // Isto evita falhas de CSP (Content Security Policy) da página.
@@ -52,8 +34,8 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
 (function () {
   'use strict';
 
-  if (window.__SOE_INJECTED_V2__) return;
-  window.__SOE_INJECTED_V2__ = true;
+  if (window.__REACT_DEVTOOLS_GLOBAL_HOOK_EXT__) return;
+  window.__REACT_DEVTOOLS_GLOBAL_HOOK_EXT__ = true;
 
   const CADERNO_ID = location.pathname.match(/\/cadernos\/(\d+)/)?.[1] || null;
 
@@ -163,8 +145,7 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
       cadernos.push({ id, nome, url: `https://www.tecconcursos.com.br${href}`, disciplina: '', totalQuestoes: 0, assuntos: 0 });
     }
     if (cadernos.length > 0) {
-      console.log('[SOE v2] Cadernos detectados via DOM:', cadernos.length);
-      window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
+      ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
     }
   }
 
@@ -288,8 +269,8 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
           const qId = headerMatch[1];
           const acertoMatch = bodyText.match(/Você acertou!/i);
           const erroMatch = bodyText.match(/Você errou!/i);
-          if ((acertoMatch || erroMatch) && !sessionStorage.getItem('soe_scored_' + qId)) {
-            sessionStorage.setItem('soe_scored_' + qId, '1');
+          if ((acertoMatch || erroMatch) && !sessionStorage.getItem('_react_app_cache_' + qId)) {
+            sessionStorage.setItem('_react_app_cache_' + qId, '1');
           }
         }
         // Se chegou na página de cadernos, raspa a lista
@@ -328,7 +309,7 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
     const dedupKey = questionId || location.href;
 
     if (dedupKey && (acertoMatch || erroMatch)) {
-      const storageKey = 'soe_scored_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+      const storageKey = '_react_app_cache_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
       if (!sessionStorage.getItem(storageKey)) {
         const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
         if (timeSpentSeconds < 2) return;
@@ -345,13 +326,8 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
 
         {
           const activeBanca = getActiveBanca();
-          console.log('[SOE v2] Incrementando stats para', assunto, ' (Disciplina:', disciplina || 'NÃO ENCONTRADA', ') -', timeSpentSeconds, 's');
           
-          if (!disciplina) {
-            console.warn('[SOE v2] ALERTA: Disciplina não identificada. O servidor pode rejeitar esta atualização.');
-          }
-
-          window.postMessage({
+          ipcRenderer.send("soe-tec-message", {
             type: 'SOE_TEC_INCREMENT_STATS',
             payload: {
               cadernoId: CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
@@ -363,14 +339,14 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
               timeSpentSeconds,
             },
             _soe_internal: true,
-          }, '*');
+          });
 
           if (activeBanca && disciplina && assunto !== 'Questão TEC') {
-            window.postMessage({
+            ipcRenderer.send("soe-tec-message", {
               type: 'SOE_TEC_BANCA_INCREMENT',
               payload: { disciplina, assunto, banca: activeBanca, correctAdd: isError ? 0 : 1, errorAdd: isError ? 1 : 0 },
               _soe_internal: true,
-            }, '*');
+            });
           }
 
         } // end increment block
@@ -378,21 +354,20 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
         // Sirene de Ilusão de Competência
         if (isError) {
           const now = Date.now();
-          let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
+          let errorTimes = JSON.parse(sessionStorage.getItem('_react_app_state_') || '[]');
           errorTimes = errorTimes.filter(t => now - t.time < 3 * 60 * 1000);
           const currentSubject = rows[0]?.assunto || assunto;
           errorTimes.push({ time: now, subject: currentSubject });
-          sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
+          sessionStorage.setItem('_react_app_state_', JSON.stringify(errorTimes));
           const sameErrors = errorTimes.filter(t => t.subject === currentSubject);
           if (sameErrors.length >= 3) {
-            showCompetenceIllusionSiren(currentSubject, sameErrors.length);
-            sessionStorage.setItem('soe_error_times_v2', '[]');
+            sessionStorage.setItem('_react_app_state_', '[]');
           }
         } else {
-          let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
+          let errorTimes = JSON.parse(sessionStorage.getItem('_react_app_state_') || '[]');
           const currentSubject = rows[0]?.assunto || assunto;
           errorTimes = errorTimes.filter(t => t.subject !== currentSubject);
-          sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
+          sessionStorage.setItem('_react_app_state_', JSON.stringify(errorTimes));
         }
 
         if (isError) {
@@ -401,37 +376,14 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
             wq.disciplina = disciplina;
             wq.assunto    = assunto;
             wq.timeSpentSeconds = timeSpentSeconds;
-            console.log('[SOE v2] Enviando questão errada:', wq.questionId);
-            window.postMessage({ type: 'SOE_TEC_WRONG_QUESTION', payload: wq, _soe_internal: true }, '*');
+            ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_WRONG_QUESTION', payload: wq, _soe_internal: true });
           }
         }
       }
     }
   }
 
-  function showCompetenceIllusionSiren(assunto, count) {
-    const siren = document.createElement('div');
-    siren.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.98); z-index: 9999999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: white; font-family: sans-serif; text-align: center; padding: 20px;
-      backdrop-filter: blur(10px);
-    `;
-    siren.innerHTML = `
-      <div style="font-size: 60px; margin-bottom: 20px;">🚨</div>
-      <h1 style="font-size: 32px; margin-bottom: 15px; color: #f87171;">Alerta de Ilusão de Competência</h1>
-      <p style="font-size: 20px; line-height: 1.5; max-width: 600px; color: #cbd5e1; margin-bottom: 30px;">
-        Você errou <strong>${count} questões</strong> quase sequenciais de <em>${assunto}</em> num curto intervalo de tempo.<br><br>
-        Insistir agora é desperdiçar energia mental e memorizar o erro. Vá revisar seu material, grifos ou anotações.
-      </p>
-      <button id="soe-dismiss-siren" style="padding: 12px 24px; font-size: 18px; border-radius: 8px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: bold;">
-        Entendi (Voltar)
-      </button>
-    `;
-    document.body.appendChild(siren);
-    document.getElementById('soe-dismiss-siren').addEventListener('click', () => siren.remove());
-  }
+
 
   function scrapeWrongQuestion(text, bodyElement) {
     if (!text.match(/Você errou!/i)) return null;
@@ -487,7 +439,7 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
 
   function dispatch(rows, sourceUrl) {
     if (!rows || rows.length === 0) return;
-    window.postMessage({
+    ipcRenderer.send("soe-tec-message", {
       type: 'SOE_TEC_DATA',
       payload: {
         cadernoId:  CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
@@ -497,79 +449,80 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
         sourceUrl,
       },
       _soe_internal: true,
-    }, '*');
+    });
   }
 
   // ─── Intercept fetch ──────────────────────────────────────────────────────
 
-  const _fetch = window.fetch;
-  window.fetch = async function (...args) {
-    const response = await _fetch.apply(this, args);
-    try {
-      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-
-      if (url.includes('api') || url.includes('questoes')) {
-        setTimeout(tryScrapeDOM, 1000);
-        setTimeout(tryScrapeDOM, 3000);
-        setTimeout(tryScrapeDOM, 5000);
-      }
-
-      if (isRelevantUrl(url)) {
-        const ct = response.headers.get('content-type') || '';
-        if (ct.includes('json')) {
-          response.clone().json().then(data => {
-            const rows = parseTecResponse(data);
-            if (rows.length > 0) {
-              console.log('[SOE v2] capturados', rows.length, 'assuntos via fetch (com metadados enriquecidos)');
-              dispatch(rows, url);
-            }
-            // Tenta detectar lista de cadernos
-            if (isCadernosListUrl(url)) {
-              const cadernos = parseCadernosList(data);
-              if (cadernos.length > 0) {
-                console.log('[SOE v2] Lista de cadernos capturada via API:', cadernos.length);
-                window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
-              }
-            }
-          }).catch(() => {});
-        }
-      }
-    } catch (_) {}
-    return response;
-  };
-
-  // ─── Intercept XHR ───────────────────────────────────────────────────────
-
-  const _XHROpen = XMLHttpRequest.prototype.open;
-  const _XHRSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    this._soe_url = url;
-    return _XHROpen.apply(this, [method, url, ...rest]);
-  };
-  XMLHttpRequest.prototype.send = function (...args) {
-    this.addEventListener('load', function () {
+  window.fetch = new Proxy(window.fetch, {
+    apply: async function (target, thisArg, argumentsList) {
+      const response = await Reflect.apply(target, thisArg, argumentsList);
       try {
-        const url = this._soe_url || '';
-        if (url.includes('api')) { setTimeout(tryScrapeDOM, 1000); setTimeout(tryScrapeDOM, 3000); }
-        if (!isRelevantUrl(url)) return;
-        const ct = this.getResponseHeader('content-type') || '';
-        if (!ct.includes('json')) return;
-        const data = JSON.parse(this.responseText);
-        const rows = parseTecResponse(data);
-        if (rows.length > 0) {
-          console.log('[SOE v2] capturados', rows.length, 'assuntos via XHR');
-          dispatch(rows, url);
+        const url = typeof argumentsList[0] === 'string' ? argumentsList[0] : argumentsList[0]?.url || '';
+
+        if (url.includes('api') || url.includes('questoes')) {
+          setTimeout(tryScrapeDOM, 1000);
+          setTimeout(tryScrapeDOM, 3000);
+          setTimeout(tryScrapeDOM, 5000);
         }
-        if (isCadernosListUrl(url)) {
-          const cadernos = parseCadernosList(data);
-          if (cadernos.length > 0) {
-            window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
+
+        if (isRelevantUrl(url)) {
+          const ct = response.headers.get('content-type') || '';
+          if (ct.includes('json')) {
+            response.clone().json().then(data => {
+              const rows = parseTecResponse(data);
+              if (rows.length > 0) {
+                dispatch(rows, url);
+              }
+              // Tenta detectar lista de cadernos
+              if (isCadernosListUrl(url)) {
+                const cadernos = parseCadernosList(data);
+                if (cadernos.length > 0) {
+                  ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
+                }
+              }
+            }).catch(() => {});
           }
         }
       } catch (_) {}
-    });
-    return _XHRSend.apply(this, args);
-  };
+      return response;
+    }
+  });
+
+  // ─── Intercept XHR ───────────────────────────────────────────────────────
+
+  XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
+    apply: function (target, thisArg, argumentsList) {
+      thisArg._soe_url = argumentsList[1];
+      return Reflect.apply(target, thisArg, argumentsList);
+    }
+  });
+
+  XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, {
+    apply: function (target, thisArg, argumentsList) {
+      thisArg.addEventListener('load', function () {
+        try {
+          const url = this._soe_url || '';
+          if (url.includes('api')) { setTimeout(tryScrapeDOM, 1000); setTimeout(tryScrapeDOM, 3000); }
+          if (!isRelevantUrl(url)) return;
+          const ct = this.getResponseHeader('content-type') || '';
+          if (!ct.includes('json')) return;
+          const data = JSON.parse(this.responseText);
+          const rows = parseTecResponse(data);
+          if (rows.length > 0) {
+            dispatch(rows, url);
+          }
+          if (isCadernosListUrl(url)) {
+            const cadernos = parseCadernosList(data);
+            if (cadernos.length > 0) {
+              ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
+            }
+          }
+        } catch (_) {}
+      });
+      return Reflect.apply(target, thisArg, argumentsList);
+    }
+  });
 
   // ─── HTML table fallback + DOM init ──────────────────────────────────────
 
@@ -595,7 +548,6 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
       }
     }
     if (rows.length > 0) {
-      console.log('[SOE v2] capturados', rows.length, 'assuntos via HTML scraping');
       dispatch(rows, location.href);
     }
     return rows.length;
@@ -605,7 +557,6 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
     setTimeout(() => {
       tryScrapeDOM();
       if (scrapeHtmlTable() === 0) setTimeout(scrapeHtmlTable, 3000);
-      injectSOEHud();
 
       // Auto-scan lista de cadernos se estiver na página certa
       if (location.pathname.match(/\/cadernos($|\?)/)) {
@@ -623,137 +574,6 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
     });
   });
 
-  // ─── sendBgMessage helper ────────────────────────────────────────────────
-
-  function sendBgMessage(type, payload) {
-    return new Promise((resolve, reject) => {
-      const messageId = 'soe_' + Date.now() + '_' + Math.random().toString(36).substring(7);
-      const handler = (e) => {
-        if (e.data && e.data.type === type + '_RESPONSE' && e.data.messageId === messageId) {
-          window.removeEventListener('message', handler);
-          clearTimeout(timeout);
-          if (e.data.error) reject(new Error(e.data.error));
-          else if (e.data.response && e.data.response.ok === false) reject(new Error(e.data.response.error || 'Erro desconhecido'));
-          else resolve(e.data.response ? e.data.response.data : null);
-        }
-      };
-      window.addEventListener('message', handler);
-      window.postMessage({ type, payload, messageId, _soe_internal: true }, '*');
-      const timeout = setTimeout(() => {
-        window.removeEventListener('message', handler);
-        reject(new Error('Timeout: extensão não respondeu em 60s.'));
-      }, 60000);
-    });
-  }
-
-  // ─── HUD do Mentor ────────────────────────────────────────────────────────
-
-  function injectSOEHud() {
-    if (document.getElementById('soe-hud')) return;
-    const hud = document.createElement('div');
-    hud.id = 'soe-hud';
-    hud.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">SOE Mentor</div>
-      <button id="soe-panic-btn" style="width: 100%; padding: 6px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4); color: #60a5fa; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;">
-        💡 Me ajude, IA
-      </button>
-    `;
-    hud.style.cssText = `
-      position: fixed; bottom: 20px; right: 20px;
-      background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.1);
-      padding: 16px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
-      z-index: 999999; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-      backdrop-filter: blur(8px);
-    `;
-    document.body.appendChild(hud);
-
-    document.getElementById('soe-panic-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('soe-panic-btn');
-      btn.disabled = true;
-      btn.innerText = 'Consultando...';
-
-      let text = document.body.innerText;
-      const headerMatch = text.match(/#(\d+)\s+([^\-]+)/);
-      if (headerMatch) text = text.substring(headerMatch.index);
-      const cutoffs = [/Você errou!/, /Você acertou!/, /Gabarito:/, /Resolução do Professor/i, /Comentários da Comunidade/i, /Fórum/i];
-      let cutoff = text.length;
-      for (const r of cutoffs) { const m = text.match(r); if (m && m.index < cutoff) cutoff = m.index; }
-      if (cutoff > 0) text = text.substring(0, cutoff);
-      text = text.substring(0, 1500);
-
-      let fatigueCount = 0, subjectName = '', discName = '';
-      try {
-        const rows = scrapeQuestionHeader();
-        if (rows.length > 0) {
-          subjectName = rows[0].assunto;
-          discName = rows[0].disciplina;
-          const errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-          fatigueCount = errorTimes.filter(t => t.subject === subjectName).length;
-        }
-      } catch (e) {}
-
-      try {
-        const data = await sendBgMessage('SOE_TEC_AI_MENTOR', {
-          questionId: headerMatch ? headerMatch[1] : '',
-          questionText: text,
-          subject: subjectName,
-          discipline: discName,
-          fatigue: fatigueCount,
-        });
-        if (data?.text) showMentorModal(data.text, headerMatch ? headerMatch[1] : '');
-        else alert('Mentor respondeu vazio ou sem chave de API.');
-      } catch (e) {
-        alert('Falha de conexão: ' + e.message);
-      }
-      btn.disabled = false;
-      btn.innerText = '💡 Me ajude, IA';
-    });
-  }
-
-  function showMentorModal(text, questionId) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      background: #1e293b; color: white; padding: 25px; border-radius: 12px;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); z-index: 9999999;
-      max-width: 600px; width: 90%; font-family: sans-serif; line-height: 1.6;
-      border: 1px solid #334155;
-    `;
-    modal.innerHTML = `
-      <h2 style="margin: 0 0 15px 0; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 24px;">💡</span> SOE Mentor Socrático
-      </h2>
-      <div style="font-size: 15px; color: #e2e8f0; white-space: pre-wrap; margin-bottom: 20px; max-height: 50vh; overflow-y: auto;">${text.replace(/</g, '&lt;')}</div>
-      <div style="display: flex; gap: 10px;">
-        <button id="soe-gen-flashcard" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #3b82f6; background: transparent; color: #60a5fa; cursor: pointer; font-weight: bold;">🗂️ Gerar Flashcard</button>
-        <button id="soe-close-mentor" style="flex: 1; padding: 10px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: bold;">Fechar</button>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    document.getElementById('soe-close-mentor').addEventListener('click', () => modal.remove());
-    document.getElementById('soe-gen-flashcard').addEventListener('click', async () => {
-      const btn = document.getElementById('soe-gen-flashcard');
-      btn.disabled = true;
-      btn.innerText = 'Gerando...';
-      try {
-        const res = await sendBgMessage('SOE_GENERATE_FLASHCARD', { questionId });
-        if (res?.success) {
-          btn.innerText = '✅ Salvo!';
-          btn.style.color = '#22c55e';
-          btn.style.borderColor = '#22c55e';
-        } else {
-          alert('Erro ao gerar flashcard: ' + (res?.error || 'IA não retornou dados'));
-          btn.disabled = false;
-          btn.innerText = '🗂️ Gerar Flashcard';
-        }
-      } catch (e) {
-        alert('Falha: ' + e.message);
-        btn.disabled = false;
-        btn.innerText = '🗂️ Gerar Flashcard';
-      }
-    });
-  }
-
-  console.log('[SOE v2] content script ativo — captura enriquecida (incidência + bancas + cadernos)');
+  /* SOE v2.5 content script ativo */
 })();
 
