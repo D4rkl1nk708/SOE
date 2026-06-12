@@ -10,5 +10,5 @@ import { Capacitor } from "@capacitor/core";
 
 // Check if running in local mode (no OAuth configured, or app standalone no Android/iOS)
 export const isLocalMode = () => {
-  return false;
+  return true;
 };

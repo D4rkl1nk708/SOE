@@ -1,5 +1,4 @@
 import { getLoginUrl, isLocalMode } from "@/const";
-import { supabase } from "@/lib/supabase";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -7,19 +6,6 @@ import { useCallback, useEffect, useMemo } from "react";
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
   redirectPath?: string;
-};
-
-// Default local user for offline mode
-const LOCAL_USER = {
-  id: 1,
-  openId: "local-user",
-  name: "Usuário Local",
-  email: "local@estudos.local",
-  loginMethod: "local",
-  role: "admin" as const,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  lastSignedIn: new Date(),
 };
 
 export function useAuth(options?: UseAuthOptions) {
@@ -34,7 +20,7 @@ export function useAuth(options?: UseAuthOptions) {
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
-    // In local mode, we don't need to fetch from server
+    // In local mode, we don't need to fetch from server as we'll mock it
     enabled: !localMode,
   });
 
@@ -44,40 +30,13 @@ export function useAuth(options?: UseAuthOptions) {
     },
   });
 
-  // Track Supabase session manually to ensure react-query is in sync
-  useEffect(() => {
-    if (!supabase) return;
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        utils.auth.me.setData(undefined, undefined);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        meQuery.refetch();
-      } else {
-        utils.auth.me.setData(undefined, undefined);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [utils]);
-
   const logout = useCallback(async () => {
     if (localMode) {
-      // In local mode, just refresh the page
       window.location.reload();
       return;
     }
 
     try {
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
       if (
@@ -94,19 +53,31 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils, localMode]);
 
   const state = useMemo(() => {
-    // In local mode, always return the local user ONLY IF we don't have a supabase session.
-    // Actually, let's stop forcing LOCAL_USER if the user wants Supabase.
-    // We will rely on meQuery.data.
+    // Se estiver no modo offline forçado, usamos dados mocados ou confiamos no contexto do servidor
+    const defaultUser = {
+      id: 1,
+      openId: "local-user",
+      name: "Usuário Local",
+      email: "local@estudos.local",
+      loginMethod: "local",
+      role: "admin",
+      settings: {
+        theme: "light",
+        studyStreak: { current: 0, best: 0, lastStudyDate: null },
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastSignedIn: new Date().toISOString(),
+    };
 
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data),
-    );
+    const user = localMode ? defaultUser : (meQuery.data ?? null);
+
+    localStorage.setItem("manus-runtime-user-info", JSON.stringify(user));
     return {
-      user: meQuery.data ?? null,
+      user: user,
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated: Boolean(user),
     };
   }, [
     localMode,
@@ -125,7 +96,6 @@ export function useAuth(options?: UseAuthOptions) {
     if (state.user) return;
     if (typeof window === "undefined") return;
 
-    // NEW: Don't redirect if we had a connection error (server might be restarting)
     if (meQuery.isError) {
       const error = meQuery.error as any;
       const isConnectionError =
