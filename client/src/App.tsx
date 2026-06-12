@@ -8,7 +8,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { Layout } from "./components/Layout";
 import Dashboard from "@/pages/Dashboard";
-import Login from "@/pages/Login";
 import Disciplines from "@/pages/Disciplines";
 import Topics from "@/pages/Topics";
 import Calendar from "@/pages/Calendar";
@@ -169,11 +168,13 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 }
 
 function MainContent() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
-  if (location === "/login") {
-    return <Login />;
-  }
+  useEffect(() => {
+    if (location === "/login") {
+      setLocation("/", { replace: true });
+    }
+  }, [location, setLocation]);
 
   return (
     <Layout>
