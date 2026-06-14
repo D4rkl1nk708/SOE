@@ -6,17 +6,19 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import { Capacitor } from "@capacitor/core";
 import App from "./App";
-import { getLoginUrl } from "./const";
+import { getLoginUrl, isLocalMode } from "./const";
 import { createLocalLink } from "./lib/localLink";
 import "./index.css";
 
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
+  if (isLocalMode()) return;
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
 
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+  if (!isUnauthorized) return;
 
   const loginUrl = getLoginUrl();
   if (window.location.pathname === loginUrl) return;
