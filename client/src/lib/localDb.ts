@@ -5,7 +5,11 @@
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import Dexie, { type Table } from "dexie";
-import { buildSchedule, formatDateForDb, getScheduleParams } from "@shared/scheduling";
+import {
+  buildSchedule,
+  formatDateForDb,
+  getScheduleParams,
+} from "@shared/scheduling";
 import { callAiProvider, extractJSON, AiProvider } from "./aiHelpers";
 
 const now = () => new Date().toISOString();
@@ -31,7 +35,12 @@ interface Discipline {
   weight: number;
   order: number;
   studyTimeSeconds: number;
-  performance?: { questionsResolved: number; accuracy: number; correctCount: number; errorCount: number };
+  performance?: {
+    questionsResolved: number;
+    accuracy: number;
+    correctCount: number;
+    errorCount: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -45,7 +54,12 @@ interface Topic {
   studyDate: string;
   notes: string | null;
   studyTimeSeconds: number;
-  performance?: { questionsResolved: number; accuracy: number; correctCount: number; errorCount: number };
+  performance?: {
+    questionsResolved: number;
+    accuracy: number;
+    correctCount: number;
+    errorCount: number;
+  };
   topicNotes?: string[];
   createdAt: string;
   updatedAt: string;
@@ -305,7 +319,7 @@ const LOCAL_USER_ID = 1;
 
 async function ensureLocalUser(): Promise<User> {
   let u = await db.users.get(LOCAL_USER_ID);
-  
+
   if (!u && Capacitor.isNativePlatform()) {
     try {
       const { value } = await Preferences.get({ key: "soe_user_backup" });
@@ -324,8 +338,19 @@ async function ensureLocalUser(): Promise<User> {
       theme: "light",
       studyStreak: { current: 0, best: 0, lastStudyDate: null },
       exams: [] as { id: string; name: string; date: string }[],
-      editalCycle: [] as { id: string; title: string; durationMinutes: number; done: boolean }[],
-      editalRows: [] as { id: string; discipline: string; topic: string; completed: boolean; notes?: string }[],
+      editalCycle: [] as {
+        id: string;
+        title: string;
+        durationMinutes: number;
+        done: boolean;
+      }[],
+      editalRows: [] as {
+        id: string;
+        discipline: string;
+        topic: string;
+        completed: boolean;
+        notes?: string;
+      }[],
     };
     u = {
       id: LOCAL_USER_ID,
@@ -349,35 +374,60 @@ export async function localAuthMe(): Promise<User | null> {
   return ensureLocalUser();
 }
 
-export async function localUpdateSettings(input: Record<string, unknown>): Promise<{ success: boolean }> {
+export async function localUpdateSettings(
+  input: Record<string, unknown>,
+): Promise<{ success: boolean }> {
   const u = await ensureLocalUser();
   const settings = { ...(u.settings as Record<string, unknown>), ...input };
   await db.users.update(LOCAL_USER_ID, { settings, updatedAt: now() });
-  
+
   if (Capacitor.isNativePlatform()) {
     try {
       const updatedUser = await db.users.get(LOCAL_USER_ID);
       if (updatedUser) {
-        await Preferences.set({ key: "soe_user_backup", value: JSON.stringify(updatedUser) });
+        await Preferences.set({
+          key: "soe_user_backup",
+          value: JSON.stringify(updatedUser),
+        });
       }
     } catch (e) {}
   }
-  
+
   return { success: true };
 }
 
-export async function localExamList(): Promise<{ id: string; name: string; date: string }[]> {
+export async function localExamList(): Promise<
+  { id: string; name: string; date: string }[]
+> {
   const u = await ensureLocalUser();
-  return ((u.settings as Record<string, unknown>).exams as { id: string; name: string; date: string }[]) ?? [];
+  return (
+    ((u.settings as Record<string, unknown>).exams as {
+      id: string;
+      name: string;
+      date: string;
+    }[]) ?? []
+  );
 }
 
-export async function localExamUpsert(input: { id?: string; name: string; date: string }): Promise<{ success: boolean; id: string }> {
+export async function localExamUpsert(input: {
+  id?: string;
+  name: string;
+  date: string;
+}): Promise<{ success: boolean; id: string }> {
   const u = await ensureLocalUser();
-  const exams = ((u.settings as Record<string, unknown>).exams as { id: string; name: string; date: string }[]) ?? [];
-  const nextId = input.id ?? `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const exams =
+    ((u.settings as Record<string, unknown>).exams as {
+      id: string;
+      name: string;
+      date: string;
+    }[]) ?? [];
+  const nextId =
+    input.id ?? `exam-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
   const exists = exams.some((e) => e.id === nextId);
   const updated = exists
-    ? exams.map((e) => (e.id === nextId ? { ...e, name: input.name, date: input.date } : e))
+    ? exams.map((e) =>
+        e.id === nextId ? { ...e, name: input.name, date: input.date } : e,
+      )
     : [...exams, { id: nextId, name: input.name, date: input.date }];
   await db.users.update(LOCAL_USER_ID, {
     settings: { ...(u.settings as Record<string, unknown>), exams: updated },
@@ -386,9 +436,16 @@ export async function localExamUpsert(input: { id?: string; name: string; date: 
   return { success: true, id: nextId };
 }
 
-export async function localExamRemove(input: { id: string }): Promise<{ success: boolean }> {
+export async function localExamRemove(input: {
+  id: string;
+}): Promise<{ success: boolean }> {
   const u = await ensureLocalUser();
-  const exams = ((u.settings as Record<string, unknown>).exams as { id: string; name: string; date: string }[]) ?? [];
+  const exams =
+    ((u.settings as Record<string, unknown>).exams as {
+      id: string;
+      name: string;
+      date: string;
+    }[]) ?? [];
   const updated = exams.filter((e) => e.id !== input.id);
   await db.users.update(LOCAL_USER_ID, {
     settings: { ...(u.settings as Record<string, unknown>), exams: updated },
@@ -398,13 +455,25 @@ export async function localExamRemove(input: { id: string }): Promise<{ success:
 }
 
 export async function localDisciplineList(): Promise<Discipline[]> {
-  const list = await db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray();
+  const list = await db.disciplines
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
   return list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 }
 
-export async function localDisciplineCreate(input: { name: string; color: string; weight: number }): Promise<{ id: number }> {
-  const list = await db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray();
-  const nextOrder = list.length ? Math.max(...list.map((d) => d.order ?? 0)) + 1 : 1;
+export async function localDisciplineCreate(input: {
+  name: string;
+  color: string;
+  weight: number;
+}): Promise<{ id: number }> {
+  const list = await db.disciplines
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const nextOrder = list.length
+    ? Math.max(...list.map((d) => d.order ?? 0)) + 1
+    : 1;
   const id = await incCounter("disciplines");
   await db.disciplines.add({
     id,
@@ -420,7 +489,13 @@ export async function localDisciplineCreate(input: { name: string; color: string
   return { id };
 }
 
-export async function localDisciplineUpdate(input: { id: number; name?: string; color?: string; weight?: number; order?: number }): Promise<{ success: boolean }> {
+export async function localDisciplineUpdate(input: {
+  id: number;
+  name?: string;
+  color?: string;
+  weight?: number;
+  order?: number;
+}): Promise<{ success: boolean }> {
   const { id, ...data } = input;
   const d = await db.disciplines.get(id);
   if (d && d.userId === LOCAL_USER_ID) {
@@ -429,8 +504,13 @@ export async function localDisciplineUpdate(input: { id: number; name?: string; 
   return { success: true };
 }
 
-export async function localDisciplineDelete(input: { id: number }): Promise<{ success: boolean }> {
-  const topics = await db.topics.where("[userId+disciplineId]").equals([LOCAL_USER_ID, input.id]).toArray();
+export async function localDisciplineDelete(input: {
+  id: number;
+}): Promise<{ success: boolean }> {
+  const topics = await db.topics
+    .where("[userId+disciplineId]")
+    .equals([LOCAL_USER_ID, input.id])
+    .toArray();
   for (const t of topics) {
     await db.revisions.where("topicId").equals(t.id).delete();
   }
@@ -440,22 +520,32 @@ export async function localDisciplineDelete(input: { id: number }): Promise<{ su
   return { success: true };
 }
 
-export async function localDisciplineReorder(input: { orderedIds: number[] }): Promise<{ success: boolean }> {
+export async function localDisciplineReorder(input: {
+  orderedIds: number[];
+}): Promise<{ success: boolean }> {
   for (let i = 0; i < input.orderedIds.length; i++) {
-    await db.disciplines.update(input.orderedIds[i], { order: i + 1, updatedAt: now() });
+    await db.disciplines.update(input.orderedIds[i], {
+      order: i + 1,
+      updatedAt: now(),
+    });
   }
   return { success: true };
 }
 
-export async function localTopicList(input?: { disciplineId?: number; search?: string }): Promise<{ topics: Topic[]; disciplines: Discipline[] }> {
+export async function localTopicList(input?: {
+  disciplineId?: number;
+  search?: string;
+}): Promise<{ topics: Topic[]; disciplines: Discipline[] }> {
   let topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
-  if (input?.disciplineId) topics = topics.filter((t) => t.disciplineId === input.disciplineId);
+  if (input?.disciplineId)
+    topics = topics.filter((t) => t.disciplineId === input.disciplineId);
   if (input?.search) {
     const s = input.search.toLowerCase();
     topics = topics.filter((t) => t.name.toLowerCase().includes(s));
   }
   topics.sort((a, b) => {
-    if (a.disciplineId !== b.disciplineId) return a.disciplineId - b.disciplineId;
+    if (a.disciplineId !== b.disciplineId)
+      return a.disciplineId - b.disciplineId;
     return (a.order ?? 999) - (b.order ?? 999);
   });
   const disciplines = await localDisciplineList();
@@ -472,8 +562,13 @@ export async function localTopicCreate(input: {
   const u = await ensureLocalUser();
   const settings = u.settings as Record<string, unknown>;
   const params = getScheduleParams(settings);
-  const list = await db.topics.where("[userId+disciplineId]").equals([LOCAL_USER_ID, input.disciplineId]).toArray();
-  const nextOrder = list.length ? Math.max(...list.map((t) => t.order ?? 0)) + 1 : 1;
+  const list = await db.topics
+    .where("[userId+disciplineId]")
+    .equals([LOCAL_USER_ID, input.disciplineId])
+    .toArray();
+  const nextOrder = list.length
+    ? Math.max(...list.map((t) => t.order ?? 0)) + 1
+    : 1;
   const id = await incCounter("topics");
   await db.topics.add({
     id,
@@ -510,14 +605,21 @@ export async function localTopicCreate(input: {
   return { id, revisionsCreated: activities.length };
 }
 
-export async function localTopicDelete(input: { id: number }): Promise<{ success: true }> {
+export async function localTopicDelete(input: {
+  id: number;
+}): Promise<{ success: true }> {
   await db.revisions.where("topicId").equals(input.id).delete();
   await db.notes.where("topicId").equals(input.id).delete();
   await db.topics.delete(input.id);
   return { success: true };
 }
 
-export async function localTopicUpdate(input: { id: number; name?: string; disciplineId?: number; notes?: string }): Promise<{ success: boolean }> {
+export async function localTopicUpdate(input: {
+  id: number;
+  name?: string;
+  disciplineId?: number;
+  notes?: string;
+}): Promise<{ success: boolean }> {
   const { id, ...data } = input;
   const t = await db.topics.get(id);
   if (t && t.userId === LOCAL_USER_ID) {
@@ -526,11 +628,16 @@ export async function localTopicUpdate(input: { id: number; name?: string; disci
   return { success: true };
 }
 
-export async function localTopicSetPerformance(input: { topicId: number; correctCount: number; errorCount: number }): Promise<{ success: boolean }> {
+export async function localTopicSetPerformance(input: {
+  topicId: number;
+  correctCount: number;
+  errorCount: number;
+}): Promise<{ success: boolean }> {
   const t = await db.topics.get(input.topicId);
   if (t && t.userId === LOCAL_USER_ID) {
     const total = input.correctCount + input.errorCount;
-    const accuracy = total > 0 ? Math.round((input.correctCount / total) * 100) : 0;
+    const accuracy =
+      total > 0 ? Math.round((input.correctCount / total) * 100) : 0;
     await db.topics.update(input.topicId, {
       performance: {
         questionsResolved: total,
@@ -544,37 +651,53 @@ export async function localTopicSetPerformance(input: { topicId: number; correct
   return { success: true };
 }
 
-export async function localTopicReorder(input: { disciplineId: number; orderedIds: number[] }): Promise<{ success: boolean }> {
+export async function localTopicReorder(input: {
+  disciplineId: number;
+  orderedIds: number[];
+}): Promise<{ success: boolean }> {
   // Batch all updates in a single transaction for performance
   await db.transaction("rw", db.topics, async () => {
     await Promise.all(
-      input.orderedIds.map((id, i) => db.topics.update(id, { order: i + 1, updatedAt: now() }))
+      input.orderedIds.map((id, i) =>
+        db.topics.update(id, { order: i + 1, updatedAt: now() }),
+      ),
     );
   });
   return { success: true };
 }
 
 export async function localTopicResetAllStats(): Promise<{ success: boolean }> {
-  const topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
+  const topics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
   await Promise.all(
     topics.map((t) =>
       db.topics.update(t.id, {
         performance: undefined,
         updatedAt: now(),
-      })
-    )
+      }),
+    ),
   );
   return { success: true };
 }
 
-export async function localRevisionList(input?: { completed?: boolean; ignored?: boolean }): Promise<Revision[]> {
+export async function localRevisionList(input?: {
+  completed?: boolean;
+  ignored?: boolean;
+}): Promise<Revision[]> {
   let list = await db.revisions.where("userId").equals(LOCAL_USER_ID).toArray();
-  if (input?.completed !== undefined) list = list.filter((r) => r.completed === input.completed);
-  if (input?.ignored !== undefined) list = list.filter((r) => r.ignored === input.ignored);
+  if (input?.completed !== undefined)
+    list = list.filter((r) => r.completed === input.completed);
+  if (input?.ignored !== undefined)
+    list = list.filter((r) => r.ignored === input.ignored);
   return list.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
 }
 
-export async function localRevisionMarkCompleted(input: { id: number; completed: boolean }): Promise<{ success: boolean }> {
+export async function localRevisionMarkCompleted(input: {
+  id: number;
+  completed: boolean;
+}): Promise<{ success: boolean }> {
   const r = await db.revisions.get(input.id);
   if (r && r.userId === LOCAL_USER_ID) {
     await db.revisions.update(input.id, {
@@ -586,10 +709,16 @@ export async function localRevisionMarkCompleted(input: { id: number; completed:
   return { success: true };
 }
 
-export async function localRevisionMarkIgnored(input: { id: number; ignored: boolean }): Promise<{ success: boolean }> {
+export async function localRevisionMarkIgnored(input: {
+  id: number;
+  ignored: boolean;
+}): Promise<{ success: boolean }> {
   const r = await db.revisions.get(input.id);
   if (r && r.userId === LOCAL_USER_ID) {
-    await db.revisions.update(input.id, { ignored: input.ignored, updatedAt: now() });
+    await db.revisions.update(input.id, {
+      ignored: input.ignored,
+      updatedAt: now(),
+    });
   }
   return { success: true };
 }
@@ -607,45 +736,128 @@ export async function localImportExportBackup(): Promise<string> {
   for (const ext of rawExtras) extras[ext.key] = ext.data;
   const c = await getCounters();
   return JSON.stringify(
-    { users, disciplines, topics, revisions, mockExams, notes, questionErrors, counters: c, ...extras },
+    {
+      users,
+      disciplines,
+      topics,
+      revisions,
+      mockExams,
+      notes,
+      questionErrors,
+      counters: c,
+      ...extras,
+    },
     null,
-    2
+    2,
   );
 }
 
-export async function localImportImportBackup(input: { json: string }): Promise<{ success: boolean }> {
+export async function localImportImportBackup(input: {
+  json: string;
+}): Promise<{ success: boolean }> {
   const data = JSON.parse(input.json);
-  if (!data.users || !data.disciplines || !data.topics || !data.revisions) throw new Error("Invalid database format");
-  await db.transaction("rw", [db.users, db.disciplines, db.topics, db.revisions, db.mockExams, db.notes, db.questionErrors, db.extraCollections, db.counters], async () => {
-    await db.users.clear();
-    await db.disciplines.clear();
-    await db.topics.clear();
-    await db.revisions.clear();
-    await db.mockExams.clear();
-    await db.notes.clear();
-    await db.questionErrors.clear();
-    await db.extraCollections.clear();
-    await db.counters.clear();
-    for (const u of data.users) await db.users.add(u);
-    for (const d of data.disciplines) await db.disciplines.add(d);
-    for (const t of data.topics) await db.topics.add(t);
-    for (const r of data.revisions) await db.revisions.add(r);
-    for (const m of data.mockExams ?? []) await db.mockExams.add(m);
-    for (const n of data.notes ?? []) await db.notes.add(n);
-    for (const qe of data.questionErrors ?? []) await db.questionErrors.add(qe);
-    if (data.flashcards) await db.extraCollections.put({ key: "flashcards", data: data.flashcards });
-    if (data.tecSnapshots) await db.extraCollections.put({ key: "tecSnapshots", data: data.tecSnapshots });
-    if (data.cadernosTec) await db.extraCollections.put({ key: "cadernosTec", data: data.cadernosTec });
-    const c = data.counters ?? {};
-    for (const [k, v] of Object.entries(c)) await db.counters.put({ key: k, value: v as number });
-  });
+  if (!data.users || !data.disciplines || !data.topics || !data.revisions)
+    throw new Error("Invalid database format");
+
+  await db.transaction(
+    "rw",
+    [
+      db.users,
+      db.disciplines,
+      db.topics,
+      db.revisions,
+      db.mockExams,
+      db.notes,
+      db.questionErrors,
+      db.flashcards,
+      db.tecSnapshots,
+      db.subjectiveAnswers,
+      db.conceptConfusions,
+      db.extraCollections,
+      db.counters,
+    ],
+    async () => {
+      // Clear all tables first
+      await db.users.clear();
+      await db.disciplines.clear();
+      await db.topics.clear();
+      await db.revisions.clear();
+      await db.mockExams.clear();
+      await db.notes.clear();
+      await db.questionErrors.clear();
+      await db.flashcards.clear();
+      await db.tecSnapshots.clear();
+      await db.subjectiveAnswers.clear();
+      await db.conceptConfusions.clear();
+      await db.extraCollections.clear();
+      await db.counters.clear();
+
+      // Use put() (upsert) instead of add() to avoid "Key already exists" errors
+      for (const u of data.users) await db.users.put(u);
+      for (const d of data.disciplines) await db.disciplines.put(d);
+      for (const t of data.topics) await db.topics.put(t);
+      for (const r of data.revisions) await db.revisions.put(r);
+      for (const m of data.mockExams ?? []) await db.mockExams.put(m);
+      for (const n of data.notes ?? []) await db.notes.put(n);
+      for (const qe of data.questionErrors ?? [])
+        await db.questionErrors.put(qe);
+
+      // Flashcards: may come as direct array or inside extraCollections
+      const flashcards = data.flashcards ?? [];
+      for (const f of flashcards) await db.flashcards.put(f);
+
+      // TecSnapshots: may come as direct array or inside extraCollections
+      const tecSnapshots = data.tecSnapshots ?? [];
+      for (const s of tecSnapshots) await db.tecSnapshots.put(s);
+
+      // SubjectiveAnswers and ConceptConfusions
+      for (const sa of data.subjectiveAnswers ?? [])
+        await db.subjectiveAnswers.put(sa);
+      for (const cc of data.conceptConfusions ?? [])
+        await db.conceptConfusions.put(cc);
+
+      // Legacy: keep extraCollections for backward compat
+      if (data.cadernosTec)
+        await db.extraCollections.put({
+          key: "cadernosTec",
+          data: data.cadernosTec,
+        });
+
+      // Restore counters — use max of existing IDs to avoid future collisions
+      const c = data.counters ?? {};
+      for (const [k, v] of Object.entries(c))
+        await db.counters.put({ key: k, value: v as number });
+
+      // Recompute counters from actual data lengths if missing
+      const keys: [string, number][] = [
+        ["users", data.users.length],
+        ["disciplines", data.disciplines.length],
+        ["topics", data.topics.length],
+        ["revisions", data.revisions.length],
+        ["mockExams", (data.mockExams ?? []).length],
+        ["notes", (data.notes ?? []).length],
+        ["questionErrors", (data.questionErrors ?? []).length],
+        ["flashcards", flashcards.length],
+        ["tecSnapshots", tecSnapshots.length],
+      ];
+      for (const [k, fallback] of keys) {
+        const existing = await db.counters.get(k);
+        if (!existing || existing.value < fallback) {
+          await db.counters.put({ key: k, value: fallback });
+        }
+      }
+    },
+  );
 
   // Backup do usuário no Preferences para persistência entre updates
   if (Capacitor.isNativePlatform()) {
     try {
       const u = await db.users.get(LOCAL_USER_ID);
       if (u) {
-        await Preferences.set({ key: "soe_user_backup", value: JSON.stringify(u) });
+        await Preferences.set({
+          key: "soe_user_backup",
+          value: JSON.stringify(u),
+        });
       }
     } catch (e) {}
   }
@@ -653,7 +865,10 @@ export async function localImportImportBackup(input: { json: string }): Promise<
   return { success: true };
 }
 
-export async function localCalendarGetData(input: { startDate: string; endDate: string }): Promise<{
+export async function localCalendarGetData(input: {
+  startDate: string;
+  endDate: string;
+}): Promise<{
   revisions: Revision[];
   topics: Topic[];
   disciplines: Discipline[];
@@ -661,18 +876,32 @@ export async function localCalendarGetData(input: { startDate: string; endDate: 
   const revisions = await db.revisions
     .where("userId")
     .equals(LOCAL_USER_ID)
-    .filter((r) => !r.ignored && r.scheduledDate >= input.startDate && r.scheduledDate <= input.endDate)
+    .filter(
+      (r) =>
+        !r.ignored &&
+        r.scheduledDate >= input.startDate &&
+        r.scheduledDate <= input.endDate,
+    )
     .toArray();
-  const topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
-  const disciplines = await db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray();
+  const topics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const disciplines = await db.disciplines
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
   return { revisions, topics, disciplines };
 }
 
-export async function localCalendarGetActivities(input: { startDate: string; endDate: string }) {
+export async function localCalendarGetActivities(input: {
+  startDate: string;
+  endDate: string;
+}) {
   const { revisions, topics, disciplines } = await localCalendarGetData(input);
-  return revisions.map(r => {
-    const topic = topics.find(t => t.id === r.topicId);
-    const discipline = disciplines.find(d => d.id === topic?.disciplineId);
+  return revisions.map((r) => {
+    const topic = topics.find((t) => t.id === r.topicId);
+    const discipline = disciplines.find((d) => d.id === topic?.disciplineId);
     return {
       id: r.id,
       date: r.scheduledDate,
@@ -683,12 +912,15 @@ export async function localCalendarGetActivities(input: { startDate: string; end
       disciplineId: discipline?.id || 0,
       type: r.type,
       completed: r.completed,
-      link: r.link
+      link: r.link,
     };
   });
 }
 
-export async function localCalendarSaveLink(input: { revisionId: number; link: string }) {
+export async function localCalendarSaveLink(input: {
+  revisionId: number;
+  link: string;
+}) {
   const revision = await db.revisions.get(input.revisionId);
   if (revision) {
     await db.revisions.update(input.revisionId, { link: input.link });
@@ -696,23 +928,53 @@ export async function localCalendarSaveLink(input: { revisionId: number; link: s
   return { success: true };
 }
 
-export async function localDashboardGetStats(): Promise<Record<string, unknown>> {
+export async function localDashboardGetStats(): Promise<
+  Record<string, unknown>
+> {
   const u = await ensureLocalUser();
   const disciplines = await localDisciplineList();
-  const topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
-  const revisions = await db.revisions.where("userId").equals(LOCAL_USER_ID).toArray();
+  const topics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const revisions = await db.revisions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
   const today = formatDateForDb(new Date());
-  const pendingRevisions = revisions.filter((r) => !r.completed && !r.ignored && r.scheduledDate < today).length;
+  const pendingRevisions = revisions.filter(
+    (r) => !r.completed && !r.ignored && r.scheduledDate < today,
+  ).length;
   const completedRevisions = revisions.filter((r) => r.completed).length;
   const disciplineStats = disciplines.map((d) => {
-    const discTopics = topics.filter((t) => t.disciplineId === d.id).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-    const totalResolved = discTopics.reduce((s, t) => s + (t.performance?.questionsResolved ?? 0), 0);
-    const totalCorrect = discTopics.reduce((s, t) => s + (t.performance?.correctCount ?? 0), 0);
-    const totalError = discTopics.reduce((s, t) => s + (t.performance?.errorCount ?? 0), 0);
-    const agg = totalResolved > 0
-      ? { questionsResolved: totalResolved, accuracy: Math.round((totalCorrect / totalResolved) * 100), correctCount: totalCorrect, errorCount: totalError }
-      : (d as any).performance;
-    const studyTime = discTopics.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0);
+    const discTopics = topics
+      .filter((t) => t.disciplineId === d.id)
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    const totalResolved = discTopics.reduce(
+      (s, t) => s + (t.performance?.questionsResolved ?? 0),
+      0,
+    );
+    const totalCorrect = discTopics.reduce(
+      (s, t) => s + (t.performance?.correctCount ?? 0),
+      0,
+    );
+    const totalError = discTopics.reduce(
+      (s, t) => s + (t.performance?.errorCount ?? 0),
+      0,
+    );
+    const agg =
+      totalResolved > 0
+        ? {
+            questionsResolved: totalResolved,
+            accuracy: Math.round((totalCorrect / totalResolved) * 100),
+            correctCount: totalCorrect,
+            errorCount: totalError,
+          }
+        : (d as any).performance;
+    const studyTime = discTopics.reduce(
+      (s, t) => s + (t.studyTimeSeconds ?? 0),
+      0,
+    );
     return {
       disciplineId: d.id,
       name: d.name,
@@ -744,7 +1006,11 @@ export async function localDashboardGetStats(): Promise<Record<string, unknown>>
 }
 
 export async function localMockExamList(): Promise<MockExam[]> {
-  return db.mockExams.where("userId").equals(LOCAL_USER_ID).sortBy("date").then((a) => a.reverse());
+  return db.mockExams
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .sortBy("date")
+    .then((a) => a.reverse());
 }
 
 export async function localMockExamCreate(input: {
@@ -769,7 +1035,11 @@ export async function localMockExamCreate(input: {
 }
 
 export async function localNoteList(): Promise<Note[]> {
-  return db.notes.where("userId").equals(LOCAL_USER_ID).toArray().then((a) => a.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt)));
+  return db.notes
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray()
+    .then((a) => a.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt)));
 }
 
 export async function localNoteUpsert(input: {
@@ -819,23 +1089,32 @@ export async function localMockExamUpdate(input: {
   return { success: true };
 }
 
-export async function localMockExamDelete(input: { id: number }): Promise<{ success: boolean }> {
+export async function localMockExamDelete(input: {
+  id: number;
+}): Promise<{ success: boolean }> {
   const exam = await db.mockExams.get(input.id);
   if (!exam || exam.userId !== LOCAL_USER_ID) return { success: false };
   await db.mockExams.delete(input.id);
   return { success: true };
 }
 
-export async function localNoteDelete(input: { id: number }): Promise<{ success: boolean }> {
+export async function localNoteDelete(input: {
+  id: number;
+}): Promise<{ success: boolean }> {
   const note = await db.notes.get(input.id);
   if (!note || note.userId !== LOCAL_USER_ID) return { success: false };
   await db.notes.delete(input.id);
   return { success: true };
 }
 
-export async function localDashboardGetWeeklyStats(): Promise<Record<string, unknown>> {
+export async function localDashboardGetWeeklyStats(): Promise<
+  Record<string, unknown>
+> {
   const disciplines = await localDisciplineList();
-  const topics = await db.topics.where("userId").equals(LOCAL_USER_ID).toArray();
+  const topics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -852,33 +1131,67 @@ export async function localDashboardGetWeeklyStats(): Promise<Record<string, unk
     return d >= from && d <= to;
   }
 
-  const thisWeekTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, weekStart, today));
-  const lastWeekTopics = topics.filter(t => inRange(t.createdAt || t.studyDate, lastWeekStart, lastWeekEnd));
+  const thisWeekTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, weekStart, today),
+  );
+  const lastWeekTopics = topics.filter((t) =>
+    inRange(t.createdAt || t.studyDate, lastWeekStart, lastWeekEnd),
+  );
 
   const sumPerf = (ts: typeof topics) => ({
     topics: ts.length,
-    questions: ts.reduce((s, t) => s + (t.performance?.questionsResolved ?? 0), 0),
+    questions: ts.reduce(
+      (s, t) => s + (t.performance?.questionsResolved ?? 0),
+      0,
+    ),
     correct: ts.reduce((s, t) => s + (t.performance?.correctCount ?? 0), 0),
     studySeconds: ts.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0),
   });
 
-  const byDiscipline = disciplines.map(d => {
-    const discTopics = topics.filter(t => t.disciplineId === d.id);
-    const totalQ = discTopics.reduce((s, t) => s + (t.performance?.questionsResolved ?? 0), 0);
-    const totalC = discTopics.reduce((s, t) => s + (t.performance?.correctCount ?? 0), 0);
-    const secs = discTopics.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0);
-    return { name: d.name, color: d.color, studySeconds: secs, accuracy: totalQ > 0 ? Math.round(totalC / totalQ * 100) : 0, questionsResolved: totalQ };
-  }).filter(d => d.studySeconds > 0 || d.questionsResolved > 0);
+  const byDiscipline = disciplines
+    .map((d) => {
+      const discTopics = topics.filter((t) => t.disciplineId === d.id);
+      const totalQ = discTopics.reduce(
+        (s, t) => s + (t.performance?.questionsResolved ?? 0),
+        0,
+      );
+      const totalC = discTopics.reduce(
+        (s, t) => s + (t.performance?.correctCount ?? 0),
+        0,
+      );
+      const secs = discTopics.reduce(
+        (s, t) => s + (t.studyTimeSeconds ?? 0),
+        0,
+      );
+      return {
+        name: d.name,
+        color: d.color,
+        studySeconds: secs,
+        accuracy: totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0,
+        questionsResolved: totalQ,
+      };
+    })
+    .filter((d) => d.studySeconds > 0 || d.questionsResolved > 0);
 
-  return { thisWeek: sumPerf(thisWeekTopics), lastWeek: sumPerf(lastWeekTopics), byDiscipline };
+  return {
+    thisWeek: sumPerf(thisWeekTopics),
+    lastWeek: sumPerf(lastWeekTopics),
+    byDiscipline,
+  };
 }
 
 // ============ QUESTION ERRORS ============
 export async function localSaveQuestionError(input: {
-  topicId: number; disciplineId: number;
-  questionId?: string; banca?: string; year?: number; contest?: string;
-  statement: string; alternatives: { letter: string; text: string }[];
-  userAnswer?: string; correctAnswer?: string;
+  topicId: number;
+  disciplineId: number;
+  questionId?: string;
+  banca?: string;
+  year?: number;
+  contest?: string;
+  statement: string;
+  alternatives: { letter: string; text: string }[];
+  userAnswer?: string;
+  correctAnswer?: string;
   errorOrigin?: "attention" | "forgetting" | "theory" | "trap";
 }): Promise<QuestionError> {
   const id = await incCounter("questionErrors");
@@ -899,20 +1212,36 @@ export interface LocalPaginatedResult<T> {
   nextOffset: number;
 }
 
-export async function localGetQuestionErrors(
-  opts?: { topicId?: number; disciplineId?: number; limit?: number; offset?: number }
-): Promise<LocalPaginatedResult<QuestionError>> {
-  let results = await db.questionErrors.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("createdAt");
-  if (opts?.topicId) results = results.filter(e => e.topicId === opts.topicId);
-  if (opts?.disciplineId) results = results.filter(e => e.disciplineId === opts.disciplineId);
+export async function localGetQuestionErrors(opts?: {
+  topicId?: number;
+  disciplineId?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<LocalPaginatedResult<QuestionError>> {
+  let results = await db.questionErrors
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .reverse()
+    .sortBy("createdAt");
+  if (opts?.topicId)
+    results = results.filter((e) => e.topicId === opts.topicId);
+  if (opts?.disciplineId)
+    results = results.filter((e) => e.disciplineId === opts.disciplineId);
   const total = results.length;
   const limit = Math.min(opts?.limit ?? 50, 200);
   const offset = opts?.offset ?? 0;
   const items = results.slice(offset, offset + limit);
-  return { items, total, hasMore: offset + limit < total, nextOffset: offset + limit };
+  return {
+    items,
+    total,
+    hasMore: offset + limit < total,
+    nextOffset: offset + limit,
+  };
 }
 
-export async function localDeleteQuestionError(input: { id: number }): Promise<{ success: boolean }> {
+export async function localDeleteQuestionError(input: {
+  id: number;
+}): Promise<{ success: boolean }> {
   const err = await db.questionErrors.get(input.id);
   if (!err || err.userId !== LOCAL_USER_ID) return { success: false };
   await db.questionErrors.delete(input.id);
@@ -941,10 +1270,19 @@ export async function localSaveSubjectiveAnswer(input: {
   return { ...record, id: id as number };
 }
 
-export async function localGetSubjectiveAnswers(opts?: { topicId?: number; banca?: string; limit?: number }): Promise<(SubjectiveAnswer & { id: number })[]> {
-  let results = await db.subjectiveAnswers.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("createdAt");
-  if (opts?.topicId) results = results.filter(e => e.topicId === opts.topicId);
-  if (opts?.banca) results = results.filter(e => e.banca === opts.banca);
+export async function localGetSubjectiveAnswers(opts?: {
+  topicId?: number;
+  banca?: string;
+  limit?: number;
+}): Promise<(SubjectiveAnswer & { id: number })[]> {
+  let results = await db.subjectiveAnswers
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .reverse()
+    .sortBy("createdAt");
+  if (opts?.topicId)
+    results = results.filter((e) => e.topicId === opts.topicId);
+  if (opts?.banca) results = results.filter((e) => e.banca === opts.banca);
   if (opts?.limit) results = results.slice(0, opts.limit);
   return results as (SubjectiveAnswer & { id: number })[];
 }
@@ -992,17 +1330,23 @@ export async function localFlashcardUpdate(input: {
   return { success: true };
 }
 
-export async function localFlashcardDelete(input: { id: number }): Promise<{ success: boolean }> {
+export async function localFlashcardDelete(input: {
+  id: number;
+}): Promise<{ success: boolean }> {
   const card = await db.flashcards.get(input.id);
   if (!card || card.userId !== LOCAL_USER_ID) return { success: false };
   await db.flashcards.delete(input.id);
   return { success: true };
 }
 
-export async function localFlashcardReview(input: { id: number; quality: number }): Promise<Flashcard> {
+export async function localFlashcardReview(input: {
+  id: number;
+  quality: number;
+}): Promise<Flashcard> {
   const card = await db.flashcards.get(input.id);
-  if (!card || card.userId !== LOCAL_USER_ID) throw new Error("Flashcard not found");
-  
+  if (!card || card.userId !== LOCAL_USER_ID)
+    throw new Error("Flashcard not found");
+
   // Simple SM-2 implementation
   let { interval, easeFactor, repetitions } = card;
   if (input.quality >= 3) {
@@ -1014,19 +1358,32 @@ export async function localFlashcardReview(input: { id: number; quality: number 
     repetitions = 0;
     interval = 1;
   }
-  easeFactor = Math.max(1.3, easeFactor + (0.1 - (5 - input.quality) * (0.08 + (5 - input.quality) * 0.02)));
-  
+  easeFactor = Math.max(
+    1.3,
+    easeFactor +
+      (0.1 - (5 - input.quality) * (0.08 + (5 - input.quality) * 0.02)),
+  );
+
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + interval);
   const nextReviewDate = formatDateForDb(nextDate);
-  
-  const updated = { ...card, interval, easeFactor, repetitions, nextReviewDate, updatedAt: now() };
+
+  const updated = {
+    ...card,
+    interval,
+    easeFactor,
+    repetitions,
+    nextReviewDate,
+    updatedAt: now(),
+  };
   await db.flashcards.update(input.id, updated);
   return updated;
 }
 
 // ============ MENTOR / AI ============
-export async function localGetTecRegressions(input: { thresholdPp: number }): Promise<{
+export async function localGetTecRegressions(input: {
+  thresholdPp: number;
+}): Promise<{
   regressions: any[];
   weakTopics: any[];
   latestSnapshot: any;
@@ -1034,35 +1391,62 @@ export async function localGetTecRegressions(input: { thresholdPp: number }): Pr
   deltaAccuracy: number | null;
   deltaQuestions: number | null;
 }> {
-  const snaps = await db.tecSnapshots.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("importedAt");
+  const snaps = await db.tecSnapshots
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .reverse()
+    .sortBy("importedAt");
   const latest = snaps[0] || null;
   const previous = snaps[1] || null;
-  
+
   const regressions: any[] = [];
   if (latest && previous) {
     for (const t of latest.topics) {
-      const prevT = previous.topics.find(p => p.topicName === t.topicName && p.disciplineName === t.disciplineName);
+      const prevT = previous.topics.find(
+        (p) =>
+          p.topicName === t.topicName && p.disciplineName === t.disciplineName,
+      );
       if (prevT && prevT.accuracy - t.accuracy >= (input.thresholdPp || 5)) {
         regressions.push({
           topicName: t.topicName,
           disciplineName: t.disciplineName,
           previousAccuracy: prevT.accuracy,
           currentAccuracy: t.accuracy,
-          delta: t.accuracy - prevT.accuracy
+          delta: t.accuracy - prevT.accuracy,
         });
       }
     }
   }
 
-  const weakTopics = latest ? latest.topics.filter(t => t.accuracy < 65 && t.questionsResolved >= 5) : [];
+  const weakTopics = latest
+    ? latest.topics.filter((t) => t.accuracy < 65 && t.questionsResolved >= 5)
+    : [];
 
   return {
     regressions,
     weakTopics,
-    latestSnapshot: latest ? { importedAt: latest.importedAt, totalQuestions: latest.totalQuestions, overallAccuracy: latest.overallAccuracy } : null,
-    previousSnapshot: previous ? { importedAt: previous.importedAt, totalQuestions: previous.totalQuestions, overallAccuracy: previous.overallAccuracy } : null,
-    deltaAccuracy: latest && previous ? latest.overallAccuracy - previous.overallAccuracy : null,
-    deltaQuestions: latest && previous ? latest.totalQuestions - previous.totalQuestions : null,
+    latestSnapshot: latest
+      ? {
+          importedAt: latest.importedAt,
+          totalQuestions: latest.totalQuestions,
+          overallAccuracy: latest.overallAccuracy,
+        }
+      : null,
+    previousSnapshot: previous
+      ? {
+          importedAt: previous.importedAt,
+          totalQuestions: previous.totalQuestions,
+          overallAccuracy: previous.overallAccuracy,
+        }
+      : null,
+    deltaAccuracy:
+      latest && previous
+        ? latest.overallAccuracy - previous.overallAccuracy
+        : null,
+    deltaQuestions:
+      latest && previous
+        ? latest.totalQuestions - previous.totalQuestions
+        : null,
   };
 }
 
@@ -1072,36 +1456,80 @@ export async function localMentorChat(input: {
   apiKey: string;
   provider: AiProvider;
 }): Promise<{ reply: string }> {
-  const [stats, snaps, errors, disciplines, revisions, notes, flashcards, { topics }] = await Promise.all([
+  const [
+    stats,
+    snaps,
+    errors,
+    disciplines,
+    revisions,
+    notes,
+    flashcards,
+    { topics },
+  ] = await Promise.all([
     localDashboardGetStats(),
-    db.tecSnapshots.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("importedAt"),
+    db.tecSnapshots
+      .where("userId")
+      .equals(LOCAL_USER_ID)
+      .reverse()
+      .sortBy("importedAt"),
     localGetQuestionErrors({ limit: 10 }),
     localDisciplineList(),
     localRevisionList(),
     localNoteList(),
     localFlashcardList(),
-    localTopicList()
+    localTopicList(),
   ]);
 
   const latestSnap = snaps[0];
-  const weak = latestSnap ? latestSnap.topics.filter(t => t.accuracy < 65 && t.questionsResolved >= 5) : [];
-  
-  const totalResolved = (stats.disciplineStats as any[] ?? []).reduce((sum, d) => sum + (d.performance?.questionsResolved ?? 0), 0);
-  const weakStr = weak.length > 0 ? weak.slice(0, 5).map(t => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`).join(", ") : "Nenhum tópico crítico.";
-  const errorsStr = errors.items.slice(0, 10).map(e => {
-    const d = disciplines.find(d => d.id === e.disciplineId);
-    return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 100)}..." | Erro: ${e.errorOrigin ?? "desconhecido"}`;
-  }).join("\n");
-  
-  const revisionsStr = revisions.filter(r => !r.completed && !r.ignored).slice(0, 10).map(r => {
-    const t = topics.find(t => t.id === r.topicId);
-    return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
-  }).join("\n");
+  const weak = latestSnap
+    ? latestSnap.topics.filter(
+        (t) => t.accuracy < 65 && t.questionsResolved >= 5,
+      )
+    : [];
 
-  const notesStr = notes.slice(0, 5).map(n => `- ${n.title}: ${n.content.replace(/<[^>]+>/g, "").substring(0, 80)}...`).join("\n");
-  const topicsStr = topics.slice(0, 10).map(t => `ID: ${t.id} | ${t.name}`).join("\n");
+  const totalResolved = ((stats.disciplineStats as any[]) ?? []).reduce(
+    (sum, d) => sum + (d.performance?.questionsResolved ?? 0),
+    0,
+  );
+  const weakStr =
+    weak.length > 0
+      ? weak
+          .slice(0, 5)
+          .map((t) => `${t.disciplineName} > ${t.topicName} (${t.accuracy}%)`)
+          .join(", ")
+      : "Nenhum tópico crítico.";
+  const errorsStr = errors.items
+    .slice(0, 10)
+    .map((e) => {
+      const d = disciplines.find((d) => d.id === e.disciplineId);
+      return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 100)}..." | Erro: ${e.errorOrigin ?? "desconhecido"}`;
+    })
+    .join("\n");
 
-  const transcript = input.history.map(m => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`).join("\n\n");
+  const revisionsStr = revisions
+    .filter((r) => !r.completed && !r.ignored)
+    .slice(0, 10)
+    .map((r) => {
+      const t = topics.find((t) => t.id === r.topicId);
+      return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
+    })
+    .join("\n");
+
+  const notesStr = notes
+    .slice(0, 5)
+    .map(
+      (n) =>
+        `- ${n.title}: ${n.content.replace(/<[^>]+>/g, "").substring(0, 80)}...`,
+    )
+    .join("\n");
+  const topicsStr = topics
+    .slice(0, 10)
+    .map((t) => `ID: ${t.id} | ${t.name}`)
+    .join("\n");
+
+  const transcript = input.history
+    .map((m) => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`)
+    .join("\n\n");
 
   const prompt = `Você é o Mentor SOE — professor particular de concursos. Responda ao aluno baseado no contexto:
 DADOS:
@@ -1126,7 +1554,12 @@ ${transcript}
 Aluno: ${input.message}
 Mentor:`;
 
-  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1500);
+  const reply = await callAiProvider(
+    input.provider,
+    input.apiKey,
+    prompt,
+    1500,
+  );
   let finalReply = reply.trim();
 
   // Process Flashcards
@@ -1141,7 +1574,7 @@ Mentor:`;
           disciplineId: Number(data.disciplineId),
           topicId: data.topicId ? Number(data.topicId) : undefined,
           front: data.front,
-          back: data.back
+          back: data.back,
         });
         createdCount++;
       }
@@ -1154,19 +1587,30 @@ Mentor:`;
     try {
       const data = JSON.parse(match[1]);
       if (data.topicId && data.newDate) {
-        const rev = revisions.find(r => r.topicId === Number(data.topicId) && !r.completed && !r.ignored);
-        if (rev) await db.revisions.update(rev.id, { scheduledDate: data.newDate });
+        const rev = revisions.find(
+          (r) =>
+            r.topicId === Number(data.topicId) && !r.completed && !r.ignored,
+        );
+        if (rev)
+          await db.revisions.update(rev.id, { scheduledDate: data.newDate });
       }
     } catch {}
   }
 
-  finalReply = finalReply.replace(/\[FLASHCARD\][\s\S]*?\[\/FLASHCARD\]/g, "").replace(/\[RESCHEDULE\][\s\S]*?\[\/RESCHEDULE\]/g, "").trim();
-  if (createdCount > 0) finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? 's' : ''} para você!)*`;
+  finalReply = finalReply
+    .replace(/\[FLASHCARD\][\s\S]*?\[\/FLASHCARD\]/g, "")
+    .replace(/\[RESCHEDULE\][\s\S]*?\[\/RESCHEDULE\]/g, "")
+    .trim();
+  if (createdCount > 0)
+    finalReply += `\n\n✨ *(Criei ${createdCount} flashcard${createdCount > 1 ? "s" : ""} para você!)*`;
 
   return { reply: finalReply };
 }
 
-export async function localGetWeakProfile(): Promise<{ weakTopics: any[]; weakDisciplines: any[] }> {
+export async function localGetWeakProfile(): Promise<{
+  weakTopics: any[];
+  weakDisciplines: any[];
+}> {
   const [disciplines, topics, revisions, errors] = await Promise.all([
     localDisciplineList(),
     db.topics.where("userId").equals(LOCAL_USER_ID).toArray(),
@@ -1174,45 +1618,56 @@ export async function localGetWeakProfile(): Promise<{ weakTopics: any[]; weakDi
     db.questionErrors.where("userId").equals(LOCAL_USER_ID).toArray(),
   ]);
 
-  const completedRevisions = revisions.filter(r => r.completed);
+  const completedRevisions = revisions.filter((r) => r.completed);
 
-  const weakTopics = topics.map(t => {
-    const perf = t.performance;
-    const topicRevs = completedRevisions.filter(r => r.topicId === t.id);
-    const accuracy = perf && perf.questionsResolved > 0 ? perf.correctCount / perf.questionsResolved : null;
-    const topicErrors = errors.filter(e => e.topicId === t.id);
-    
-    let score = 0;
-    if (accuracy !== null) score += (1 - accuracy) * 50;
-    score += Math.min(topicErrors.length * 5, 50);
+  const weakTopics = topics
+    .map((t) => {
+      const perf = t.performance;
+      const topicRevs = completedRevisions.filter((r) => r.topicId === t.id);
+      const accuracy =
+        perf && perf.questionsResolved > 0
+          ? perf.correctCount / perf.questionsResolved
+          : null;
+      const topicErrors = errors.filter((e) => e.topicId === t.id);
 
-    const disc = disciplines.find(d => d.id === t.disciplineId);
-    return {
-      topicId: t.id,
-      topicName: t.name,
-      disciplineId: t.disciplineId,
-      disciplineName: disc?.name ?? "—",
-      disciplineColor: disc?.color ?? "#888",
-      accuracy: accuracy !== null ? Math.round(accuracy * 100) : null,
-      questionsResolved: perf?.questionsResolved ?? 0,
-      errorCount: topicErrors.length,
-      vulnerabilityScore: Math.round(score),
-    };
-  }).filter(t => t.questionsResolved > 0 || t.errorCount > 0)
+      let score = 0;
+      if (accuracy !== null) score += (1 - accuracy) * 50;
+      score += Math.min(topicErrors.length * 5, 50);
+
+      const disc = disciplines.find((d) => d.id === t.disciplineId);
+      return {
+        topicId: t.id,
+        topicName: t.name,
+        disciplineId: t.disciplineId,
+        disciplineName: disc?.name ?? "—",
+        disciplineColor: disc?.color ?? "#888",
+        accuracy: accuracy !== null ? Math.round(accuracy * 100) : null,
+        questionsResolved: perf?.questionsResolved ?? 0,
+        errorCount: topicErrors.length,
+        vulnerabilityScore: Math.round(score),
+      };
+    })
+    .filter((t) => t.questionsResolved > 0 || t.errorCount > 0)
     .sort((a, b) => b.vulnerabilityScore - a.vulnerabilityScore);
 
-  const weakDisciplines = disciplines.map(d => {
-    const dTopics = weakTopics.filter(t => t.disciplineId === d.id);
-    const avgScore = dTopics.length > 0 ? dTopics.reduce((s, t) => s + t.vulnerabilityScore, 0) / dTopics.length : 0;
-    return {
-      disciplineId: d.id,
-      name: d.name,
-      color: d.color,
-      avgVulnerabilityScore: Math.round(avgScore),
-      topicCount: dTopics.length,
-      topWorstTopics: dTopics.slice(0, 3),
-    };
-  }).sort((a, b) => b.avgVulnerabilityScore - a.avgVulnerabilityScore);
+  const weakDisciplines = disciplines
+    .map((d) => {
+      const dTopics = weakTopics.filter((t) => t.disciplineId === d.id);
+      const avgScore =
+        dTopics.length > 0
+          ? dTopics.reduce((s, t) => s + t.vulnerabilityScore, 0) /
+            dTopics.length
+          : 0;
+      return {
+        disciplineId: d.id,
+        name: d.name,
+        color: d.color,
+        avgVulnerabilityScore: Math.round(avgScore),
+        topicCount: dTopics.length,
+        topWorstTopics: dTopics.slice(0, 3),
+      };
+    })
+    .sort((a, b) => b.avgVulnerabilityScore - a.avgVulnerabilityScore);
 
   return { weakTopics: weakTopics.slice(0, 20), weakDisciplines };
 }
@@ -1223,22 +1678,33 @@ export async function localGetDailyBriefing(): Promise<{ briefing: string }> {
     db.revisions.where("scheduledDate").equals(today).toArray(),
     localTopicList(),
     localDashboardGetStats(),
-    localAuthMe().then(u => u?.settings as any)
+    localAuthMe().then((u) => u?.settings as any),
   ]);
 
-  const pending = revisions.filter(r => !r.completed && !r.ignored);
-  if (pending.length === 0) return { briefing: "Nenhuma revisão agendada para hoje. Aproveite para avançar na teoria ou resolver questões!" };
+  const pending = revisions.filter((r) => !r.completed && !r.ignored);
+  if (pending.length === 0)
+    return {
+      briefing:
+        "Nenhuma revisão agendada para hoje. Aproveite para avançar na teoria ou resolver questões!",
+    };
 
   const prompt = `Você é o Mentor SOE. Gere um briefing curto (máximo 4 parágrafos) e motivador para o aluno baseado nas revisões de hoje (${today}):
 - Total de revisões: ${pending.length}
-- Tópicos: ${pending.map(p => topics.topics.find(t => t.id === p.topicId)?.name).slice(0, 5).join(", ")}
+- Tópicos: ${pending
+    .map((p) => topics.topics.find((t) => t.id === p.topicId)?.name)
+    .slice(0, 5)
+    .join(", ")}
 - Performance geral: ${stats.overallAccuracy}%
 Fale sobre a importância de manter a consistência e dê uma dica prática de estudo.`;
 
   const provider = settings?.aiProvider || "gemini";
   const apiKey = settings?.aiApiKey || "";
-  
-  if (!apiKey) return { briefing: "Configure sua API Key no Perfil para receber briefings personalizados via IA!" };
+
+  if (!apiKey)
+    return {
+      briefing:
+        "Configure sua API Key no Perfil para receber briefings personalizados via IA!",
+    };
 
   const reply = await callAiProvider(provider as any, apiKey, prompt, 800);
   return { briefing: reply.trim() };
@@ -1255,13 +1721,16 @@ export async function localDiagnoseError(input: {
   apiKey: string;
   provider: AiProvider;
 }): Promise<any> {
-  const chosenText = input.alternatives.find(a => a.letter === input.userAnswer)?.text ?? "";
-  const correctText = input.alternatives.find(a => a.letter === input.correctAnswer)?.text ?? "";
+  const chosenText =
+    input.alternatives.find((a) => a.letter === input.userAnswer)?.text ?? "";
+  const correctText =
+    input.alternatives.find((a) => a.letter === input.correctAnswer)?.text ??
+    "";
 
   const prompt = `Você é o Mentor SOE. O aluno acabou de errar uma questão. Dê um diagnóstico CIRÚRGICO.
 Disciplina: ${input.disciplineName} | Tópico: ${input.topicName}
 Questão: ${input.statement}
-${input.alternatives.map(a => `${a.letter}) ${a.text}`).join("\n")}
+${input.alternatives.map((a) => `${a.letter}) ${a.text}`).join("\n")}
 Aluno marcou: ${input.userAnswer}) ${chosenText}
 Gabarito: ${input.correctAnswer}) ${correctText}
 Tipo de erro: ${input.errorOrigin ?? "não classificado"}
@@ -1280,7 +1749,12 @@ Responda em JSON exato (sem markdown):
   ]
 }`;
 
-  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1200);
+  const reply = await callAiProvider(
+    input.provider,
+    input.apiKey,
+    prompt,
+    1200,
+  );
   try {
     return extractJSON(reply);
   } catch {
@@ -1288,12 +1762,20 @@ Responda em JSON exato (sem markdown):
   }
 }
 
-export async function localProcessText(input: { text: string; action: string; apiKey: string; provider: AiProvider }): Promise<{ result: string }> {
+export async function localProcessText(input: {
+  text: string;
+  action: string;
+  apiKey: string;
+  provider: AiProvider;
+}): Promise<{ result: string }> {
   const prompts: Record<string, string> = {
-    summarize: "Resuma o seguinte texto de estudo de forma concisa e estruturada:",
-    improve: "Melhore a escrita e clareza técnica deste resumo de estudos, mantendo o tom profissional:",
+    summarize:
+      "Resuma o seguinte texto de estudo de forma concisa e estruturada:",
+    improve:
+      "Melhore a escrita e clareza técnica deste resumo de estudos, mantendo o tom profissional:",
     explain: "Explique de forma didática e simples o seguinte conceito:",
-    autocomplete: "Continue o raciocínio deste texto de forma lógica e informativa:",
+    autocomplete:
+      "Continue o raciocínio deste texto de forma lógica e informativa:",
   };
   const prompt = `${prompts[input.action] || "Analise o texto:"}\n\n${input.text}`;
   const result = await callAiProvider(input.provider, input.apiKey, prompt);
@@ -1315,9 +1797,15 @@ Responda APENAS em JSON no formato: [{"front": "...", "back": "..."}]
 TEXTO:
 ${input.text}`;
 
-  const reply = await callAiProvider(input.provider, input.apiKey, prompt, 1500);
+  const reply = await callAiProvider(
+    input.provider,
+    input.apiKey,
+    prompt,
+    1500,
+  );
   const cards = extractJSON(reply);
-  if (!Array.isArray(cards)) throw new Error("IA não gerou uma lista de cards.");
+  if (!Array.isArray(cards))
+    throw new Error("IA não gerou uma lista de cards.");
 
   for (const c of cards) {
     await localFlashcardCreate({
@@ -1332,12 +1820,22 @@ ${input.text}`;
 }
 
 export async function localGetConceptConfusions(): Promise<ConceptConfusion[]> {
-  return db.conceptConfusions.where("userId").equals(LOCAL_USER_ID).reverse().sortBy("lastDetectedAt");
+  return db.conceptConfusions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .reverse()
+    .sortBy("lastDetectedAt");
 }
 
-export async function localSaveConceptConfusion(input: Partial<ConceptConfusion>): Promise<{ success: boolean }> {
+export async function localSaveConceptConfusion(
+  input: Partial<ConceptConfusion>,
+): Promise<{ success: boolean }> {
   const existing = await db.conceptConfusions
-    .where({ userId: LOCAL_USER_ID, conceptA: input.conceptA, conceptB: input.conceptB })
+    .where({
+      userId: LOCAL_USER_ID,
+      conceptA: input.conceptA,
+      conceptB: input.conceptB,
+    })
     .first();
 
   if (existing) {
