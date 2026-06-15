@@ -38,12 +38,6 @@ export const appRouter = router({
   edital: editalRouter,
   auth: router({
     me: publicProcedure.query(({ ctx }) => {
-      if (ctx.supabaseError) {
-        throw new TRPCError({
-          code: "SERVICE_UNAVAILABLE",
-          message: "Falha temporária de conexão com o servidor de autenticação",
-        });
-      }
       return ctx.user;
     }),
     logout: protectedProcedure.mutation(({ ctx }) => {

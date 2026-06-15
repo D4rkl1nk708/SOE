@@ -17,17 +17,29 @@ async function callGemini(
   apiKey: string,
   prompt: string,
   maxTokens = 1200,
+  imageBase64?: string,
 ): Promise<string> {
   let lastError = "";
   for (const model of GEMINI_MODELS) {
     try {
+      const parts: any[] = [{ text: prompt }];
+      if (imageBase64) {
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: "image/jpeg",
+          },
+        });
+      }
+
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts }],
             generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
           }),
         },
@@ -65,7 +77,21 @@ async function callOpenAI(
   apiKey: string,
   prompt: string,
   maxTokens = 1200,
+  imageBase64?: string,
 ): Promise<string> {
+  const messages: any[] = [];
+  if (imageBase64) {
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: imageBase64 } },
+      ],
+    });
+  } else {
+    messages.push({ role: "user", content: prompt });
+  }
+
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -73,8 +99,8 @@ async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
+      model: imageBase64 ? "gpt-4o" : "gpt-4o-mini",
+      messages,
       max_tokens: maxTokens,
     }),
   });
@@ -87,7 +113,24 @@ async function callClaude(
   apiKey: string,
   prompt: string,
   maxTokens = 1200,
+  imageBase64?: string,
 ): Promise<string> {
+  const content: any[] = [];
+  if (imageBase64) {
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const mimeType =
+      imageBase64.match(/^data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
+    content.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: mimeType,
+        data: base64Data,
+      },
+    });
+  }
+  content.push({ type: "text", text: prompt });
+
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -98,7 +141,7 @@ async function callClaude(
     body: JSON.stringify({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: maxTokens,
-      messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      messages: [{ role: "user", content }],
     }),
   });
   const d = await r.json();
@@ -111,6 +154,7 @@ export async function callAiProvider(
   apiKeyString: string,
   prompt: string,
   maxTokens = 1200,
+  imageBase64?: string,
 ): Promise<string> {
   const apiKeys = apiKeyString.split(/[,\s;]+/).filter(Boolean);
   if (apiKeys.length === 0)
@@ -121,11 +165,11 @@ export async function callAiProvider(
     const key = apiKeys[i];
     try {
       if (provider === "gemini")
-        return await callGemini(key, prompt, maxTokens);
+        return await callGemini(key, prompt, maxTokens, imageBase64);
       if (provider === "openai")
-        return await callOpenAI(key, prompt, maxTokens);
+        return await callOpenAI(key, prompt, maxTokens, imageBase64);
       if (provider === "claude")
-        return await callClaude(key, prompt, maxTokens);
+        return await callClaude(key, prompt, maxTokens, imageBase64);
       throw new Error(`Provider inválido: ${provider}`);
     } catch (err: any) {
       lastError = err.message;

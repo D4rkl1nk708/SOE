@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { localSaveSubjectiveAnswer } from "@/lib/localDb";
-import { trpc } from "@/lib/trpc";
+import { callAiProvider, extractJSON } from "@/lib/aiHelpers";
 
 // ─── Bancas ──────────────────────────────────────────────────────────────────
 export const BANCAS = [
@@ -59,11 +59,16 @@ export const BANCAS = [
   { id: "OUTRA", label: "Outra / Não sei" },
 ];
 
-function buildBancaPrompt(banca: string, text: string): string {
+function buildBancaPrompt(
+  banca: string,
+  text: string,
+  questionStatement?: string,
+): string {
   const shared = `
 Você é um corretor especialista em provas de concurso público, atuando como avaliador rigoroso da banca ${banca}.
 Sua missão é corrigir a resposta abaixo com profundidade técnica e imparcialidade absoluta, simulando a banca ${banca}.
 
+${questionStatement ? `**ENUNCIADO DA QUESTÃO:**\n"""\n${questionStatement}\n"""\n` : ""}
 **TEXTO DO CANDIDATO:**
 """
 ${text}
@@ -390,6 +395,7 @@ interface Props {
   topicName: string;
   disciplineName: string;
   revisionLabel: string;
+  questionStatement?: string;
   onMarkCompleted: () => void;
 }
 
@@ -401,6 +407,7 @@ export default function SubjectiveEssayModal({
   topicName,
   disciplineName,
   revisionLabel,
+  questionStatement,
   onMarkCompleted,
 }: Props) {
   const [step, setStep] = useState<Step>("capture");
@@ -437,9 +444,6 @@ export default function SubjectiveEssayModal({
   const isMobile =
     typeof navigator !== "undefined" &&
     /android|iphone|ipad/i.test(navigator.userAgent);
-
-  const transcribeMut = trpc.mentor.transcribeSubjectiveEssay.useMutation();
-  const analyzeMut = trpc.mentor.analyzeSubjectiveEssay.useMutation();
 
   // Reset on open
   useEffect(() => {
@@ -480,11 +484,15 @@ export default function SubjectiveEssayModal({
         );
       }
 
-      const { transcription: text } = await transcribeMut.mutateAsync({
-        apiKey: savedKey,
-        provider: savedProvider,
-        imageBase64: dataUrl,
-      });
+      const prompt =
+        "Você é um especialista em OCR e transcrição de textos manuscritos. Transcreva EXATAMENTE o texto contido na imagem fornecida, mantendo parágrafos e pontuação originais. Retorne APENAS o texto limpo, sem introduções ou explicações.";
+      const text = await callAiProvider(
+        savedProvider,
+        savedKey,
+        prompt,
+        2048,
+        dataUrl,
+      );
 
       setTranscription(text);
       setStep("review");
@@ -503,12 +511,14 @@ export default function SubjectiveEssayModal({
       const savedProvider =
         (localStorage.getItem("soe_ai_provider") as any) || "gemini";
 
-      const parsed = (await analyzeMut.mutateAsync({
-        apiKey: savedKey,
-        provider: savedProvider,
-        imageBase64: croppedImage!,
-        prompt: buildBancaPrompt(banca, transcription),
-      })) as any;
+      const rawResponse = await callAiProvider(
+        savedProvider,
+        savedKey,
+        buildBancaPrompt(banca, transcription, questionStatement),
+        2500,
+        croppedImage || undefined,
+      );
+      const parsed = extractJSON(rawResponse);
 
       setResult(parsed);
 
@@ -519,7 +529,7 @@ export default function SubjectiveEssayModal({
         topicName,
         disciplineName,
         banca,
-        imageDataUrl: croppedImage!,
+        imageDataUrl: croppedImage || "",
         transcription: transcription,
         correction: JSON.stringify({ ...parsed, transcricao: transcription }),
         score: parsed.nota_final,
@@ -551,8 +561,8 @@ export default function SubjectiveEssayModal({
         style={{
           maxHeight: "92vh",
           overflowY: "auto",
-          background: "var(--card-bg)",
-          border: "1px solid var(--card-border)",
+          background: "var(--card-bg, var(--app-bg, #0a0f1a))",
+          border: "1px solid var(--card-border, rgba(255,255,255,0.1))",
         }}
       >
         <DialogHeader>
@@ -699,6 +709,20 @@ export default function SubjectiveEssayModal({
                 Fazer upload da imagem
               </button>
             )}
+
+            <button
+              onClick={() => {
+                setRawImage(null);
+                setCroppedImage(null);
+                setTranscription("");
+                setStep("review");
+              }}
+              className="mt-2 flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-sm bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+              style={{ color: "var(--app-fg)" }}
+            >
+              <FileText className="w-5 h-5" />
+              Digitar resposta manualmente
+            </button>
             <p
               className="text-[11px] text-center"
               style={{ color: "var(--muted-text)" }}
