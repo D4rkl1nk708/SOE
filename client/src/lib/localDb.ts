@@ -285,6 +285,21 @@ class LocalDb extends Dexie {
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
       conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
     });
+    this.version(7).stores({
+      users: "id, openId",
+      disciplines: "id, userId",
+      topics: "id, userId, disciplineId, [userId+disciplineId]",
+      revisions: "id, userId, topicId, scheduledDate",
+      mockExams: "id, userId",
+      notes: "id, userId, disciplineId, topicId",
+      questionErrors: "id, userId, topicId, disciplineId",
+      flashcards: "id, userId, disciplineId, topicId",
+      tecSnapshots: "id, userId, importedAt",
+      extraCollections: "key",
+      counters: "key",
+      subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+      conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
+    });
   }
 }
 

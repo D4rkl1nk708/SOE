@@ -762,7 +762,7 @@ function EditalTab({
                                   </span>
                                   <input
                                     type="number"
-                                    className="w-10 h-7 bg-secondary/50 border border-border/30 rounded text-[10px] font-bold text-center outline-none focus:border-primary opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                    className="w-10 h-7 bg-secondary/50 border border-border/30 rounded text-[10px] font-bold text-center outline-none focus:border-primary md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity"
                                     placeholder="%"
                                     onChange={(e) =>
                                       updateAcerto(t.id, e.target.value)
@@ -814,7 +814,7 @@ function EditalTab({
                                 </div>
                               </td>
                               <td className="px-5 py-4">
-                                <div className="flex items-center gap-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2 md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity">
                                   <button
                                     onClick={() => openRegisterStudy(t)}
                                     className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-all"
@@ -1700,7 +1700,7 @@ function CiclosTab({ data }: { data: any }) {
                     </span>
                     <button
                       onClick={() => assignDiscipline(disc.id, null)}
-                      className="absolute right-1 p-1 rounded-md bg-card border border-border opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                      className="absolute right-1 p-1 rounded-md bg-card border border-border md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity hover:text-destructive"
                     >
                       <X size={10} />
                     </button>
