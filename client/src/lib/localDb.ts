@@ -59,6 +59,13 @@ interface Topic {
     accuracy: number;
     correctCount: number;
     errorCount: number;
+    errorByAttention?: number;
+    errorByForgetting?: number;
+    errorByTheory?: number;
+    errorByTrap?: number;
+    fastErrors?: number;
+    slowErrors?: number;
+    history?: { date: string; accuracy: number; questionsResolved: number }[];
   };
   topicNotes?: string[];
   createdAt: string;
@@ -647,19 +654,61 @@ export async function localTopicSetPerformance(input: {
   topicId: number;
   correctCount: number;
   errorCount: number;
+  errorByAttention?: number;
+  errorByForgetting?: number;
+  errorByTheory?: number;
+  errorByTrap?: number;
+  fastErrors?: number;
+  slowErrors?: number;
 }): Promise<{ success: boolean }> {
   const t = await db.topics.get(input.topicId);
   if (t && t.userId === LOCAL_USER_ID) {
     const total = input.correctCount + input.errorCount;
     const accuracy =
       total > 0 ? Math.round((input.correctCount / total) * 100) : 0;
+
+    const prev = t.performance;
+    const today = formatDateForDb(new Date());
+
+    const prevHistory = (prev?.history ?? []).filter((h) => h.date !== today);
+    const history = [
+      ...prevHistory,
+      {
+        date: today,
+        accuracy: prev?.accuracy ?? 0,
+        questionsResolved: prev?.questionsResolved ?? 0,
+      },
+    ].slice(-30);
+
     await db.topics.update(input.topicId, {
       performance: {
         questionsResolved: total,
         accuracy,
         correctCount: input.correctCount,
         errorCount: input.errorCount,
+        errorByAttention: input.errorByAttention ?? prev?.errorByAttention ?? 0,
+        errorByForgetting:
+          input.errorByForgetting ?? prev?.errorByForgetting ?? 0,
+        errorByTheory: input.errorByTheory ?? prev?.errorByTheory ?? 0,
+        errorByTrap: input.errorByTrap ?? prev?.errorByTrap ?? 0,
+        fastErrors: input.fastErrors ?? prev?.fastErrors ?? 0,
+        slowErrors: input.slowErrors ?? prev?.slowErrors ?? 0,
+        history,
       },
+      updatedAt: now(),
+    });
+  }
+  return { success: true };
+}
+
+export async function localTopicAddStudyTime(input: {
+  topicId: number;
+  seconds: number;
+}): Promise<{ success: boolean }> {
+  const t = await db.topics.get(input.topicId);
+  if (t && t.userId === LOCAL_USER_ID) {
+    await db.topics.update(input.topicId, {
+      studyTimeSeconds: (t.studyTimeSeconds || 0) + input.seconds,
       updatedAt: now(),
     });
   }

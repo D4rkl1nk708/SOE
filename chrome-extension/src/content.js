@@ -165,7 +165,11 @@
     const text = document.body?.innerText || '';
     if (!text) return [];
 
-    const statsMatch = text.match(/(?:(\d+)\s*Resolvidas?,\s*)?(\d+)\s*Acertos?\s+e\s+(\d+)\s*Erros?/i);
+    // NOTE: We intentionally do NOT capture the "N Acertos e M Erros" stats here.
+    // Those are CADERNO-level totals (across all topics), not per-topic stats.
+    // Using them would inflate individual topic counts massively.
+    // Real-time per-question tracking is handled by SOE_TEC_INCREMENT_STATS (+1 per answer).
+    // Absolute per-topic stats come from parseTecResponse (TEC API JSON with per-topic breakdown).
     const cleanBtns = s => s.replace(/[\u2715\u2716\u2297\u2A2F\u00D7]/g, '').trim();
 
     // Strategy 1: Text labels "Matéria:" / "Assunto:" (classic TEC layout)
@@ -175,9 +179,7 @@
       const disciplina = cleanBtns(materiaMatch[1]);
       const assunto = cleanBtns(assuntoMatch[1]);
       if (disciplina && assunto) {
-        const acertos = statsMatch ? parseInt(statsMatch[2], 10) || 0 : 0;
-        const erros   = statsMatch ? parseInt(statsMatch[3], 10) || 0 : 0;
-        return [{ disciplina, assunto, acertos, erros }];
+        return [{ disciplina, assunto, acertos: 0, erros: 0 }];
       }
     }
 
@@ -195,9 +197,7 @@
         const disciplina = cleanBtns(selMateria.textContent || '');
         const assunto    = cleanBtns(selAssunto.textContent  || '');
         if (disciplina && assunto) {
-          const acertos = statsMatch ? parseInt(statsMatch[2], 10) || 0 : 0;
-          const erros   = statsMatch ? parseInt(statsMatch[3], 10) || 0 : 0;
-          return [{ disciplina, assunto, acertos, erros }];
+          return [{ disciplina, assunto, acertos: 0, erros: 0 }];
         }
       }
     } catch (_) {}
@@ -211,9 +211,7 @@
         .map(el => cleanBtns(el.textContent || ''))
         .filter(t => t.length > 2 && t !== 'Início' && t !== 'Home' && t !== 'TEC');
       if (crumbs.length >= 2) {
-        const acertos = statsMatch ? parseInt(statsMatch[2], 10) || 0 : 0;
-        const erros   = statsMatch ? parseInt(statsMatch[3], 10) || 0 : 0;
-        return [{ disciplina: crumbs[0], assunto: crumbs[crumbs.length - 1], acertos, erros }];
+        return [{ disciplina: crumbs[0], assunto: crumbs[crumbs.length - 1], acertos: 0, erros: 0 }];
       }
     } catch (_) {}
 
@@ -224,9 +222,7 @@
       const disciplina = cleanBtns(discMatch[1]);
       const assunto    = cleanBtns(topicoMatch[1]);
       if (disciplina && assunto) {
-        const acertos = statsMatch ? parseInt(statsMatch[2], 10) || 0 : 0;
-        const erros   = statsMatch ? parseInt(statsMatch[3], 10) || 0 : 0;
-        return [{ disciplina, assunto, acertos, erros }];
+        return [{ disciplina, assunto, acertos: 0, erros: 0 }];
       }
     }
 
@@ -319,6 +315,7 @@
               correctAdd: isError ? 0 : 1,
               errorAdd: isError ? 1 : 0,
               timeSpentSeconds,
+              dedupKey: dedupKey,
             },
             _soe_internal: true,
           }, '*');
@@ -326,7 +323,14 @@
           if (activeBanca && disciplina && assunto !== 'Questão TEC') {
             window.postMessage({
               type: 'SOE_TEC_BANCA_INCREMENT',
-              payload: { disciplina, assunto, banca: activeBanca, correctAdd: isError ? 0 : 1, errorAdd: isError ? 1 : 0 },
+              payload: { 
+                disciplina, 
+                assunto, 
+                banca: activeBanca, 
+                correctAdd: isError ? 0 : 1, 
+                errorAdd: isError ? 1 : 0,
+                dedupKey: dedupKey
+              },
               _soe_internal: true,
             }, '*');
           }

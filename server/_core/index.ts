@@ -467,6 +467,10 @@ export async function createApp() {
         const assuntoName = (row.assunto || "").trim();
         if (!assuntoName) continue;
 
+        // Skip rows with no performance data (e.g. from scrapeQuestionHeader which
+        // only captures topic/discipline names, not per-topic stats)
+        if ((row.acertos || 0) + (row.erros || 0) === 0) continue;
+
         // Match or create discipline
         let disc = disciplines.find((d) => isFuzzyMatch(d.name, discName));
         if (!disc) {
@@ -489,9 +493,28 @@ export async function createApp() {
         if (topic) {
           const prevCorrect = topic.performance?.correctCount ?? 0;
           const prevErrors = topic.performance?.errorCount ?? 0;
+          const prevTotal = prevCorrect + prevErrors;
 
           if (row.acertos === prevCorrect && row.erros === prevErrors) {
             // Nada mudou no desempenho comparado ao salvo no sistema.
+            continue;
+          }
+
+          // Sanity check: if this is a single-row push and the new total is
+          // suspiciously larger than the existing count, it's likely caderno-level
+          // totals being incorrectly assigned to a single topic. Skip it.
+          const incomingTotal = (row.acertos || 0) + (row.erros || 0);
+          if (
+            rows.length === 1 &&
+            prevTotal > 0 &&
+            incomingTotal > prevTotal * 10 &&
+            incomingTotal - prevTotal > 50
+          ) {
+            console.warn(
+              `[TEC Push] Rejecting suspicious single-row update for "${topic.name}": ` +
+                `${prevTotal} → ${incomingTotal} (+${incomingTotal - prevTotal}). ` +
+                `Likely caderno-level totals, not per-topic stats.`,
+            );
             continue;
           }
 
@@ -1268,6 +1291,9 @@ ${questionText}`;
     }
   });
 
+  // Cache de deduplicação para banca em memória (Key -> Timestamp)
+  const tecBancaDedupCache = new Map<string, number>();
+
   /**
    * POST /api/tec/banca-increment
    * Incrementa stats de banca por assunto (acertos/erros por banca).
@@ -1282,13 +1308,28 @@ ${questionText}`;
       if (!user)
         return res.status(401).json({ ok: false, error: "Token inválido" });
 
-      const { assunto, disciplina, banca, correctAdd, errorAdd } = req.body as {
-        assunto: string;
-        disciplina: string;
-        banca: string;
-        correctAdd: number;
-        errorAdd: number;
-      };
+      const { assunto, disciplina, banca, correctAdd, errorAdd, dedupKey } =
+        req.body as {
+          assunto: string;
+          disciplina: string;
+          banca: string;
+          correctAdd: number;
+          errorAdd: number;
+          dedupKey?: string;
+        };
+
+      if (dedupKey) {
+        const now = Date.now();
+        const lastSeen = tecBancaDedupCache.get(dedupKey);
+        if (lastSeen && now - lastSeen < 15000) {
+          console.log(
+            `[TEC SERVER] Deduplicando banca-increment para ${dedupKey}`,
+          );
+          return res.json({ ok: true, duplicated: true });
+        }
+        tecBancaDedupCache.set(dedupKey, now);
+        if (tecBancaDedupCache.size > 1000) tecBancaDedupCache.clear();
+      }
 
       if (!assunto || !banca)
         return res
