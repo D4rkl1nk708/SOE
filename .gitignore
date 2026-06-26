@@ -10,14 +10,36 @@ release/
 bin/
 obj/
 
+# Variáveis de ambiente (NUNCA commitar!)
+.env
+.env.*
+!.env.example
+
+# Scraper (contém credenciais e dados locais)
+tec-scraper/
+
+# Conversas com IA / Assistentes
+*.conversation
+.gemini/
+.cursor/
+.copilot/
+.aider*
+
+# Scratch / Testes temporários
+scratch/
+test_output.txt
+patch_essays.py
+
 # Logs e arquivos de sistema
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 .DS_Store
-.env
+Thumbs.db
+
+# Relatórios e cobertura
 data/
 playwright-report/
 test-results/
 coverage/
-server.log
