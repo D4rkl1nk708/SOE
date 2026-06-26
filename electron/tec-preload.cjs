@@ -553,6 +553,207 @@ if (typeof window !== "undefined") {
     return rows.length;
   }
 
+  // ─── Zoom com Ctrl + Scroll ───────────────────────────────────────────────
+  window.addEventListener("wheel", (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      try {
+        const zoomFactor = webFrame.getZoomFactor();
+        let newZoom = zoomFactor + (e.deltaY < 0 ? 0.05 : -0.05);
+        newZoom = Math.min(Math.max(newZoom, 0.5), 3.0);
+        webFrame.setZoomFactor(newZoom);
+      } catch (err) {
+        console.error("[SOE] Erro ao ajustar zoom:", err);
+      }
+    }
+  }, { passive: false });
+
+  // ─── Barra de Pesquisa Ctrl + F ───────────────────────────────────────────
+  let searchBarEl = null;
+  let lastSearchText = "";
+
+  function createSearchBar() {
+    if (searchBarEl) return;
+    if (!document.body) return;
+
+    const style = document.createElement("style");
+    style.id = "soe-search-bar-style";
+    style.innerHTML = `
+      #soe-search-bar {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: rgba(20, 20, 25, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        color: #ffffff;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        user-select: none;
+        pointer-events: auto;
+      }
+      #soe-search-bar.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      #soe-search-input {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: #ffffff;
+        padding: 6px 12px;
+        font-size: 13px;
+        outline: none;
+        width: 180px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      #soe-search-input:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+      }
+      #soe-search-results {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        min-width: 45px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .soe-search-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+        width: 28px;
+        height: 28px;
+      }
+      .soe-search-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+      .soe-search-btn:active {
+        transform: scale(0.95);
+      }
+      .soe-search-divider {
+        width: 1px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.15);
+        margin: 0 2px;
+      }
+    `;
+    document.head.appendChild(style);
+
+    searchBarEl = document.createElement("div");
+    searchBarEl.id = "soe-search-bar";
+    searchBarEl.innerHTML = `
+      <input type="text" id="soe-search-input" placeholder="Buscar na página..." autocomplete="off">
+      <span id="soe-search-results">0/0</span>
+      <button class="soe-search-btn" id="soe-search-prev" title="Anterior (Shift+Enter)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+      </button>
+      <button class="soe-search-btn" id="soe-search-next" title="Próximo (Enter)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="soe-search-divider"></div>
+      <button class="soe-search-btn" id="soe-search-close" title="Fechar (Esc)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    `;
+    document.body.appendChild(searchBarEl);
+
+    const input = searchBarEl.querySelector("#soe-search-input");
+    const prevBtn = searchBarEl.querySelector("#soe-search-prev");
+    const nextBtn = searchBarEl.querySelector("#soe-search-next");
+    const closeBtn = searchBarEl.querySelector("#soe-search-close");
+
+    const performSearch = (findNext = false, forward = true) => {
+      const text = input.value;
+      if (!text) {
+        ipcRenderer.send("soe-stop-find-in-page", "clearSelection");
+        searchBarEl.querySelector("#soe-search-results").textContent = "0/0";
+        lastSearchText = "";
+        return;
+      }
+
+      if (text !== lastSearchText) {
+        findNext = false;
+        lastSearchText = text;
+      }
+
+      ipcRenderer.send("soe-find-in-page", text, { findNext, forward });
+    };
+
+    input.addEventListener("input", () => performSearch(false, true));
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        performSearch(true, !e.shiftKey);
+      } else if (e.key === "Escape") {
+        hideSearchBar();
+      }
+    });
+
+    prevBtn.addEventListener("click", () => performSearch(true, false));
+    nextBtn.addEventListener("click", () => performSearch(true, true));
+    closeBtn.addEventListener("click", hideSearchBar);
+  }
+
+  function showSearchBar() {
+    createSearchBar();
+    if (!searchBarEl) return;
+    searchBarEl.style.display = "flex";
+    searchBarEl.offsetHeight; // force reflow
+    searchBarEl.classList.add("visible");
+    const input = searchBarEl.querySelector("#soe-search-input");
+    input.focus();
+    input.select();
+    
+    if (input.value) {
+      ipcRenderer.send("soe-find-in-page", input.value, { findNext: false, forward: true });
+    }
+  }
+
+  function hideSearchBar() {
+    if (!searchBarEl) return;
+    searchBarEl.classList.remove("visible");
+    ipcRenderer.send("soe-stop-find-in-page", "clearSelection");
+    setTimeout(() => {
+      if (searchBarEl) {
+        searchBarEl.style.display = "none";
+      }
+    }, 200);
+  }
+
+  ipcRenderer.on("soe-open-search", () => {
+    showSearchBar();
+  });
+
+  ipcRenderer.on("soe-found-in-page-results", (event, result) => {
+    if (!searchBarEl) return;
+    const resultsEl = searchBarEl.querySelector("#soe-search-results");
+    if (result.matches !== undefined) {
+      const active = result.activeMatchOrdinal || 0;
+      const total = result.matches || 0;
+      resultsEl.textContent = `${active}/${total}`;
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       tryScrapeDOM();

@@ -751,6 +751,8 @@ export const appRouter = router({
               type: r.type,
               completed: r.completed,
               link: r.link,
+              accuracy: topic?.performance?.accuracy,
+              questionsResolved: topic?.performance?.questionsResolved || 0,
             };
           })
           .sort((a, b) => {

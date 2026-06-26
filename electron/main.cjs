@@ -169,9 +169,33 @@ function initApp() {
         tecWindow.webContents.toggleDevTools();
         event.preventDefault();
       }
+      if ((input.control || input.meta) && input.key.toLowerCase() === "f" && input.type === "keyDown") {
+        tecWindow.webContents.send("soe-open-search");
+        event.preventDefault();
+      }
+    });
+
+    tecWindow.webContents.on('found-in-page', (event, result) => {
+      if (tecWindow && !tecWindow.isDestroyed()) {
+        tecWindow.webContents.send('soe-found-in-page-results', result);
+      }
     });
     
     tecWindow.loadURL("https://www.tecconcursos.com.br/");
+  });
+
+  ipcMain.on("soe-find-in-page", (event, text, options) => {
+    const webContents = event.sender;
+    if (webContents && !webContents.isDestroyed()) {
+      webContents.findInPage(text, options);
+    }
+  });
+
+  ipcMain.on("soe-stop-find-in-page", (event, action) => {
+    const webContents = event.sender;
+    if (webContents && !webContents.isDestroyed()) {
+      webContents.stopFindInPage(action);
+    }
   });
 
   ipcMain.on("soe-tec-message", async (event, data) => {

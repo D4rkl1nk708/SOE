@@ -70,6 +70,9 @@ export default function Calendar() {
     useState<Record<number, string>>(getLinks());
   const [linkDraft, setLinkDraft] = useState<Record<number, string>>({});
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const [dayFilter, setDayFilter] = useState<
+    "all" | "pending" | "revision" | "test"
+  >("all");
 
   // Subjective Modal State
   const [subjectiveOpen, setSubjectiveOpen] = useState(false);
@@ -245,6 +248,7 @@ export default function Calendar() {
                     key={day.toString()}
                     onClick={() => {
                       setSelectedDay(day);
+                      setDayFilter("all");
                       setIsDayDetailOpen(true);
                     }}
                     className={`min-h-[100px] md:min-h-[140px] p-2 border-r border-b border-white/5 transition-all cursor-pointer relative group
@@ -348,192 +352,277 @@ export default function Calendar() {
               </div>
 
               {/* Activity Timeline List */}
-              <div className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a]">
-                {getDayActivities(selectedDay).length > 0 ? (
-                  <div className="space-y-3 relative">
-                    {/* Vertical Timeline Line */}
-                    <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
-
-                    {getDayActivities(selectedDay).map((activity) => {
-                      const isTest = activity.type === "test";
-                      const isCompleted = activity.completed;
-
-                      return (
-                        <div
-                          key={activity.id}
-                          className={`group relative flex items-start gap-6 p-5 rounded-[2rem] border transition-all duration-300
-                            ${
-                              isCompleted
-                                ? "bg-white/[0.01] border-white/5 opacity-40"
-                                : "bg-white/[0.03] border-white/5 hover:border-white/20 hover:bg-white/[0.05] hover:shadow-2xl"
-                            }
-                          `}
+              <div className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a] flex flex-col gap-6">
+                {/* Filtros Rápidos */}
+                {getDayActivities(selectedDay).length > 0 && (
+                  <div className="flex flex-wrap gap-2 pb-4 border-b border-white/5">
+                    {[
+                      {
+                        id: "all",
+                        label: "Todas",
+                        count: getDayActivities(selectedDay).length,
+                      },
+                      {
+                        id: "pending",
+                        label: "Pendentes",
+                        count: getDayActivities(selectedDay).filter(
+                          (a) => !a.completed,
+                        ).length,
+                      },
+                      {
+                        id: "revision",
+                        label: "Revisões",
+                        count: getDayActivities(selectedDay).filter(
+                          (a) => a.type === "revision",
+                        ).length,
+                      },
+                      {
+                        id: "test",
+                        label: "Simulados",
+                        count: getDayActivities(selectedDay).filter(
+                          (a) => a.type === "test",
+                        ).length,
+                      },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => setDayFilter(f.id as any)}
+                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 select-none
+                          ${
+                            dayFilter === f.id
+                              ? "bg-white text-black border-white"
+                              : "bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-white/10"
+                          }
+                        `}
+                      >
+                        {f.label}
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold
+                          ${dayFilter === f.id ? "bg-black/10 text-black/60" : "bg-white/5 text-white/40"}
+                        `}
                         >
-                          {/* Timeline Node Indicator — Interactive */}
-                          <button
-                            onClick={() =>
-                              toggleCompleted(activity.id, isCompleted)
-                            }
-                            className="relative z-10 mt-3 hidden md:block group/node"
-                          >
-                            <span className="sr-only">Marcar como feito</span>
-                            <div
-                              className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-500 shadow-2xl
-                                  ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}`}
-                            >
-                              {isCompleted ? (
-                                <Check size={20} strokeWidth={3} />
-                              ) : (
-                                <div className="w-2 h-2 rounded-full bg-current" />
-                              )}
-                            </div>
-                          </button>
-
-                          {/* Content Wrapper */}
-                          <div className="flex-1 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-3">
-                                <span
-                                  className="px-2.5 py-0.5 rounded-lg text-[0.6rem] font-black uppercase tracking-widest border border-white/5"
-                                  style={{
-                                    color: activity.disciplineColor,
-                                    backgroundColor: `${activity.disciplineColor}10`,
-                                  }}
-                                >
-                                  {activity.disciplineName}
-                                </span>
-                                <span className="text-[0.6rem] font-bold text-white/20 uppercase tracking-widest">
-                                  {isTest ? "Simulado" : "Revisão"}
-                                </span>
-                              </div>
-                              <h4
-                                className={`text-lg font-bold tracking-tight leading-tight ${isCompleted ? "line-through" : "text-white/90"}`}
-                              >
-                                {activity.topicName}
-                              </h4>
-                            </div>
-
-                            {/* Actions — Horizontal & Compact */}
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() =>
-                                  handleStudyNow(
-                                    activity.topicId,
-                                    activity.topicName,
-                                    activity.disciplineId,
-                                  )
-                                }
-                                className={`h-11 px-6 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all
-                                    ${isCompleted ? "bg-white/5 text-white/20" : "bg-white text-black hover:scale-[1.05] shadow-lg"}`}
-                              >
-                                <PlayCircle size={14} /> Treinar
-                              </button>
-
-                              <div className="h-11 w-[1px] bg-white/5 mx-1" />
-
-                              <div className="flex gap-1.5">
-                                {!isTest && (
-                                  <button
-                                    onClick={() =>
-                                      handleOpenSubjective(activity)
-                                    }
-                                    className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/20 hover:text-white transition-all"
-                                  >
-                                    <Camera size={16} />
-                                  </button>
-                                )}
-
-                                {activity.link && (
-                                  <a
-                                    href={activity.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                                  >
-                                    <LinkIcon size={16} />
-                                  </a>
-                                )}
-
-                                <button
-                                  onClick={() =>
-                                    setExpandedLinkId(
-                                      expandedLinkId === activity.id
-                                        ? null
-                                        : activity.id,
-                                    )
-                                  }
-                                  className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all
-                                      ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-white" : "bg-white/5 border-white/5 text-white/20 hover:text-white"}`}
-                                >
-                                  <Settings2 size={16} />
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    toggleCompleted(activity.id, isCompleted)
-                                  }
-                                  className={`md:hidden w-11 h-11 rounded-xl border flex items-center justify-center transition-all
-                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black" : "bg-white/5 border-white/5 text-white/20"}`}
-                                >
-                                  <Check size={16} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Link Editor — Integrated Overlay */}
-                          {expandedLinkId === activity.id && (
-                            <div className="absolute left-0 right-0 top-full mt-2 z-20 p-5 rounded-2xl bg-black border border-white/10 shadow-2xl animate-in fade-in zoom-in-95">
-                              <div className="flex gap-3">
-                                <input
-                                  type="text"
-                                  placeholder="URL do caderno..."
-                                  value={
-                                    linkDraft[activity.id] ??
-                                    activity.link ??
-                                    ""
-                                  }
-                                  onChange={(e) =>
-                                    setLinkDraft((prev) => ({
-                                      ...prev,
-                                      [activity.id]: e.target.value,
-                                    }))
-                                  }
-                                  className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-xs outline-none focus:border-white/20"
-                                />
-                                <button
-                                  onClick={() => {
-                                    const link =
-                                      linkDraft[activity.id] ??
-                                      activity.link ??
-                                      "";
-                                    saveLinkMut.mutate({
-                                      revisionId: activity.id,
-                                      link,
-                                    });
-                                    setExpandedLinkId(null);
-                                  }}
-                                  className="px-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest"
-                                >
-                                  Salvar
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-20 text-center space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto opacity-20">
-                      <EyeOff size={32} />
-                    </div>
-                    <p className="text-sm font-bold opacity-30 uppercase tracking-[0.2em]">
-                      Nenhuma tarefa programada
-                    </p>
+                          {f.count}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 )}
+
+                {(() => {
+                  const filteredActivities = getDayActivities(
+                    selectedDay,
+                  ).filter((activity) => {
+                    if (dayFilter === "pending") return !activity.completed;
+                    if (dayFilter === "revision")
+                      return activity.type === "revision";
+                    if (dayFilter === "test") return activity.type === "test";
+                    return true;
+                  });
+
+                  if (filteredActivities.length > 0) {
+                    return (
+                      <div className="space-y-3 relative">
+                        {/* Vertical Timeline Line */}
+                        <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
+
+                        {filteredActivities.map((activity) => {
+                          const isTest = activity.type === "test";
+                          const isCompleted = activity.completed;
+
+                          return (
+                            <div
+                              key={activity.id}
+                              className={`group relative flex items-start gap-6 p-5 rounded-[2rem] border transition-all duration-300
+                                ${
+                                  isCompleted
+                                    ? "bg-white/[0.01] border-white/5 opacity-40"
+                                    : "bg-white/[0.03] border-white/5 hover:border-white/20 hover:bg-white/[0.05] hover:shadow-2xl"
+                                }
+                              `}
+                            >
+                              {/* Timeline Node Indicator — Interactive */}
+                              <button
+                                onClick={() =>
+                                  toggleCompleted(activity.id, isCompleted)
+                                }
+                                className="relative z-10 mt-3 hidden md:block group/node"
+                              >
+                                <span className="sr-only">
+                                  Marcar como feito
+                                </span>
+                                <div
+                                  className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-500 shadow-2xl
+                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}`}
+                                >
+                                  {isCompleted ? (
+                                    <Check size={20} strokeWidth={3} />
+                                  ) : (
+                                    <div className="w-2 h-2 rounded-full bg-current" />
+                                  )}
+                                </div>
+                              </button>
+
+                              {/* Content Wrapper */}
+                              <div className="flex-1 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                <div className="space-y-2 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <span
+                                      className="px-2.5 py-0.5 rounded-lg text-[0.6rem] font-black uppercase tracking-widest border border-white/5"
+                                      style={{
+                                        color: activity.disciplineColor,
+                                        backgroundColor: `${activity.disciplineColor}10`,
+                                      }}
+                                    >
+                                      {activity.disciplineName}
+                                    </span>
+                                    <span className="text-[0.6rem] font-bold text-white/20 uppercase tracking-widest">
+                                      {isTest ? "Simulado" : "Revisão"}
+                                    </span>
+                                  </div>
+                                  <h4
+                                    className={`text-lg font-bold tracking-tight leading-tight ${isCompleted ? "line-through" : "text-white/90"}`}
+                                  >
+                                    {activity.topicName}
+                                    {(activity as any).questionsResolved > 0 &&
+                                      typeof (activity as any).accuracy ===
+                                        "number" && (
+                                        <span className="text-white/20 font-medium ml-2 select-none">
+                                          - {(activity as any).accuracy}%
+                                        </span>
+                                      )}
+                                  </h4>
+                                </div>
+
+                                {/* Actions — Horizontal & Compact */}
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() =>
+                                      handleStudyNow(
+                                        activity.topicId,
+                                        activity.topicName,
+                                        activity.disciplineId,
+                                      )
+                                    }
+                                    className={`h-11 px-6 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all
+                                        ${isCompleted ? "bg-white/5 text-white/20" : "bg-white text-black hover:scale-[1.05] shadow-lg"}`}
+                                  >
+                                    <PlayCircle size={14} /> Treinar
+                                  </button>
+
+                                  <div className="h-11 w-[1px] bg-white/5 mx-1" />
+
+                                  <div className="flex gap-1.5">
+                                    {!isTest && (
+                                      <button
+                                        onClick={() =>
+                                          handleOpenSubjective(activity)
+                                        }
+                                        className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/20 hover:text-white transition-all"
+                                      >
+                                        <Camera size={16} />
+                                      </button>
+                                    )}
+
+                                    {activity.link && (
+                                      <a
+                                        href={activity.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                      >
+                                        <LinkIcon size={16} />
+                                      </a>
+                                    )}
+
+                                    <button
+                                      onClick={() =>
+                                        setExpandedLinkId(
+                                          expandedLinkId === activity.id
+                                            ? null
+                                            : activity.id,
+                                        )
+                                      }
+                                      className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all
+                                          ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-white" : "bg-white/5 border-white/5 text-white/20 hover:text-white"}`}
+                                    >
+                                      <Settings2 size={16} />
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        toggleCompleted(
+                                          activity.id,
+                                          isCompleted,
+                                        )
+                                      }
+                                      className={`md:hidden w-11 h-11 rounded-xl border flex items-center justify-center transition-all
+                                          ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black" : "bg-white/5 border-white/5 text-white/20"}`}
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Link Editor — Integrated Overlay */}
+                              {expandedLinkId === activity.id && (
+                                <div className="absolute left-0 right-0 top-full mt-2 z-20 p-5 rounded-2xl bg-black border border-white/10 shadow-2xl animate-in fade-in zoom-in-95">
+                                  <div className="flex gap-3">
+                                    <input
+                                      type="text"
+                                      placeholder="URL do caderno..."
+                                      value={
+                                        linkDraft[activity.id] ??
+                                        activity.link ??
+                                        ""
+                                      }
+                                      onChange={(e) =>
+                                        setLinkDraft((prev) => ({
+                                          ...prev,
+                                          [activity.id]: e.target.value,
+                                        }))
+                                      }
+                                      className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-xs outline-none focus:border-white/20"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const link =
+                                          linkDraft[activity.id] ??
+                                          activity.link ??
+                                          "";
+                                        saveLinkMut.mutate({
+                                          revisionId: activity.id,
+                                          link,
+                                        });
+                                        setExpandedLinkId(null);
+                                      }}
+                                      className="px-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                    >
+                                      Salvar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="py-20 text-center space-y-4">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto opacity-20">
+                          <EyeOff size={32} />
+                        </div>
+                        <p className="text-sm font-bold opacity-30 uppercase tracking-[0.2em]">
+                          {dayFilter === "all"
+                            ? "Nenhuma tarefa programada"
+                            : "Nenhuma tarefa corresponde ao filtro"}
+                        </p>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
 
               <div className="px-10 py-6 border-t border-white/5 flex justify-end bg-white/[0.01]">
