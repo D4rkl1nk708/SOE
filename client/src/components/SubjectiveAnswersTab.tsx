@@ -41,7 +41,12 @@ import {
   localDeleteSubjectiveAnswer,
   type SubjectiveAnswer,
 } from "@/lib/localDb";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import SubjectiveEssayModal, {
   BANCAS,
 } from "@/components/SubjectiveEssayModal";
@@ -777,6 +782,7 @@ function AnswerCard({
 // ─── Daily Challenge ────────────────────────────────────────────────────────
 function DailySubjectiveChallenge({
   onStartWriting,
+  onDraftSaved,
   savedKey,
   savedProvider,
 }: {
@@ -788,6 +794,7 @@ function DailySubjectiveChallenge({
     questionStatement: string,
     banca: string,
   ) => void;
+  onDraftSaved: () => void;
   savedKey: string;
   savedProvider: string;
 }) {
@@ -1295,6 +1302,46 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
               </div>
 
               <button
+                onClick={() => {
+                  try {
+                    const saved = localStorage.getItem("soe_subjective_drafts");
+                    let draftsData = [];
+                    if (saved) {
+                      draftsData = JSON.parse(saved);
+                    }
+                    const newDraft = {
+                      id: String(Date.now()),
+                      topicId: activeTopic.id,
+                      topicName: activeTopic.name,
+                      disciplineName:
+                        (disciplines as any[])?.find(
+                          (d) => d.id === activeTopic.disciplineId,
+                        )?.name || "",
+                      banca,
+                      questionStatement: question,
+                      createdAt: new Date().toISOString(),
+                    };
+                    draftsData.push(newDraft);
+                    localStorage.setItem(
+                      "soe_subjective_drafts",
+                      JSON.stringify(draftsData),
+                    );
+                    onDraftSaved();
+                    setQuestion(null);
+                    setActiveTopic(null);
+                    setSelectionReason(null);
+                    toast.success("Salvo nos rascunhos!");
+                  } catch (e) {
+                    toast.error("Erro ao salvar rascunho.");
+                  }
+                }}
+                className="px-4 py-3 rounded-2xl font-bold text-xs bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-2"
+                style={{ color: "var(--app-fg)" }}
+              >
+                Salvar Rascunho
+              </button>
+
+              <button
                 onClick={() =>
                   onStartWriting(
                     activeTopic.id,
@@ -1323,6 +1370,8 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
 // ─── Tab container ────────────────────────────────────────────────────────────
 export default function SubjectiveAnswersTab() {
   const { data: user } = trpc.auth.me.useQuery();
+  const { data: disciplines } = trpc.discipline.list.useQuery();
+  const { data: topicsData } = trpc.topic.list.useQuery();
   const [answers, setAnswers] = useState<(SubjectiveAnswer & { id: number })[]>(
     [],
   );
@@ -1338,7 +1387,6 @@ export default function SubjectiveAnswersTab() {
     localStorage.getItem("soe_ai_provider") ||
     "gemini";
 
-  // Reanalysis / New state
   const [reanalyzeTarget, setReanalyzeTarget] = useState<
     (SubjectiveAnswer & { id: number }) | null
   >(null);
@@ -1349,7 +1397,16 @@ export default function SubjectiveAnswersTab() {
     disciplineName: string;
     questionStatement: string;
     banca: string;
+    draftId?: string;
+    transcription?: string;
   } | null>(null);
+
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualDisciplineId, setManualDisciplineId] = useState<number | "">("");
+  const [manualTopicId, setManualTopicId] = useState<number | "">("");
+  const [manualBanca, setManualBanca] = useState<string>("CESPE/CEBRASPE");
+  const [manualQuestion, setManualQuestion] = useState("");
 
   const loadAnswers = () => {
     localGetSubjectiveAnswers().then((data) => {
@@ -1358,8 +1415,37 @@ export default function SubjectiveAnswersTab() {
     });
   };
 
+  const loadDrafts = () => {
+    try {
+      const saved = localStorage.getItem("soe_subjective_drafts");
+      if (saved) {
+        setDrafts(JSON.parse(saved));
+      } else {
+        setDrafts([]);
+      }
+    } catch {
+      setDrafts([]);
+    }
+  };
+
+  const handleDeleteDraft = (id: string) => {
+    try {
+      const saved = localStorage.getItem("soe_subjective_drafts");
+      if (saved) {
+        const draftsData = JSON.parse(saved);
+        const filtered = draftsData.filter((d: any) => d.id !== id);
+        localStorage.setItem("soe_subjective_drafts", JSON.stringify(filtered));
+        loadDrafts();
+        toast.success("Rascunho removido.");
+      }
+    } catch {
+      toast.error("Erro ao remover rascunho.");
+    }
+  };
+
   useEffect(() => {
     loadAnswers();
+    loadDrafts();
   }, []);
 
   const filtered =
@@ -1441,6 +1527,7 @@ export default function SubjectiveAnswersTab() {
       <DailySubjectiveChallenge
         savedKey={savedKey}
         savedProvider={savedProvider}
+        onDraftSaved={loadDrafts}
         onStartWriting={(
           topicId,
           topicName,
@@ -1459,6 +1546,104 @@ export default function SubjectiveAnswersTab() {
           });
         }}
       />
+
+      {/* Rascunhos e Questões Salvas */}
+      <div className="soe-card p-6 border-white/5 bg-white/[0.02] rounded-[2rem] border relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h3
+              className="text-base font-black tracking-tight flex items-center gap-2"
+              style={{ color: "var(--app-fg)" }}
+            >
+              <FileText className="w-4 h-4 text-amber-500" />
+              Rascunhos & Questões Salvas
+            </h3>
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+              Questões salvas para responder depois ou criadas manualmente
+            </p>
+          </div>
+          <button
+            onClick={() => setIsManualModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-2"
+            style={{ color: "var(--app-fg)" }}
+          >
+            <PenLine className="w-4 h-4 text-emerald-500" /> Criar Questão
+            Manual
+          </button>
+        </div>
+
+        {drafts.length === 0 ? (
+          <p className="text-xs text-center py-6 opacity-40">
+            Nenhum rascunho salvo no momento. Use o treino diário ou crie uma
+            manual!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {drafts.map((d) => (
+              <div
+                key={d.id}
+                className="p-4 rounded-2xl border border-white/5 bg-black/20 flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/5 border border-white/5"
+                      style={{ color: "var(--muted-text)" }}
+                    >
+                      {d.banca}
+                    </span>
+                    <span
+                      className="text-[9px] font-bold uppercase tracking-widest opacity-40"
+                      style={{ color: "var(--muted-text)" }}
+                    >
+                      {d.disciplineName}
+                    </span>
+                  </div>
+                  <h4
+                    className="text-xs font-black tracking-tight"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    {d.topicName}
+                  </h4>
+                  <p className="text-xs opacity-70 line-clamp-3 leading-relaxed">
+                    {d.questionStatement}
+                  </p>
+                  {d.transcription && (
+                    <div className="bg-white/5 p-2 rounded-xl border border-white/5 text-[11px] opacity-60 truncate">
+                      <strong>Rascunho do texto:</strong> {d.transcription}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <button
+                    onClick={() => handleDeleteDraft(d.id)}
+                    className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:underline"
+                  >
+                    Excluir
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNewEssayData({
+                        topicId: d.topicId,
+                        topicName: d.topicName,
+                        disciplineId: 0,
+                        disciplineName: d.disciplineName,
+                        questionStatement: d.questionStatement,
+                        banca: d.banca,
+                        draftId: d.id,
+                        transcription: d.transcription,
+                      });
+                    }}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--primary)] hover:opacity-90 transition-all text-white flex items-center gap-1.5"
+                  >
+                    <PenLine className="w-3.5 h-3.5" /> Responder
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Filters Dock */}
       {usedBancas.length > 0 && (
@@ -1561,7 +1746,10 @@ export default function SubjectiveAnswersTab() {
             setReanalyzeTarget(null);
             setNewEssayData(null);
           }}
-          revisionId={reanalyzeTarget?.revisionId || Date.now()}
+          revisionId={
+            reanalyzeTarget?.revisionId ||
+            (newEssayData?.draftId ? Number(newEssayData.draftId) : Date.now())
+          }
           topicId={reanalyzeTarget?.topicId || newEssayData?.topicId || 0}
           topicName={
             reanalyzeTarget?.topicName || newEssayData?.topicName || ""
@@ -1577,13 +1765,199 @@ export default function SubjectiveAnswersTab() {
               : "Treino Subjetivo Diário"
           }
           questionStatement={newEssayData?.questionStatement}
+          initialTranscription={newEssayData?.transcription}
           onMarkCompleted={() => {
             loadAnswers();
+            loadDrafts();
             setReanalyzeTarget(null);
             setNewEssayData(null);
           }}
         />
       )}
+
+      {/* Manual Question Dialog */}
+      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
+        <DialogContent className="max-w-xl bg-[#09090b] border border-white/10 rounded-[2rem] p-6 text-left">
+          <DialogHeader>
+            <DialogTitle
+              className="text-lg font-black tracking-tight flex items-center gap-2"
+              style={{ color: "var(--app-fg)" }}
+            >
+              <PenLine className="w-5 h-5 text-emerald-500" />
+              Criar Questão Subjetiva Manual
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1.5">
+              <label
+                className="text-[10px] font-black uppercase tracking-widest opacity-60"
+                style={{ color: "var(--app-fg)" }}
+              >
+                Disciplina
+              </label>
+              <select
+                value={manualDisciplineId}
+                onChange={(e) => {
+                  setManualDisciplineId(Number(e.target.value) || "");
+                  setManualTopicId("");
+                }}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5"
+                style={{
+                  borderColor: "var(--card-border)",
+                  color: "var(--app-fg)",
+                }}
+              >
+                <option value="" className="bg-slate-900">
+                  Selecione uma disciplina...
+                </option>
+                {(disciplines as any[])?.map((d) => (
+                  <option key={d.id} value={d.id} className="bg-slate-900">
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                className="text-[10px] font-black uppercase tracking-widest opacity-60"
+                style={{ color: "var(--app-fg)" }}
+              >
+                Tema / Assunto
+              </label>
+              <select
+                value={manualTopicId}
+                onChange={(e) => setManualTopicId(Number(e.target.value) || "")}
+                disabled={!manualDisciplineId}
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5 disabled:opacity-40"
+                style={{
+                  borderColor: "var(--card-border)",
+                  color: "var(--app-fg)",
+                }}
+              >
+                <option value="" className="bg-slate-900">
+                  Selecione um tema...
+                </option>
+                {topicsData?.topics
+                  ?.filter((t) => t.disciplineId === manualDisciplineId)
+                  ?.map((t) => (
+                    <option key={t.id} value={t.id} className="bg-slate-900">
+                      {t.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label
+                  className="text-[10px] font-black uppercase tracking-widest opacity-60"
+                  style={{ color: "var(--app-fg)" }}
+                >
+                  Banca Examinadora
+                </label>
+                <select
+                  value={manualBanca}
+                  onChange={(e) => setManualBanca(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5"
+                  style={{
+                    borderColor: "var(--card-border)",
+                    color: "var(--app-fg)",
+                  }}
+                >
+                  {BANCAS.map((b) => (
+                    <option key={b.id} value={b.id} className="bg-slate-900">
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                className="text-[10px] font-black uppercase tracking-widest opacity-60"
+                style={{ color: "var(--app-fg)" }}
+              >
+                Enunciado / Pergunta da Questão
+              </label>
+              <textarea
+                value={manualQuestion}
+                onChange={(e) => setManualQuestion(e.target.value)}
+                placeholder="Digite o enunciado completo da questão discursiva aqui..."
+                className="w-full h-36 p-3 rounded-xl text-xs border outline-none bg-white/5 focus:ring-1 focus:ring-emerald-500"
+                style={{
+                  borderColor: "var(--card-border)",
+                  color: "var(--app-fg)",
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end mt-6">
+            <button
+              onClick={() => setIsManualModalOpen(false)}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+              style={{ color: "var(--app-fg)" }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                if (
+                  !manualDisciplineId ||
+                  !manualTopicId ||
+                  !manualQuestion.trim()
+                ) {
+                  toast.error("Preencha todos os campos obrigatórios.");
+                  return;
+                }
+                const disc = (disciplines as any[])?.find(
+                  (d) => d.id === manualDisciplineId,
+                );
+                const topic = topicsData?.topics?.find(
+                  (t) => t.id === manualTopicId,
+                );
+                if (!disc || !topic) {
+                  toast.error("Disciplina ou Tema inválido.");
+                  return;
+                }
+                try {
+                  const saved = localStorage.getItem("soe_subjective_drafts");
+                  let draftsData = [];
+                  if (saved) {
+                    draftsData = JSON.parse(saved);
+                  }
+                  const newDraft = {
+                    id: String(Date.now()),
+                    topicId: topic.id,
+                    topicName: topic.name,
+                    disciplineName: disc.name,
+                    banca: manualBanca,
+                    questionStatement: manualQuestion,
+                    createdAt: new Date().toISOString(),
+                  };
+                  draftsData.push(newDraft);
+                  localStorage.setItem(
+                    "soe_subjective_drafts",
+                    JSON.stringify(draftsData),
+                  );
+                  loadDrafts();
+                  setIsManualModalOpen(false);
+                  toast.success("Questão manual salva nos rascunhos!");
+                } catch (e) {
+                  toast.error("Erro ao salvar questão manual.");
+                }
+              }}
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:opacity-90 transition-all flex items-center gap-1.5"
+              style={{ background: "var(--primary)" }}
+            >
+              Salvar Questão
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

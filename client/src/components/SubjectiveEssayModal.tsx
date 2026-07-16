@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import { localSaveSubjectiveAnswer } from "@/lib/localDb";
 import { callAiProvider, extractJSON } from "@/lib/aiHelpers";
+import { trpc } from "@/lib/trpc";
 
 // ─── Bancas ──────────────────────────────────────────────────────────────────
 export const BANCAS = [
@@ -396,6 +397,7 @@ interface Props {
   disciplineName: string;
   revisionLabel: string;
   questionStatement?: string;
+  initialTranscription?: string;
   onMarkCompleted: () => void;
 }
 
@@ -408,6 +410,7 @@ export default function SubjectiveEssayModal({
   disciplineName,
   revisionLabel,
   questionStatement,
+  initialTranscription,
   onMarkCompleted,
 }: Props) {
   const [step, setStep] = useState<Step>("capture");
@@ -445,18 +448,64 @@ export default function SubjectiveEssayModal({
     typeof navigator !== "undefined" &&
     /android|iphone|ipad/i.test(navigator.userAgent);
 
+  const { data: user } = trpc.auth.me.useQuery();
+
+  const savedKey =
+    (user?.settings as any)?.aiApiKey ||
+    localStorage.getItem("soe_ai_apikey") ||
+    "";
+  const savedProvider =
+    (user?.settings as any)?.aiProvider ||
+    localStorage.getItem("soe_ai_provider") ||
+    "gemini";
+
   // Reset on open
   useEffect(() => {
     if (open) {
-      setStep("capture");
+      setStep(initialTranscription ? "review" : "capture");
       setRawImage(null);
       setCroppedImage(null);
-      setTranscription("");
+      setTranscription(initialTranscription || "");
       setBanca("");
       setResult(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, initialTranscription]);
+
+  const handleSaveDraft = (currentTranscription = transcription) => {
+    try {
+      const saved = localStorage.getItem("soe_subjective_drafts");
+      let drafts: any[] = [];
+      if (saved) {
+        drafts = JSON.parse(saved);
+      }
+
+      const draftId = String(revisionId);
+      const existingIndex = drafts.findIndex((d) => d.id === draftId);
+
+      const newDraft = {
+        id: draftId,
+        topicId,
+        topicName,
+        disciplineName,
+        banca: banca || "CESPE/CEBRASPE",
+        questionStatement: questionStatement || "",
+        transcription: currentTranscription || "",
+        createdAt: new Date().toISOString(),
+      };
+
+      if (existingIndex !== -1) {
+        drafts[existingIndex] = newDraft;
+      } else {
+        drafts.push(newDraft);
+      }
+
+      localStorage.setItem("soe_subjective_drafts", JSON.stringify(drafts));
+      toast.success("Rascunho salvo com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar rascunho.");
+    }
+  };
 
   const handleFileCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -474,20 +523,16 @@ export default function SubjectiveEssayModal({
     setStep("transcribing");
     setError(null);
     try {
-      const savedKey = localStorage.getItem("soe_ai_apikey") || "";
-      const savedProvider =
-        (localStorage.getItem("soe_ai_provider") as any) || "gemini";
-
       if (!savedKey) {
         throw new Error(
-          "Chave de API não configurada. Configure-a na aba 'Questões' > 'Subjetivas' ou no ícone de chave.",
+          "Chave de API não configurada. Configure-a no seu perfil ou na aba de configurações.",
         );
       }
 
       const prompt =
         "Você é um especialista em OCR e transcrição de textos manuscritos. Transcreva EXATAMENTE o texto contido na imagem fornecida, mantendo parágrafos e pontuação originais. Retorne APENAS o texto limpo, sem introduções ou explicações.";
       const text = await callAiProvider(
-        savedProvider,
+        savedProvider as any,
         savedKey,
         prompt,
         2048,
@@ -507,12 +552,14 @@ export default function SubjectiveEssayModal({
     setStep("correcting");
     setError(null);
     try {
-      const savedKey = localStorage.getItem("soe_ai_apikey") || "";
-      const savedProvider =
-        (localStorage.getItem("soe_ai_provider") as any) || "gemini";
+      if (!savedKey) {
+        throw new Error(
+          "Chave de API não configurada. Configure-a no seu perfil ou na aba de configurações.",
+        );
+      }
 
       const rawResponse = await callAiProvider(
-        savedProvider,
+        savedProvider as any,
         savedKey,
         buildBancaPrompt(banca, transcription, questionStatement),
         2500,
@@ -534,6 +581,23 @@ export default function SubjectiveEssayModal({
         correction: JSON.stringify({ ...parsed, transcricao: transcription }),
         score: parsed.nota_final,
       });
+
+      // Delete from drafts if it exists
+      try {
+        const saved = localStorage.getItem("soe_subjective_drafts");
+        if (saved) {
+          const drafts = JSON.parse(saved);
+          const filtered = drafts.filter(
+            (d: any) => d.id !== String(revisionId),
+          );
+          localStorage.setItem(
+            "soe_subjective_drafts",
+            JSON.stringify(filtered),
+          );
+        }
+      } catch (e) {
+        console.error("Error clearing draft:", e);
+      }
 
       // Mark revision as completed
       onMarkCompleted();
@@ -823,6 +887,16 @@ export default function SubjectiveEssayModal({
                 <ChevronLeft className="w-4 h-4" /> Voltar
               </button>
               <button
+                onClick={() => handleSaveDraft(transcription)}
+                className="px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-white/5 transition-colors"
+                style={{
+                  border: "1px solid var(--card-border)",
+                  color: "var(--app-fg)",
+                }}
+              >
+                Salvar Rascunho
+              </button>
+              <button
                 onClick={() => setStep("banca")}
                 disabled={!transcription.trim()}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
@@ -833,7 +907,7 @@ export default function SubjectiveEssayModal({
                   color: transcription.trim() ? "white" : "var(--muted-text)",
                 }}
               >
-                <CheckCircle2 className="w-4 h-4" /> Tudo certo, prosseguir
+                <CheckCircle2 className="w-4 h-4" /> Prosseguir
               </button>
             </div>
           </div>
@@ -880,7 +954,16 @@ export default function SubjectiveEssayModal({
                 }}
               >
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                {error}
+                <div className="flex-1">
+                  <p>{error}</p>
+                  <button
+                    onClick={() => handleSaveDraft()}
+                    className="mt-2 text-xs font-bold underline hover:opacity-80 block"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    Salvar texto digitado como rascunho para tentar mais tarde
+                  </button>
+                </div>
               </div>
             )}
 
