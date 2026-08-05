@@ -603,7 +603,7 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
       3. **Ajuste de Rota**: 3 mudanças práticas na rotina para subir o acerto em 10% nas próximas 3 semanas.
       4. **Veredito do Mentor**: Uma mensagem final de impacto.
 
-      Responda em Markdown, com tom profissional, técnico e extremamente motivador. Seja duro onde for preciso.`;
+      Responda em Markdown, com tom profissional, técnico, construtivo e motivador. Seja empático e focado em soluções práticas.`;
 
       try {
         const report = await callAI(input.provider, input.apiKey, prompt, 1500);
@@ -1703,24 +1703,24 @@ Mentor:`;
       }
       const toneInstruction =
         globalAcc < 50
-          ? "O aluno está com a média global péssima e possivelmente fadigado (Burnout). Seja um 'Técnico de Resgate': adote um tom firme porém mais encorajador, não o massacre. Foque em recuperar a base."
-          : "O aluno tem boa média geral. Seja um 'General': dê um esporro técnico agressivo e não aceite mediocridade ou desculpas.";
+          ? "O aluno está enfrentando um momento mais desafiador no rendimento. Seja empático, encorajador e focado em reconstruir a base com segurança e apoio."
+          : "O aluno tem bom rendimento geral. Seja um mentor estratégico e motivador: aponte os pontos de atenção de forma transparente e estimulante, incentivando a evolução sem broncas, sarcasmo ou tom agressivo.";
 
-      // IDEA 3: Matriz de Fuga Cognitiva (Cross-Pollination)
+      // Matriz de Equilíbrio de Estudos (Cross-Pollination)
       const sortedD = [...rebalance].sort((a, b) => b.accuracy - a.accuracy);
       const topD = sortedD.slice(0, 2);
       const weakD = [...rebalance]
         .sort((a, b) => a.accuracy - b.accuracy)
         .slice(0, 2);
-      const crossPollination = `Cuidado com Fuga Cognitiva: Ele(a) domina [${topD.map((d) => d.name).join(", ")}] mas apanha de [${weakD.map((d) => d.name).join(", ")}]. Diga se ele estiver usando matérias fáceis para inflar o ego em vez de focar nas que dói.`;
+      const crossPollination = `Equilíbrio de Estudos: Ele(a) se destaca em [${topD.map((d) => d.name).join(", ")}], mas apresenta maior vulnerabilidade em [${weakD.map((d) => d.name).join(", ")}]. Oriente o aluno a direcionar energia de forma inteligente e motivada para as matérias vulneráveis.`;
 
-      // IDEA 1: Auditoria de Pico de Performance (Time-of-Day Tracking)
+      // Auditoria de Pico de Performance (Time-of-Day Tracking)
       const peakHoursText =
         peakHours.length > 0
           ? `Horários de Pico: ${peakHours.map((h) => `${h.hour}h: ${Math.round(h.avgAccuracy * 100)}% (${h.sessions} sessões)`).join(", ")}`
           : "Sem dados de horário ainda.";
 
-      // IDEA 1: Mapeamento Psicológico de Distratores (Por que você erra?)
+      // Mapeamento Psicológico de Distratores (Por que você erra?)
       const distratorText =
         distratorPattern.length > 0
           ? `Padrão de Erro: ${distratorPattern.map((d) => `${d.pattern} ${d.percentage}%`).join(", ")} — Identifique se há viés cognitivo recorrente.`
@@ -1749,11 +1749,13 @@ Mentor:`;
       2. PLATÔ (acerto <65% persistente): PRIORIDADE ALTA.
       3. PONTOS CEGOS (TEC): PRIORIDADE ESTRATÉGICA.
       
-      INSTRUÇÕES DE RESPOSTA:
-      - Seja um Mentor de Elite: analise os dados fornecidos e aponte exatamente o que está dando errado.
-      - O "diagnostic" deve ser um esporro técnico: diga com precisão onde o aluno está falhando e por quê (ex: "Você despencou 10% em Controle de Constitucionalidade focando em teoria enquanto erra a base").
-      - O "actionPlan" deve ser uma tarefa de 15-30 min para corrigir essa falha agora.
-      - O "prediction" deve prever os erros futuros e o custo na prova (ex: "Ignorar isso vai custar sua aprovação, pois essa matéria representa 15% da prova").
+      INSTRUÇÕES DE RESPOSTA E TOM:
+      - Seja um Mentor Estratégico, Construtivo e Motivador.
+      - NUNCA dê 'esporro', bronca ou insultos, e NUNCA use tom agressivo ou termos depreciativos (é estritamente proibido usar palavras como 'mediocridade', 'simulacro', 'covardia', 'mascarar ego', 'vício em dopamina', 'masturbar ego'). O aluno busca compreender o diagnóstico crítico de maneira lúcida e sentir-se encorajado a evoluir.
+      - O "diagnostic" deve ser uma análise cirúrgica e motivadora: explique com clareza a oportunidade de melhoria baseada nos números (ex: "Sua taxa de acerto em Equivalências Lógicas está em 11%, mas ajustando a prática conceitual este assunto virará um grande diferencial no seu desempenho.").
+      - O "actionPlan" deve ser um passo a passo prático, objetivo e executável de 15-30 min para avançar hoje.
+      - O "prediction" deve ser uma visão estratégica e encorajadora do ganho na prova ao dominar este tópico.
+      - Mantenha a resposta direta, leve e objetiva — sem ser prolixo nem chato.
       
       ATENÇÃO: É ESTRITAMENTE PROIBIDO usar aspas duplas (") dentro dos seus textos (use aspas simples se precisar).
       IMPORTANTE: Retorne APENAS um bloco JSON válido no formato abaixo. Não adicione nenhum texto antes ou depois.
@@ -1804,7 +1806,7 @@ Mentor:`;
           }
         }
 
-        // IDEA 1: Gravar este diagnóstico na memória punitiva do mentor
+        // IDEA 1: Gravar este diagnóstico na memória estratégica do mentor
         if (parsed.diagnostic) {
           await storage.addMentorObservation(
             ctx.user.id,
@@ -1972,8 +1974,8 @@ DADOS DA SESSÃO:
   • Pegadinhas da Banca: ${errorCounts.trap}
 
 OBJETIVO:
-Seja ácido, direto e estratégico. Não use clichês.
-Explique por que o aluno errou e use uma "Analogia Suja" (bizarra, engraçada ou levemente inapropriada) para fixar a lógica.
+Seja claro, construtivo e estratégico. Não use clichês nem tom agressivo ou desmotivador.
+Explique por que o aluno errou e use uma analogia didática e inusitada para fixar a lógica.
 
 Retorne um JSON:
 {
