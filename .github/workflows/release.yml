@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Get Version
         id: get_version
@@ -36,15 +37,15 @@ jobs:
         run: |
           if git ls-remote --tags origin "refs/tags/v${{ steps.get_version.outputs.VERSION }}" | grep -q "refs/tags/v${{ steps.get_version.outputs.VERSION }}"; then
             echo "TAG_EXISTS=true" >> "$GITHUB_OUTPUT"
-            echo "Tag v${{ steps.get_version.outputs.VERSION }} already exists. Skipping release builds."
+            echo "Tag v${{ steps.get_version.outputs.VERSION }} already exists."
           else
             echo "TAG_EXISTS=false" >> "$GITHUB_OUTPUT"
-            echo "Tag v${{ steps.get_version.outputs.VERSION }} does not exist. Proceeding with release builds."
+            echo "Tag v${{ steps.get_version.outputs.VERSION }} does not exist. Proceeding with release."
           fi
 
   build-android:
     needs: prepare
-    if: needs.prepare.outputs.tag_exists == 'false'
+    if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: Production
     steps:
@@ -60,7 +61,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install Dependencies
@@ -92,10 +93,14 @@ jobs:
           export const ENV_SUPABASE_ANON_KEY = "${VITE_SUPABASE_ANON_KEY}";
           EOF
 
-      - name: Build Web Assets & Sync Android
-        run: |
-          npm run build:clean
-          npx cap sync android
+      - name: Build Web Assets
+        run: npm run build:clean
+
+      - name: Update Preload and Android Assets
+        run: node build.cjs
+
+      - name: Sync Capacitor Android
+        run: npx --yes @capacitor/cli sync android
 
       - name: Build Android APK
         run: |
@@ -103,9 +108,9 @@ jobs:
           cd android
           ./gradlew assembleRelease
           cd ..
-          APK_FILE=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          APK_FILE=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "::error::Android APK not found in android/app/build/outputs/apk/release!"
+            echo "::error::Android APK not found in android/app/build/outputs/apk!"
             exit 1
           fi
           echo "Found Android APK: $APK_FILE"
@@ -120,7 +125,7 @@ jobs:
 
   build-linux:
     needs: prepare
-    if: needs.prepare.outputs.tag_exists == 'false'
+    if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: Production
     steps:
@@ -130,7 +135,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install Dependencies
@@ -182,7 +187,7 @@ jobs:
 
   build-windows:
     needs: prepare
-    if: needs.prepare.outputs.tag_exists == 'false'
+    if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     environment: Production
     steps:
@@ -192,7 +197,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install Dependencies
@@ -250,7 +255,7 @@ jobs:
 
   publish-release:
     needs: [prepare, build-android, build-linux, build-windows]
-    if: always() && needs.prepare.outputs.tag_exists == 'false' && (needs.build-android.result == 'success' || needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
+    if: always() && (needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch') && (needs.build-android.result == 'success' || needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
