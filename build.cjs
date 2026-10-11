@@ -1,5 +1,10 @@
-const fs = require('fs');
+﻿const fs = require('fs');
+const path = require('path');
+
+// Read the tec-content.js script
 const content = fs.readFileSync('electron/tec-content.js', 'utf8');
+
+// 1. Build electron/tec-preload.cjs
 const preloadBody = `const { ipcRenderer, webFrame } = require("electron");
 
 // Relay from content.js (isolated window) -> React host
@@ -28,9 +33,14 @@ ${content}
 `;
 
 fs.writeFileSync('electron/tec-preload.cjs', preloadBody);
-const targetAsset = 'android/app/src/main/assets/tec-content.js';
-if (fs.existsSync('android/app/src/main/assets')) {
-  fs.writeFileSync(targetAsset, content);
-  console.log('Android assets tec-content.js updated.');
-}
-console.log('Preload built.');
+console.log('[build.cjs] electron/tec-preload.cjs gerado.');
+
+// 2. Always copy tec-content.js to android assets (create directory if needed)
+// This is tracked in git so the APK build on CI also gets the script.
+const assetsDir = path.join('android', 'app', 'src', 'main', 'assets');
+fs.mkdirSync(assetsDir, { recursive: true });
+const targetAsset = path.join(assetsDir, 'tec-content.js');
+fs.writeFileSync(targetAsset, content, 'utf8');
+console.log('[build.cjs] android/app/src/main/assets/tec-content.js atualizado (' + content.length + ' bytes).');
+
+console.log('[build.cjs] Preload built.');

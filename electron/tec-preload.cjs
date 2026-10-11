@@ -1,23 +1,24 @@
 const { ipcRenderer, webFrame } = require("electron");
 
-// ── FIX: jQuery Conflict ──────────────────────────────────────────────────
-// Removendo globais do Node.js do objeto window para que o jQuery (e outras libs)
-// do site do TEC não se confundam e carreguem corretamente no escopo global.
-if (typeof window !== "undefined") {
-  const _require = window.require;
-  const _module = window.module;
-  const _exports = window.exports;
-  
-  delete window.require;
-  delete window.module;
-  delete window.exports;
-  
-  // Opcional: disponibilizar o ipcRenderer de forma segura se necessário
-  // window.__SOE_IPC__ = ipcRenderer; 
-}
+// Relay from content.js (isolated window) -> React host
+window.addEventListener("message", (e) => {
+  if (e.data && e.data._soe_internal) {
+    if (e.data.type && !e.data.type.endsWith('_RESPONSE')) {
+      ipcRenderer.send("soe-tec-message", e.data);
+    }
+  }
+});
 
-
-
+// Relay from React host -> content.js (isolated window)
+ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
+  window.postMessage({
+    type: type + "_RESPONSE",
+    messageId,
+    response,
+    error,
+    _soe_internal: true
+  }, "*");
+});
 
 // ── INJECT CONTENT SCRIPT NATIVELY IN ISOLATED WORLD ──
 // Isto evita falhas de CSP (Content Security Policy) da página.
@@ -34,10 +35,32 @@ if (typeof window !== "undefined") {
 (function () {
   'use strict';
 
-  if (window.__REACT_DEVTOOLS_GLOBAL_HOOK_EXT__) return;
-  window.__REACT_DEVTOOLS_GLOBAL_HOOK_EXT__ = true;
+  if (window.__SOE_INJECTED_V2__) return;
+  
+  // No modo proxy, o script é injetado em tudo que é HTML.
+  // Só queremos rodar no frame principal do TEC. 
+  // No mobile, o window.name pode sumir, então relaxamos a trava se houver indícios do SOE Proxy.
+  const isSoeProxy = window.__SOE_PROXY__ || window.__SOE_MOBILE__ || !!window.SoeAndroidBridge || document.documentElement.innerHTML.includes('soe-hud');
+  if (window.name !== 'TEC_MAIN_FRAME' && !isSoeProxy) {
+    return;
+  }
+  
+  window.__SOE_INJECTED_V2__ = true;
 
   const CADERNO_ID = location.pathname.match(/\/cadernos\/(\d+)/)?.[1] || null;
+
+  function debugLog(msg) {
+    // console.log('[SOE DEBUG]', msg);
+    /* 
+    window.postMessage({
+      type: 'SOE_DEBUG_LOG',
+      payload: { msg: `[${new Date().toISOString()}] ${msg}` },
+      _soe_internal: true,
+    }, '*');
+    */
+  }
+
+  debugLog('Script SOE v2.1 carregado. URL: ' + location.href + ' CadernoID: ' + CADERNO_ID);
 
   // ─── Captura de incidência e metadados enriquecidos ───────────────────────
 
@@ -145,7 +168,8 @@ if (typeof window !== "undefined") {
       cadernos.push({ id, nome, url: `https://www.tecconcursos.com.br${href}`, disciplina: '', totalQuestoes: 0, assuntos: 0 });
     }
     if (cadernos.length > 0) {
-      ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
+      console.log('[SOE v2] Cadernos detectados via DOM:', cadernos.length);
+      window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
     }
   }
 
@@ -187,12 +211,15 @@ if (typeof window !== "undefined") {
     const text = document.body?.innerText || '';
     if (!text) return [];
 
-    const statsMatch = text.match(/(?:(\d+)\s*Resolvidas?,\s*)?(\d+)\s*Acertos?\s+e\s+(\d+)\s*Erros?/i);
+    // Suporta formatos: "10 Resolvidas, 8 Acertos e 2 Erros" ou "319 R, 242 A e 77 E"
+    const statsMatch = text.match(/(?:(\d+)\s*(?:Resolvidas?|R),\s*)?(\d+)\s*(?:Acertos?|A)\s+e\s+(\d+)\s*(?:Erros?|E)/i);
     const cleanBtns = s => s.replace(/[\u2715\u2716\u2297\u2A2F\u00D7]/g, '').trim();
 
-    // Strategy 1: Text labels "Matéria:" / "Assunto:" (classic TEC layout)
-    const materiaMatch = text.match(/Mat[eé]ria:\s*([^\n]+)/i);
-    const assuntoMatch = text.match(/Assunto:\s*([^\n]+)/i);
+    debugLog(`Scraping header. StatsMatch: ${statsMatch ? 'Yes (' + statsMatch[0] + ')' : 'No'}. Text length: ${text.length}`);
+
+    // Strategy 1: Text labels "Matéria:" / "Assunto:" (classic/mobile TEC layout)
+    const materiaMatch = text.match(/Mat[eé]ria:\s*([^\n\r]+)/i);
+    const assuntoMatch = text.match(/Assunto:\s*([^\n\r]+)/i);
     if (materiaMatch && assuntoMatch) {
       const disciplina = cleanBtns(materiaMatch[1]);
       const assunto = cleanBtns(assuntoMatch[1]);
@@ -207,11 +234,13 @@ if (typeof window !== "undefined") {
     try {
       const selMateria = document.querySelector(
         '[class*="materia"], [class*="disciplina"], [class*="subject"], ' +
-        '[data-materia], [data-disciplina], .question-subject'
+        '[data-materia], [data-disciplina], .question-subject, ' +
+        '.materia-area, .disciplina-info' // Mobile selectors
       );
       const selAssunto = document.querySelector(
         '[class*="assunto"], [class*="topico"], [class*="topic"], ' +
-        '[data-assunto], [data-topico], .question-topic'
+        '[data-assunto], [data-topico], .question-topic, ' +
+        '.assunto-area, .topico-info' // Mobile selectors
       );
       if (selMateria && selAssunto) {
         const disciplina = cleanBtns(selMateria.textContent || '');
@@ -269,8 +298,8 @@ if (typeof window !== "undefined") {
           const qId = headerMatch[1];
           const acertoMatch = bodyText.match(/Você acertou!/i);
           const erroMatch = bodyText.match(/Você errou!/i);
-          if ((acertoMatch || erroMatch) && !sessionStorage.getItem('_react_app_cache_' + qId)) {
-            sessionStorage.setItem('_react_app_cache_' + qId, '1');
+          if ((acertoMatch || erroMatch) && !sessionStorage.getItem('soe_scored_' + qId)) {
+            sessionStorage.setItem('soe_scored_' + qId, '1');
           }
         }
         // Se chegou na página de cadernos, raspa a lista
@@ -301,15 +330,15 @@ if (typeof window !== "undefined") {
     const questionId = headerMatch?.[1] || urlIdMatch?.[1] || domId || null;
 
     const acertoMatch = bodyText.match(/Você acertou!/i) ||
-                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"]');
+                        document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"], .q-status-correct, .text-success');
     const erroMatch   = bodyText.match(/Você errou!/i) ||
-                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"]');
+                        document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], .q-status-wrong, .text-danger');
 
     // If we can't find questionId at all, use URL as dedup key
     const dedupKey = questionId || location.href;
 
     if (dedupKey && (acertoMatch || erroMatch)) {
-      const storageKey = '_react_app_cache_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+      const storageKey = 'soe_scored_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
       if (!sessionStorage.getItem(storageKey)) {
         const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
         if (timeSpentSeconds < 2) return;
@@ -326,49 +355,32 @@ if (typeof window !== "undefined") {
 
         {
           const activeBanca = getActiveBanca();
-          
-          ipcRenderer.send("soe-tec-message", {
+          console.log('[SOE v2] Incrementando stats para', assunto, '-', timeSpentSeconds, 's');
+
+          window.postMessage({
             type: 'SOE_TEC_INCREMENT_STATS',
-            payload: {
-              cadernoId: CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
-              cadernoUrl: location.href,
-              disciplina,
-              assunto,
-              correctAdd: isError ? 0 : 1,
-              errorAdd: isError ? 1 : 0,
-              timeSpentSeconds,
-            },
+              payload: {
+                cadernoId: CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
+                cadernoUrl: location.href,
+                disciplina,
+                assunto,
+                correctAdd: isError ? 0 : 1,
+                errorAdd: isError ? 1 : 0,
+                timeSpentSeconds,
+                dedupKey: dedupKey,
+              },
             _soe_internal: true,
-          });
+          }, '*');
 
           if (activeBanca && disciplina && assunto !== 'Questão TEC') {
-            ipcRenderer.send("soe-tec-message", {
+            window.postMessage({
               type: 'SOE_TEC_BANCA_INCREMENT',
               payload: { disciplina, assunto, banca: activeBanca, correctAdd: isError ? 0 : 1, errorAdd: isError ? 1 : 0 },
               _soe_internal: true,
-            });
+            }, '*');
           }
 
         } // end increment block
-
-        // Sirene de Ilusão de Competência
-        if (isError) {
-          const now = Date.now();
-          let errorTimes = JSON.parse(sessionStorage.getItem('_react_app_state_') || '[]');
-          errorTimes = errorTimes.filter(t => now - t.time < 3 * 60 * 1000);
-          const currentSubject = rows[0]?.assunto || assunto;
-          errorTimes.push({ time: now, subject: currentSubject });
-          sessionStorage.setItem('_react_app_state_', JSON.stringify(errorTimes));
-          const sameErrors = errorTimes.filter(t => t.subject === currentSubject);
-          if (sameErrors.length >= 3) {
-            sessionStorage.setItem('_react_app_state_', '[]');
-          }
-        } else {
-          let errorTimes = JSON.parse(sessionStorage.getItem('_react_app_state_') || '[]');
-          const currentSubject = rows[0]?.assunto || assunto;
-          errorTimes = errorTimes.filter(t => t.subject !== currentSubject);
-          sessionStorage.setItem('_react_app_state_', JSON.stringify(errorTimes));
-        }
 
         if (isError) {
           const wq = scrapeWrongQuestion(bodyText, document.body);
@@ -376,23 +388,31 @@ if (typeof window !== "undefined") {
             wq.disciplina = disciplina;
             wq.assunto    = assunto;
             wq.timeSpentSeconds = timeSpentSeconds;
-            ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_WRONG_QUESTION', payload: wq, _soe_internal: true });
+            console.log('[SOE v2] Enviando questão errada:', wq.questionId);
+            window.postMessage({ type: 'SOE_TEC_WRONG_QUESTION', payload: wq, _soe_internal: true }, '*');
           }
         }
       }
     }
   }
 
-
-
   function scrapeWrongQuestion(text, bodyElement) {
-    if (!text.match(/Você errou!/i)) return null;
+    debugLog('Tentando raspar questão errada...');
+    if (!text.match(/Você errou!/i)) {
+        debugLog('Não encontrou "Você errou!" no texto.');
+        return null;
+    }
     const errorMatch = text.match(/Você errou!(?:[\s\S]{0,500}Gabarito:\s*([A-E]|[CERTORADcertorad]+\b))?/i);
-    const headerMatch = text.match(/#(\d+)\s+([^\-]+)\s*-\s*(\d{4})?\s*-\s*([^\n]+)/);
+    
+    // Regex mais flexível para o cabeçalho
+    const headerMatch = text.match(/#(\d+)\s+([^-]+)\s*(?:-\s*(\d{4})?)?\s*(?:-\s*([^\n\r]+))?/);
+    
     const questionId = headerMatch ? headerMatch[1] : '';
-    const banca = headerMatch ? headerMatch[2].trim() : '';
+    const banca = headerMatch ? (headerMatch[2] || '').trim() : '';
     const year = headerMatch && headerMatch[3] ? parseInt(headerMatch[3], 10) : new Date().getFullYear();
-    const contest = headerMatch ? headerMatch[4].trim() : '';
+    const contest = headerMatch && headerMatch[4] ? headerMatch[4].trim() : '';
+
+    debugLog(`Questão ID: ${questionId}, Banca: ${banca}, Ano: ${year}`);
 
     const alternativesRegex = /\(\s*([A-E])\s*\)\s*([^\n]+)/g;
     const alternatives = [];
@@ -439,7 +459,7 @@ if (typeof window !== "undefined") {
 
   function dispatch(rows, sourceUrl) {
     if (!rows || rows.length === 0) return;
-    ipcRenderer.send("soe-tec-message", {
+    window.postMessage({
       type: 'SOE_TEC_DATA',
       payload: {
         cadernoId:  CADERNO_ID || location.pathname.split('/').filter(Boolean).pop() || 'unknown',
@@ -449,80 +469,75 @@ if (typeof window !== "undefined") {
         sourceUrl,
       },
       _soe_internal: true,
-    });
+    }, '*');
   }
 
-  // ─── Intercept fetch ──────────────────────────────────────────────────────
+  // ─── Intercept fetch (Passivo — NUNCA modifica URLs nem dados da requisição) ──
+  const _fetch = window.fetch;
+  window.fetch = async function (...args) {
+    const response = await _fetch.apply(this, args);
+    try {
+      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
 
-  window.fetch = new Proxy(window.fetch, {
-    apply: async function (target, thisArg, argumentsList) {
-      const response = await Reflect.apply(target, thisArg, argumentsList);
+      if (url.includes('api') || url.includes('questoes')) {
+        setTimeout(tryScrapeDOM, 1000);
+        setTimeout(tryScrapeDOM, 2500);
+      }
+
+      if (isRelevantUrl(url)) {
+        const ct = response.headers.get('content-type') || '';
+        if (ct.includes('json')) {
+          response.clone().json().then(data => {
+            const rows = parseTecResponse(data);
+            if (rows.length > 0) {
+              dispatch(rows, url);
+            }
+            if (isCadernosListUrl(url)) {
+              const cadernos = parseCadernosList(data);
+              if (cadernos.length > 0) {
+                window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
+              }
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+    return response;
+  };
+
+  // ─── Intercept XHR (Passivo — NUNCA modifica URLs) ───────────────────────────
+  const _XHROpen = XMLHttpRequest.prototype.open;
+  const _XHRSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+    this._soe_url = url;
+    return _XHROpen.apply(this, [method, url, ...rest]);
+  };
+  XMLHttpRequest.prototype.send = function (...args) {
+    this.addEventListener('load', function () {
       try {
-        const url = typeof argumentsList[0] === 'string' ? argumentsList[0] : argumentsList[0]?.url || '';
-
+        const url = this._soe_url || '';
         if (url.includes('api') || url.includes('questoes')) {
           setTimeout(tryScrapeDOM, 1000);
-          setTimeout(tryScrapeDOM, 3000);
-          setTimeout(tryScrapeDOM, 5000);
+          setTimeout(tryScrapeDOM, 2500);
         }
-
-        if (isRelevantUrl(url)) {
-          const ct = response.headers.get('content-type') || '';
-          if (ct.includes('json')) {
-            response.clone().json().then(data => {
-              const rows = parseTecResponse(data);
-              if (rows.length > 0) {
-                dispatch(rows, url);
-              }
-              // Tenta detectar lista de cadernos
-              if (isCadernosListUrl(url)) {
-                const cadernos = parseCadernosList(data);
-                if (cadernos.length > 0) {
-                  ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
-                }
-              }
-            }).catch(() => {});
+        if (!isRelevantUrl(url)) return;
+        const ct = this.getResponseHeader('content-type') || '';
+        if (!ct.includes('json')) return;
+        const data = JSON.parse(this.responseText);
+        const rows = parseTecResponse(data);
+        if (rows.length > 0) {
+          dispatch(rows, url);
+        }
+        if (isCadernosListUrl(url)) {
+          const cadernos = parseCadernosList(data);
+          if (cadernos.length > 0) {
+            window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
           }
         }
       } catch (_) {}
-      return response;
-    }
-  });
-
-  // ─── Intercept XHR ───────────────────────────────────────────────────────
-
-  XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
-    apply: function (target, thisArg, argumentsList) {
-      thisArg._soe_url = argumentsList[1];
-      return Reflect.apply(target, thisArg, argumentsList);
-    }
-  });
-
-  XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, {
-    apply: function (target, thisArg, argumentsList) {
-      thisArg.addEventListener('load', function () {
-        try {
-          const url = this._soe_url || '';
-          if (url.includes('api')) { setTimeout(tryScrapeDOM, 1000); setTimeout(tryScrapeDOM, 3000); }
-          if (!isRelevantUrl(url)) return;
-          const ct = this.getResponseHeader('content-type') || '';
-          if (!ct.includes('json')) return;
-          const data = JSON.parse(this.responseText);
-          const rows = parseTecResponse(data);
-          if (rows.length > 0) {
-            dispatch(rows, url);
-          }
-          if (isCadernosListUrl(url)) {
-            const cadernos = parseCadernosList(data);
-            if (cadernos.length > 0) {
-              ipcRenderer.send("soe-tec-message", { type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true });
-            }
-          }
-        } catch (_) {}
-      });
-      return Reflect.apply(target, thisArg, argumentsList);
-    }
-  });
+    });
+    return _XHRSend.apply(this, args);
+  };
 
   // ─── HTML table fallback + DOM init ──────────────────────────────────────
 
@@ -548,211 +563,11 @@ if (typeof window !== "undefined") {
       }
     }
     if (rows.length > 0) {
+      console.log('[SOE v2] capturados', rows.length, 'assuntos via HTML scraping');
       dispatch(rows, location.href);
     }
     return rows.length;
   }
-
-  // ─── Zoom com Ctrl + Scroll ───────────────────────────────────────────────
-  window.addEventListener("wheel", (e) => {
-    if (e.ctrlKey) {
-      e.preventDefault();
-      try {
-        const zoomFactor = webFrame.getZoomFactor();
-        let newZoom = zoomFactor + (e.deltaY < 0 ? 0.05 : -0.05);
-        newZoom = Math.min(Math.max(newZoom, 0.5), 3.0);
-        webFrame.setZoomFactor(newZoom);
-      } catch (err) {
-        console.error("[SOE] Erro ao ajustar zoom:", err);
-      }
-    }
-  }, { passive: false });
-
-  // ─── Barra de Pesquisa Ctrl + F ───────────────────────────────────────────
-  let searchBarEl = null;
-  let lastSearchText = "";
-
-  function createSearchBar() {
-    if (searchBarEl) return;
-    if (!document.body) return;
-
-    const style = document.createElement("style");
-    style.id = "soe-search-bar-style";
-    style.innerHTML = `
-      #soe-search-bar {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 2147483647;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        background: rgba(20, 20, 25, 0.95);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        color: #ffffff;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 13px;
-        opacity: 0;
-        transform: translateY(-20px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-        user-select: none;
-        pointer-events: auto;
-      }
-      #soe-search-bar.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      #soe-search-input {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
-        color: #ffffff;
-        padding: 6px 12px;
-        font-size: 13px;
-        outline: none;
-        width: 180px;
-        transition: border-color 0.2s, box-shadow 0.2s;
-      }
-      #soe-search-input:focus {
-        border-color: #10b981;
-        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-      }
-      #soe-search-results {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.6);
-        min-width: 45px;
-        text-align: center;
-        font-variant-numeric: tabular-nums;
-      }
-      .soe-search-btn {
-        background: transparent;
-        border: none;
-        color: rgba(255, 255, 255, 0.7);
-        cursor: pointer;
-        padding: 6px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s, color 0.2s;
-        width: 28px;
-        height: 28px;
-      }
-      .soe-search-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-      }
-      .soe-search-btn:active {
-        transform: scale(0.95);
-      }
-      .soe-search-divider {
-        width: 1px;
-        height: 20px;
-        background: rgba(255, 255, 255, 0.15);
-        margin: 0 2px;
-      }
-    `;
-    document.head.appendChild(style);
-
-    searchBarEl = document.createElement("div");
-    searchBarEl.id = "soe-search-bar";
-    searchBarEl.innerHTML = `
-      <input type="text" id="soe-search-input" placeholder="Buscar na página..." autocomplete="off">
-      <span id="soe-search-results">0/0</span>
-      <button class="soe-search-btn" id="soe-search-prev" title="Anterior (Shift+Enter)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-      </button>
-      <button class="soe-search-btn" id="soe-search-next" title="Próximo (Enter)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </button>
-      <div class="soe-search-divider"></div>
-      <button class="soe-search-btn" id="soe-search-close" title="Fechar (Esc)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    `;
-    document.body.appendChild(searchBarEl);
-
-    const input = searchBarEl.querySelector("#soe-search-input");
-    const prevBtn = searchBarEl.querySelector("#soe-search-prev");
-    const nextBtn = searchBarEl.querySelector("#soe-search-next");
-    const closeBtn = searchBarEl.querySelector("#soe-search-close");
-
-    const performSearch = (findNext = false, forward = true) => {
-      const text = input.value;
-      if (!text) {
-        ipcRenderer.send("soe-stop-find-in-page", "clearSelection");
-        searchBarEl.querySelector("#soe-search-results").textContent = "0/0";
-        lastSearchText = "";
-        return;
-      }
-
-      if (text !== lastSearchText) {
-        findNext = false;
-        lastSearchText = text;
-      }
-
-      ipcRenderer.send("soe-find-in-page", text, { findNext, forward });
-    };
-
-    input.addEventListener("input", () => performSearch(false, true));
-
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        performSearch(true, !e.shiftKey);
-      } else if (e.key === "Escape") {
-        hideSearchBar();
-      }
-    });
-
-    prevBtn.addEventListener("click", () => performSearch(true, false));
-    nextBtn.addEventListener("click", () => performSearch(true, true));
-    closeBtn.addEventListener("click", hideSearchBar);
-  }
-
-  function showSearchBar() {
-    createSearchBar();
-    if (!searchBarEl) return;
-    searchBarEl.style.display = "flex";
-    searchBarEl.offsetHeight; // force reflow
-    searchBarEl.classList.add("visible");
-    const input = searchBarEl.querySelector("#soe-search-input");
-    input.focus();
-    input.select();
-    
-    if (input.value) {
-      ipcRenderer.send("soe-find-in-page", input.value, { findNext: false, forward: true });
-    }
-  }
-
-  function hideSearchBar() {
-    if (!searchBarEl) return;
-    searchBarEl.classList.remove("visible");
-    ipcRenderer.send("soe-stop-find-in-page", "clearSelection");
-    setTimeout(() => {
-      if (searchBarEl) {
-        searchBarEl.style.display = "none";
-      }
-    }, 200);
-  }
-
-  ipcRenderer.on("soe-open-search", () => {
-    showSearchBar();
-  });
-
-  ipcRenderer.on("soe-found-in-page-results", (event, result) => {
-    if (!searchBarEl) return;
-    const resultsEl = searchBarEl.querySelector("#soe-search-results");
-    if (result.matches !== undefined) {
-      const active = result.activeMatchOrdinal || 0;
-      const total = result.matches || 0;
-      resultsEl.textContent = `${active}/${total}`;
-    }
-  });
 
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
@@ -770,11 +585,20 @@ if (typeof window !== "undefined") {
       if (e.target.closest('button, a, input[type="radio"], label')) {
         setTimeout(tryScrapeDOM, 1000);
         setTimeout(tryScrapeDOM, 2500);
-        setTimeout(tryScrapeDOM, 5000);
       }
     });
   });
 
-  /* SOE v2.5 content script ativo */
+  // ─── Force Scrape Listener (para Mobile Browser) ─────────────────────────
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'SOE_FORCE_SCRAPE' && e.data._soe_internal) {
+      console.log('[SOE v2] Forçando varredura manual...');
+      tryScrapeDOM();
+      scrapeHtmlTable();
+      if (location.pathname.match(/\/cadernos($|\?)/)) scrapeCadernosFromDOM();
+    }
+  });
+
+  console.log('[SOE v2] content script ativo — captura enriquecida (incidência + bancas + cadernos)');
 })();
 

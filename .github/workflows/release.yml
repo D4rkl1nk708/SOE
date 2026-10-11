@@ -96,11 +96,11 @@ jobs:
       - name: Build Web Assets
         run: npm run build:clean
 
-      - name: Update Preload and Android Assets
-        run: node build.cjs
-
       - name: Sync Capacitor Android
         run: npx --yes @capacitor/cli sync android
+
+      - name: Copy tec-content.js to Android Assets
+        run: node build.cjs
 
       - name: Build Android APK
         run: |
