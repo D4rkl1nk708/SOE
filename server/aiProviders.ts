@@ -2,7 +2,7 @@
  * Helpers para chamadas a provedores de IA (Gemini, OpenAI, Claude).
  * Centraliza a lógica de retry, fallback e tratamento de erros.
  */
-
+import { retryWithBackoff } from "./retryWithBackoff";
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [

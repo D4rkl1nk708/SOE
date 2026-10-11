@@ -1,11 +1,11 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "6.0.15",
+  "version": "6.0.21",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx watch --ignore ./data server/_core/index.ts",
+    "dev": "cross-env NODE_ENV=development tsx watch --ignore ./data server/_core/index.ts",
     "desktop:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
     "build": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-database.cjs",
     "build:clean": "vite build && esbuild server/_core/index.prod.ts --platform=node --bundle --format=cjs --outfile=dist/index.cjs && node scripts/seed-clean.cjs",
@@ -13,7 +13,7 @@
     "desktop:build:linux": "npm run build:clean && electron-builder --linux --publish never",
     "desktop:build:win": "npm run build:clean && electron-builder --win --publish never",
     "desktop:build:mac": "npm run build:clean && electron-builder --mac",
-    "android:build": "npm run build:clean && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "android:build": "npm run build:clean && npx cap sync android && cd android && gradlew assembleDebug",
     "android:apk": "npm run android:build:nosync",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc --noEmit",
@@ -26,7 +26,7 @@
     "ios:sync": "npm run build:clean && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "ios:build": "npm run build:clean && npx cap sync ios && npx cap open ios",
-    "android:build:nosync": "npm run build:clean && mkdir -p android/app/src/main/assets/public/ && cp -r dist/public/* android/app/src/main/assets/public/ && cd android && ./gradlew assembleDebug",
+    "android:build:nosync": "npm run build:clean && cd android && gradlew assembleDebug",
     "prepare": "husky"
   },
   "dependencies": {
@@ -161,6 +161,8 @@
   "build": {
     "appId": "com.soe.estudos",
     "productName": "SOE Estudos",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
     "afterPack": "./scripts/afterPack.cjs",
     "directories": {
       "output": "release"
@@ -189,8 +191,7 @@
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ],
@@ -212,14 +213,5 @@
     "*.{json,css,md}": [
       "prettier --write"
     ]
-  },
-  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af",
-  "pnpm": {
-    "patchedDependencies": {
-      "wouter@3.7.1": "patches/wouter@3.7.1.patch"
-    },
-    "overrides": {
-      "tailwindcss>nanoid": "3.3.7"
-    }
   }
 }

@@ -120,8 +120,10 @@ export default function TopicStats() {
         va = a.studyTimeSeconds || 0;
         vb = b.studyTimeSeconds || 0;
       }
-      if (typeof va === "string")
-        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      if (typeof va === "string" || typeof vb === "string")
+        return sortDir === "asc"
+          ? String(va || "").localeCompare(String(vb || ""))
+          : String(vb || "").localeCompare(String(va || ""));
       return sortDir === "asc" ? va - vb : vb - va;
     });
   }, [allTopics, filterDisc, search, sortKey, sortDir, filterPerf]);

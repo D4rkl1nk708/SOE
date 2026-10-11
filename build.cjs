@@ -28,4 +28,9 @@ ${content}
 `;
 
 fs.writeFileSync('electron/tec-preload.cjs', preloadBody);
+const targetAsset = 'android/app/src/main/assets/tec-content.js';
+if (fs.existsSync('android/app/src/main/assets')) {
+  fs.writeFileSync(targetAsset, content);
+  console.log('Android assets tec-content.js updated.');
+}
 console.log('Preload built.');

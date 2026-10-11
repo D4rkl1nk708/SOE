@@ -16,7 +16,7 @@
   // No modo proxy, o script é injetado em tudo que é HTML.
   // Só queremos rodar no frame principal do TEC. 
   // No mobile, o window.name pode sumir, então relaxamos a trava se houver indícios do SOE Proxy.
-  const isSoeProxy = window.__SOE_PROXY__ || document.documentElement.innerHTML.includes('soe-hud');
+  const isSoeProxy = window.__SOE_PROXY__ || window.__SOE_MOBILE__ || !!window.SoeAndroidBridge || document.documentElement.innerHTML.includes('soe-hud');
   if (window.name !== 'TEC_MAIN_FRAME' && !isSoeProxy) {
     return;
   }
@@ -358,25 +358,6 @@
 
         } // end increment block
 
-          // Sirene de Ilusão de Competência
-          if (isError) {
-            const now = Date.now();
-            let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-            errorTimes = errorTimes.filter(t => now - t.time < 3 * 60 * 1000);
-            const currentSubject = rows[0]?.assunto || assunto;
-            errorTimes.push({ time: now, subject: currentSubject });
-            sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
-            const sameErrors = errorTimes.filter(t => t.subject === currentSubject);
-            if (sameErrors.length >= 3) {
-              showCompetenceIllusionSiren(currentSubject, sameErrors.length);
-              sessionStorage.setItem('soe_error_times_v2', '[]');
-            }
-          } else {
-            let errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-            const currentSubject = rows[0]?.assunto || assunto;
-            errorTimes = errorTimes.filter(t => t.subject !== currentSubject);
-            sessionStorage.setItem('soe_error_times_v2', JSON.stringify(errorTimes));
-          }
         if (isError) {
           const wq = scrapeWrongQuestion(bodyText, document.body);
           if (wq && wq.statement) {
@@ -389,30 +370,6 @@
         }
       }
     }
-  }
-
-  function showCompetenceIllusionSiren(assunto, count) {
-    const siren = document.createElement('div');
-    siren.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.98); z-index: 9999999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: white; font-family: sans-serif; text-align: center; padding: 20px;
-      backdrop-filter: blur(10px);
-    `;
-    siren.innerHTML = `
-      <div style="font-size: 60px; margin-bottom: 20px;">🚨</div>
-      <h1 style="font-size: 32px; margin-bottom: 15px; color: #f87171;">Alerta de Ilusão de Competência</h1>
-      <p style="font-size: 20px; line-height: 1.5; max-width: 600px; color: #cbd5e1; margin-bottom: 30px;">
-        Você errou <strong>${count} questões</strong> quase sequenciais de <em>${assunto}</em> num curto intervalo de tempo.<br><br>
-        Insistir agora é desperdiçar energia mental e memorizar o erro. Vá revisar seu material, grifos ou anotações.
-      </p>
-      <button id="soe-dismiss-siren" style="padding: 12px 24px; font-size: 18px; border-radius: 8px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: bold;">
-        Entendi (Voltar)
-      </button>
-    `;
-    document.body.appendChild(siren);
-    document.getElementById('soe-dismiss-siren').addEventListener('click', () => siren.remove());
   }
 
   function scrapeWrongQuestion(text, bodyElement) {
@@ -491,29 +448,16 @@
     }, '*');
   }
 
-  function fixUrl(url) {
-    if (!url) return url;
-    const s = url.toString();
-    // Se for relativa à raiz (começa com /) e não for do SOE, mandamos pro proxy
-    if (s.startsWith('/') && !s.startsWith('/api/tec') && !s.startsWith('/api/auth') && !s.startsWith('/api/topic')) {
-      return '/api/tec-browser' + s;
-    }
-    return url;
-  }
-
-  // ─── Intercept fetch ──────────────────────────────────────────────────────
-
+  // ─── Intercept fetch (Passivo — NUNCA modifica URLs nem dados da requisição) ──
   const _fetch = window.fetch;
   window.fetch = async function (...args) {
-    if (args[0]) args[0] = fixUrl(args[0]);
     const response = await _fetch.apply(this, args);
     try {
       const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
 
       if (url.includes('api') || url.includes('questoes')) {
         setTimeout(tryScrapeDOM, 1000);
-        setTimeout(tryScrapeDOM, 3000);
-        setTimeout(tryScrapeDOM, 5000);
+        setTimeout(tryScrapeDOM, 2500);
       }
 
       if (isRelevantUrl(url)) {
@@ -522,14 +466,11 @@
           response.clone().json().then(data => {
             const rows = parseTecResponse(data);
             if (rows.length > 0) {
-              console.log('[SOE v2] capturados', rows.length, 'assuntos via fetch (com metadados enriquecidos)');
               dispatch(rows, url);
             }
-            // Tenta detectar lista de cadernos
             if (isCadernosListUrl(url)) {
               const cadernos = parseCadernosList(data);
               if (cadernos.length > 0) {
-                console.log('[SOE v2] Lista de cadernos capturada via API:', cadernos.length);
                 window.postMessage({ type: 'SOE_TEC_CADERNOS_LIST', payload: { cadernos }, _soe_internal: true }, '*');
               }
             }
@@ -540,27 +481,27 @@
     return response;
   };
 
-  // ─── Intercept XHR ───────────────────────────────────────────────────────
-
+  // ─── Intercept XHR (Passivo — NUNCA modifica URLs) ───────────────────────────
   const _XHROpen = XMLHttpRequest.prototype.open;
   const _XHRSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    const fixedUrl = fixUrl(url);
-    this._soe_url = fixedUrl;
-    return _XHROpen.apply(this, [method, fixedUrl, ...rest]);
+    this._soe_url = url;
+    return _XHROpen.apply(this, [method, url, ...rest]);
   };
   XMLHttpRequest.prototype.send = function (...args) {
     this.addEventListener('load', function () {
       try {
         const url = this._soe_url || '';
-        if (url.includes('api')) { setTimeout(tryScrapeDOM, 1000); setTimeout(tryScrapeDOM, 3000); }
+        if (url.includes('api') || url.includes('questoes')) {
+          setTimeout(tryScrapeDOM, 1000);
+          setTimeout(tryScrapeDOM, 2500);
+        }
         if (!isRelevantUrl(url)) return;
         const ct = this.getResponseHeader('content-type') || '';
         if (!ct.includes('json')) return;
         const data = JSON.parse(this.responseText);
         const rows = parseTecResponse(data);
         if (rows.length > 0) {
-          console.log('[SOE v2] capturados', rows.length, 'assuntos via XHR');
           dispatch(rows, url);
         }
         if (isCadernosListUrl(url)) {
@@ -608,7 +549,6 @@
     setTimeout(() => {
       tryScrapeDOM();
       if (scrapeHtmlTable() === 0) setTimeout(scrapeHtmlTable, 3000);
-      injectSOEHud();
 
       // Auto-scan lista de cadernos se estiver na página certa
       if (location.pathname.match(/\/cadernos($|\?)/)) {
@@ -621,141 +561,9 @@
       if (e.target.closest('button, a, input[type="radio"], label')) {
         setTimeout(tryScrapeDOM, 1000);
         setTimeout(tryScrapeDOM, 2500);
-        setTimeout(tryScrapeDOM, 5000);
       }
     });
   });
-
-  // ─── sendBgMessage helper ────────────────────────────────────────────────
-
-  function sendBgMessage(type, payload) {
-    return new Promise((resolve, reject) => {
-      const messageId = 'soe_' + Date.now() + '_' + Math.random().toString(36).substring(7);
-      const handler = (e) => {
-        if (e.data && e.data.type === type + '_RESPONSE' && e.data.messageId === messageId) {
-          window.removeEventListener('message', handler);
-          clearTimeout(timeout);
-          if (e.data.error) reject(new Error(e.data.error));
-          else if (e.data.response && e.data.response.ok === false) reject(new Error(e.data.response.error || 'Erro desconhecido'));
-          else resolve(e.data.response ? e.data.response.data : null);
-        }
-      };
-      window.addEventListener('message', handler);
-      window.postMessage({ type, payload, messageId, _soe_internal: true }, '*');
-      const timeout = setTimeout(() => {
-        window.removeEventListener('message', handler);
-        reject(new Error('Timeout: extensão não respondeu em 60s.'));
-      }, 60000);
-    });
-  }
-
-  // ─── HUD do Mentor ────────────────────────────────────────────────────────
-
-  function injectSOEHud() {
-    if (document.getElementById('soe-hud')) return;
-    const hud = document.createElement('div');
-    hud.id = 'soe-hud';
-    hud.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">SOE Mentor</div>
-      <button id="soe-panic-btn" style="width: 100%; padding: 6px; background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4); color: #60a5fa; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;">
-        💡 Me ajude, IA
-      </button>
-    `;
-    hud.style.cssText = `
-      position: fixed; bottom: 20px; right: 20px;
-      background: rgba(15,23,42,0.95); border: 1px solid rgba(255,255,255,0.1);
-      padding: 16px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
-      z-index: 999999; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-      backdrop-filter: blur(8px);
-    `;
-    document.body.appendChild(hud);
-
-    document.getElementById('soe-panic-btn').addEventListener('click', async () => {
-      const btn = document.getElementById('soe-panic-btn');
-      btn.disabled = true;
-      btn.innerText = 'Consultando...';
-
-      let text = document.body.innerText;
-      const headerMatch = text.match(/#(\d+)\s+([^\-]+)/);
-      if (headerMatch) text = text.substring(headerMatch.index);
-      const cutoffs = [/Você errou!/, /Você acertou!/, /Gabarito:/, /Resolução do Professor/i, /Comentários da Comunidade/i, /Fórum/i];
-      let cutoff = text.length;
-      for (const r of cutoffs) { const m = text.match(r); if (m && m.index < cutoff) cutoff = m.index; }
-      if (cutoff > 0) text = text.substring(0, cutoff);
-      text = text.substring(0, 1500);
-
-      let fatigueCount = 0, subjectName = '', discName = '';
-      try {
-        const rows = scrapeQuestionHeader();
-        if (rows.length > 0) {
-          subjectName = rows[0].assunto;
-          discName = rows[0].disciplina;
-          const errorTimes = JSON.parse(sessionStorage.getItem('soe_error_times_v2') || '[]');
-          fatigueCount = errorTimes.filter(t => t.subject === subjectName).length;
-        }
-      } catch (e) {}
-
-      try {
-        const data = await sendBgMessage('SOE_TEC_AI_MENTOR', {
-          questionId: headerMatch ? headerMatch[1] : '',
-          questionText: text,
-          subject: subjectName,
-          discipline: discName,
-          fatigue: fatigueCount,
-        });
-        if (data?.text) showMentorModal(data.text, headerMatch ? headerMatch[1] : '');
-        else alert('Mentor respondeu vazio ou sem chave de API.');
-      } catch (e) {
-        alert('Falha de conexão: ' + e.message);
-      }
-      btn.disabled = false;
-      btn.innerText = '💡 Me ajude, IA';
-    });
-  }
-
-  function showMentorModal(text, questionId) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-      background: #1e293b; color: white; padding: 25px; border-radius: 12px;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); z-index: 9999999;
-      max-width: 600px; width: 90%; font-family: sans-serif; line-height: 1.6;
-      border: 1px solid #334155;
-    `;
-    modal.innerHTML = `
-      <h2 style="margin: 0 0 15px 0; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 24px;">💡</span> SOE Mentor Socrático
-      </h2>
-      <div style="font-size: 15px; color: #e2e8f0; white-space: pre-wrap; margin-bottom: 20px; max-height: 50vh; overflow-y: auto;">${text.replace(/</g, '&lt;')}</div>
-      <div style="display: flex; gap: 10px;">
-        <button id="soe-gen-flashcard" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #3b82f6; background: transparent; color: #60a5fa; cursor: pointer; font-weight: bold;">🗂️ Gerar Flashcard</button>
-        <button id="soe-close-mentor" style="flex: 1; padding: 10px; border-radius: 6px; border: none; background: #3b82f6; color: white; cursor: pointer; font-weight: bold;">Fechar</button>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    document.getElementById('soe-close-mentor').addEventListener('click', () => modal.remove());
-    document.getElementById('soe-gen-flashcard').addEventListener('click', async () => {
-      const btn = document.getElementById('soe-gen-flashcard');
-      btn.disabled = true;
-      btn.innerText = 'Gerando...';
-      try {
-        const res = await sendBgMessage('SOE_GENERATE_FLASHCARD', { questionId });
-        if (res?.success) {
-          btn.innerText = '✅ Salvo!';
-          btn.style.color = '#22c55e';
-          btn.style.borderColor = '#22c55e';
-        } else {
-          alert('Erro ao gerar flashcard: ' + (res?.error || 'IA não retornou dados'));
-          btn.disabled = false;
-          btn.innerText = '🗂️ Gerar Flashcard';
-        }
-      } catch (e) {
-        alert('Falha: ' + e.message);
-        btn.disabled = false;
-        btn.innerText = '🗂️ Gerar Flashcard';
-      }
-    });
-  }
 
   // ─── Force Scrape Listener (para Mobile Browser) ─────────────────────────
   window.addEventListener('message', (e) => {

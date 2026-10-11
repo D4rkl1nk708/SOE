@@ -755,7 +755,9 @@ export async function localRevisionList(input?: {
     list = list.filter((r) => r.completed === input.completed);
   if (input?.ignored !== undefined)
     list = list.filter((r) => r.ignored === input.ignored);
-  return list.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+  return list.sort((a, b) =>
+    (a.scheduledDate || "").localeCompare(b.scheduledDate || ""),
+  );
 }
 
 export async function localRevisionMarkCompleted(input: {
@@ -1103,7 +1105,9 @@ export async function localNoteList(): Promise<Note[]> {
     .where("userId")
     .equals(LOCAL_USER_ID)
     .toArray()
-    .then((a) => a.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt)));
+    .then((a) =>
+      a.sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || "")),
+    );
 }
 
 export async function localNoteUpsert(input: {

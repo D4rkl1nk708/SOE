@@ -27,8 +27,22 @@ let cachedScript: string | null = null;
 const getTecScript = (): string => {
   if (cachedScript) return cachedScript;
   try {
-    const scriptPath = path.join(process.cwd(), "electron", "tec-content.js");
-    const content = fs.readFileSync(scriptPath, "utf8");
+    const candidatePaths = [
+      path.join(process.cwd(), "electron", "tec-content.js"),
+      path.join(__dirname, "..", "electron", "tec-content.js"),
+      path.join(__dirname, "electron", "tec-content.js"),
+      path.join(process.cwd(), "dist", "electron", "tec-content.js"),
+    ];
+
+    let content = "";
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        content = fs.readFileSync(p, "utf8");
+        break;
+      }
+    }
+
+    if (!content) return "";
 
     // Wrapper que propaga postMessage para o frame pai (necessário para o SOE capturar eventos)
     cachedScript =
@@ -64,6 +78,29 @@ const sanitizeCookies = (cookies: string[]): string[] => {
         .replace(/;\s*Domain=[^;]*/gi, ""), // Remove Domain para não conflitar com localhost
   );
 };
+
+// ── Middleware de CORS para permitir acesso de WebView/Mobile (Capacitor) ─────
+router.use((req: any, res: any, next: any) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Accept, X-SOE-Token, Authorization, Cookie",
+  );
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// ── Endpoint rápido de saúde para verificar conectividade do proxy ────────────
+router.get("/health", (req: any, res: any) => {
+  res.json({ ok: true, proxy: "tec-browser", timestamp: Date.now() });
+});
 
 router.all("*", async (req: any, res: any) => {
   let targetUrl = req.query.url as string;
@@ -161,6 +198,9 @@ router.all("*", async (req: any, res: any) => {
         res.setHeader(key, response.headers[key]);
       }
     });
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
 
     // ── Tratamento de Cookies ──────────────────────────────────────────────
     let tecCookies = response.headers["set-cookie"];

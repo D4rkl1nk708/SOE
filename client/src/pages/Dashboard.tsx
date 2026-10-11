@@ -93,15 +93,20 @@ export default function Dashboard() {
       </div>
     );
 
-  const sortedExams = [...exams.exams].sort((a, b) =>
-    a.date.localeCompare(b.date),
+  const sortedExams = [...(exams.exams || [])].sort((a, b) =>
+    (a.date || "").localeCompare(b.date || ""),
   );
   const nowDate = new Date();
   const nextUpcomingExam =
-    sortedExams.find((e) => differenceInDays(parseISO(e.date), nowDate) >= 0) ||
+    sortedExams.find(
+      (e) => e.date && differenceInDays(parseISO(e.date), nowDate) >= 0,
+    ) ||
     sortedExams[0] ||
     null;
-  const examDate = nextUpcomingExam ? parseISO(nextUpcomingExam.date) : null;
+  const examDate =
+    nextUpcomingExam?.date && !isNaN(parseISO(nextUpcomingExam.date).getTime())
+      ? parseISO(nextUpcomingExam.date)
+      : null;
   const daysToExam = examDate ? differenceInDays(examDate, nowDate) : null;
   const totalStudyTime = drag.orderedStats.reduce(
     (acc, d) => acc + (d.studyTimeSeconds || 0),

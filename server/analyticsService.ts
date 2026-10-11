@@ -335,7 +335,7 @@ export async function getStudyHeatmap(userId: number, months: number) {
       count,
       minutes: Math.round(seconds / 60),
     }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 }
 
 // ─── Today Study Minutes ─────────────────────────────────────────────────────

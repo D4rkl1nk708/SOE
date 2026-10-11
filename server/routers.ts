@@ -1843,7 +1843,7 @@ ${input.text.substring(0, 8000)}`;
               ignored: r.ignored,
             };
           })
-          .sort((a, b) => a.date.localeCompare(b.date));
+          .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         return { schedule };
       }),

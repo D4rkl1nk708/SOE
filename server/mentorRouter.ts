@@ -1182,7 +1182,11 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
       const flashcardsCount = flashcards.length;
 
       const topicsStr = topics
-        .sort((a, b) => b.studyDate.localeCompare(a.studyDate))
+        .sort((a, b) =>
+          (b.studyDate || b.createdAt || "").localeCompare(
+            a.studyDate || a.createdAt || "",
+          ),
+        )
         .slice(0, 10)
         .map((t) => `ID: ${t.id} | DiscID: ${t.disciplineId} | Nome: ${t.name}`)
         .join("\n");

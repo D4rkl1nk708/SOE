@@ -855,7 +855,9 @@ export async function getTopicsByUser(
     const orderB =
       typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
     if (orderA !== orderB) return orderA - orderB;
-    return b.studyDate.localeCompare(a.studyDate);
+    const dateA = a.studyDate || a.createdAt || "";
+    const dateB = b.studyDate || b.createdAt || "";
+    return dateB.localeCompare(dateA);
   });
 }
 
@@ -954,7 +956,7 @@ export async function getRevisionsByUser(
   if (filters?.ignored !== undefined)
     revisions = revisions.filter((r) => r.ignored === filters.ignored);
   return revisions.sort((a, b) =>
-    a.scheduledDate.localeCompare(b.scheduledDate),
+    (a.scheduledDate || "").localeCompare(b.scheduledDate || ""),
   );
 }
 
@@ -1063,7 +1065,7 @@ export async function getMockExamsByUser(userId: number): Promise<MockExam[]> {
   const db = readDatabase();
   return db.mockExams
     .filter((m) => m.userId === userId)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
 
 export async function createMockExam(
@@ -1113,7 +1115,7 @@ export async function getNotesByUser(userId: number): Promise<StudyNote[]> {
   const db = readDatabase();
   return db.notes
     .filter((n) => n.userId === userId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 export async function upsertNote(
@@ -2296,7 +2298,7 @@ export async function getQuestionErrorsByUser(
   if (opts?.topicId) errors = errors.filter((e) => e.topicId === opts.topicId);
   if (opts?.disciplineId)
     errors = errors.filter((e) => e.disciplineId === opts.disciplineId);
-  errors.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  errors.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
   const total = errors.length;
   const limit = Math.min(opts?.limit ?? 50, 200);
@@ -2529,7 +2531,7 @@ export async function getEssaysByUser(
   let items = db.essays.filter((e) => e.userId === userId);
   if (disciplineId)
     items = items.filter((e) => e.disciplineId === disciplineId);
-  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return items.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 export async function getEssayById(
@@ -2830,7 +2832,7 @@ export async function saveTecSnapshot(
   const userSnaps = db.tecSnapshots.filter((s) => s.userId === userId);
   if (userSnaps.length > 60) {
     const oldest = userSnaps
-      .sort((a, b) => a.importedAt.localeCompare(b.importedAt))
+      .sort((a, b) => (a.importedAt || "").localeCompare(b.importedAt || ""))
       .slice(0, userSnaps.length - 60);
     const oldestIds = new Set(oldest.map((s) => s.id));
     db.tecSnapshots = db.tecSnapshots.filter((s) => !oldestIds.has(s.id));
@@ -2848,7 +2850,7 @@ export async function getTecSnapshots(
   if (!db.tecSnapshots) return [];
   return db.tecSnapshots
     .filter((s) => s.userId === userId)
-    .sort((a, b) => b.importedAt.localeCompare(a.importedAt))
+    .sort((a, b) => (b.importedAt || "").localeCompare(a.importedAt || ""))
     .slice(0, limit);
 }
 

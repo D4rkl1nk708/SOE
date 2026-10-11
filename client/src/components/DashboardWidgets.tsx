@@ -128,18 +128,37 @@ export function DailyGoalWidget() {
 // ── Today's Revisions Widget ───────────────────────────────────────────────────
 export function TodayRevisions() {
   const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const { data: revisions } = trpc.revision.list.useQuery({ completed: false });
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  const allTopics = (stats?.disciplineStats ?? []).flatMap((d: any) =>
-    (d.topics ?? []).map((t: any) => ({
-      ...t,
-      disciplineName: d.name,
-      disciplineColor: d.color,
-    })),
-  );
-  const todayRevisions = allTopics.filter((t: any) =>
-    t.revisions?.some((r: any) => !r.completed && r.scheduledDate <= todayStr),
-  );
+  const topicMap = new Map<
+    number,
+    { name: string; disciplineName: string; disciplineColor: string }
+  >();
+  for (const d of stats?.disciplineStats ?? []) {
+    for (const t of d.topics ?? []) {
+      topicMap.set(t.id, {
+        name: t.name,
+        disciplineName: d.name,
+        disciplineColor: d.color,
+      });
+    }
+  }
+
+  const todayRevisions = (revisions ?? [])
+    .filter(
+      (r) =>
+        !r.ignored && r.scheduledDate <= todayStr && topicMap.has(r.topicId),
+    )
+    .map((r) => {
+      const info = topicMap.get(r.topicId)!;
+      return {
+        id: r.id,
+        name: info.name,
+        disciplineName: info.disciplineName,
+        disciplineColor: info.disciplineColor,
+      };
+    });
 
   if (todayRevisions.length === 0) return null;
 

@@ -43,3 +43,27 @@ data/
 playwright-report/
 test-results/
 coverage/
+
+# Binários e instaladores (usar GitHub Releases em vez de commitar)
+*.apk
+*.aab
+*.msi
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# Backups e dumps de dados
+soe-backup-*.json
+*.backup.json
+
+# Android Studio
+android/.idea/
+android/app/src/main/assets/
+android/**/.cxx/
+android/**/.externalNativeBuild/
+*.iml
+
+# Electron preload gerado automaticamente (gerado via build.cjs)
+electron/tec-preload.cjs

@@ -9,6 +9,10 @@ const config: CapacitorConfig = {
       enabled: true,
     },
   },
+  server: {
+    androidScheme: 'http',
+    cleartext: true,
+  },
   android: {
     allowMixedContent: true,
     webContentsDebuggingEnabled: false,
