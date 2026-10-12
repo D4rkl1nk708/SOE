@@ -22,6 +22,9 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  Pencil,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
 import { useState } from "react";
@@ -287,13 +290,18 @@ export default function Dashboard() {
           className="soe-card p-5 flex flex-col justify-between relative group cursor-pointer hover:bg-secondary/30 transition-all border-amber-500/10"
           onClick={() => exams.openCreate()}
         >
-          <div className="absolute top-4 right-4 opacity-5">
-            <Target size={40} />
+          <div className="absolute top-4 right-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Target size={40} className="text-amber-500" />
           </div>
           <div>
-            <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60 mb-2">
-              Próxima Prova
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground opacity-60">
+                Próxima Prova
+              </p>
+              <span className="text-[9px] font-semibold text-amber-500/80 group-hover:text-amber-400 transition-colors">
+                {exams.exams && exams.exams.length > 0 ? "Gerenciar" : "+ Adicionar"}
+              </span>
+            </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tabular-nums text-amber-500">
                 {daysToExam !== null && daysToExam >= 0 ? daysToExam : "—"}
@@ -302,6 +310,11 @@ export default function Dashboard() {
                 Dias
               </span>
             </div>
+            {nextUpcomingExam && (
+              <p className="text-xs font-semibold text-foreground/80 truncate mt-1.5">
+                {nextUpcomingExam.name}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -458,6 +471,119 @@ export default function Dashboard() {
               onClick={questions.handleSave}
             >
               Salvar Desempenho
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Gerenciamento de Provas */}
+      <Dialog open={exams.dialogOpen} onOpenChange={exams.setDialogOpen}>
+        <DialogContent className="rounded-xl border-border bg-card max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Target size={18} className="text-amber-500" />
+              {exams.editingId ? "Editar Prova" : "Gerenciar Provas / Concursos"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Cadastre a data da sua prova para ativar a contagem regressiva e as recomendações do Modo Pré-Prova.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Lista de provas cadastradas */}
+          {exams.exams && exams.exams.length > 0 && !exams.editingId && (
+            <div className="space-y-2 mb-3">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
+                Provas Cadastradas
+              </label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {exams.exams.map((ex: any) => {
+                  const dDate = ex.date ? parseISO(ex.date) : null;
+                  const diff = dDate && !isNaN(dDate.getTime()) ? differenceInDays(dDate, nowDate) : null;
+                  return (
+                    <div
+                      key={ex.id}
+                      className="p-3 rounded-lg bg-secondary/40 border border-border/50 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground truncate">{ex.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {ex.date} {diff !== null ? `(${diff >= 0 ? `${diff} dias restantes` : "Encerrada"})` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => exams.openEdit(ex)}
+                          title="Editar"
+                        >
+                          <Pencil size={13} />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => exams.handleRemove(ex.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Formulário de cadastro / edição */}
+          <div className="space-y-3.5 py-1">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
+                Nome do Concurso / Prova
+              </label>
+              <Input
+                placeholder="Ex: CNU - Bloco 4, PF, Receita Federal..."
+                value={exams.examNameInput}
+                onChange={(e) => exams.setExamNameInput(e.target.value)}
+                className="bg-secondary/50 border-border"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
+                Data da Prova
+              </label>
+              <Input
+                type="date"
+                value={exams.examDateInput}
+                onChange={(e) => exams.setExamDateInput(e.target.value)}
+                className="bg-secondary/50 border-border"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center gap-2 mt-2">
+            {exams.editingId && (
+              <Button
+                variant="ghost"
+                className="h-10 text-xs font-semibold"
+                onClick={() => exams.openCreate()}
+              >
+                Cancelar Edição
+              </Button>
+            )}
+            <Button
+              className="flex-1 h-10 rounded-md font-bold text-xs uppercase tracking-wider bg-amber-600 hover:bg-amber-500 text-white"
+              onClick={exams.handleSave}
+              disabled={exams.isSaving}
+            >
+              {exams.isSaving
+                ? "Salvando..."
+                : exams.editingId
+                ? "Atualizar Prova"
+                : "Cadastrar Prova"}
             </Button>
           </DialogFooter>
         </DialogContent>
