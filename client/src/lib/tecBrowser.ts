@@ -117,7 +117,7 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
           );
         }
       }
-    } else if (type === "SOE_TEC_WRONG_QUESTION" && payload?.statement) {
+    } else if (type === "SOE_TEC_WRONG_QUESTION" && (payload?.statement || payload?.questionId)) {
       const discName = payload.disciplina || "TEC Concursos";
       const discList = await localDisciplineList();
       const foundDisc = discList.find(
@@ -156,12 +156,13 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
         banca: payload.banca,
         year: payload.year,
         contest: payload.contest,
-        statement: payload.statement || "",
+        statement: payload.statement || (payload.questionId ? `Questão #${payload.questionId}` : "Questão TEC"),
         alternatives: payload.alternatives || [],
         correctAnswer: payload.correctAnswer,
         userAnswer: payload.userAnswer,
       });
-      toast.error("Questão salva no Caderno de Erros!", {
+      console.log("[SOE TEC Handler] Questão salva no Caderno de Erros com sucesso!");
+      toast.success("✗ Erro salvo no Caderno de Erros!", {
         position: "bottom-center",
       });
     } else if (type === "SOE_TEC_DATA" && payload?.rows) {

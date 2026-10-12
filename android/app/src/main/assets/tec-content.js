@@ -305,9 +305,9 @@
 
     const questionId = headerMatch?.[1] || urlIdMatch?.[1] || domId || null;
 
-    const acertoMatch = bodyText.match(/Você acertou!/i) ||
+    const acertoMatch = bodyText.match(/Você acertou/i) ||
                         document.querySelector('[class*="acertou"], [class*="correct"], [class*="success"], .q-status-correct, .text-success');
-    const erroMatch   = bodyText.match(/Você errou!/i) ||
+    const erroMatch   = bodyText.match(/Você errou/i) ||
                         document.querySelector('[class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], .q-status-wrong, .text-danger');
 
     // If we can't find questionId at all, use URL as dedup key
@@ -315,11 +315,13 @@
 
     if (dedupKey && (acertoMatch || erroMatch)) {
       const storageKey = 'soe_scored_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+      const isError = !!erroMatch;
+
+      // 1. Contabilizar estatísticas na primeira detecção
       if (!sessionStorage.getItem(storageKey)) {
         const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
         if (timeSpentSeconds < 2) return;
         sessionStorage.setItem(storageKey, '1');
-        const isError = !!erroMatch;
         questionStartTime = Date.now();
 
         // Use scraped row or fallback to URL-derived identifiers
@@ -355,16 +357,26 @@
               _soe_internal: true,
             }, '*');
           }
-
         } // end increment block
+      }
 
-        if (isError) {
-          const wq = scrapeWrongQuestion(bodyText, document.body);
-          if (wq && wq.statement) {
-            wq.disciplina = disciplina;
-            wq.assunto    = assunto;
+      // 2. Salvar questão errada no Caderno de Erros (com chave própria para não perder se o DOM demorar alguns ms)
+      if (isError) {
+        const wqKey = storageKey + '_wq';
+        if (!sessionStorage.getItem(wqKey)) {
+          const disciplina = rows[0]?.disciplina || '';
+          const assunto    = rows[0]?.assunto    ||
+            location.pathname.split('/').filter(Boolean).slice(-1)[0]?.replace(/-/g,' ') ||
+            'Questão TEC';
+          const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
+
+          const wq = scrapeWrongQuestion(bodyText, document.body, questionId, disciplina, assunto, dedupKey);
+          if (wq) {
+            sessionStorage.setItem(wqKey, '1');
+            wq.disciplina = wq.disciplina || disciplina;
+            wq.assunto    = wq.assunto    || assunto;
             wq.timeSpentSeconds = timeSpentSeconds;
-            console.log('[SOE v2] Enviando questão errada:', wq.questionId);
+            console.log('[SOE v2] Enviando questão errada para o Caderno de Erros:', wq.questionId);
             window.postMessage({ type: 'SOE_TEC_WRONG_QUESTION', payload: wq, _soe_internal: true }, '*');
           }
         }
@@ -372,65 +384,174 @@
     }
   }
 
-  function scrapeWrongQuestion(text, bodyElement) {
+  function scrapeWrongQuestion(text, bodyElement, knownQuestionId, knownDisciplina, knownAssunto, dedupKey) {
     debugLog('Tentando raspar questão errada...');
-    if (!text.match(/Você errou!/i)) {
-        debugLog('Não encontrou "Você errou!" no texto.');
-        return null;
-    }
-    const errorMatch = text.match(/Você errou!(?:[\s\S]{0,500}Gabarito:\s*([A-E]|[CERTORADcertorad]+\b))?/i);
     
-    // Regex mais flexível para o cabeçalho
-    const headerMatch = text.match(/#(\d+)\s+([^-]+)\s*(?:-\s*(\d{4})?)?\s*(?:-\s*([^\n\r]+))?/);
-    
-    const questionId = headerMatch ? headerMatch[1] : '';
-    const banca = headerMatch ? (headerMatch[2] || '').trim() : '';
-    const year = headerMatch && headerMatch[3] ? parseInt(headerMatch[3], 10) : new Date().getFullYear();
-    const contest = headerMatch && headerMatch[4] ? headerMatch[4].trim() : '';
+    // 1. Identificar questionId, banca, year, contest
+    let questionId = knownQuestionId || '';
+    let banca = '';
+    let year = new Date().getFullYear();
+    let contest = '';
 
-    debugLog(`Questão ID: ${questionId}, Banca: ${banca}, Ano: ${year}`);
-
-    const alternativesRegex = /\(\s*([A-E])\s*\)\s*([^\n]+)/g;
-    const alternatives = [];
-    let firstAltIndex = -1;
-    let m;
-    while ((m = alternativesRegex.exec(text)) !== null) {
-      if (firstAltIndex === -1) firstAltIndex = m.index;
-      alternatives.push({ letter: m[1].toUpperCase(), text: m[2].trim() });
+    const headerMatch = text.match(/#(\d+)\s+([^\n\r-]+)?\s*(?:-\s*(\d{4})?)?\s*(?:-\s*([^\n\r]+))?/);
+    if (!questionId && headerMatch) questionId = headerMatch[1];
+    if (headerMatch) {
+      if (headerMatch[2]) banca = headerMatch[2].trim();
+      if (headerMatch[3]) year = parseInt(headerMatch[3], 10);
+      if (headerMatch[4]) contest = headerMatch[4].trim();
     }
-    if (alternatives.length === 0) {
-      const ceRegex = /\b(Certo|Errado)\b/gi;
-      let ceMatch;
-      while ((ceMatch = ceRegex.exec(text)) !== null) {
-        if (firstAltIndex === -1) firstAltIndex = ceMatch.index;
-        alternatives.push({ letter: ceMatch[1].toLowerCase().startsWith('c') ? 'C' : 'E', text: ceMatch[1] });
-        if (alternatives.length >= 2) break;
+    if (!questionId) {
+      const idMatch = text.match(/#(\d{4,8})/) || location.pathname.match(/\/questoes\/(\d+)/);
+      if (idMatch) questionId = idMatch[1];
+    }
+
+    if (!banca && bodyElement) {
+      const bancaEl = bodyElement.querySelector('[class*="banca"], [class*="orgao"], [class*="instituicao"]');
+      if (bancaEl) banca = bancaEl.textContent.trim();
+    }
+    if (!banca) {
+      banca = getActiveBanca() || '';
+    }
+
+    // 2. Extrair enunciado (Statement)
+    let statement = '';
+    if (bodyElement) {
+      const stmtEl = bodyElement.querySelector(
+        '[class*="enunciado"], [class*="texto-enunciado"], [class*="texto-questao"], [class*="statement"], [class*="question-text"], .questao-conteudo, .q-text, [class*="corpo-questao"]'
+      );
+      if (stmtEl && stmtEl.innerText && stmtEl.innerText.trim().length > 15) {
+        statement = stmtEl.innerText.trim();
       }
     }
 
-    let statement = '';
-    if (headerMatch && firstAltIndex !== -1) {
-      statement = text.substring(headerMatch.index + headerMatch[0].length, firstAltIndex).trim();
-    } else if (headerMatch) {
-      statement = text.substring(headerMatch.index + headerMatch[0].length, headerMatch.index + 1000).trim();
+    if (!statement || statement.length < 15) {
+      let cleanText = text;
+      if (headerMatch) {
+        cleanText = text.substring(headerMatch.index + headerMatch[0].length).trim();
+      } else {
+        const hashIdx = cleanText.search(/#\d{4,8}/);
+        if (hashIdx !== -1) {
+          const nextNl = cleanText.indexOf('\n', hashIdx);
+          if (nextNl !== -1) cleanText = cleanText.substring(nextNl + 1).trim();
+        }
+      }
+
+      const cutMatch = cleanText.match(/(?:^|\n)\s*(?:\([A-E]\)|[A-E]\s*[\)\.\:]|[A-E]\s*\n|(?:Certo|Errado)\b|Você errou|Você acertou|Gabarito:)/i);
+      if (cutMatch && cutMatch.index > 10) {
+        statement = cleanText.substring(0, cutMatch.index).trim();
+      } else {
+        const errIdx = cleanText.search(/Você errou|Gabarito:/i);
+        if (errIdx > 10) {
+          statement = cleanText.substring(0, errIdx).trim();
+        } else {
+          statement = cleanText.substring(0, 1000).trim();
+        }
+      }
     }
 
-    const correctAnswerText = errorMatch?.[1]?.trim() || '';
+    // Fallback garantido para o enunciado nunca ficar vazio
+    if (!statement || statement.length < 5) {
+      statement = `Questão #${questionId || 'TEC'} - ${knownAssunto || 'Geral'}${banca ? ' (' + banca + ')' : ''}`;
+    }
+
+    // 3. Extrair Alternativas
+    const alternatives = [];
+    if (bodyElement) {
+      const altEls = bodyElement.querySelectorAll(
+        '.alternativas [class*="opcao"], .alternativas [class*="item"], [class*="alternativa"], [class*="option-item"], .q-option, .questao-opcao, li[class*="opcao"], [class*="alternativa-opcao"]'
+      );
+      if (altEls && altEls.length >= 2) {
+        altEls.forEach((el, idx) => {
+          const letterEl = el.querySelector('[class*="letra"], [class*="letter"], b, strong, input[type="radio"]');
+          let letter = '';
+          if (letterEl) {
+            letter = (letterEl.value || letterEl.textContent || '').trim().toUpperCase();
+            if (letter.length > 1) letter = letter.charAt(0);
+          }
+          if (!letter || !letter.match(/^[A-E]$/)) {
+            letter = String.fromCharCode(65 + idx);
+          }
+          const textEl = el.querySelector('[class*="texto"], [class*="text"], [class*="content"]') || el;
+          let altText = textEl.textContent.trim();
+          altText = altText.replace(new RegExp('^\\s*\\(?' + letter + '[\\)\\.\\-\\:\\s]+', 'i'), '').trim();
+          alternatives.push({ letter, text: altText });
+        });
+      }
+    }
+
+    if (alternatives.length < 2) {
+      const altRegex = /(?:^|\n)\s*(?:\(([A-E])\)|([A-E])\s*[\)\.\:]|([A-E])\s*\n)\s*([^\n]+)/g;
+      let m;
+      while ((m = altRegex.exec(text)) !== null) {
+        const letter = (m[1] || m[2] || m[3]).toUpperCase();
+        const altText = m[4].trim();
+        alternatives.push({ letter, text: altText });
+      }
+    }
+
+    if (alternatives.length < 2) {
+      if (/\bCerto\b/i.test(text) && /\bErrado\b/i.test(text)) {
+        alternatives.push({ letter: 'C', text: 'Certo' });
+        alternatives.push({ letter: 'E', text: 'Errado' });
+      }
+    }
+
+    // 4. Extrair Gabarito (correctAnswer) e Resposta do Usuário (userAnswer)
     let correctAnswer = '';
-    if (correctAnswerText) {
-      const matched = alternatives.find(a => a.text.toLowerCase() === correctAnswerText.toLowerCase() || a.letter.toLowerCase() === correctAnswerText.toLowerCase());
-      correctAnswer = matched ? matched.letter : correctAnswerText.charAt(0).toUpperCase();
-    }
-    const userChoiceMatch = text.match(/Sua resposta:\s*([A-E]|Certo|Errado)/i);
-    const userAnswer = userChoiceMatch ? userChoiceMatch[1].toUpperCase().charAt(0) : '';
+    let userAnswer = '';
 
+    if (bodyElement) {
+      const correctEl = bodyElement.querySelector(
+        '[class*="correta"], [class*="gabarito"], [class*="correct"], .opcao-certa, .is-correct'
+      );
+      if (correctEl) {
+        const letEl = correctEl.querySelector('[class*="letra"], b, strong') || correctEl;
+        const m = (letEl.textContent || '').match(/([A-E]|Certo|Errado)/i);
+        if (m) correctAnswer = m[1].toUpperCase().charAt(0);
+      }
+
+      const userEl = bodyElement.querySelector(
+        '[class*="marcada"], [class*="selecionada"], [class*="user-choice"], input[type="radio"]:checked, [aria-checked="true"]'
+      );
+      if (userEl) {
+        const letEl = userEl.querySelector('[class*="letra"], b, strong') || userEl;
+        const m = (letEl.textContent || '').match(/([A-E]|Certo|Errado)/i);
+        if (m) userAnswer = m[1].toUpperCase().charAt(0);
+      }
+    }
+
+    if (!correctAnswer) {
+      const gabMatch = text.match(/(?:Gabarito|Resposta correta|Correta|a correta é):\s*([A-E]|Certo|Errado)/i);
+      if (gabMatch) correctAnswer = gabMatch[1].toUpperCase().charAt(0);
+    }
+
+    if (!userAnswer) {
+      const userMatch = text.match(/(?:Sua resposta|Você marcou|Você selecionou|Sua escolha):\s*([A-E]|Certo|Errado)/i);
+      if (userMatch) userAnswer = userMatch[1].toUpperCase().charAt(0);
+    }
+
+    // 5. Extrair Resolução do Professor
     let resolution = '';
     if (bodyElement) {
-      const resNode = bodyElement.querySelector('.resolucao-professor, .resolucao, [class*="resolution"], [class*="resolucao"], .feedback-prof');
+      const resNode = bodyElement.querySelector(
+        '.resolucao-professor, .resolucao, [class*="resolution"], [class*="resolucao"], .feedback-prof, [class*="comentario-professor"]'
+      );
       if (resNode) resolution = resNode.textContent.trim().replace(/\s+/g, ' ');
     }
 
-    return { questionId, banca, year, contest, statement, alternatives, correctAnswer, userAnswer, resolution };
+    return {
+      questionId: questionId || dedupKey || 'unknown',
+      banca,
+      year,
+      contest,
+      statement,
+      alternatives,
+      correctAnswer,
+      userAnswer,
+      resolution,
+      disciplina: knownDisciplina,
+      assunto: knownAssunto,
+    };
   }
 
   function dispatch(rows, sourceUrl) {
