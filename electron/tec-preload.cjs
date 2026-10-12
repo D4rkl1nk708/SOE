@@ -1,5 +1,15 @@
 const { ipcRenderer, webFrame } = require("electron");
 
+// Prevent third-party web libraries (like jQuery on TEC) from detecting CommonJS module exports
+if (typeof window !== "undefined") {
+  try {
+    delete window.module;
+    delete window.exports;
+  } catch (e) {}
+}
+
+window.__SOE_ELECTRON__ = true;
+
 // Relay from content.js (isolated window) -> React host
 window.addEventListener("message", (e) => {
   if (e.data && e.data._soe_internal) {
@@ -39,9 +49,10 @@ ipcRenderer.on("soe-tec-reply", (_, { type, messageId, response, error }) => {
   
   // No modo proxy, o script é injetado em tudo que é HTML.
   // Só queremos rodar no frame principal do TEC. 
-  // No mobile, o window.name pode sumir, então relaxamos a trava se houver indícios do SOE Proxy.
-  const isSoeProxy = window.__SOE_PROXY__ || window.__SOE_MOBILE__ || !!window.SoeAndroidBridge || document.documentElement.innerHTML.includes('soe-hud');
-  if (window.name !== 'TEC_MAIN_FRAME' && !isSoeProxy) {
+  // No mobile ou Electron, relaxamos a trava se for o frame principal ou se houver indícios do SOE.
+  const isMainFrame = window.self === window.top;
+  const isSoeProxy = window.__SOE_PROXY__ || window.__SOE_MOBILE__ || window.__SOE_ELECTRON__ || !!window.SoeAndroidBridge || (document.documentElement && document.documentElement.innerHTML.includes('soe-hud'));
+  if (!isMainFrame && window.name !== 'TEC_MAIN_FRAME' && !isSoeProxy) {
     return;
   }
   

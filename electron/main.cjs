@@ -159,7 +159,8 @@ function initApp() {
       webPreferences: {
         preload: tecPreloadPath,
         contextIsolation: false,
-        nodeIntegration: true,
+        nodeIntegration: false,
+        sandbox: false,
       },
     });
     tecWindow.setMenu(null);

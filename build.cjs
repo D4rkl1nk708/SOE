@@ -7,6 +7,16 @@ const content = fs.readFileSync('electron/tec-content.js', 'utf8');
 // 1. Build electron/tec-preload.cjs
 const preloadBody = `const { ipcRenderer, webFrame } = require("electron");
 
+// Prevent third-party web libraries (like jQuery on TEC) from detecting CommonJS module exports
+if (typeof window !== "undefined") {
+  try {
+    delete window.module;
+    delete window.exports;
+  } catch (e) {}
+}
+
+window.__SOE_ELECTRON__ = true;
+
 // Relay from content.js (isolated window) -> React host
 window.addEventListener("message", (e) => {
   if (e.data && e.data._soe_internal) {
