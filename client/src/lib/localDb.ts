@@ -1,3 +1,4 @@
+import { smartMergeDatabases, normalizeString } from "@shared/merge";
 /**
  * Camada de armazenamento local (IndexedDB) para o app rodar standalone no Android.
  * Replica a lógica do backend jsonStorage.
@@ -493,6 +494,11 @@ export async function localDisciplineCreate(input: {
     .where("userId")
     .equals(LOCAL_USER_ID)
     .toArray();
+  const normName = normalizeString(input.name);
+  const existing = list.find((d) => normalizeString(d.name) === normName);
+  if (existing) {
+    return { id: existing.id };
+  }
   const nextOrder = list.length
     ? Math.max(...list.map((d) => d.order ?? 0)) + 1
     : 1;
@@ -500,7 +506,7 @@ export async function localDisciplineCreate(input: {
   await db.disciplines.add({
     id,
     userId: LOCAL_USER_ID,
-    name: input.name,
+    name: input.name.trim(),
     color: input.color,
     weight: input.weight,
     order: nextOrder,
@@ -820,10 +826,23 @@ export async function localImportExportBackup(): Promise<string> {
 
 export async function localImportImportBackup(input: {
   json: string;
-}): Promise<{ success: boolean }> {
-  const data = JSON.parse(input.json);
-  if (!data.users || !data.disciplines || !data.topics || !data.revisions)
+  forceOverwrite?: boolean;
+}): Promise<{ success: boolean; report?: any }> {
+  const incoming = JSON.parse(input.json);
+  if (!incoming.disciplines && !incoming.topics)
     throw new Error("Invalid database format");
+
+  let data = incoming;
+  if (!input.forceOverwrite) {
+    try {
+      const localCurrentJson = await localImportExportBackup();
+      const localCurrent = JSON.parse(localCurrentJson);
+      data = smartMergeDatabases(localCurrent, incoming, LOCAL_USER_ID);
+    } catch (e) {
+      console.warn("Smart merge fallback to incoming data:", e);
+      data = incoming;
+    }
+  }
 
   await db.transaction(
     "rw",

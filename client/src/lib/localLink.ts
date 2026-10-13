@@ -136,6 +136,13 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
     localCalendarGetData(i as { startDate: string; endDate: string }),
   "calendar.getActivities": (i) => localCalendarGetActivities(i as any),
   "calendar.saveLink": (i) => localCalendarSaveLink(i as any),
+  "calendar.markCompleted": (i) => {
+    const input = i as { revisionId: number; completed: boolean };
+    return localRevisionMarkCompleted({
+      id: input.revisionId,
+      completed: input.completed,
+    });
+  },
   "dashboard.getStats": () => localDashboardGetStats(),
   "dashboard.getWeeklyStats": () => localDashboardGetWeeklyStats(),
   "mockExam.list": () => localMockExamList(),

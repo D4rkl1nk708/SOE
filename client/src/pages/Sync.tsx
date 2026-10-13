@@ -310,11 +310,11 @@ export default function Sync() {
 
   const [delta, setDelta] = useState<{ local: any; remote: any } | null>(null);
 
-  const confirmImport = async (json: string) => {
-    const { localImportImportBackup } = await import("@/lib/localDb");
-    await localImportImportBackup({ json });
-    toast.success("Dados sincronizados!");
-    setTimeout(() => window.location.reload(), 5000);
+  const confirmImport = async (json: string, forceOverwrite = false) => {
+    const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
+    await localImportImportBackup({ json, forceOverwrite });
+    toast.success("Dados sincronizados com sucesso!");
+    setTimeout(() => window.location.reload(), 2000);
   };
 
   const handlePull = useCallback(async () => {
@@ -329,39 +329,30 @@ export default function Sync() {
         timeoutMs: 15000,
       });
       if (res.status < 200 || res.status >= 300)
-        throw new Error("Erro de conexão");
+        throw new Error("Erro de conexão com o PC");
 
       const json =
         typeof res.data === "string" ? res.data : JSON.stringify(res.data);
-      const remoteData = JSON.parse(json);
 
-      // Delta Logic
-      const { localCalendarGetData } = await import("@/lib/localDb");
-      const localData = await localCalendarGetData({
-        startDate: "2000-01-01",
-        endDate: "2099-12-31",
-      });
+      const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
+      await localImportImportBackup({ json });
 
-      const remoteCount =
-        (remoteData.revisions?.length || 0) + (remoteData.topics?.length || 0);
-      const localCount =
-        (localData.revisions?.length || 0) + (localData.topics?.length || 0);
-
-      if (localCount > 0 && Math.abs(remoteCount - localCount) > 5) {
-        setDelta({
-          local: {
-            revisions: localData.revisions?.length || 0,
-            topics: localData.topics?.length || 0,
-          },
-          remote: {
-            revisions: remoteData.revisions?.length || 0,
-            topics: remoteData.topics?.length || 0,
-            json,
-          },
+      // Sincroniza de volta para o PC automaticamente para paridade imediata
+      try {
+        const mergedJson = await localImportExportBackup();
+        const pushUrl = url.replace("/export", "/receive");
+        await nativeFetch(pushUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          data: mergedJson,
+          timeoutMs: 15000,
         });
-      } else {
-        await confirmImport(json);
+      } catch (pushErr) {
+        console.warn("Could not sync back to PC:", pushErr);
       }
+
+      toast.success("Sincronização concluída! Dados mesclados com sucesso.");
+      setTimeout(() => window.location.reload(), 2500);
     } catch (e: any) {
       toast.error(e.message || "Erro na sincronização");
     } finally {
@@ -374,7 +365,7 @@ export default function Sync() {
     try {
       const url = await scanQRNative();
       if (!url) return;
-      toast.info("Enviando dados...");
+      toast.info("Enviando dados ao PC...");
       const { localImportExportBackup } = await import("@/lib/localDb");
       const json = await localImportExportBackup();
       const res = await nativeFetch(url, {
@@ -385,7 +376,7 @@ export default function Sync() {
       });
       if (res.status < 200 || res.status >= 300)
         throw new Error("PC recusou conexão");
-      toast.success("Enviado com sucesso!");
+      toast.success("Dados enviados e sincronizados no PC!");
     } catch (e: any) {
       toast.error(e.message || "Erro no envio");
     } finally {
@@ -402,16 +393,70 @@ export default function Sync() {
         const { localImportExportBackup } = await import("@/lib/localDb");
         json = await localImportExportBackup();
       }
+
+      const fileName = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
+
+      // No Android/APK nativo: Abre o compartilhador do sistema (WhatsApp, Drive, Email, Arquivos)
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import("@capacitor/filesystem");
+        const { Share } = await import("@capacitor/share");
+
+        await Filesystem.writeFile({
+          path: fileName,
+          data: json,
+          directory: Directory.Cache,
+          encoding: "utf8" as any,
+        });
+
+        const fileUri = await Filesystem.getUri({
+          path: fileName,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: "Exportar Banco de Dados SOE",
+          text: "Backup do banco de dados do SOE Concursos.",
+          url: fileUri.uri,
+          dialogTitle: "Salvar ou compartilhar backup",
+        });
+        toast.success("Opções de compartilhamento abertas!");
+        return;
+      }
+
+      // No navegador com suporte a Web Share API
       const blob = new Blob([json], { type: "application/json" });
+      const file = new File([blob], fileName, { type: "application/json" });
+
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator.share({
+          title: "Backup do SOE Concursos",
+          files: [file],
+        });
+        return;
+      }
+
+      // Download direto padrão para Desktop
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Backup pronto!");
+      toast.success("Backup baixado com sucesso!");
     } catch (e: any) {
-      toast.error("Erro ao exportar");
+      const msg = e?.message || String(e);
+      if (
+        msg.includes("cancel") ||
+        msg.includes("dismiss") ||
+        msg.includes("abort")
+      ) {
+        return;
+      }
+      toast.error("Erro ao exportar: " + msg);
     }
   };
 

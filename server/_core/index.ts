@@ -1553,11 +1553,16 @@ ${questionText}`;
 
   app.post("/api/sync/import", (req, res) => {
     try {
-      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      fs.writeFileSync(dbFile, JSON.stringify(req.body, null, 2), "utf-8");
+      const payload = req.body;
+      const jsonStr =
+        typeof payload === "string"
+          ? payload
+          : JSON.stringify(payload, null, 2);
+      if (!jsonStr || jsonStr === "null")
+        return res.status(400).json({ error: "Invalid body" });
+      const result = storage.syncReceiveDatabase(jsonStr);
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.json({ success: true });
+      res.json(result);
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
@@ -1589,7 +1594,7 @@ ${questionText}`;
         typeof payload === "string"
           ? payload
           : JSON.stringify(payload, null, 2);
-      fs.writeFileSync(dbFile, jsonStr, "utf-8");
+      const syncResult = storage.syncReceiveDatabase(jsonStr);
       // Notify all SSE listeners that data arrived
       for (const client of receiveSSEClients) {
         try {

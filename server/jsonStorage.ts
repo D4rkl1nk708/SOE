@@ -1,3 +1,4 @@
+import { smartMergeDatabases, normalizeString } from "../shared/merge";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -586,6 +587,40 @@ function readDatabase(): Database {
         ...r,
         ignored: (r.ignored as boolean) || false,
       })) as unknown as Revision[];
+
+      // Deduplicate disciplines by normalized name
+      const seenDiscNorm = new Map<string, number>();
+      const dupDiscMap = new Map<number, number>();
+      const uniqueDisciplines: Discipline[] = [];
+      for (const d of db.disciplines) {
+        const norm = normalizeString(d.name);
+        if (!norm) continue;
+        if (!seenDiscNorm.has(norm)) {
+          seenDiscNorm.set(norm, d.id);
+          uniqueDisciplines.push(d);
+        } else {
+          const canonicalId = seenDiscNorm.get(norm)!;
+          dupDiscMap.set(d.id, canonicalId);
+        }
+      }
+      if (dupDiscMap.size > 0) {
+        db.disciplines = uniqueDisciplines;
+        for (const t of db.topics) {
+          if (dupDiscMap.has(t.disciplineId)) {
+            t.disciplineId = dupDiscMap.get(t.disciplineId)!;
+          }
+        }
+        for (const qe of (db.questionErrors || [])) {
+          if (dupDiscMap.has(qe.disciplineId)) {
+            qe.disciplineId = dupDiscMap.get(qe.disciplineId)!;
+          }
+        }
+        for (const n of (db.notes || [])) {
+          if (dupDiscMap.has(n.disciplineId)) {
+            n.disciplineId = dupDiscMap.get(n.disciplineId)!;
+          }
+        }
+      }
       // Persist encoding fixes back to disk (one-time migration)
       if (!db._encodingFixed) {
         db._encodingFixed = true;
@@ -756,6 +791,13 @@ export async function createDiscipline(data: {
   weight: number;
 }): Promise<{ id: number }> {
   const db = readDatabase();
+  const normName = normalizeString(data.name);
+  const existing = db.disciplines.find(
+    (d) => d.userId === data.userId && normalizeString(d.name) === normName,
+  );
+  if (existing) {
+    return { id: existing.id };
+  }
   db.counters.disciplines++;
   const userDisciplines = db.disciplines.filter(
     (d) => d.userId === data.userId,
@@ -1251,193 +1293,28 @@ export async function importDatabaseForUser(
     }
 
     const db = readDatabase();
-    const currentUserInfo = db.users.find(
-      (u) => String(u.id) === String(currentUserId),
-    );
-    if (!currentUserInfo)
-      throw new Error(
-        `Usuário local ${currentUserId} não encontrado no banco.`,
-      );
-
+    const merged = smartMergeDatabases(db, importedDb, currentUserId);
+    writeDatabase(merged);
+    resetCache();
     console.log(
-      `[Import] DEBUG: Chaves encontradas: ${Object.keys(importedDb).join(", ")}`,
+      `[Import] Smart merge finalizado com sucesso para UserID=${currentUserId}. Matérias: ${merged.disciplines.length}, Tópicos: ${merged.topics.length}, Erros: ${merged.questionErrors.length}`,
     );
-    if (importedDb) {
-      console.log(
-        `[Import] DEBUG: Conteúdo detectado - Matérias: ${importedDb.disciplines?.length || 0}, Tópicos: ${importedDb.topics?.length || 0}, Revisões: ${importedDb.revisions?.length || 0}`,
-      );
-    }
-
-    // 1. Identify imported user and prepare ID maps
-    let importedUserId: any = undefined;
-    if (Array.isArray(importedDb.users) && importedDb.users.length > 0) {
-      const importedUserMatch =
-        importedDb.users.find(
-          (u: any) =>
-            (u.openId && u.openId === currentUserInfo.openId) ||
-            (u.email && u.email === currentUserInfo.email),
-        ) || importedDb.users[0];
-      importedUserId = importedUserMatch?.id;
-    }
-
-    const idMaps: Record<string, Map<any, any>> = {
-      disciplines: new Map(),
-      topics: new Map(),
-    };
-
-    // 2. Find MAX IDs in current DB
-    const getMaxId = (table: any[]) =>
-      Math.max(0, ...table.map((i) => Number(i.id) || 0));
-    let nextDiscId = getMaxId(db.disciplines) + 1;
-    let nextTopId = getMaxId(db.topics) + 1;
-    let nextRevId = getMaxId(db.revisions) + 1;
-    let nextMockId = getMaxId(db.mockExams || []) + 1;
-    let nextNoteId = getMaxId(db.notes || []) + 1;
-    let nextFlashId = getMaxId(db.flashcards || []) + 1;
-    let nextErrId = getMaxId(db.questionErrors || []) + 1;
-    let nextEssayId = getMaxId(db.essays || []) + 1;
-    let nextSnapId = getMaxId(db.tecSnapshots || []) + 1;
-
-    console.log(
-      `[Import] DEBUG: Iniciando para UserID=${currentUserId} (${currentUserInfo.email})`,
-    );
-
-    // 3. Remap EVERYTHING to currentUserId and generate UNIQUE IDs
-    // We map disciplines first
-    const importedDisciplines = (importedDb.disciplines || []).map((d: any) => {
-      const oldId = d.id;
-      const newId = nextDiscId++;
-      idMaps.disciplines.set(oldId, newId);
-      return { ...d, id: newId, userId: currentUserId };
-    });
-
-    const importedTopics = (importedDb.topics || []).map((t: any) => {
-      const oldId = t.id;
-      const newId = nextTopId++;
-      idMaps.topics.set(oldId, newId);
-      const newDiscId =
-        idMaps.disciplines.get(t.disciplineId) || t.disciplineId;
-      return {
-        ...t,
-        id: newId,
-        userId: currentUserId,
-        disciplineId: newDiscId,
-      };
-    });
-
-    const importedRevisions = (importedDb.revisions || []).map((r: any) => ({
-      ...r,
-      id: nextRevId++,
-      userId: currentUserId,
-      topicId: idMaps.topics.get(r.topicId) || r.topicId,
-    }));
-
-    const importedMockExams = (importedDb.mockExams || []).map((m: any) => ({
-      ...m,
-      id: nextMockId++,
-      userId: currentUserId,
-    }));
-
-    const importedNotes = (importedDb.notes || []).map((n: any) => ({
-      ...n,
-      id: nextNoteId++,
-      userId: currentUserId,
-      topicId: idMaps.topics.get(n.topicId) || n.topicId,
-    }));
-
-    const importedFlashcards = (importedDb.flashcards || []).map((f: any) => ({
-      ...f,
-      id: nextFlashId++,
-      userId: currentUserId,
-      topicId: idMaps.topics.get(f.topicId) || f.topicId,
-    }));
-
-    const importedQuestionErrors = (importedDb.questionErrors || []).map(
-      (q: any) => ({
-        ...q,
-        id: nextErrId++,
-        userId: currentUserId,
-        topicId: idMaps.topics.get(q.topicId) || q.topicId,
-      }),
-    );
-
-    const importedEssays = (importedDb.essays || []).map((e: any) => ({
-      ...e,
-      id: nextEssayId++,
-      userId: currentUserId,
-    }));
-
-    const importedSnapshots = (importedDb.tecSnapshots || []).map((s: any) => ({
-      ...s,
-      id: nextSnapId++,
-      userId: currentUserId,
-      topicId: idMaps.topics.get(s.topicId) || s.topicId,
-    }));
-
-    console.log(
-      `[Import] Finalizado remapeamento: ${importedDisciplines.length} matérias e ${importedTopics.length} tópicos.`,
-    );
-
-    if (importedDisciplines.length === 0 && importedTopics.length === 0) {
-      throw new Error("O arquivo JSON não contém matérias ou tópicos válidos.");
-    }
-
-    // 4. Merge data (Replacement for current user)
-    db.disciplines = db.disciplines
-      .filter((d) => String(d.userId) !== String(currentUserId))
-      .concat(importedDisciplines);
-    db.topics = db.topics
-      .filter((t) => String(t.userId) !== String(currentUserId))
-      .concat(importedTopics);
-    db.revisions = db.revisions
-      .filter((r) => String(r.userId) !== String(currentUserId))
-      .concat(importedRevisions);
-    db.mockExams = (db.mockExams || [])
-      .filter((m) => String(m.userId) !== String(currentUserId))
-      .concat(importedMockExams);
-    db.notes = (db.notes || [])
-      .filter((n) => String(n.userId) !== String(currentUserId))
-      .concat(importedNotes);
-    db.flashcards = (db.flashcards || [])
-      .filter((f) => String(f.userId) !== String(currentUserId))
-      .concat(importedFlashcards);
-    db.questionErrors = (db.questionErrors || [])
-      .filter((q) => String(q.userId) !== String(currentUserId))
-      .concat(importedQuestionErrors);
-    db.essays = (db.essays || [])
-      .filter((e) => String(e.userId) !== String(currentUserId))
-      .concat(importedEssays);
-    db.tecSnapshots = (db.tecSnapshots || [])
-      .filter((s) => String(s.userId) !== String(currentUserId))
-      .concat(importedSnapshots);
-
-    // 5. Update user settings
-    if (Array.isArray(importedDb.users) && importedDb.users.length > 0) {
-      const idx = db.users.findIndex(
-        (u) => String(u.id) === String(currentUserId),
-      );
-      if (idx >= 0 && importedDb.users[0].settings) {
-        db.users[idx].settings = {
-          ...db.users[idx].settings,
-          ...importedDb.users[0].settings,
-        };
-      }
-    }
-
-    if (
-      importedDb.cadernosTec &&
-      importedUserId !== undefined &&
-      importedDb.cadernosTec[importedUserId]
-    ) {
-      if (!db.cadernosTec) db.cadernosTec = {};
-      db.cadernosTec[currentUserId] = importedDb.cadernosTec[importedUserId];
-    }
-
-    writeDatabase(db);
   } catch (error) {
     console.error("[Import] Erro fatal:", error);
     throw new Error("Falha ao importar: " + (error as Error).message);
   }
+}
+
+export function syncReceiveDatabase(incomingJson: string | object): { success: boolean; stats?: any } {
+  const incoming = typeof incomingJson === "string" ? JSON.parse(incomingJson) : incomingJson;
+  if (!incoming || typeof incoming !== "object") {
+    throw new Error("Payload de sincronização inválido.");
+  }
+  const db = readDatabase();
+  const merged = smartMergeDatabases(db, incoming);
+  writeDatabase(merged);
+  resetCache();
+  return { success: true, stats: merged._mergeReport };
 }
 
 export async function importDatabase(jsonString: string): Promise<void> {
@@ -2347,10 +2224,11 @@ export async function integrateMinedQuestions(
     for (const q of questions) {
       // 1. Get or Create Discipline
       const subjectName = q.subject || "Geral";
+      const normSubject = normalizeString(subjectName);
       let disc = db.disciplines.find(
         (d) =>
           d.userId === userId &&
-          d.name.toLowerCase() === subjectName.toLowerCase(),
+          normalizeString(d.name) === normSubject,
       );
       if (!disc) {
         db.counters.disciplines++;

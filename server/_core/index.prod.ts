@@ -1516,17 +1516,16 @@ ${questionText}`;
 
   app.post("/api/sync/import", (req, res) => {
     try {
-      const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      const body = req.body;
-      // CapacitorHttp pode enviar JSON como string crua — aceitar os dois formatos
+      const payload = req.body;
       const jsonStr =
-        typeof body === "string" ? body : JSON.stringify(body, null, 2);
+        typeof payload === "string"
+          ? payload
+          : JSON.stringify(payload, null, 2);
       if (!jsonStr || jsonStr === "null")
         return res.status(400).json({ error: "Invalid body" });
-      fs.writeFileSync(dbFile, jsonStr, "utf-8");
+      const result = storage.syncReceiveDatabase(jsonStr);
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.json({ success: true });
+      res.json(result);
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
@@ -1565,7 +1564,7 @@ ${questionText}`;
           : JSON.stringify(payload, null, 2);
       if (!jsonStr || jsonStr === "null")
         return res.status(400).json({ error: "Invalid body" });
-      fs.writeFileSync(dbFile, jsonStr, "utf-8");
+      const syncResult = storage.syncReceiveDatabase(jsonStr);
       // Notifica o PC via SSE que os dados chegaram
       for (const client of receiveSSEClients) {
         try {
