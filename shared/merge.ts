@@ -488,14 +488,51 @@ export function smartMergeDatabases(
     for (const sa of list) {
       if (!sa) continue;
       const canonicalTopId = topMap.get(sa.topicId) || topMap.get(Number(sa.topicId)) || 0;
-      const key = `${canonicalTopId}::${normalizeString(sa.statement || "").slice(0, 60)}::${sa.banca || ""}`;
+      const textKey = normalizeString(sa.statement || sa.transcription || sa.topicName || "").slice(0, 80);
+      const key = sa.id ? `id:${sa.id}` : `${canonicalTopId}::${textKey}::${sa.banca || ""}`;
       if (!canonicalSubjective.has(key)) {
         canonicalSubjective.set(key, { ...sa, id: nextSubjId++, userId: effectiveUserId, topicId: canonicalTopId });
+      } else {
+        const existing = canonicalSubjective.get(key);
+        if (sa.score !== undefined && existing.score === undefined) {
+          canonicalSubjective.set(key, { ...sa, id: existing.id, userId: effectiveUserId, topicId: canonicalTopId });
+        }
       }
     }
   };
   processSubjective(safeA.subjectiveAnswers || [], mapTopIdA);
   processSubjective(safeB.subjectiveAnswers || [], mapTopIdB);
+
+  // 9b. Canonical Essays (Redações)
+  const canonicalEssays = new Map<string, any>();
+  let nextEssayId = 1;
+  const processEssays = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+    if (!Array.isArray(list)) return;
+    for (const e of list) {
+      if (!e || !e.title) continue;
+      const canonicalDiscId = discMap.get(e.disciplineId) || discMap.get(Number(e.disciplineId)) || e.disciplineId || 0;
+      const canonicalTopId = e.topicId ? (topMap.get(e.topicId) || topMap.get(Number(e.topicId)) || 0) : undefined;
+      const key = `${canonicalDiscId}::${normalizeString(e.title)}::${normalizeString(e.banca || "")}`;
+      if (!canonicalEssays.has(key)) {
+        canonicalEssays.set(key, {
+          ...e,
+          id: nextEssayId++,
+          userId: effectiveUserId,
+          disciplineId: canonicalDiscId,
+          topicId: canonicalTopId,
+        });
+      } else {
+        const existing = canonicalEssays.get(key);
+        if (e.status === "corrected" && existing.status !== "corrected") {
+          canonicalEssays.set(key, { ...e, id: existing.id, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId });
+        } else if ((e.transcription || "").length > (existing.transcription || "").length) {
+          canonicalEssays.set(key, { ...e, id: existing.id, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId });
+        }
+      }
+    }
+  };
+  processEssays(safeA.essays || [], mapDiscIdA, mapTopIdA);
+  processEssays(safeB.essays || [], mapDiscIdB, mapTopIdB);
 
   const canonicalConfusions = new Map<string, any>();
   let nextConfId = 1;
@@ -587,7 +624,7 @@ export function smartMergeDatabases(
     notes: Array.from(canonicalNotes.values()),
     flashcards: Array.from(canonicalFlashcards.values()),
     questionErrors: finalErrors,
-    essays: safeA.essays || safeB.essays || [],
+    essays: Array.from(canonicalEssays.values()),
     tecSnapshots: Array.from(canonicalSnapshots.values()),
     subjectiveAnswers: Array.from(canonicalSubjective.values()),
     conceptConfusions: Array.from(canonicalConfusions.values()),
@@ -602,7 +639,7 @@ export function smartMergeDatabases(
       notes: nextNoteId - 1,
       flashcards: nextFlashId - 1,
       questionErrors: nextErrId - 1,
-      essays: Math.max((safeA.counters?.essays || 0), (safeB.counters?.essays || 0)),
+      essays: nextEssayId - 1,
       tecSnapshots: nextSnapId - 1,
     },
     _mergeReport: {

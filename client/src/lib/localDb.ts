@@ -205,6 +205,31 @@ export interface ConceptConfusion {
   lastDetectedAt: string;
 }
 
+export interface Essay {
+  id?: number;
+  userId: number;
+  disciplineId: number;
+  topicId?: number;
+  title: string;
+  banca: string;
+  originalImage?: string;
+  transcription: string;
+  correction?: {
+    score: number;
+    feedback: string;
+    errors: Array<{
+      type: string;
+      description: string;
+      suggestion?: string;
+      line?: number;
+    }>;
+    gradeBreakdown: Record<string, number>;
+  };
+  status: "draft" | "pending" | "corrected";
+  createdAt: string;
+  updatedAt: string;
+}
+
 class LocalDb extends Dexie {
   users!: Table<User & { id: number }>;
   disciplines!: Table<Discipline & { id: number }>;
@@ -219,6 +244,7 @@ class LocalDb extends Dexie {
   counters!: Table<{ key: string; value: number }>;
   subjectiveAnswers!: Table<SubjectiveAnswer & { id: number }>;
   conceptConfusions!: Table<ConceptConfusion & { id: number }>;
+  essays!: Table<Essay & { id: number }>;
 
   constructor() {
     super("SOE_Local");
@@ -307,6 +333,22 @@ class LocalDb extends Dexie {
       counters: "key",
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
       conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
+    });
+    this.version(8).stores({
+      users: "id, openId",
+      disciplines: "id, userId",
+      topics: "id, userId, disciplineId, [userId+disciplineId]",
+      revisions: "id, userId, topicId, scheduledDate",
+      mockExams: "id, userId",
+      notes: "id, userId, disciplineId, topicId",
+      questionErrors: "id, userId, topicId, disciplineId",
+      flashcards: "id, userId, disciplineId, topicId",
+      tecSnapshots: "id, userId, importedAt",
+      extraCollections: "key",
+      counters: "key",
+      subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+      conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
+      essays: "++id, userId, disciplineId, topicId, status, createdAt",
     });
   }
 }
@@ -883,6 +925,7 @@ export async function localImportExportBackup(): Promise<string> {
   const flashcards = await db.flashcards.toArray();
   const tecSnapshots = await db.tecSnapshots.toArray();
   const subjectiveAnswers = await db.subjectiveAnswers.toArray();
+  const essays = await db.essays.toArray();
   const conceptConfusions = await db.conceptConfusions.toArray();
   const rawExtras = await db.extraCollections.toArray();
   const extras: Record<string, any> = {};
@@ -907,6 +950,7 @@ export async function localImportExportBackup(): Promise<string> {
       flashcards,
       tecSnapshots,
       subjectiveAnswers,
+      essays,
       conceptConfusions,
       mentorSessions,
       counters: c,
@@ -951,6 +995,7 @@ export async function localImportImportBackup(input: {
       db.tecSnapshots,
       db.subjectiveAnswers,
       db.conceptConfusions,
+      db.essays,
       db.extraCollections,
       db.counters,
     ],
@@ -967,6 +1012,7 @@ export async function localImportImportBackup(input: {
       await db.tecSnapshots.clear();
       await db.subjectiveAnswers.clear();
       await db.conceptConfusions.clear();
+      await db.essays.clear();
       await db.extraCollections.clear();
       await db.counters.clear();
 
@@ -993,6 +1039,8 @@ export async function localImportImportBackup(input: {
         await db.subjectiveAnswers.put(sa);
       for (const cc of data.conceptConfusions ?? [])
         await db.conceptConfusions.put(cc);
+      for (const e of data.essays ?? [])
+        await db.essays.put(e);
 
       // Legacy: keep extraCollections for backward compat
       if (data.cadernosTec)
@@ -2065,5 +2113,56 @@ export async function localSaveConceptConfusion(
     });
     await db.counters.put({ key: "conceptConfusions", value: id });
   }
+  return { success: true };
+}
+
+// ============ ESSAY (REDAÇÕES) LOCAL PROCEDURES ============
+export async function localEssayList(disciplineId?: number): Promise<(Essay & { id: number })[]> {
+  let list = await db.essays.where("userId").equals(LOCAL_USER_ID).toArray();
+  if (disciplineId) {
+    list = list.filter((e) => e.disciplineId === disciplineId);
+  }
+  return list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")) as (Essay & { id: number })[];
+}
+
+export async function localEssaySave(input: {
+  disciplineId: number;
+  topicId?: number;
+  title: string;
+  banca: string;
+  transcription?: string;
+  originalImage?: string;
+  correction?: any;
+  status?: "draft" | "pending" | "corrected";
+}): Promise<{ id: number }> {
+  const id = await incCounter("essays");
+  const record: Essay & { id: number } = {
+    id,
+    userId: LOCAL_USER_ID,
+    disciplineId: input.disciplineId,
+    topicId: input.topicId,
+    title: input.title,
+    banca: input.banca,
+    transcription: input.transcription || "",
+    originalImage: input.originalImage,
+    correction: input.correction,
+    status: input.status || "draft",
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await db.essays.put(record);
+  return { id };
+}
+
+export async function localEssayUpdate(id: number, data: Partial<Essay>): Promise<{ success: boolean }> {
+  await db.essays.update(id, {
+    ...data,
+    updatedAt: now(),
+  });
+  return { success: true };
+}
+
+export async function localEssayDelete(id: number): Promise<{ success: boolean }> {
+  await db.essays.delete(id);
   return { success: true };
 }

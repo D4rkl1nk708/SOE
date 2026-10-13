@@ -50,8 +50,8 @@ export async function createApp() {
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "100mb" }));
+  app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
@@ -1594,7 +1594,7 @@ ${questionText}`;
     res.json({ ips, details, port });
   });
 
-  app.get("/api/sync/export", (_req, res) => {
+  const handleSyncExport = (_req: any, res: any) => {
     try {
       const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
       const dbFile = path.join(dataDir, "database.json");
@@ -1608,7 +1608,10 @@ ${questionText}`;
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
-  });
+  };
+
+  app.get("/api/sync/export", handleSyncExport);
+  app.get("/api/sync/receive", handleSyncExport); // Support GET on receive as alias
 
   app.post("/api/sync/import", (req, res) => {
     try {
