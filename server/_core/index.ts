@@ -50,8 +50,8 @@ export async function createApp() {
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "100mb" }));
-  app.use(express.urlencoded({ limit: "100mb", extended: true }));
+  app.use(express.json({ limit: "1gb" }));
+  app.use(express.urlencoded({ limit: "1gb", extended: true }));
 
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
@@ -1768,6 +1768,19 @@ ${questionText}`;
     setTimeout(() => {
       process.exit(0);
     }, 500);
+  });
+
+
+  // ── Error handler: payload too large (> 1 GB) ──
+  app.use((err: any, _req: any, res: any, next: any) => {
+    if (err.type === "entity.too.large" || err.status === 413) {
+      return res.status(413).json({
+        error: "Payload Too Large",
+        message: "O arquivo ou dados enviados ultrapassam o limite máximo de 1 GB. Reduza o tamanho e tente novamente.",
+        limit: "1gb",
+      });
+    }
+    next(err);
   });
 
   if (process.env.NODE_ENV === "development") {
