@@ -138,7 +138,16 @@ async function scanQRNative(): Promise<string | null> {
   }
 }
 
-type SyncInfo = { ips: string[]; port: number };
+type SyncInfo = {
+  ips: string[];
+  port: number;
+  details?: Array<{
+    address: string;
+    name: string;
+    isVirtual: boolean;
+    isRecommended: boolean;
+  }>;
+};
 type BackupEntry = {
   name: string;
   date: string;
@@ -192,8 +201,13 @@ export default function Sync() {
       const res = await fetch("/api/sync/info");
       const data = await res.json();
       setSyncInfo(data);
-      if (data.ips && data.ips.length > 0)
-        setSelectedIp((prev) => prev || data.ips[0]);
+      if (data.ips && data.ips.length > 0) {
+        const recommended = data.details?.find(
+          (d: any) => d.isRecommended && !d.isVirtual,
+        )?.address;
+        const nonVirtual = data.details?.find((d: any) => !d.isVirtual)?.address;
+        setSelectedIp((prev) => prev || recommended || nonVirtual || data.ips[0]);
+      }
     } catch {}
   }, []);
 
@@ -284,9 +298,17 @@ export default function Sync() {
       },
     ): Promise<{ status: number; data: any }> => {
       const { CapacitorHttp } = await import("@capacitor/core");
-      const timeoutMs = options.timeoutMs ?? 20000;
+      const timeoutMs = options.timeoutMs ?? 45000;
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
+        const timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "TIMEOUT: O PC não respondeu a tempo. Verifique se o IP no PC é o da sua rede Wi-Fi (ex: 192.168.x.x) e não uma placa virtual (WSL/Hyper-V).",
+              ),
+            ),
+          timeoutMs,
+        );
         CapacitorHttp.request({
           url,
           method: options.method || "GET",
@@ -301,7 +323,16 @@ export default function Sync() {
           })
           .catch((err: any) => {
             clearTimeout(timer);
-            reject(err);
+            const msg = err?.message || String(err);
+            if (msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("timed out")) {
+              reject(
+                new Error(
+                  "TIMEOUT: Falha de conexão com o PC. Verifique se ambos estão no mesmo Wi-Fi e se o IP correto (192.168.x.x) foi selecionado no PC.",
+                ),
+              );
+            } else {
+              reject(err);
+            }
           });
       });
     },
@@ -689,27 +720,95 @@ export default function Sync() {
               <div className="space-y-8">
                 {syncInfo && syncInfo.ips.length > 0 ? (
                   <>
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-4">
-                      <Globe className="w-5 h-5 text-[var(--accent-blue, #3b82f6)]" />
-                      <div className="flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                          Endereço Local
-                        </p>
-                        <code className="text-sm font-black">
-                          {selectedIp}:{syncInfo.port}
-                        </code>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Globe className="w-5 h-5 text-[var(--accent-blue, #3b82f6)]" />
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                              Endereço Local do PC
+                            </p>
+                            <code className="text-sm font-black">
+                              {selectedIp}:{syncInfo.port}
+                            </code>
+                          </div>
+                        </div>
+                        {(() => {
+                          const currentDetail = syncInfo.details?.find(
+                            (d) => d.address === selectedIp,
+                          );
+                          const isVirt =
+                            currentDetail?.isVirtual ||
+                            selectedIp.startsWith("172.");
+                          return isVirt ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              ⚠️ Placa Virtual (WSL)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              ✓ Rede Wi-Fi / Local
+                            </span>
+                          );
+                        })()}
                       </div>
+
                       {syncInfo.ips.length > 1 && (
-                        <div className="flex gap-1.5">
-                          {syncInfo.ips.map((ip) => (
-                            <button
-                              key={ip}
-                              onClick={() => setSelectedIp(ip)}
-                              className={`w-2 h-2 rounded-full transition-all ${selectedIp === ip ? "bg-[var(--primary)] scale-125" : "bg-white/10"}`}
-                            />
-                          ))}
+                        <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2 items-center">
+                          <span className="text-[10px] uppercase font-bold opacity-40">
+                            Placa de Rede:
+                          </span>
+                          {syncInfo.ips.map((ip) => {
+                            const detail = syncInfo.details?.find(
+                              (d) => d.address === ip,
+                            );
+                            const isVirt =
+                              detail?.isVirtual || ip.startsWith("172.");
+                            const isSelected = selectedIp === ip;
+                            return (
+                              <button
+                                key={ip}
+                                onClick={() => setSelectedIp(ip)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                                    : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
+                                }`}
+                              >
+                                <span>{detail?.name || ip}:</span>
+                                <span className="font-mono">{ip}</span>
+                                {isVirt ? (
+                                  <span className="text-[9px] opacity-70">
+                                    (Virtual)
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] opacity-90">
+                                    ⭐
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
+
+                      {(() => {
+                        const currentDetail = syncInfo.details?.find(
+                          (d) => d.address === selectedIp,
+                        );
+                        const isVirt =
+                          currentDetail?.isVirtual ||
+                          selectedIp.startsWith("172.");
+                        if (!isVirt) return null;
+                        return (
+                          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+                            <strong>Atenção:</strong> O IP selecionado ({selectedIp})
+                            pertence a uma placa virtual do WSL/Hyper-V. O celular
+                            NÃO conseguirá conectar neste endereço. Clique no
+                            endereço da sua placa física (geralmente 192.168.x.x)
+                            acima antes de escanear o QR Code.
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

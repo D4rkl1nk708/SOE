@@ -19,7 +19,7 @@ declare const __dirname: string;
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       server.close(() => resolve(true));
     });
     server.on("error", () => resolve(false));
@@ -1489,14 +1489,74 @@ ${questionText}`;
   // ── Sync/export route (for QR code LAN sync) ──────────────────────────
   app.get("/api/sync/info", (_req, res) => {
     const ifaces = os.networkInterfaces();
-    const ips: string[] = [];
-    for (const iface of Object.values(ifaces)) {
-      for (const addr of iface ?? []) {
-        if ((addr as any).family === "IPv4" && !(addr as any).internal)
-          ips.push((addr as any).address);
+    interface Candidate {
+      address: string;
+      name: string;
+      isVirtual: boolean;
+      isRecommended: boolean;
+      priority: number;
+    }
+    const list: Candidate[] = [];
+
+    for (const [name, addrs] of Object.entries(ifaces)) {
+      const lowerName = name.toLowerCase();
+      const isVirtual =
+        lowerName.includes("wsl") ||
+        lowerName.includes("vethernet") ||
+        lowerName.includes("virtual") ||
+        lowerName.includes("hyper-v") ||
+        lowerName.includes("docker") ||
+        lowerName.includes("vmware") ||
+        lowerName.includes("tap") ||
+        lowerName.includes("vpn") ||
+        lowerName.includes("tailscale") ||
+        lowerName.includes("zerotier");
+
+      for (const addr of addrs ?? []) {
+        if ((addr as any).family === "IPv4" && !(addr as any).internal) {
+          const ip = (addr as any).address;
+          if (ip.startsWith("169.254.")) continue;
+
+          let priority = 10;
+          if (isVirtual) {
+            priority = 1;
+          } else if (ip.startsWith("192.168.")) {
+            priority = 100;
+          } else if (ip.startsWith("10.")) {
+            priority = 80;
+          } else if (ip.startsWith("172.")) {
+            priority = 50;
+          }
+
+          list.push({
+            address: ip,
+            name,
+            isVirtual,
+            isRecommended: priority >= 80,
+            priority,
+          });
+        }
       }
     }
-    res.json({ ips, port });
+
+    list.sort((a, b) => b.priority - a.priority);
+
+    if (list.length > 0 && !list.some((i) => i.isRecommended && !i.isVirtual)) {
+      const nonVirtual = list.find((i) => !i.isVirtual);
+      if (nonVirtual) nonVirtual.isRecommended = true;
+      else list[0].isRecommended = true;
+    }
+
+    const ips = list.map((l) => l.address);
+    const details = list.map(({ address, name, isVirtual, isRecommended }) => ({
+      address,
+      name,
+      isVirtual,
+      isRecommended,
+    }));
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json({ ips, details, port });
   });
 
   app.get("/api/sync/export", (_req, res) => {
