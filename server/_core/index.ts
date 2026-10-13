@@ -52,6 +52,7 @@ export async function createApp() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "1gb" }));
   app.use(express.urlencoded({ limit: "1gb", extended: true }));
+  app.use(express.text({ limit: "1gb" }));
 
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
@@ -1552,15 +1553,16 @@ ${questionText}`;
           const ip = (addr as any).address;
           if (ip.startsWith("169.254.")) continue;
 
+          const isVirtIp = isVirtual || ip.startsWith("172.25.") || ip.startsWith("172.17.") || ip.startsWith("172.26.") || ip.startsWith("172.27.");
           let priority = 10;
-          if (isVirtual) {
+          if (isVirtIp) {
             priority = 1;
           } else if (ip.startsWith("192.168.")) {
             priority = 100;
           } else if (ip.startsWith("10.")) {
             priority = 80;
           } else if (ip.startsWith("172.")) {
-            priority = 50;
+            priority = 5;
           }
 
           list.push({
@@ -1609,6 +1611,11 @@ ${questionText}`;
       res.status(500).json({ error: String(e) });
     }
   };
+
+  app.get("/api/sync/ping", (_req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json({ pong: true, time: Date.now() });
+  });
 
   app.get("/api/sync/export", handleSyncExport);
   app.get("/api/sync/receive", handleSyncExport); // Support GET on receive as alias

@@ -203,10 +203,14 @@ export default function Sync() {
       setSyncInfo(data);
       if (data.ips && data.ips.length > 0) {
         const recommended = data.details?.find(
-          (d: any) => d.isRecommended && !d.isVirtual,
+          (d: any) => d.isRecommended && !d.isVirtual && !d.address.startsWith("172."),
         )?.address;
-        const nonVirtual = data.details?.find((d: any) => !d.isVirtual)?.address;
-        setSelectedIp((prev) => prev || recommended || nonVirtual || data.ips[0]);
+        const nonVirtual = data.details?.find(
+          (d: any) => !d.isVirtual && !d.address.startsWith("172."),
+        )?.address;
+        const lan192 = data.ips.find((ip: string) => ip.startsWith("192.168."));
+        const lan10 = data.ips.find((ip: string) => ip.startsWith("10."));
+        setSelectedIp((prev) => prev || recommended || nonVirtual || lan192 || lan10 || data.ips[0]);
       }
     } catch {}
   }, []);
@@ -298,13 +302,13 @@ export default function Sync() {
       },
     ): Promise<{ status: number; data: any }> => {
       const { CapacitorHttp } = await import("@capacitor/core");
-      const timeoutMs = options.timeoutMs ?? 45000;
+      const timeoutMs = options.timeoutMs ?? 120000;
       return new Promise((resolve, reject) => {
         const timer = setTimeout(
           () =>
             reject(
               new Error(
-                "TIMEOUT: O PC não respondeu a tempo. Verifique se o IP no PC é o da sua rede Wi-Fi (ex: 192.168.x.x) e não uma placa virtual (WSL/Hyper-V).",
+                "TIMEOUT: O PC não respondeu em " + Math.round(timeoutMs / 1000) + "s. Verifique se ambos estão no mesmo Wi-Fi e se o app SOE está aberto no computador.",
               ),
             ),
           timeoutMs,
@@ -324,10 +328,21 @@ export default function Sync() {
           .catch((err: any) => {
             clearTimeout(timer);
             const msg = err?.message || String(err);
-            if (msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("timed out")) {
+            const lower = msg.toLowerCase();
+            if (lower.includes("timeout") || lower.includes("timed out")) {
               reject(
                 new Error(
-                  "TIMEOUT: Falha de conexão com o PC. Verifique se ambos estão no mesmo Wi-Fi e se o IP correto (192.168.x.x) foi selecionado no PC.",
+                  "TIMEOUT: O PC demorou a responder. Verifique se ambos estão no mesmo Wi-Fi e se o IP correto (192.168.x.x) foi selecionado no PC.",
+                ),
+              );
+            } else if (
+              lower.includes("refused") ||
+              lower.includes("econnrefused") ||
+              lower.includes("failed to connect")
+            ) {
+              reject(
+                new Error(
+                  "Conexão recusada pelo PC. Verifique se o aplicativo SOE está aberto no computador e no mesmo Wi-Fi.",
                 ),
               );
             } else {
@@ -360,6 +375,19 @@ export default function Sync() {
       const url = await scanQRNative();
       if (!url) return;
 
+      // Teste rápido de ping antes de transferir
+      const baseMatch = url.match(/^(https?:\/\/[^\/]+)/);
+      const pingUrl = baseMatch ? `${baseMatch[1]}/api/sync/ping` : null;
+      if (pingUrl) {
+        try {
+          await nativeFetch(pingUrl, { method: "GET", timeoutMs: 6000 });
+        } catch {
+          throw new Error(
+            `Não foi possível conectar ao PC (${baseMatch?.[1]}). Verifique se o computador e o celular estão no mesmo Wi-Fi e se o SOE está aberto no PC.`,
+          );
+        }
+      }
+
       setSyncProgress({
         active: true,
         percent: 15,
@@ -370,10 +398,12 @@ export default function Sync() {
       const res = await nativeFetch(url, {
         method: "GET",
         headers: { Accept: "application/json" },
-        timeoutMs: 45000,
+        timeoutMs: 120000,
       });
-      if (res.status < 200 || res.status >= 300)
-        throw new Error("Erro de conexão com o PC");
+      if (res.status < 200 || res.status >= 300) {
+        const errDetail = res.data?.message || res.data?.error || `Erro de resposta do PC (HTTP ${res.status})`;
+        throw new Error(errDetail);
+      }
 
       setSyncProgress({
         active: true,
@@ -403,7 +433,7 @@ export default function Sync() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           data: mergedJson,
-          timeoutMs: 45000,
+          timeoutMs: 120000,
         });
       } catch (pushErr) {
         console.warn("Could not sync back to PC:", pushErr);
@@ -432,6 +462,19 @@ export default function Sync() {
       const url = await scanQRNative();
       if (!url) return;
 
+      // Teste rápido de ping antes de transferir dados grandes
+      const baseMatch = url.match(/^(https?:\/\/[^\/]+)/);
+      const pingUrl = baseMatch ? `${baseMatch[1]}/api/sync/ping` : null;
+      if (pingUrl) {
+        try {
+          await nativeFetch(pingUrl, { method: "GET", timeoutMs: 6000 });
+        } catch {
+          throw new Error(
+            `Não foi possível conectar ao PC (${baseMatch?.[1]}). Verifique se o computador e o celular estão no mesmo Wi-Fi e se o SOE está aberto no PC.`,
+          );
+        }
+      }
+
       setSyncProgress({
         active: true,
         percent: 20,
@@ -453,10 +496,17 @@ export default function Sync() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         data: json,
-        timeoutMs: 45000,
+        timeoutMs: 120000,
       });
-      if (res.status < 200 || res.status >= 300)
-        throw new Error("PC recusou conexão");
+      if (res.status < 200 || res.status >= 300) {
+        const errDetail =
+          res.data?.message ||
+          res.data?.error ||
+          (res.status === 413
+            ? "O envio ultrapassa o limite máximo de 1 GB. Reduza os dados antes de sincronizar."
+            : `Erro retornado pelo PC (HTTP ${res.status})`);
+        throw new Error(errDetail);
+      }
 
       setSyncProgress({
         active: true,
@@ -466,9 +516,18 @@ export default function Sync() {
       });
 
       // Se o PC devolveu o banco completo mesclado, salva no celular para paridade total!
-      if (res.data?.database) {
+      let respData = res.data;
+      if (typeof respData === "string") {
+        try {
+          respData = JSON.parse(respData);
+        } catch {}
+      }
+      if (respData?.database) {
         await localImportImportBackup({
-          json: JSON.stringify(res.data.database),
+          json:
+            typeof respData.database === "string"
+              ? respData.database
+              : JSON.stringify(respData.database),
           forceOverwrite: true,
         });
       }

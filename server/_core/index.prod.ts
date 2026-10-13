@@ -51,6 +51,7 @@ async function startServer() {
   const server = createServer(app);
   app.use(express.json({ limit: "1gb" }));
   app.use(express.urlencoded({ limit: "1gb", extended: true }));
+  app.use(express.text({ limit: "1gb" }));
   // ── Global CORS for all /api/sync/* routes (needed for Android → PC) ──
   app.use("/api/sync", (req: any, res: any, next: any) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -1517,15 +1518,16 @@ ${questionText}`;
           const ip = (addr as any).address;
           if (ip.startsWith("169.254.")) continue;
 
+          const isVirtIp = isVirtual || ip.startsWith("172.25.") || ip.startsWith("172.17.") || ip.startsWith("172.26.") || ip.startsWith("172.27.");
           let priority = 10;
-          if (isVirtual) {
+          if (isVirtIp) {
             priority = 1;
           } else if (ip.startsWith("192.168.")) {
             priority = 100;
           } else if (ip.startsWith("10.")) {
             priority = 80;
           } else if (ip.startsWith("172.")) {
-            priority = 50;
+            priority = 5;
           }
 
           list.push({
@@ -1557,6 +1559,11 @@ ${questionText}`;
 
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.json({ ips, details, port });
+  });
+
+  app.get("/api/sync/ping", (_req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json({ pong: true, time: Date.now() });
   });
 
   app.get("/api/sync/export", (_req, res) => {
@@ -1711,8 +1718,8 @@ ${questionText}`;
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${port}/`);
   });
 }
 
