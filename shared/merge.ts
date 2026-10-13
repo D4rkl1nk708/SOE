@@ -219,37 +219,82 @@ export function smartMergeDatabases(
           existing.studyDate = t.studyDate;
         }
 
-        // Performance reconciliation: Higher question volume wins!
+        // Intelligent Performance Reconciliation:
+        // Preserves totals, supports additive merges for offline/independent sessions, and reconciles history
         const curPerf = existing.performance;
         const newPerf = t.performance;
-        const curQ = curPerf ? Math.max(curPerf.questionsResolved || 0, (curPerf.correctCount || 0) + (curPerf.errorCount || 0)) : 0;
-        const newQ = newPerf ? Math.max(newPerf.questionsResolved || 0, (newPerf.correctCount || 0) + (newPerf.errorCount || 0)) : 0;
 
-        if (newQ > curQ && newPerf) {
+        if (!curPerf && newPerf) {
+          existing.performance = { ...newPerf };
+        } else if (curPerf && newPerf) {
+          const curRes = Number(curPerf.questionsResolved) || (Number(curPerf.correctCount) || 0) + (Number(curPerf.errorCount) || 0);
+          const newRes = Number(newPerf.questionsResolved) || (Number(newPerf.correctCount) || 0) + (Number(newPerf.errorCount) || 0);
+          const curCor = Number(curPerf.correctCount) || 0;
+          const newCor = Number(newPerf.correctCount) || 0;
+          const curErr = Number(curPerf.errorCount) || 0;
+          const newErr = Number(newPerf.errorCount) || 0;
+
+          // Merge history by date
           const mergedHistMap = new Map<string, any>();
-          for (const h of curPerf?.history || []) mergedHistMap.set(h.date, h);
-          for (const h of newPerf.history || []) mergedHistMap.set(h.date, h);
+          for (const h of curPerf.history || []) if (h && h.date) mergedHistMap.set(h.date, h);
+          for (const h of newPerf.history || []) {
+            if (!h || !h.date) continue;
+            if (!mergedHistMap.has(h.date)) {
+              mergedHistMap.set(h.date, h);
+            } else {
+              const prevH = mergedHistMap.get(h.date);
+              const maxQ = Math.max(prevH.questionsResolved || 0, h.questionsResolved || 0);
+              const bestAcc = maxQ === h.questionsResolved ? h.accuracy : prevH.accuracy;
+              mergedHistMap.set(h.date, { ...prevH, questionsResolved: maxQ, accuracy: bestAcc });
+            }
+          }
 
-          const cor = Number(newPerf.correctCount) || 0;
-          const err = Number(newPerf.errorCount) || 0;
-          const resolved = Math.max(newQ, cor + err);
+          let finalResolved = 0;
+          let finalCorrect = 0;
+          let finalError = 0;
+
+          // Case 1: Identical question counts -> keep maximum accuracy
+          if (curRes === newRes) {
+            finalResolved = curRes;
+            finalCorrect = Math.max(curCor, newCor);
+            finalError = Math.max(curErr, newErr);
+          }
+          // Case 2: One device is an offline/mobile subset answered independently (e.g. 2000 on PC and 10 on Mobile)
+          // When the smaller count is a separate session (< 50 questions while the other >= 50, or dates differ), ADD them!
+          else if (Math.min(curRes, newRes) > 0 && Math.min(curRes, newRes) < 50 && Math.max(curRes, newRes) >= 50) {
+            const isCurSmaller = curRes < newRes;
+            const smallCor = isCurSmaller ? curCor : newCor;
+            const smallErr = isCurSmaller ? curErr : newErr;
+            const smallRes = isCurSmaller ? curRes : newRes;
+
+            const largeCor = isCurSmaller ? newCor : curCor;
+            const largeErr = isCurSmaller ? newErr : curErr;
+            const largeRes = isCurSmaller ? newRes : curRes;
+
+            finalResolved = largeRes + smallRes;
+            finalCorrect = largeCor + smallCor;
+            finalError = largeErr + smallErr;
+          }
+          // Case 3: Incremental progression (delta sync) -> keep the higher volume
+          else {
+            const isNewHigher = newRes > curRes;
+            finalResolved = isNewHigher ? newRes : curRes;
+            finalCorrect = isNewHigher ? newCor : curCor;
+            finalError = isNewHigher ? newErr : curErr;
+          }
+
+          finalResolved = Math.max(finalResolved, finalCorrect + finalError);
+          const finalAcc = finalResolved > 0 ? Math.round((finalCorrect / finalResolved) * 100) : 0;
+
           existing.performance = {
+            ...curPerf,
             ...newPerf,
-            questionsResolved: resolved,
-            correctCount: cor,
-            errorCount: err,
-            accuracy: resolved > 0 ? Math.round((cor / resolved) * 100) : 0,
+            questionsResolved: finalResolved,
+            accuracy: finalAcc,
+            correctCount: finalCorrect,
+            errorCount: finalError,
             history: Array.from(mergedHistMap.values()),
           };
-        } else if (curPerf && newPerf) {
-          const mergedHistMap = new Map<string, any>();
-          for (const h of curPerf.history || []) mergedHistMap.set(h.date, h);
-          for (const h of newPerf.history || []) {
-            if (!mergedHistMap.has(h.date)) mergedHistMap.set(h.date, h);
-          }
-          curPerf.history = Array.from(mergedHistMap.values());
-        } else if (!curPerf && newPerf) {
-          existing.performance = { ...newPerf };
         }
 
         if (Array.isArray(t.topicNotes)) {
@@ -485,7 +530,29 @@ export function smartMergeDatabases(
   processSnapshots(safeA.tecSnapshots || [], mapDiscIdA, mapTopIdA);
   processSnapshots(safeB.tecSnapshots || [], mapDiscIdB, mapTopIdB);
 
-  // 11. Recalculate Discipline Performance based on merged topics
+  // 11. Mentor Sessions & AI Conversations
+  const canonicalMentorSessions = new Map<string, any>();
+  const processMentorSessions = (list: any[]) => {
+    if (!Array.isArray(list)) return;
+    for (const ms of list) {
+      if (!ms || !ms.id) continue;
+      const key = String(ms.id);
+      if (!canonicalMentorSessions.has(key)) {
+        canonicalMentorSessions.set(key, ms);
+      } else {
+        const existing = canonicalMentorSessions.get(key);
+        const msgsNew = ms.messages?.length || 0;
+        const msgsCur = existing.messages?.length || 0;
+        if (msgsNew >= msgsCur) {
+          canonicalMentorSessions.set(key, ms);
+        }
+      }
+    }
+  };
+  processMentorSessions(safeA.mentorSessions || []);
+  processMentorSessions(safeB.mentorSessions || []);
+
+  // 12. Recalculate Discipline Performance based on merged topics
   const finalTopics = Array.from(canonicalTopics.values());
   for (const disc of canonicalDisciplines.values()) {
     const discTopics = finalTopics.filter((t) => t.disciplineId === disc.id);
@@ -524,6 +591,7 @@ export function smartMergeDatabases(
     tecSnapshots: Array.from(canonicalSnapshots.values()),
     subjectiveAnswers: Array.from(canonicalSubjective.values()),
     conceptConfusions: Array.from(canonicalConfusions.values()),
+    mentorSessions: Array.from(canonicalMentorSessions.values()),
     cadernosTec: { ...(safeA.cadernosTec || {}), ...(safeB.cadernosTec || {}) },
     counters: {
       users: 1,

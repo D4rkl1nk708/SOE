@@ -764,8 +764,48 @@ export async function getDisciplinesByUser(
   userId: number,
 ): Promise<Discipline[]> {
   const db = readDatabase();
-  return db.disciplines
-    .filter((d) => d.userId === userId)
+  const userDisciplines = db.disciplines.filter((d) => d.userId === userId);
+  const userTopics = db.topics.filter((t) => t.userId === userId);
+
+  return userDisciplines
+    .map((d) => {
+      const discTopics = userTopics.filter((t) => t.disciplineId === d.id);
+      const resolved = discTopics.reduce(
+        (s, t) => s + (t.performance?.questionsResolved || 0),
+        0,
+      );
+      const correct = discTopics.reduce(
+        (s, t) => s + (t.performance?.correctCount || 0),
+        0,
+      );
+      const error = discTopics.reduce(
+        (s, t) => s + (t.performance?.errorCount || 0),
+        0,
+      );
+      const totalDerived = Math.max(resolved, correct + error);
+      const accuracy =
+        totalDerived > 0 ? Math.round((correct / totalDerived) * 100) : 0;
+      const studySecs = Math.max(
+        d.studyTimeSeconds || 0,
+        discTopics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0),
+      );
+
+      const perf =
+        d.performance && (d.performance.questionsResolved || 0) > totalDerived
+          ? d.performance
+          : {
+              questionsResolved: totalDerived,
+              accuracy,
+              correctCount: correct,
+              errorCount: error,
+            };
+
+      return {
+        ...d,
+        studyTimeSeconds: studySecs,
+        performance: perf,
+      };
+    })
     .sort((a, b) => {
       const orderA =
         typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
@@ -1261,6 +1301,7 @@ export async function exportDatabaseForUser(userId: number): Promise<string> {
     questionErrors: db.questionErrors?.filter((q) => q.userId === userId) || [],
     essays: db.essays?.filter((e) => e.userId === userId) || [],
     tecSnapshots: db.tecSnapshots?.filter((t) => t.userId === userId) || [],
+    mentorSessions: db.mentorSessions || [],
     cadernosTec: db.cadernosTec?.[userId]
       ? { [userId]: db.cadernosTec[userId] }
       : {},

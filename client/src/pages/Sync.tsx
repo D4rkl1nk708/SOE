@@ -340,6 +340,12 @@ export default function Sync() {
   );
 
   const [delta, setDelta] = useState<{ local: any; remote: any } | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    active: boolean;
+    percent: number;
+    title: string;
+    description: string;
+  } | null>(null);
 
   const confirmImport = async (json: string, forceOverwrite = false) => {
     const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
@@ -353,20 +359,41 @@ export default function Sync() {
     try {
       const url = await scanQRNative();
       if (!url) return;
-      toast.info("Conectando ao PC...");
+
+      setSyncProgress({
+        active: true,
+        percent: 15,
+        title: "Conectando ao PC...",
+        description: "Estabelecendo comunicação segura via rede Wi-Fi/local",
+      });
+
       const res = await nativeFetch(url, {
         method: "GET",
         headers: { Accept: "application/json" },
-        timeoutMs: 15000,
+        timeoutMs: 45000,
       });
       if (res.status < 200 || res.status >= 300)
         throw new Error("Erro de conexão com o PC");
+
+      setSyncProgress({
+        active: true,
+        percent: 45,
+        title: "Processando e Mesclando Dados...",
+        description: "Unificando questões, revisões, matérias e conversas de IA",
+      });
 
       const json =
         typeof res.data === "string" ? res.data : JSON.stringify(res.data);
 
       const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
+
+      setSyncProgress({
+        active: true,
+        percent: 75,
+        title: "Sincronizando de volta ao PC...",
+        description: "Garantindo 100% de paridade bidirecional em ambos os lados",
+      });
 
       // Sincroniza de volta para o PC automaticamente para paridade imediata
       try {
@@ -376,15 +403,23 @@ export default function Sync() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           data: mergedJson,
-          timeoutMs: 15000,
+          timeoutMs: 45000,
         });
       } catch (pushErr) {
         console.warn("Could not sync back to PC:", pushErr);
       }
 
-      toast.success("Sincronização concluída! Dados mesclados com sucesso.");
-      setTimeout(() => window.location.reload(), 2500);
+      setSyncProgress({
+        active: true,
+        percent: 100,
+        title: "Sincronização 100% Concluída!",
+        description: "Todos os dados foram unificados no PC e no celular",
+      });
+
+      toast.success("Sincronização concluída com sucesso!");
+      setTimeout(() => window.location.reload(), 2000);
     } catch (e: any) {
+      setSyncProgress(null);
       toast.error(e.message || "Erro na sincronização");
     } finally {
       setPulling(false);
@@ -396,19 +431,59 @@ export default function Sync() {
     try {
       const url = await scanQRNative();
       if (!url) return;
-      toast.info("Enviando dados ao PC...");
-      const { localImportExportBackup } = await import("@/lib/localDb");
+
+      setSyncProgress({
+        active: true,
+        percent: 20,
+        title: "Empacotando Dados do Celular...",
+        description: "Lendo matérias, temas, erros, conversas e estatísticas",
+      });
+
+      const { localImportExportBackup, localImportImportBackup } = await import("@/lib/localDb");
       const json = await localImportExportBackup();
+
+      setSyncProgress({
+        active: true,
+        percent: 50,
+        title: "Transmitindo ao PC...",
+        description: "Enviando dados para o computador via rede local",
+      });
+
       const res = await nativeFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         data: json,
-        timeoutMs: 20000,
+        timeoutMs: 45000,
       });
       if (res.status < 200 || res.status >= 300)
         throw new Error("PC recusou conexão");
-      toast.success("Dados enviados e sincronizados no PC!");
+
+      setSyncProgress({
+        active: true,
+        percent: 80,
+        title: "Gravando Paridade no Celular...",
+        description: "Atualizando este dispositivo com a mescla final do PC",
+      });
+
+      // Se o PC devolveu o banco completo mesclado, salva no celular para paridade total!
+      if (res.data?.database) {
+        await localImportImportBackup({
+          json: JSON.stringify(res.data.database),
+          forceOverwrite: true,
+        });
+      }
+
+      setSyncProgress({
+        active: true,
+        percent: 100,
+        title: "Sincronização 100% Concluída!",
+        description: "Celular e PC estão com dados exatamente iguais",
+      });
+
+      toast.success("Dados enviados e sincronizados em ambos!");
+      setTimeout(() => window.location.reload(), 2000);
     } catch (e: any) {
+      setSyncProgress(null);
       toast.error(e.message || "Erro no envio");
     } finally {
       setPushing(false);
@@ -1337,6 +1412,98 @@ export default function Sync() {
           </div>
         )}
       </AnimatePresence>
+      {/* Modal de Progresso com Porcentagem em Tempo Real */}
+      <AnimatePresence>
+        {syncProgress && syncProgress.active && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              className="w-full max-w-md p-6 rounded-3xl bg-[#12141a] border border-white/10 shadow-2xl space-y-6 text-white"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[var(--primary)]/20 flex items-center justify-center text-[var(--primary)]">
+                    <RefreshCw
+                      className={`w-5 h-5 ${syncProgress.percent < 100 ? "animate-spin" : ""}`}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black tracking-tight">
+                      {syncProgress.title}
+                    </h3>
+                    <p className="text-xs opacity-60">
+                      {syncProgress.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-[var(--primary)] font-mono">
+                    {syncProgress.percent}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Barra de Progresso Animada */}
+              <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-[var(--primary)] to-emerald-400 rounded-full"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${syncProgress.percent}%` }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                />
+              </div>
+
+              {/* Checklist de Itens Sincronizados */}
+              <div className="space-y-2 py-2">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                  Status da Unificação de Dados
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    "Disciplinas & Temas",
+                    "Questões Resolvidas",
+                    "Caderno de Erros",
+                    "Calendário & Revisões",
+                    "Anotações & Flashcards",
+                    "Conversas de IA & Editais",
+                  ].map((item, idx) => {
+                    const isDone =
+                      syncProgress.percent >= 25 + idx * 12 ||
+                      syncProgress.percent === 100;
+                    return (
+                      <div
+                        key={item}
+                        className={`p-2 rounded-xl flex items-center gap-2 border transition-all ${
+                          isDone
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                            : "bg-white/5 border-white/5 opacity-40"
+                        }`}
+                      >
+                        <CheckCircle2
+                          size={14}
+                          className={isDone ? "text-emerald-400" : "opacity-30"}
+                        />
+                        <span className="text-[11px] font-semibold truncate">
+                          {item}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-[11px] opacity-60 text-center">
+                {syncProgress.percent < 100
+                  ? "Não feche o aplicativo durante a sincronização..."
+                  : "✓ Concluído! Recarregando para aplicar novos dados..."}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

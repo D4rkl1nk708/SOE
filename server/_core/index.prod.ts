@@ -1585,7 +1585,8 @@ ${questionText}`;
         return res.status(400).json({ error: "Invalid body" });
       const result = storage.syncReceiveDatabase(jsonStr);
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.json(result);
+      const currentMergedDb = storage.readDatabase();
+      res.json({ ...result, database: currentMergedDb });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
@@ -1632,7 +1633,8 @@ ${questionText}`;
         } catch {}
       }
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.json({ success: true });
+      const currentMergedDb = storage.readDatabase();
+      res.json({ success: true, database: currentMergedDb, stats: syncResult.stats });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

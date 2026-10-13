@@ -482,7 +482,51 @@ export async function localDisciplineList(): Promise<Discipline[]> {
     .where("userId")
     .equals(LOCAL_USER_ID)
     .toArray();
-  return list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  const allTopics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+
+  const enriched = list.map((d) => {
+    const discTopics = allTopics.filter((t) => t.disciplineId === d.id);
+    const resolved = discTopics.reduce(
+      (s, t) => s + (t.performance?.questionsResolved || 0),
+      0,
+    );
+    const correct = discTopics.reduce(
+      (s, t) => s + (t.performance?.correctCount || 0),
+      0,
+    );
+    const error = discTopics.reduce(
+      (s, t) => s + (t.performance?.errorCount || 0),
+      0,
+    );
+    const totalDerived = Math.max(resolved, correct + error);
+    const accuracy =
+      totalDerived > 0 ? Math.round((correct / totalDerived) * 100) : 0;
+    const studySecs = Math.max(
+      d.studyTimeSeconds || 0,
+      discTopics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0),
+    );
+
+    const perf =
+      d.performance && (d.performance.questionsResolved || 0) > totalDerived
+        ? d.performance
+        : {
+            questionsResolved: totalDerived,
+            accuracy,
+            correctCount: correct,
+            errorCount: error,
+          };
+
+    return {
+      ...d,
+      studyTimeSeconds: studySecs,
+      performance: perf,
+    };
+  });
+
+  return enriched.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 }
 
 export async function localDisciplineCreate(input: {
@@ -703,6 +747,39 @@ export async function localTopicSetPerformance(input: {
       },
       updatedAt: now(),
     });
+
+    // Also update parent discipline performance in IndexedDB for instant UI reactivity
+    try {
+      const discTopics = await db.topics
+        .where("disciplineId")
+        .equals(t.disciplineId)
+        .toArray();
+      const resolved = discTopics.reduce(
+        (s, item) => s + (item.performance?.questionsResolved || 0),
+        0,
+      );
+      const correct = discTopics.reduce(
+        (s, item) => s + (item.performance?.correctCount || 0),
+        0,
+      );
+      const error = discTopics.reduce(
+        (s, item) => s + (item.performance?.errorCount || 0),
+        0,
+      );
+      const totalDerived = Math.max(resolved, correct + error);
+      const accuracyDisc =
+        totalDerived > 0 ? Math.round((correct / totalDerived) * 100) : 0;
+
+      await db.disciplines.update(t.disciplineId, {
+        performance: {
+          questionsResolved: totalDerived,
+          accuracy: accuracyDisc,
+          correctCount: correct,
+          errorCount: error,
+        },
+        updatedAt: now(),
+      });
+    } catch {}
   }
   return { success: true };
 }
@@ -797,15 +874,26 @@ export async function localRevisionMarkIgnored(input: {
 
 export async function localImportExportBackup(): Promise<string> {
   const users = await db.users.toArray();
-  const disciplines = await db.disciplines.toArray();
+  const disciplines = await localDisciplineList();
   const topics = await db.topics.toArray();
   const revisions = await db.revisions.toArray();
   const mockExams = await db.mockExams.toArray();
   const notes = await db.notes.toArray();
   const questionErrors = await db.questionErrors.toArray();
+  const flashcards = await db.flashcards.toArray();
+  const tecSnapshots = await db.tecSnapshots.toArray();
+  const subjectiveAnswers = await db.subjectiveAnswers.toArray();
+  const conceptConfusions = await db.conceptConfusions.toArray();
   const rawExtras = await db.extraCollections.toArray();
   const extras: Record<string, any> = {};
   for (const ext of rawExtras) extras[ext.key] = ext.data;
+
+  let mentorSessions: any[] = [];
+  try {
+    const rawMentor = typeof window !== "undefined" ? localStorage.getItem("soe_mentor_sessions") : null;
+    if (rawMentor) mentorSessions = JSON.parse(rawMentor);
+  } catch {}
+
   const c = await getCounters();
   return JSON.stringify(
     {
@@ -816,6 +904,11 @@ export async function localImportExportBackup(): Promise<string> {
       mockExams,
       notes,
       questionErrors,
+      flashcards,
+      tecSnapshots,
+      subjectiveAnswers,
+      conceptConfusions,
+      mentorSessions,
       counters: c,
       ...extras,
     },
@@ -907,6 +1000,31 @@ export async function localImportImportBackup(input: {
           key: "cadernosTec",
           data: data.cadernosTec,
         });
+
+      // Restore mentorSessions in localStorage for AI chat conversations
+      if (Array.isArray(data.mentorSessions) && data.mentorSessions.length > 0) {
+        try {
+          const rawCurrent = typeof window !== "undefined" ? localStorage.getItem("soe_mentor_sessions") : null;
+          const currentList: any[] = rawCurrent ? JSON.parse(rawCurrent) : [];
+          const sessionMap = new Map<string, any>();
+          for (const s of currentList) if (s && s.id) sessionMap.set(String(s.id), s);
+          for (const s of data.mentorSessions) {
+            if (!s || !s.id) continue;
+            const key = String(s.id);
+            if (!sessionMap.has(key)) {
+              sessionMap.set(key, s);
+            } else {
+              const exist = sessionMap.get(key);
+              const existMsgs = exist.messages?.length || 0;
+              const newMsgs = s.messages?.length || 0;
+              if (newMsgs >= existMsgs) sessionMap.set(key, s);
+            }
+          }
+          localStorage.setItem("soe_mentor_sessions", JSON.stringify(Array.from(sessionMap.values())));
+        } catch (e) {
+          console.warn("Could not merge mentor sessions into localStorage:", e);
+        }
+      }
 
       // Restore counters — use max of existing IDs to avoid future collisions
       const c = data.counters ?? {};
