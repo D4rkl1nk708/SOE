@@ -1214,29 +1214,6 @@ export async function localCalendarGetData(input: {
   return { revisions, topics, disciplines };
 }
 
-export async function localCalendarGetActivities(input: {
-  startDate: string;
-  endDate: string;
-}) {
-  const { revisions, topics, disciplines } = await localCalendarGetData(input);
-  return revisions.map((r) => {
-    const topic = topics.find((t) => t.id === r.topicId);
-    const discipline = disciplines.find((d) => d.id === topic?.disciplineId);
-    return {
-      id: r.id,
-      date: r.scheduledDate,
-      topicName: topic?.name || "Assunto Removido",
-      disciplineName: discipline?.name || "Desconhecida",
-      disciplineColor: discipline?.color || "#3b82f6",
-      topicId: topic?.id || 0,
-      disciplineId: discipline?.id || 0,
-      type: r.type,
-      completed: r.completed,
-      link: r.link,
-    };
-  });
-}
-
 export async function localCalendarSaveLink(input: {
   revisionId: number;
   link: string;
