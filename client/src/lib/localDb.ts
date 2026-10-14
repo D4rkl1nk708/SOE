@@ -914,6 +914,75 @@ export async function localRevisionMarkIgnored(input: {
   return { success: true };
 }
 
+export async function localCalendarGetActivities(input: {
+  startDate: string;
+  endDate: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ activities: any[]; total: number; hasMore: boolean }> {
+  const revisions = await db.revisions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  
+  const topics = await db.topics
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  
+  const disciplines = await db.disciplines
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+
+  // Filter by date range
+  const filteredRevisions = revisions.filter(
+    (r) =>
+      r.scheduledDate >= input.startDate &&
+      r.scheduledDate <= input.endDate &&
+      !r.ignored
+  );
+
+  // Join with topics and disciplines to get names and colors
+  const activities = filteredRevisions.map((r) => {
+    const topic = topics.find((t) => t.id === r.topicId);
+    const discipline = topic
+      ? disciplines.find((d) => d.id === topic.disciplineId)
+      : null;
+
+    return {
+      id: r.id,
+      date: r.scheduledDate,
+      type: r.type,
+      revisionNumber: r.revisionNumber,
+      completed: r.completed,
+      completedAt: r.completedAt,
+      topicId: r.topicId,
+      topicName: topic?.name || "Tópico desconhecido",
+      disciplineId: topic?.disciplineId,
+      disciplineName: discipline?.name || "Disciplina desconhecida",
+      disciplineColor: discipline?.color || "var(--primary)",
+      link: r.link,
+    };
+  });
+
+  // Sort by date
+  activities.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Apply pagination
+  const total = activities.length;
+  const limit = input.limit || 50;
+  const offset = input.offset || 0;
+  const paginatedActivities = activities.slice(offset, offset + limit);
+  const hasMore = offset + limit < total;
+
+  return {
+    activities: paginatedActivities,
+    total,
+    hasMore,
+  };
+}
+
 export async function localImportExportBackup(): Promise<string> {
   const users = await db.users.toArray();
   const disciplines = await localDisciplineList();

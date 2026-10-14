@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { Capacitor } from "@capacitor/core";
 import {
   Select,
   SelectContent,
@@ -109,43 +110,86 @@ export default function Calendar() {
     endDate: calendarEnd.toISOString().split("T")[0],
   }), [calendarStart, calendarEnd]);
 
-  // Fetch activities with pagination
+  const isAndroid = Capacitor.isNativePlatform();
+  
+  // Fetch activities with pagination - use local implementation on Android
   const { data: activitiesData, isLoading: activitiesLoading } = trpc.calendar.getActivities.useQuery(
     { ...queryParams, limit: 50, offset: 0 },
-    { staleTime: 30000 } // Cache for 30 seconds
+    { 
+      staleTime: 30000, // Cache for 30 seconds
+      enabled: !isAndroid // Disable on Android, use local instead
+    }
   );
   
-  const activities = Array.isArray(activitiesData) ? activitiesData : activitiesData?.activities || [];
-  const totalActivities = Array.isArray(activitiesData) ? activitiesData.length : activitiesData?.total || 0;
-  const hasMoreActivities = Array.isArray(activitiesData) ? false : activitiesData?.hasMore || false;
+  // Local fetch for Android
+  const [localActivities, setLocalActivities] = useState<any[]>([]);
+  const [localLoading, setLocalLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAndroid) {
+      setLocalLoading(true);
+      import("@/lib/localDb").then(({ localCalendarGetActivities }) => {
+        localCalendarGetActivities({ ...queryParams, limit: 50, offset: 0 })
+          .then((result) => {
+            setLocalActivities(result.activities);
+            setLocalLoading(false);
+          })
+          .catch((err) => {
+            console.error("Error fetching local calendar:", err);
+            setLocalLoading(false);
+          });
+      });
+    }
+  }, [isAndroid, queryParams]);
+
+  const activities = isAndroid ? localActivities : (Array.isArray(activitiesData) ? activitiesData : activitiesData?.activities || []);
+  const totalActivities = isAndroid ? localActivities.length : (Array.isArray(activitiesData) ? activitiesData.length : activitiesData?.total || 0);
+  const hasMoreActivities = isAndroid ? false : (Array.isArray(activitiesData) ? false : activitiesData?.hasMore || false);
+  const loading = isAndroid ? localLoading : activitiesLoading;
 
   const markCompletedMut = trpc.calendar.markCompleted.useMutation({
     onMutate: async ({ revisionId, completed }) => {
       setPendingToggles((prev) => new Set(prev).add(revisionId));
-      await utils.calendar.getActivities.cancel({ ...queryParams, limit: 50, offset: 0 });
-      const previousActivities = utils.calendar.getActivities.getData({ ...queryParams, limit: 50, offset: 0 });
+      if (!isAndroid) {
+        await utils.calendar.getActivities.cancel({ ...queryParams, limit: 50, offset: 0 });
+        const previousActivities = utils.calendar.getActivities.getData({ ...queryParams, limit: 50, offset: 0 });
 
-      if (previousActivities) {
-        const oldArray = Array.isArray(previousActivities) ? previousActivities : previousActivities.activities;
-        if (oldArray) {
-          utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, (old) => {
-            const currentArray = Array.isArray(old) ? old : old?.activities;
-            return currentArray 
-              ? currentArray.map((a) => (a.id === revisionId ? { ...a, completed } : a))
-              : [];
-          });
+        if (previousActivities) {
+          const oldArray = Array.isArray(previousActivities) ? previousActivities : previousActivities.activities;
+          if (oldArray) {
+            utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, (old) => {
+              const currentArray = Array.isArray(old) ? old : old?.activities;
+              return currentArray 
+                ? currentArray.map((a) => (a.id === revisionId ? { ...a, completed } : a))
+                : [];
+            });
+          }
         }
+        return { previousActivities, revisionId };
       }
-      return { previousActivities, revisionId };
+      return { revisionId };
     },
     onError: (err, vars, ctx) => {
-      if (ctx?.previousActivities) {
+      if (!isAndroid && ctx?.previousActivities) {
         utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, ctx.previousActivities);
       }
       toast.error("Falha ao atualizar tarefa. Tente novamente.");
     },
-    onSuccess: (_, vars) => {
+    onSuccess: async (_, vars) => {
       toast.success(vars.completed ? "Marcado como feito!" : "Marcado como pendente!");
+      if (isAndroid) {
+        // Update local state immediately
+        setLocalActivities((prev: any[]) =>
+          prev.map((a: any) => (a.id === vars.revisionId ? { ...a, completed: vars.completed } : a))
+        );
+        // Also update in IndexedDB
+        try {
+          const { localRevisionMarkCompleted } = await import("@/lib/localDb");
+          await localRevisionMarkCompleted({ id: vars.revisionId, completed: vars.completed });
+        } catch (err) {
+          console.error("Error marking revision completed locally:", err);
+        }
+      }
     },
     onSettled: (_, __, ___, ctx) => {
       if (ctx?.revisionId) {
@@ -155,8 +199,10 @@ export default function Calendar() {
           return next;
         });
       }
-      utils.calendar.getActivities.invalidate({ ...queryParams, limit: 50, offset: 0 });
-      utils.dashboard.getStats.invalidate();
+      if (!isAndroid) {
+        utils.calendar.getActivities.invalidate({ ...queryParams, limit: 50, offset: 0 });
+        utils.dashboard.getStats.invalidate();
+      }
     },
   });
 

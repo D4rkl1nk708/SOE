@@ -259,9 +259,11 @@ export function smartMergeDatabases(
             finalCorrect = Math.max(curCor, newCor);
             finalError = Math.max(curErr, newErr);
           }
-          // Case 2: One device is an offline/mobile subset answered independently (e.g. 2000 on PC and 10 on Mobile)
-          // When the smaller count is a separate session (< 50 questions while the other >= 50, or dates differ), ADD them!
-          else if (Math.min(curRes, newRes) > 0 && Math.min(curRes, newRes) < 50 && Math.max(curRes, newRes) >= 50) {
+          // Case 2: One device is an offline/mobile subset answered independently (e.g. 200 on PC and 10 on Mobile)
+          // When the smaller count is significantly smaller (< 20% of the larger) or < 50 questions, ADD them!
+          // This handles cases like: 200 on desktop + 10 on mobile = 210 total
+          else if (Math.min(curRes, newRes) > 0 && 
+                   (Math.min(curRes, newRes) < 50 || Math.min(curRes, newRes) < Math.max(curRes, newRes) * 0.2)) {
             const isCurSmaller = curRes < newRes;
             const smallCor = isCurSmaller ? curCor : newCor;
             const smallErr = isCurSmaller ? curErr : newErr;

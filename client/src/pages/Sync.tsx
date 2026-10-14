@@ -854,15 +854,15 @@ export default function Sync() {
               <div className="space-y-8">
                 {syncInfo && syncInfo.ips.length > 0 ? (
                   <>
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-3">
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-[var(--primary-bg-subtle)]/30 to-transparent border border-[var(--primary-border)] flex flex-col gap-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Globe className="w-5 h-5 text-[var(--accent-blue, #3b82f6)]" />
+                          <Globe className="w-6 h-6 text-[var(--primary)]" />
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                              Endereço Local do PC
+                            <p className="text-[11px] font-black uppercase tracking-widest opacity-40 mb-1">
+                              Endereço de Rede
                             </p>
-                            <code className="text-sm font-black">
+                            <code className="text-lg font-black">
                               {selectedIp}:{syncInfo.port}
                             </code>
                           </div>
@@ -875,53 +875,54 @@ export default function Sync() {
                             currentDetail?.isVirtual ||
                             selectedIp.startsWith("172.");
                           return isVirt ? (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              ⚠️ Placa Virtual (WSL)
+                            <span className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              ⚠️ Virtual (WSL)
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              ✓ Rede Wi-Fi / Local
+                            <span className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              ✓ Wi-Fi Física
                             </span>
                           );
                         })()}
                       </div>
 
                       {syncInfo.ips.length > 1 && (
-                        <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2 items-center">
-                          <span className="text-[10px] uppercase font-bold opacity-40">
-                            Placa de Rede:
-                          </span>
-                          {syncInfo.ips.map((ip) => {
-                            const detail = syncInfo.details?.find(
-                              (d) => d.address === ip,
-                            );
-                            const isVirt =
-                              detail?.isVirtual || ip.startsWith("172.");
-                            const isSelected = selectedIp === ip;
-                            return (
-                              <button
-                                key={ip}
-                                onClick={() => setSelectedIp(ip)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1.5 ${
-                                  isSelected
-                                    ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
-                                    : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
-                                }`}
-                              >
-                                <span>{detail?.name || ip}:</span>
-                                <span className="font-mono">{ip}</span>
-                                {isVirt ? (
-                                  <span className="text-[9px] opacity-70">
-                                    (Virtual)
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] opacity-90">
-                                    ⭐
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
+                        <div className="pt-3 border-t border-white/5">
+                          <p className="text-[10px] uppercase font-bold opacity-40 mb-2">
+                            Placas de rede disponíveis:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {syncInfo.ips.map((ip) => {
+                              const detail = syncInfo.details?.find(
+                                (d) => d.address === ip,
+                              );
+                              const isVirt =
+                                detail?.isVirtual || ip.startsWith("172.");
+                              const isSelected = selectedIp === ip;
+                              return (
+                                <button
+                                  key={ip}
+                                  onClick={() => setSelectedIp(ip)}
+                                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border flex items-center gap-2 ${
+                                    isSelected
+                                      ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                                      : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
+                                  }`}
+                                >
+                                  <span className="font-mono">{ip}</span>
+                                  {isVirt ? (
+                                    <span className="text-[9px] opacity-70">
+                                      Virtual
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-emerald-400">
+                                      Recomendado
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
@@ -934,12 +935,10 @@ export default function Sync() {
                           selectedIp.startsWith("172.");
                         if (!isVirt) return null;
                         return (
-                          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
-                            <strong>Atenção:</strong> O IP selecionado ({selectedIp})
-                            pertence a uma placa virtual do WSL/Hyper-V. O celular
-                            NÃO conseguirá conectar neste endereço. Clique no
-                            endereço da sua placa física (geralmente 192.168.x.x)
-                            acima antes de escanear o QR Code.
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+                            <strong>⚠️ Aviso:</strong> Este IP é virtual (WSL/Hyper-V). 
+                            O celular não conseguirá conectar. Selecione o IP da sua 
+                            placa Wi-Fi física (geralmente 192.168.x.x).
                           </div>
                         );
                       })()}
@@ -947,16 +946,16 @@ export default function Sync() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FlipQRCard
-                        title="Baixar para Mobile"
-                        subtitle="Transfere os dados do PC para o seu celular."
+                        title="PC → Celular"
+                        subtitle="Escaneie no celular para receber dados do PC"
                         icon={ArrowDownToLine}
                         iconColor="var(--accent-green)"
                         qrUrl={qrPullUrl}
                         loading={qrLoading}
                       />
                       <FlipQRCard
-                        title="Enviar para o PC"
-                        subtitle="Envia o progresso do celular para este computador."
+                        title="Celular → PC"
+                        subtitle="Escaneie no celular para enviar dados ao PC"
                         icon={ArrowUpFromLine}
                         iconColor="var(--primary)"
                         qrUrl={qrPushUrl}
@@ -965,32 +964,43 @@ export default function Sync() {
                           <button
                             onClick={startListening}
                             disabled={waitingReceive}
-                            className={`w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${received ? "bg-[var(--accent-green)] text-white border-[var(--accent-green)]" : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10"}`}
+                            className={`w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border ${received ? "bg-[var(--accent-green)] text-white border-[var(--accent-green)]" : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10"}`}
                           >
                             {received
-                              ? "✓ Recebido"
+                              ? "✓ Dados recebidos"
                               : waitingReceive
-                                ? "Aguardando..."
-                                : "Escutar Android"}
+                                ? "Aguardando envio..."
+                                : "Modo de recebimento"}
                           </button>
                         }
                       />
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
+                      <strong>💡 Dica:</strong> Após escanear e completar a transferência, 
+                      ambos os dispositivos terão os dados sincronizados automaticamente. 
+                      Não é necessário fazer nos dois sentidos.
                     </div>
                   </>
                 ) : (
                   <div className="p-12 text-center bg-white/5 rounded-[2rem] border-2 border-dashed border-white/10">
                     <Wifi size={40} className="mx-auto mb-4 opacity-20" />
                     <p className="text-sm font-bold opacity-40">
-                      Sem rede Wi-Fi detectada.
+                      Nenhuma rede Wi-Fi detectada.
+                    </p>
+                    <p className="text-xs opacity-30 mt-2">
+                      Verifique se o PC está conectado à rede.
                     </p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                <p className="text-sm opacity-50 leading-relaxed mb-6">
-                  Abra o Dashboard no seu PC e aponte a câmera para os QR Codes.
-                </p>
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
+                  <strong>📱 Como sincronizar:</strong> Abra o SOE no PC, vá em Sync & Backup, 
+                  e escaneie o QR Code desejado com a câmera deste celular.
+                </div>
+                
                 <div className="grid gap-4">
                   <button
                     onClick={handlePull}
@@ -1002,13 +1012,13 @@ export default function Sync() {
                         {pulling ? (
                           <RefreshCw className="animate-spin" />
                         ) : (
-                          <ArrowDownToLine />
+                          <Camera />
                         )}
                       </div>
                       <div className="text-left">
-                        <p className="font-black text-lg">Baixar do PC</p>
+                        <p className="font-black text-lg">Receber do PC</p>
                         <p className="text-xs opacity-70">
-                          Importar dados do computador
+                          Escaneie o QR Code "PC → Celular" no PC
                         </p>
                       </div>
                     </div>
@@ -1025,7 +1035,7 @@ export default function Sync() {
                         {pushing ? (
                           <RefreshCw className="animate-spin" />
                         ) : (
-                          <ArrowUpFromLine />
+                          <Camera />
                         )}
                       </div>
                       <div className="text-left">
@@ -1036,7 +1046,7 @@ export default function Sync() {
                           Enviar ao PC
                         </p>
                         <p className="text-xs opacity-50">
-                          Sincronizar progresso atual
+                          Escaneie o QR Code "Celular → PC" no PC
                         </p>
                       </div>
                     </div>
@@ -1058,45 +1068,50 @@ export default function Sync() {
                   className="text-xl font-black"
                   style={{ color: "var(--app-fg)" }}
                 >
-                  Restauração em Nuvem
+                  Backup em Nuvem
                 </h2>
                 <p className="text-xs opacity-50">
-                  Importe backups compartilhados via link.
+                  Compartilhe ou restaure backups via Google Drive e outros serviços.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <input
-                type="text"
-                placeholder="Cole o link do Google Drive aqui..."
-                value={driveUrl}
-                onChange={(e) => setDriveUrl(e.target.value)}
-                className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
-                style={{
-                  background: "var(--input-bg)",
-                  border: "1px solid var(--card-border)",
-                  color: "var(--app-fg)",
-                }}
-              />
-              <button
-                onClick={handleImportFromLink}
-                disabled={linkImportLoading || !driveUrl}
-                className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
-              >
-                {linkImportLoading ? (
-                  <RefreshCw className="animate-spin w-4 h-4" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                Importar
-              </button>
-            </div>
-            <div className="mt-4 flex items-center gap-2 opacity-30">
-              <ShieldCheck size={14} />
-              <p className="text-[10px] font-bold uppercase tracking-tighter">
-                Conexão Segura SSL
-              </p>
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Cole o link do Google Drive..."
+                  value={driveUrl}
+                  onChange={(e) => setDriveUrl(e.target.value)}
+                  className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
+                  style={{
+                    background: "var(--input-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--app-fg)",
+                  }}
+                />
+                <button
+                  onClick={handleImportFromLink}
+                  disabled={linkImportLoading || !driveUrl}
+                  className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
+                >
+                  {linkImportLoading ? (
+                    <RefreshCw className="animate-spin w-4 h-4" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Importar
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-xs opacity-60">
+                <p className="mb-2">💡 <strong>Alternativas de compartilhamento:</strong></p>
+                <ul className="space-y-1 ml-4 list-disc">
+                  <li>Use o botão "Exportar" abaixo para salvar o arquivo JSON</li>
+                  <li>No Android, o compartilhador do sistema permite enviar para WhatsApp, Email, Google Drive, etc.</li>
+                  <li>No PC, o arquivo é baixado diretamente para sua pasta Downloads</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
