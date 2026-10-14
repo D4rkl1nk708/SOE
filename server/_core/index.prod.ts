@@ -1,3 +1,4 @@
+import { findBestDisciplineMatch, findBestTopicMatch, analyzeDisciplineOrTopicWithAI } from "../tecDisciplineMatcher";
 /**
  * Entry point para produção e Electron. Não importa Vite nem dotenv (env vem do sistema).
  */
@@ -447,29 +448,49 @@ async function startServer() {
         const normDisc = normalize(discName);
         const normAssunto = normalize(assuntoName);
 
-        // Match or create discipline
-        let disc = disciplines.find((d) => {
-          const nd = normalize(d.name);
-          return (
-            nd === normDisc || nd.includes(normDisc) || normDisc.includes(nd)
-          );
-        });
+        // Match or create discipline with intelligence
+        const userSettings = await storage.getUserSettings(user.id);
+        const discMatch = findBestDisciplineMatch(
+          disciplines,
+          discName,
+          assuntoName,
+          userSettings?.tecDisciplineAliases,
+          topics,
+        );
+        let disc = discMatch.discipline;
+
         if (!disc) {
-          const { id } = await storage.createDiscipline({
-            userId: user.id,
-            name: discName,
-            color: "#6366f1",
-            weight: 1,
+          const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+            incomingDiscipline: discName,
+            incomingTopic: assuntoName,
+            existingDisciplines: disciplines,
+            existingTopics: topics,
+            userSettings,
           });
-          disciplines = await storage.getDisciplinesByUser(user.id);
-          disc = disciplines.find((d) => d.id === id)!;
+          if (aiAnalysis.matchedDisciplineId) {
+            disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+          }
+          
+          // Only create new discipline if AI explicitly says it should be created
+          if (!disc && aiAnalysis.shouldCreateNew) {
+            console.log(`[TEC Push] Creating new discipline: "${discName}" (AI explicitly approved)`);
+            const { id } = await storage.createDiscipline({
+              userId: user.id,
+              name: discName,
+              color: "#6366f1",
+              weight: 1,
+            });
+            disciplines = await storage.getDisciplinesByUser(user.id);
+            disc = disciplines.find((d) => d.id === id)!;
+          } else if (!disc) {
+            console.log(`[TEC Push] Skipping discipline creation for "${discName}" - AI did not approve new discipline creation`);
+            continue;
+          }
         }
 
-        // Match or create topic
-        let topic = topics.find(
-          (t) =>
-            t.disciplineId === disc!.id && normalize(t.name) === normAssunto,
-        );
+        // Match or create topic with intelligence
+        const topicMatch = findBestTopicMatch(topics, assuntoName, disc!.id);
+        let topic = topicMatch.topic;
 
         if (topic) {
           const prevCorrect = topic.performance?.correctCount ?? 0;
@@ -647,27 +668,45 @@ async function startServer() {
             : "";
 
         let disciplines = await storage.getDisciplinesByUser(user.id);
-        const normDisc = normalize(disciplinaName);
-        let disc = disciplines.find((d) => {
-          const nd = normalize(d.name);
-          return (
-            nd === normDisc ||
-            nd.includes(normDisc) ||
-            normDisc.includes(nd) ||
-            (nd.length > 5 && normDisc.includes(nd)) ||
-            (normDisc.length > 5 && nd.includes(normDisc))
-          );
-        });
+        let topics = await storage.getTopicsByUser(user.id);
+        const userSettings = await storage.getUserSettings(user.id);
+
+        const discMatch = findBestDisciplineMatch(
+          disciplines,
+          disciplinaName,
+          assuntoName,
+          userSettings?.tecDisciplineAliases,
+          topics,
+        );
+        let disc = discMatch.discipline;
 
         if (!disc) {
-          const created = await storage.createDiscipline({
-            userId: user.id,
-            name: disciplinaName,
-            color: "#6366f1",
-            weight: 1,
+          const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+            incomingDiscipline: disciplinaName,
+            incomingTopic: assuntoName,
+            existingDisciplines: disciplines,
+            existingTopics: topics,
+            userSettings,
           });
-          disc = Object.assign({}, created, { id: created.id }) as any;
-          disciplines = await storage.getDisciplinesByUser(user.id);
+          if (aiAnalysis.matchedDisciplineId) {
+            disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+          }
+          
+          // Only create new discipline if AI explicitly says it should be created
+          if (!disc && aiAnalysis.shouldCreateNew) {
+            console.log(`[TEC Server] Creating new discipline: "${disciplinaName}" (AI explicitly approved)`);
+            const created = await storage.createDiscipline({
+              userId: user.id,
+              name: disciplinaName,
+              color: "#6366f1",
+              weight: 1,
+            });
+            disc = Object.assign({}, created, { id: created.id }) as any;
+            disciplines = await storage.getDisciplinesByUser(user.id);
+          } else if (!disc) {
+            console.log(`[TEC Server] Skipping discipline creation for "${disciplinaName}" - AI did not approve new discipline creation`);
+            return res.status(400).json({ error: "Disciplina não encontrada e IA não aprovou criação de nova disciplina" });
+          }
         }
 
         // Add time to discipline
@@ -677,12 +716,8 @@ async function startServer() {
           });
         }
 
-        let topics = await storage.getTopicsByUser(user.id);
-        const normAssunto = normalize(assuntoName);
-        let topic = topics.find(
-          (t) =>
-            t.disciplineId === disc!.id && normalize(t.name) === normAssunto,
-        );
+        const topicMatch = findBestTopicMatch(topics, assuntoName, disc!.id);
+        let topic = topicMatch.topic;
         let topicId = 0;
 
         if (topic) {
@@ -814,38 +849,56 @@ async function startServer() {
         let topId = undefined;
 
         if (disciplinaName) {
-          const normDisc = normalize(disciplinaName);
-          let disc = disciplines.find((d) => {
-            const nd = normalize(d.name);
-            return (
-              nd === normDisc || nd.includes(normDisc) || normDisc.includes(nd)
-            );
-          });
+          const userSettings = await storage.getUserSettings(user.id);
+          let topics = await storage.getTopicsByUser(user.id);
+
+          const discMatch = findBestDisciplineMatch(
+            disciplines,
+            disciplinaName,
+            assuntoName,
+            userSettings?.tecDisciplineAliases,
+            topics,
+          );
+          let disc = discMatch.discipline;
+
           if (!disc) {
-            const created = await storage.createDiscipline({
-              userId: user.id,
-              name: disciplinaName,
-              color: "#e74c3c",
-              weight: 1,
+            const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+              incomingDiscipline: disciplinaName,
+              incomingTopic: assuntoName || "",
+              existingDisciplines: disciplines,
+              existingTopics: topics,
+              userSettings,
             });
-            discId = created.id;
-            disciplines = await storage.getDisciplinesByUser(user.id);
+            if (aiAnalysis.matchedDisciplineId) {
+              disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+            }
+            
+            // Only create new discipline if AI explicitly says it should be created
+            if (!disc && aiAnalysis.shouldCreateNew) {
+              console.log(`[TEC Manual] Creating new discipline: "${disciplinaName}" (AI explicitly approved)`);
+              const created = await storage.createDiscipline({
+                userId: user.id,
+                name: disciplinaName,
+                color: "#e74c3c",
+                weight: 1,
+              });
+              discId = created.id;
+              disciplines = await storage.getDisciplinesByUser(user.id);
+            } else if (!disc) {
+              console.log(`[TEC Manual] Skipping discipline creation for "${disciplinaName}" - AI did not approve new discipline creation`);
+              // Use fallback discipline
+              discId = disciplines[0]?.id;
+            } else {
+              discId = disc.id;
+            }
           } else {
             discId = disc.id;
           }
 
           if (assuntoName && discId) {
-            const normAssunto = normalize(assuntoName);
-            let topics = await storage.getTopicsByUser(user.id);
-            let topic = topics.find(
-              (t) =>
-                t.disciplineId === discId &&
-                (normalize(t.name) === normAssunto ||
-                  (normalize(t.name).length > 10 &&
-                    normAssunto.includes(normalize(t.name))) ||
-                  (normAssunto.length > 10 &&
-                    normalize(t.name).includes(normAssunto))),
-            );
+            topics = await storage.getTopicsByUser(user.id);
+            const topicMatch = findBestTopicMatch(topics, assuntoName, discId);
+            let topic = topicMatch.topic;
             if (!topic) {
               const created = await storage.createTopic({
                 userId: user.id,

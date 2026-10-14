@@ -11,13 +11,13 @@ import { toast } from "sonner";
 import { EyeOff, CheckCircle2, Clock, AlertCircle, Eye, Settings2, CalendarClock, Brain, Star } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { RecallRatingDialog } from "@/components/RecallRatingDialog";
 import { PreExamBanner } from "@/components/PreExamBanner";
 import { SleepWarning } from "@/components/SleepWarning";
 import { TeachYourselfMode } from "@/components/TeachYourselfMode";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 15;
 
 // F04 - Star rating display for recall
 function RecallStars({ rating }: { rating?: number }) {
@@ -46,19 +46,40 @@ export default function Revisions() {
 
 
   const markCompleted = trpc.revision.markCompleted.useMutation({
+    onMutate: async (vars) => {
+      await utils.revision.list.cancel();
+      const prevList = utils.revision.list.getData();
+      if (prevList) {
+        utils.revision.list.setData(undefined, (old) =>
+          old ? old.map((r) => (r.id === vars.id ? { ...r, completed: vars.completed } : r)) : []
+        );
+      }
+      return { prevList, vars };
+    },
+    onError: (err, vars, ctx) => {
+      if (ctx?.prevList) {
+        utils.revision.list.setData(undefined, ctx.prevList);
+      }
+      toast.error("Erro ao atualizar status da revisão.");
+    },
     onSuccess: (_, vars) => {
-      utils.revision.list.invalidate();
       utils.dashboard.getStats.invalidate();
-      // F01/F04: open recall rating dialog when completing (not uncompleting)
       if (vars.completed) {
-        const rev = enrichedRevisions.find(r => r.id === vars.id);
+        const rev = enrichedRevisions.find((r) => r.id === vars.id);
         if (rev) {
-          setRecallDialog({ open: true, revisionId: vars.id, topicName: rev.topicName });
-          return; // toast shown after rating
+          setRecallDialog({
+            open: true,
+            revisionId: vars.id,
+            topicName: rev.topicName,
+          });
+          return;
         }
       }
-      toast.success("Status atualizado!");
-    }
+      toast.success(vars.completed ? "Revisão concluída!" : "Revisão reaberta!");
+    },
+    onSettled: () => {
+      utils.revision.list.invalidate();
+    },
   });
 
   const markIgnored = trpc.revision.markIgnored.useMutation({
@@ -93,6 +114,22 @@ export default function Revisions() {
   }, [enrichedRevisions]);
 
   if (isLoading) return <div className="p-8 text-center">Carregando revisões...</div>;
+
+  // Auto infinite scroll when nearing bottom of page
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPages((prev) => ({
+          scheduled: prev.scheduled + PAGE_SIZE,
+          overdue: prev.overdue + PAGE_SIZE,
+          ignored: prev.ignored + PAGE_SIZE,
+          completed: prev.completed + PAGE_SIZE,
+        }));
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const RevisionList = ({ list, tab, emptyMessage }: { list: any[], tab: keyof typeof pages, emptyMessage: string }) => {
     const visible = list.slice(0, pages[tab]);

@@ -47,3 +47,5 @@ export const saveQuestionError = storage.saveQuestionError;
 export const getQuestionErrors = storage.getQuestionErrorsByUser;
 export const deleteQuestionsByContest = storage.deleteQuestionsByContest;
 export const checkExamIntegrated = storage.checkExamIntegrated;
+export const mergeDisciplines = storage.mergeDisciplines;
+export const mergeTopics = storage.mergeTopics;

@@ -243,6 +243,18 @@ export interface UserSettings {
   }>;
   /** F10 - Horário de pico registrado (horas com melhor desempenho) */
   peakHours?: Array<{ hour: number; avgAccuracy: number; sessions: number }>;
+  /** Configurações de sincronização inteligente do TEC */
+  tecSmartDisciplineMatching?: boolean;
+  tecAskBeforeCreatingDiscipline?: boolean;
+  tecDisciplineAliases?: Record<string, number>;
+  pendingTecDisciplines?: Array<{
+    id: string;
+    disciplineName: string;
+    topicName: string;
+    timestamp: string;
+    suggestedDisciplineId?: number;
+    suggestedDisciplineName?: string;
+  }>;
   /** F15 - Registro de horário de encerramento de estudo (sono) */
   sleepLog?: Array<{
     date: string;
@@ -639,6 +651,31 @@ function readDatabase(): Database {
   return empty;
 }
 
+let _autoBackupTimeout: any = null;
+function triggerDebouncedBackup(db: Database) {
+  if (_autoBackupTimeout) clearTimeout(_autoBackupTimeout);
+  _autoBackupTimeout = setTimeout(() => {
+    try {
+      if (db.users && db.users.length > 0) {
+        const primaryUser = db.users[0];
+        if (
+          primaryUser.settings?.autoBackupEnabled &&
+          primaryUser.settings.autoBackupDir
+        ) {
+          const targetDir = primaryUser.settings.autoBackupDir;
+          if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+          }
+          const backupFile = path.join(targetDir, "soe_backup_sync.json");
+          fs.copyFileSync(DB_FILE, backupFile);
+        }
+      }
+    } catch (copyErr) {
+      console.error("SOE Auto-Backup Error:", copyErr);
+    }
+  }, 3000);
+}
+
 // Write database to file (invalidates cache, queues through write lock)
 function writeDatabase(db: Database): void {
   // Invalidate cache immediately so subsequent reads get the new data
@@ -649,28 +686,12 @@ function writeDatabase(db: Database): void {
   acquireWriteLock(() => {
     try {
       const tempFile = `${DB_FILE}.tmp`;
-      fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), "utf-8");
+      // Compact JSON write for maximum speed and lower disk footprint
+      fs.writeFileSync(tempFile, JSON.stringify(db), "utf-8");
       fs.renameSync(tempFile, DB_FILE);
 
-      // AUTO-BACKUP (Sincronização em Nuvem Invisível -> via Google Drive local)
-      if (db.users && db.users.length > 0) {
-        const primaryUser = db.users[0];
-        if (
-          primaryUser.settings?.autoBackupEnabled &&
-          primaryUser.settings.autoBackupDir
-        ) {
-          try {
-            const targetDir = primaryUser.settings.autoBackupDir;
-            if (!fs.existsSync(targetDir)) {
-              fs.mkdirSync(targetDir, { recursive: true });
-            }
-            const backupFile = path.join(targetDir, "soe_backup_sync.json");
-            fs.copyFileSync(DB_FILE, backupFile);
-          } catch (copyErr) {
-            console.error("SOE Auto-Backup Error:", copyErr);
-          }
-        }
-      }
+      // AUTO-BACKUP debounced (non-blocking)
+      triggerDebouncedBackup(db);
     } catch (error) {
       // If the write fails, clear cache so the next read will reload from disk
       _dbCache = null;
@@ -1015,6 +1036,106 @@ export async function deleteTopic(id: number, userId: number): Promise<void> {
   db.notes = db.notes.filter((n) => n.topicId !== id);
   db.topics = db.topics.filter((t) => t.id !== id || t.userId !== userId);
   writeDatabase(db);
+}
+
+
+export async function mergeDisciplines(
+  userId: number,
+  sourceId: number,
+  targetId: number,
+): Promise<{ success: boolean; movedTopics: number }> {
+  const db = readDatabase();
+  const sourceDisc = db.disciplines.find((d) => d.id === sourceId && d.userId === userId);
+  const targetDisc = db.disciplines.find((d) => d.id === targetId && d.userId === userId);
+  if (!sourceDisc || !targetDisc) {
+    throw new Error("Disciplina de origem ou destino não encontrada");
+  }
+
+  let movedTopics = 0;
+  for (const t of db.topics) {
+    if (t.disciplineId === sourceId && t.userId === userId) {
+      t.disciplineId = targetId;
+      t.updatedAt = now();
+      movedTopics++;
+    }
+  }
+
+  if (db.questionErrors) {
+    for (const qe of db.questionErrors) {
+      if (qe.disciplineId === sourceId && qe.userId === userId) {
+        qe.disciplineId = targetId;
+      }
+    }
+  }
+
+  for (const n of db.notes) {
+    if (n.disciplineId === sourceId && n.userId === userId) {
+      n.disciplineId = targetId;
+      n.updatedAt = now();
+    }
+  }
+
+  targetDisc.studyTimeSeconds = (targetDisc.studyTimeSeconds || 0) + (sourceDisc.studyTimeSeconds || 0);
+  db.disciplines = db.disciplines.filter((d) => d.id !== sourceId || d.userId !== userId);
+
+  writeDatabase(db);
+  return { success: true, movedTopics };
+}
+
+export async function mergeTopics(
+  userId: number,
+  sourceId: number,
+  targetId: number,
+): Promise<{ success: boolean; movedRevisions: number }> {
+  const db = readDatabase();
+  const sourceTopic = db.topics.find((t) => t.id === sourceId && t.userId === userId);
+  const targetTopic = db.topics.find((t) => t.id === targetId && t.userId === userId);
+  if (!sourceTopic || !targetTopic) {
+    throw new Error("Tema de origem ou destino não encontrado");
+  }
+
+  let movedRevisions = 0;
+  for (const r of db.revisions) {
+    if (r.topicId === sourceId && r.userId === userId) {
+      r.topicId = targetId;
+      r.updatedAt = now();
+      movedRevisions++;
+    }
+  }
+
+  if (db.questionErrors) {
+    for (const qe of db.questionErrors) {
+      if (qe.topicId === sourceId && qe.userId === userId) {
+        qe.topicId = targetId;
+      }
+    }
+  }
+
+  for (const n of db.notes) {
+    if (n.topicId === sourceId && n.userId === userId) {
+      n.topicId = targetId;
+      n.updatedAt = now();
+    }
+  }
+
+  const sPerf = sourceTopic.performance || { questionsResolved: 0, correctCount: 0, errorCount: 0 };
+  const tPerf = targetTopic.performance || { questionsResolved: 0, correctCount: 0, errorCount: 0 };
+  const newResolved = (sPerf.questionsResolved || 0) + (tPerf.questionsResolved || 0);
+  const newCorrect = (sPerf.correctCount || 0) + (tPerf.correctCount || 0);
+  const newError = (sPerf.errorCount || 0) + (tPerf.errorCount || 0);
+  targetTopic.performance = {
+    questionsResolved: newResolved,
+    correctCount: newCorrect,
+    errorCount: newError,
+    accuracy: newResolved > 0 ? Math.round((newCorrect / newResolved) * 100) : 0,
+    lastStudied: sourceTopic.performance?.lastStudied || targetTopic.performance?.lastStudied,
+  };
+
+  targetTopic.studyTimeSeconds = (targetTopic.studyTimeSeconds || 0) + (sourceTopic.studyTimeSeconds || 0);
+  db.topics = db.topics.filter((t) => t.id !== sourceId || t.userId !== userId);
+
+  writeDatabase(db);
+  return { success: true, movedRevisions };
 }
 
 // ============ REVISION OPERATIONS ============

@@ -1,3 +1,4 @@
+import { findBestDisciplineMatch, findBestTopicMatch } from "./tecDisciplineMatcher";
 /**
  * Serviço de importação TEC Concursos.
  * Extrai lógica de negócio do router, mantendo-o fino.
@@ -209,13 +210,17 @@ export async function processImportRows(userId: number, rows: ParsedRow[]): Prom
   const createdTopics: string[] = [];
   const topicsWithNewErrors: ImportResult["topicsWithNewErrors"] = [];
 
+  const userSettings = await storage.getUserSettings(userId);
   for (const row of rows) {
-    const normDisc = normalize(extractDisciplineForMatch(row.disciplineName));
-
-    let discipline = disciplines.find((d) => {
-      const n = normalize(d.name);
-      return n === normDisc || n.includes(normDisc) || normDisc.includes(n);
-    });
+    const cleanDiscName = extractDisciplineForMatch(row.disciplineName);
+    const discMatch = findBestDisciplineMatch(
+      disciplines,
+      cleanDiscName,
+      row.themeName,
+      userSettings?.tecDisciplineAliases,
+      topics
+    );
+    let discipline = discMatch.discipline;
 
     if (!discipline) {
       const { id } = await storage.createDiscipline({ userId, name: row.disciplineName, color: "#3B82F6", weight: 1 });
@@ -224,14 +229,8 @@ export async function processImportRows(userId: number, rows: ParsedRow[]): Prom
       createdDisciplines.push(row.disciplineName);
     }
 
-    const normTheme = normalize(row.themeName);
-    let topic = topics.find(
-      (t) => t.disciplineId === discipline!.id && (normalize(t.name) === normTheme || (normTheme.length >= 5 && normalize(t.name).startsWith(normTheme)))
-    );
-    if (!topic && normTheme.length >= 5) {
-      const byPrefix = topics.filter((t) => t.disciplineId === discipline!.id && normalize(t.name).startsWith(normTheme));
-      if (byPrefix.length === 1) topic = byPrefix[0];
-    }
+    const topicMatch = findBestTopicMatch(topics, row.themeName, discipline.id);
+    let topic = topicMatch.topic;
 
     if (topic) {
       const prevErrors = topic.performance?.errorCount ?? 0;
