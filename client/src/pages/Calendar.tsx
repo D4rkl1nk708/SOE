@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Select,
@@ -73,6 +73,12 @@ export default function Calendar() {
   const [dayFilter, setDayFilter] = useState<
     "all" | "pending" | "revision" | "test"
   >("all");
+  const [modalVisibleCount, setModalVisibleCount] = useState(15);
+  const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setModalVisibleCount(15);
+  }, [selectedDay, dayFilter, isDayDetailOpen]);
 
   // Subjective Modal State
   const [subjectiveOpen, setSubjectiveOpen] = useState(false);
@@ -91,13 +97,6 @@ export default function Calendar() {
     },
   });
 
-  const markCompletedMut = trpc.calendar.markCompleted.useMutation({
-    onSuccess: () => {
-      utils.calendar.getActivities.invalidate();
-      utils.dashboard.getStats.invalidate();
-    },
-  });
-
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -105,9 +104,60 @@ export default function Calendar() {
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const { data: activities = [] } = trpc.calendar.getActivities.useQuery({
+  const queryParams = useMemo(() => ({
     startDate: calendarStart.toISOString().split("T")[0],
     endDate: calendarEnd.toISOString().split("T")[0],
+  }), [calendarStart, calendarEnd]);
+
+  // Fetch activities with pagination
+  const { data: activitiesData, isLoading: activitiesLoading } = trpc.calendar.getActivities.useQuery(
+    { ...queryParams, limit: 50, offset: 0 },
+    { staleTime: 30000 } // Cache for 30 seconds
+  );
+  
+  const activities = Array.isArray(activitiesData) ? activitiesData : activitiesData?.activities || [];
+  const totalActivities = Array.isArray(activitiesData) ? activitiesData.length : activitiesData?.total || 0;
+  const hasMoreActivities = Array.isArray(activitiesData) ? false : activitiesData?.hasMore || false;
+
+  const markCompletedMut = trpc.calendar.markCompleted.useMutation({
+    onMutate: async ({ revisionId, completed }) => {
+      setPendingToggles((prev) => new Set(prev).add(revisionId));
+      await utils.calendar.getActivities.cancel({ ...queryParams, limit: 50, offset: 0 });
+      const previousActivities = utils.calendar.getActivities.getData({ ...queryParams, limit: 50, offset: 0 });
+
+      if (previousActivities) {
+        const oldArray = Array.isArray(previousActivities) ? previousActivities : previousActivities.activities;
+        if (oldArray) {
+          utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, (old) => {
+            const currentArray = Array.isArray(old) ? old : old?.activities;
+            return currentArray 
+              ? currentArray.map((a) => (a.id === revisionId ? { ...a, completed } : a))
+              : [];
+          });
+        }
+      }
+      return { previousActivities, revisionId };
+    },
+    onError: (err, vars, ctx) => {
+      if (ctx?.previousActivities) {
+        utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, ctx.previousActivities);
+      }
+      toast.error("Falha ao atualizar tarefa. Tente novamente.");
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.completed ? "Marcado como feito!" : "Marcado como pendente!");
+    },
+    onSettled: (_, __, ___, ctx) => {
+      if (ctx?.revisionId) {
+        setPendingToggles((prev) => {
+          const next = new Set(prev);
+          next.delete(ctx.revisionId);
+          return next;
+        });
+      }
+      utils.calendar.getActivities.invalidate({ ...queryParams, limit: 50, offset: 0 });
+      utils.dashboard.getStats.invalidate();
+    },
   });
 
   const getDayActivities = (day: Date) =>
@@ -352,7 +402,15 @@ export default function Calendar() {
               </div>
 
               {/* Activity Timeline List */}
-              <div className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a] flex flex-col gap-6">
+              <div 
+                className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a] flex flex-col gap-6"
+                onScroll={(e) => {
+                  const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                  if (scrollHeight - scrollTop - clientHeight < 250) {
+                    setModalVisibleCount((prev) => prev + 15);
+                  }
+                }}
+              >
                 {/* Filtros Rápidos */}
                 {getDayActivities(selectedDay).length > 0 && (
                   <div className="flex flex-wrap gap-2 pb-4 border-b border-white/5">
@@ -419,13 +477,16 @@ export default function Calendar() {
                     return true;
                   });
 
+                  const visibleActivities = filteredActivities.slice(0, modalVisibleCount);
+                  const hasMore = filteredActivities.length > modalVisibleCount;
+
                   if (filteredActivities.length > 0) {
                     return (
                       <div className="space-y-3 relative">
                         {/* Vertical Timeline Line */}
                         <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
 
-                        {filteredActivities.map((activity) => {
+                        {visibleActivities.map((activity) => {
                           const isTest = activity.type === "test";
                           const isCompleted = activity.completed;
 
@@ -451,8 +512,9 @@ export default function Calendar() {
                                   Marcar como feito
                                 </span>
                                 <div
-                                  className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-500 shadow-2xl
-                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}`}
+                                  className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-300 shadow-2xl relative
+                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}
+                                      ${pendingToggles.has(activity.id) ? "opacity-75 ring-2 ring-emerald-400 animate-pulse" : ""}`}
                                 >
                                   {isCompleted ? (
                                     <Check size={20} strokeWidth={3} />
@@ -606,6 +668,24 @@ export default function Calendar() {
                             </div>
                           );
                         })}
+
+                        {hasMore && (
+                          <div className="pt-4 text-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-white/5 border-white/10 hover:bg-white/10 text-xs rounded-xl"
+                              onClick={() => setModalVisibleCount((prev) => Math.min(prev + 15, filteredActivities.length))}
+                            >
+                              Carregar mais ({filteredActivities.length - modalVisibleCount} tarefas restantes)
+                            </Button>
+                          </div>
+                        )}
+                        {!hasMore && filteredActivities.length > 15 && (
+                          <div className="pt-3 text-center text-[10px] text-white/30 uppercase tracking-widest">
+                            Todas as {filteredActivities.length} tarefas carregadas
+                          </div>
+                        )}
                       </div>
                     );
                   } else {

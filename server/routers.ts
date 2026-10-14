@@ -215,6 +215,37 @@ export const appRouter = router({
         await storage.reorderDisciplines(ctx.user.id, input.orderedIds);
         return { success: true };
       }),
+    merge: protectedProcedure
+      .input(
+        z.object({
+          sourceId: z.number(),
+          targetId: z.number(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return storage.mergeDisciplines(ctx.user.id, input.sourceId, input.targetId);
+      }),
+    setAlias: protectedProcedure
+      .input(
+        z.object({
+          tecDisciplineName: z.string(),
+          disciplineId: z.number(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const settings = await storage.getUserSettings(ctx.user.id);
+        const aliases = { ...(settings?.tecDisciplineAliases || {}) };
+        const norm = input.tecDisciplineName
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .replace(/[^a-z0-9\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+        aliases[norm] = input.disciplineId;
+        await storage.updateUserSettings(ctx.user.id, { tecDisciplineAliases: aliases });
+        return { success: true };
+      }),
   }),
 
   // ============ TOPIC PROCEDURES ============
@@ -358,6 +389,16 @@ export const appRouter = router({
           input.seconds,
         );
         return { success: true };
+      }),
+    merge: protectedProcedure
+      .input(
+        z.object({
+          sourceId: z.number(),
+          targetId: z.number(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return storage.mergeTopics(ctx.user.id, input.sourceId, input.targetId);
       }),
   }),
 
@@ -726,7 +767,12 @@ export const appRouter = router({
         );
       }),
     getActivities: protectedProcedure
-      .input(z.object({ startDate: z.string(), endDate: z.string() }))
+      .input(z.object({ 
+        startDate: z.string(), 
+        endDate: z.string(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      }))
       .query(async ({ ctx, input }) => {
         const { revisions, topics, disciplines } =
           await storage.getCalendarData(
@@ -734,7 +780,9 @@ export const appRouter = router({
             input.startDate,
             input.endDate,
           );
-        return revisions
+        
+        // Sort first, then paginate
+        const sortedRevisions = revisions
           .map((r) => {
             const topic = topics.find((t) => t.id === r.topicId);
             const discipline = disciplines.find(
@@ -762,6 +810,19 @@ export const appRouter = router({
             if (a.type !== b.type) return a.type === "revision" ? -1 : 1;
             return 0;
           });
+
+        // Apply pagination if limit is provided
+        if (input.limit !== undefined) {
+          const offset = input.offset || 0;
+          return {
+            activities: sortedRevisions.slice(offset, offset + input.limit),
+            total: sortedRevisions.length,
+            hasMore: offset + input.limit < sortedRevisions.length,
+          };
+        }
+
+        // Legacy behavior: return all activities in old format
+        return sortedRevisions;
       }),
     saveLink: protectedProcedure
       .input(z.object({ revisionId: z.number(), link: z.string() }))

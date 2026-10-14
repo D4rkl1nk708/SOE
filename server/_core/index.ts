@@ -1,3 +1,4 @@
+import { findBestDisciplineMatch, findBestTopicMatch, analyzeDisciplineOrTopicWithAI } from "../tecDisciplineMatcher";
 import "dotenv/config"; // Restart trigger: 2026-04-22T15:55
 import os from "os";
 import path from "path";
@@ -472,24 +473,49 @@ export async function createApp() {
         // only captures topic/discipline names, not per-topic stats)
         if ((row.acertos || 0) + (row.erros || 0) === 0) continue;
 
-        // Match or create discipline
-        let disc = disciplines.find((d) => isFuzzyMatch(d.name, discName));
+        // Match or create discipline with intelligence
+        const userSettings = await storage.getUserSettings(user.id);
+        const discMatch = findBestDisciplineMatch(
+          disciplines,
+          discName,
+          assuntoName,
+          userSettings?.tecDisciplineAliases,
+          topics,
+        );
+        let disc = discMatch.discipline;
+
         if (!disc) {
-          const { id } = await storage.createDiscipline({
-            userId: user.id,
-            name: discName,
-            color: "#6366f1",
-            weight: 1,
+          const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+            incomingDiscipline: discName,
+            incomingTopic: assuntoName,
+            existingDisciplines: disciplines,
+            existingTopics: topics,
+            userSettings,
           });
-          disciplines = await storage.getDisciplinesByUser(user.id);
-          disc = disciplines.find((d) => d.id === id)!;
+          if (aiAnalysis.matchedDisciplineId) {
+            disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+          }
+          
+          // Only create new discipline if AI explicitly says it should be created
+          if (!disc && aiAnalysis.shouldCreateNew) {
+            console.log(`[TEC Push] Creating new discipline: "${discName}" (AI explicitly approved)`);
+            const { id } = await storage.createDiscipline({
+              userId: user.id,
+              name: discName,
+              color: "#6366f1",
+              weight: 1,
+            });
+            disciplines = await storage.getDisciplinesByUser(user.id);
+            disc = disciplines.find((d) => d.id === id)!;
+          } else if (!disc) {
+            console.log(`[TEC Push] Skipping discipline creation for "${discName}" - AI did not approve new discipline creation`);
+            continue; // Skip this row if we can't match and can't create
+          }
         }
 
-        // Match or create topic
-        let topic = topics.find(
-          (t) =>
-            t.disciplineId === disc!.id && isFuzzyMatch(t.name, assuntoName),
-        );
+        // Match or create topic with intelligence
+        const topicMatch = findBestTopicMatch(topics, assuntoName, disc!.id);
+        let topic = topicMatch.topic;
 
         if (topic) {
           const prevCorrect = topic.performance?.correctCount ?? 0;
@@ -679,19 +705,45 @@ export async function createApp() {
           return res.status(400).json({ error: "Assunto obrigatório" });
 
         let disciplines = await storage.getDisciplinesByUser(user.id);
-        let disc = disciplines.find((d) =>
-          isFuzzyMatch(d.name, disciplinaName),
+        let topics = await storage.getTopicsByUser(user.id);
+        const userSettings = await storage.getUserSettings(user.id);
+
+        const discMatch = findBestDisciplineMatch(
+          disciplines,
+          disciplinaName,
+          assuntoName,
+          userSettings?.tecDisciplineAliases,
+          topics,
         );
+        let disc = discMatch.discipline;
 
         if (!disc) {
-          const created = await storage.createDiscipline({
-            userId: user.id,
-            name: disciplinaName,
-            color: "#6366f1",
-            weight: 1,
+          const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+            incomingDiscipline: disciplinaName,
+            incomingTopic: assuntoName,
+            existingDisciplines: disciplines,
+            existingTopics: topics,
+            userSettings,
           });
-          disc = Object.assign({}, created, { id: created.id }) as any;
-          disciplines = await storage.getDisciplinesByUser(user.id);
+          if (aiAnalysis.matchedDisciplineId) {
+            disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+          }
+          
+          // Only create new discipline if AI explicitly says it should be created
+          if (!disc && aiAnalysis.shouldCreateNew) {
+            console.log(`[TEC Server] Creating new discipline: "${disciplinaName}" (AI explicitly approved)`);
+            const created = await storage.createDiscipline({
+              userId: user.id,
+              name: disciplinaName,
+              color: "#6366f1",
+              weight: 1,
+            });
+            disc = Object.assign({}, created, { id: created.id }) as any;
+            disciplines = await storage.getDisciplinesByUser(user.id);
+          } else if (!disc) {
+            console.log(`[TEC Server] Skipping discipline creation for "${disciplinaName}" - AI did not approve new discipline creation`);
+            return res.status(400).json({ error: "Disciplina não encontrada e IA não aprovou criação de nova disciplina" });
+          }
         }
 
         // Add time to discipline
@@ -701,11 +753,8 @@ export async function createApp() {
           });
         }
 
-        let topics = await storage.getTopicsByUser(user.id);
-        let topic = topics.find(
-          (t) =>
-            t.disciplineId === disc!.id && isFuzzyMatch(t.name, assuntoName),
-        );
+        const topicMatch = findBestTopicMatch(topics, assuntoName, disc!.id);
+        let topic = topicMatch.topic;
 
         let topicId = 0;
         if (topic) {
@@ -831,9 +880,31 @@ export async function createApp() {
 
         // Match or create discipline and topic based on the names provided by the extension
         if (disciplinaName) {
-          let disc = disciplines.find((d) =>
-            isFuzzyMatch(d.name, disciplinaName),
+          const userSettings = await storage.getUserSettings(user.id);
+          let topics = await storage.getTopicsByUser(user.id);
+
+          const discMatch = findBestDisciplineMatch(
+            disciplines,
+            disciplinaName,
+            assuntoName,
+            userSettings?.tecDisciplineAliases,
+            topics,
           );
+          let disc = discMatch.discipline;
+
+          if (!disc) {
+            const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
+              incomingDiscipline: disciplinaName,
+              incomingTopic: assuntoName || "",
+              existingDisciplines: disciplines,
+              existingTopics: topics,
+              userSettings,
+            });
+            if (aiAnalysis.matchedDisciplineId) {
+              disc = disciplines.find((d) => d.id === aiAnalysis.matchedDisciplineId) || null;
+            }
+          }
+
           if (!disc) {
             const created = await storage.createDiscipline({
               userId: user.id,
@@ -848,11 +919,9 @@ export async function createApp() {
           }
 
           if (assuntoName && discId) {
-            let topics = await storage.getTopicsByUser(user.id);
-            let topic = topics.find(
-              (t) =>
-                t.disciplineId === discId && isFuzzyMatch(t.name, assuntoName),
-            );
+            topics = await storage.getTopicsByUser(user.id);
+            const topicMatch = findBestTopicMatch(topics, assuntoName, discId);
+            let topic = topicMatch.topic;
             if (!topic) {
               const created = await storage.createTopic({
                 userId: user.id,
