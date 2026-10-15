@@ -953,21 +953,25 @@ export async function localCalendarGetActivities(input: {
     return {
       id: r.id,
       date: r.scheduledDate,
+      topicName: topic?.name || "Assunto Removido",
+      disciplineName: discipline?.name || "Desconhecida",
+      disciplineColor: discipline?.color || "#3b82f6",
+      topicId: topic?.id || 0,
+      disciplineId: discipline?.id || 0,
       type: r.type,
-      revisionNumber: r.revisionNumber,
       completed: r.completed,
-      completedAt: r.completedAt,
-      topicId: r.topicId,
-      topicName: topic?.name || "Tópico desconhecido",
-      disciplineId: topic?.disciplineId,
-      disciplineName: discipline?.name || "Disciplina desconhecida",
-      disciplineColor: discipline?.color || "var(--primary)",
       link: r.link,
+      accuracy: topic?.performance?.accuracy,
+      questionsResolved: topic?.performance?.questionsResolved || 0,
     };
   });
 
-  // Sort by date
-  activities.sort((a, b) => a.date.localeCompare(b.date));
+  // Sort same as backend: 1. Not completed first, 2. Revisions before Tests
+  activities.sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (a.type !== b.type) return a.type === "revision" ? -1 : 1;
+    return 0;
+  });
 
   // Apply pagination
   const total = activities.length;
