@@ -113,7 +113,7 @@ export default function Calendar() {
   
   // Fetch activities with pagination - localLink handles Android automatically
   const { data: activitiesData, isLoading: activitiesLoading } = trpc.calendar.getActivities.useQuery(
-    { ...queryParams, limit: 50, offset: 0 },
+    { ...queryParams, limit: 200, offset: 0 },
     { 
       staleTime: 30000, // Cache for 30 seconds
     }
