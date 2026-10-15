@@ -973,10 +973,20 @@ export async function localCalendarGetActivities(input: {
     return 0;
   });
 
-  // Apply pagination - use higher limit to ensure all activities (including tests) are shown
+  // Apply pagination - if limit is very high (10000), return all activities
   const total = activities.length;
-  const limit = input.limit || 200; // Increased from 50 to ensure tests are included
+  const limit = input.limit || 10000;
   const offset = input.offset || 0;
+  
+  // If limit is very high, return all activities without pagination
+  if (limit >= 10000) {
+    return {
+      activities,
+      total,
+      hasMore: false,
+    };
+  }
+  
   const paginatedActivities = activities.slice(offset, offset + limit);
   const hasMore = offset + limit < total;
 

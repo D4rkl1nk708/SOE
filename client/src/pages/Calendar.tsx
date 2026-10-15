@@ -111,9 +111,9 @@ export default function Calendar() {
 
   const isAndroid = Capacitor.isNativePlatform();
   
-  // Fetch activities with pagination - localLink handles Android automatically
+  // Fetch all activities for the month without limit
   const { data: activitiesData, isLoading: activitiesLoading } = trpc.calendar.getActivities.useQuery(
-    { ...queryParams, limit: 200, offset: 0 },
+    { ...queryParams, limit: 10000, offset: 0 }, // High limit to get all activities
     { 
       staleTime: 30000, // Cache for 30 seconds
     }
@@ -121,7 +121,6 @@ export default function Calendar() {
   
   const activities = Array.isArray(activitiesData) ? activitiesData : activitiesData?.activities || [];
   const totalActivities = Array.isArray(activitiesData) ? activitiesData.length : activitiesData?.total || 0;
-  const hasMoreActivities = Array.isArray(activitiesData) ? false : activitiesData?.hasMore || false;
   const loading = activitiesLoading;
 
   const markCompletedMut = trpc.calendar.markCompleted.useMutation({
