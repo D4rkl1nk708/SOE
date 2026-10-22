@@ -5,6 +5,37 @@
 import { retryWithBackoff } from "./retryWithBackoff";
 export type AiProvider = "gemini" | "openai" | "claude";
 
+export function normalizeApiKeys(apiKeyString?: string | null): string[] {
+  if (!apiKeyString) return [];
+
+  return apiKeyString
+    .split(/[\s,;]+/)
+    .map((key) => key.trim())
+    .filter(Boolean);
+}
+
+export function resolveLocalAiConfig(
+  requestedProvider: AiProvider | string | undefined,
+  userApiKeyString?: string | null,
+  fallbackEnvValue?: string | null,
+): { provider: AiProvider; apiKeys: string[]; isLocalOnly: boolean } {
+  const normalizedProvider = (
+    (requestedProvider || "gemini").toLowerCase() as AiProvider
+  );
+
+  const userKeys = normalizeApiKeys(userApiKeyString);
+  const fallbackKeys = normalizeApiKeys(fallbackEnvValue);
+  const apiKeys = userKeys.length > 0 ? userKeys : fallbackKeys;
+
+  return {
+    provider: ["gemini", "openai", "claude"].includes(normalizedProvider)
+      ? normalizedProvider
+      : "gemini",
+    apiKeys,
+    isLocalOnly: userKeys.length > 0,
+  };
+}
+
 const GEMINI_MODELS = [
   "gemini-2.0-flash",
   "gemini-1.5-flash",
@@ -47,8 +78,6 @@ export async function callGeminiWithFallback(
   }
 
   let lastError = "";
-  // Priorizamos v1beta pois é mais compatível com modelos novos e experimentais
-  // Usamos v1beta para máxima compatibilidade com modelos 1.5 e 2.0
   for (const apiVersion of ["v1beta"]) {
     for (const model of GEMINI_MODELS) {
       try {
@@ -94,18 +123,13 @@ export async function callGeminiWithFallback(
             msg =
               "Chave API Gemini expirada ou inválida. Por favor, renove-a nas configurações.";
           }
-          const status = data.error.status || "";
 
-          // Se o limite for EXATAMENTE 0, o Google costuma retornar 429 ou 403.
-          // Isso significa que o modelo não está disponível para este plano/região,
-          // então devemos continuar tentando outros modelos na mesma chave.
           const isLimitZero =
             msg.toLowerCase().includes("limit: 0") ||
             msg.toLowerCase().includes("not found") ||
             msg.toLowerCase().includes("not supported");
 
           if (res.status === 429 && !isLimitZero) {
-            // Erro de cota real (excesso de uso), pula para a próxima chave
             throw new Error(`QUOTA_EXCEEDED: ${msg}`);
           }
 
@@ -125,6 +149,7 @@ export async function callGeminiWithFallback(
       }
     }
   }
+
   throw new Error(
     `Nenhum modelo Gemini disponível para esta chave. Último erro: ${lastError}`,
   );
@@ -205,6 +230,7 @@ export async function callClaude(
 
 /**
  * Chama o provedor de IA especificado com suporte a múltiplas chaves (rotação) e imagens.
+ * Mantém as chaves configuradas pelo usuário locais e nunca as expira automaticamente.
  */
 export async function callAiProvider(
   provider: AiProvider,
@@ -213,7 +239,7 @@ export async function callAiProvider(
   maxTokens = 1024,
   imageBase64?: string,
 ): Promise<string> {
-  const apiKeys = apiKeyString.split(/[,\s;]+/).filter(Boolean);
+  const apiKeys = normalizeApiKeys(apiKeyString);
   if (apiKeys.length === 0) throw new Error("Nenhuma API Key configurada.");
 
   let lastError = "";
@@ -254,19 +280,20 @@ export async function callAiProvider(
         err.message.toLowerCase().includes("not supported");
 
       if (apiKeys.length > 1 && (isQuota || isInvalid || isNotFound)) {
-        // Se houver próxima chave e for erro de cota, espera um pouco para não ser bloqueado por IP
         if (i < apiKeys.length - 1 && isQuota) {
           await new Promise((res) => setTimeout(res, 500));
         }
-        continue; // Tenta a próxima chave
+        continue;
       }
-      throw err; // Propaga o erro se for fatal ou única chave
+      throw err;
     }
   }
+
   throw new Error(
     `Todas as ${apiKeys.length} chaves falharam. Último erro: ${lastError}`,
   );
 }
+
 /**
  * Testa as chaves fornecidas e retorna um relatório de quais modelos estão funcionando.
  */
@@ -282,7 +309,7 @@ export async function testAiKey(
     error?: string;
   }[];
 }> {
-  const apiKeys = apiKeyString.split(/[,\s;]+/).filter(Boolean);
+  const apiKeys = normalizeApiKeys(apiKeyString);
   const details: any[] = [];
   let totalSuccess = false;
 
@@ -309,16 +336,14 @@ export async function testAiKey(
           if (!data.error) {
             workingModels.push(model);
             totalSuccess = true;
-          } else {
-            if (!firstError)
-              firstError = data.error.message || "Erro desconhecido";
+          } else if (!firstError) {
+            firstError = data.error.message || "Erro desconhecido";
           }
         } catch (e: any) {
           if (!firstError) firstError = e.message;
         }
       }
     } else {
-      // Mock test para OpenAI/Claude por enquanto
       workingModels.push("Standard Model");
       totalSuccess = true;
     }
