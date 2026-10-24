@@ -34,6 +34,7 @@ import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function Statistics() {
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
@@ -256,7 +257,7 @@ export default function Statistics() {
   };
 
   return (
-    <div className="space-y-10 w-full pb-10 animate-in fade-in duration-500">
+    <div className="space-y-6 w-full pb-10 animate-in fade-in duration-500">
       {/* ── Cabeçalho exclusivo para Impressão / PDF ────────────────────────── */}
       <div className="print-only border-b border-gray-300 pb-4 mb-6">
         <div className="flex justify-between items-center">
@@ -277,60 +278,57 @@ export default function Statistics() {
           </div>
         </div>
       </div>
-      <div className="flex items-start justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Analytics & Performance
-          </h1>
-          <p className="text-[11px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest">
-            Métricas reais e insights de aprovação
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest print:hidden"
-            title="Exportar como PDF ou Imprimir Relatório"
-          >
-            <Printer className="w-3.5 h-3.5 mr-2" /> Imprimir / PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowShare(true)}
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
-          >
-            <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
-          </Button>
-          {!resetConfirm ? (
-            <button
-              onClick={() => setResetConfirm(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
-              title="Zerar estatísticas"
+      <PageHeader
+        eyebrow="Diagnóstico"
+        title="Analytics & Performance"
+        description="Métricas reais, lacunas e prioridades — sem inflar amostras pequenas."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest print:hidden"
+              title="Exportar como PDF ou Imprimir Relatório"
             >
-              <AlertCircle size={16} />
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setResetConfirm(false)}
-                className="h-9 px-3 text-[10px] font-bold uppercase"
+              <Printer className="w-3.5 h-3.5 mr-2" /> Imprimir / PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowShare(true)}
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
+            >
+              <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
+            </Button>
+            {!resetConfirm ? (
+              <button
+                onClick={() => setResetConfirm(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
+                title="Zerar estatísticas"
               >
-                Voltar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => resetAllStats.mutate()}
-                disabled={resetAllStats.isPending}
-                className="h-9 px-4 text-[10px] font-bold uppercase"
-              >
-                Zerar Tudo
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
+                <AlertCircle size={16} />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setResetConfirm(false)}
+                  className="h-9 px-3 text-[10px] font-bold uppercase"
+                >
+                  Voltar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => resetAllStats.mutate()}
+                  disabled={resetAllStats.isPending}
+                  className="h-9 px-4 text-[10px] font-bold uppercase"
+                >
+                  Zerar Tudo
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      />
 
       <AnimatePresence>
         {aiInsight && (

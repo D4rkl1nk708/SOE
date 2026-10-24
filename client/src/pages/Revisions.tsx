@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -403,34 +404,29 @@ export default function Revisions() {
       {/* F15 - Sleep warning */}
       <SleepWarning />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h1
-            className="text-3xl font-black tracking-tight flex items-center gap-2.5"
-            style={{ color: "var(--app-fg)" }}
-          >
-            <CheckCircle2 className="h-7 w-7 text-[var(--primary)]" />
-            Revisões
-          </h1>
+      <PageHeader
+        eyebrow="Retenção"
+        title="Revisões"
+        description="O que vence hoje, o que atrasou e o que já foi consolidado."
+        actions={
           <div className="flex items-center gap-2 text-sm">
             {groups.overdue.length > 0 ? (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-black uppercase tracking-widest text-[10px]">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-bold uppercase tracking-widest text-[10px]">
                 <AlertCircle className="w-3 h-3" />
-                {groups.overdue.length} Atrasadas
+                {groups.overdue.length} atrasadas
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-black uppercase tracking-widest text-[10px]">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-bold uppercase tracking-widest text-[10px]">
                 <CheckCircle2 className="w-3 h-3" />
                 Em dia
               </span>
             )}
-            <span className="opacity-40 font-bold">
-              {groups.scheduled.length} Atividades
+            <span className="text-[10px] font-semibold text-muted-foreground">
+              {groups.scheduled.length} atividades
             </span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

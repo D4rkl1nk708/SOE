@@ -149,11 +149,11 @@
 @layer components {
   /* Linear-style Card */
   .soe-card {
-    @apply bg-card border border-border rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.1)] transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)];
+    @apply bg-card border border-border rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-colors;
   }
 
   .dark .soe-card {
-    @apply shadow-[0_1px_3px_rgba(0,0,0,0.4)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.4)];
+    @apply shadow-[0_1px_2px_rgba(0,0,0,0.35)];
   }
 
   /* Thin Linear Borders */

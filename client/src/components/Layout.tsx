@@ -26,6 +26,7 @@ import {
   Zap,
   FlaskConical,
   Target,
+  Clock,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
@@ -40,29 +41,36 @@ declare const __APP_VERSION__: string;
 // ── Navigation groups ────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
-    label: "Principal",
+    label: "Foco",
     items: [
       { path: "/", label: "Início", icon: LayoutDashboard },
       { path: "/plan", label: "Plano", icon: Target },
       { path: "/question-session", label: "Treinos", icon: ListChecks },
-      { path: "/mentor", label: "IA", icon: Sparkles },
-      { path: "/lab", label: "Laboratório", icon: FlaskConical },
+      { path: "/mentor", label: "Mentor IA", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Estudos",
+    items: [
+      { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
+      { path: "/revisions", label: "Revisões", icon: Clock },
+      { path: "/calendar", label: "Calendário", icon: CalendarDays },
+      { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
+      { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
     ],
   },
   {
     label: "Conteúdo",
     items: [
-      { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
-      { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
       { path: "/flashcards", label: "Flashcards", icon: Brain },
       { path: "/notes", label: "Anotações", icon: StickyNote },
+      { path: "/edital", label: "Editais", icon: Sheet },
     ],
   },
   {
-    label: "Organização",
+    label: "Sistema",
     items: [
-      { path: "/calendar", label: "Calendário", icon: CalendarDays },
-      { path: "/edital", label: "Editais", icon: Sheet },
+      { path: "/lab", label: "Laboratório", icon: FlaskConical },
       { path: "/sync", label: "Sync & Backup", icon: Wifi },
     ],
   },
@@ -88,6 +96,12 @@ const MOBILE_SECONDARY = [
     label: "Disciplinas",
     icon: BarChart3,
     color: "#3b82f6",
+  },
+  {
+    path: "/revisions",
+    label: "Revisões",
+    icon: Clock,
+    color: "#0ea5e9",
   },
   {
     path: "/statistics",
@@ -375,23 +389,19 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center gap-2.5">
             <SoeLogo size={28} />
-            <span
-              className="font-bold text-[15px] tracking-[-0.4px]"
-              style={{ color: "var(--primary)" }}
-            >
-              SOE
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span
+                className="font-bold text-[13px] tracking-[-0.3px]"
+                style={{ color: "var(--primary)" }}
+              >
+                SOE
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {currentLabel}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() =>
-                window.dispatchEvent(new CustomEvent("soe-start-tour"))
-              }
-              className="p-2 rounded-xl text-primary active:scale-95 transition-all"
-              title="Iniciar Tour"
-            >
-              <Zap className="w-[22px] h-[22px]" />
-            </button>
+          <div className="flex items-center gap-3">
             <SearchButton />
             <button
               onClick={toggleTheme}
@@ -509,7 +519,9 @@ export function Layout({ children }: { children: ReactNode }) {
           className="flex-1 overflow-x-hidden overflow-y-auto w-full"
           style={{ background: "var(--app-bg)" }}
         >
-          <div className="w-full p-3 md:p-6">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] p-3 md:p-6">
+            {children}
+          </div>
         </main>
       </div>
 

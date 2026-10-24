@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   AlertTriangle,
   ArrowRight,
@@ -133,34 +135,31 @@ export default function StudyPlan() {
 
   return (
     <div className="space-y-6 w-full pb-10">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Plano de aprovação
-          </h1>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
-            Cobertura do edital, domínio real e o que estudar agora
-          </p>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 whitespace-nowrap">
-            Tempo hoje
-          </span>
-          {MINUTE_OPTIONS.map((value) => (
-            <button
-              key={value}
-              onClick={() => setMinutes(value)}
-              className={`px-3 py-1.5 rounded-md border text-[10px] font-bold uppercase tracking-wider transition-all ${
-                (minutes ?? plan?.dailyMinutes) === value
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {formatMinutes(value)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Decisão"
+        title="Plano de aprovação"
+        description="Cobertura do edital, domínio real e o que estudar agora."
+        actions={
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 whitespace-nowrap">
+              Tempo hoje
+            </span>
+            {MINUTE_OPTIONS.map((value) => (
+              <button
+                key={value}
+                onClick={() => setMinutes(value)}
+                className={`px-3 py-1.5 rounded-md border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                  (minutes ?? plan?.dailyMinutes) === value
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {formatMinutes(value)}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -193,22 +192,14 @@ export default function StudyPlan() {
             color: "var(--accent-amber)",
           },
         ].map((item) => (
-          <div key={item.label} className="soe-card p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <item.icon size={14} style={{ color: item.color }} />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
-                {item.label}
-              </span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold tabular-nums text-foreground/90">
-                {item.value}
-              </p>
-              <p className="text-[10px] font-semibold text-muted-foreground opacity-50">
-                {item.sub}
-              </p>
-            </div>
-          </div>
+          <StatCard
+            key={item.label}
+            label={item.label}
+            value={item.value}
+            sub={item.sub}
+            icon={item.icon}
+            color={item.color}
+          />
         ))}
       </div>
 

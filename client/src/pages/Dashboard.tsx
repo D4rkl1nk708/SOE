@@ -1,5 +1,8 @@
 import { trpc } from "@/lib/trpc";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { openTecBrowser } from "@/lib/openTecBrowser";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -25,6 +28,10 @@ import {
   Pencil,
   Trash2,
   Calendar,
+  ArrowRight,
+  Globe,
+  Play,
+  Layers,
 } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
 import { useState } from "react";
@@ -78,6 +85,17 @@ export default function Dashboard() {
   const widgets = useDashboardWidgets(
     stats?.settings as unknown as Record<string, unknown> | null,
   );
+  const [, navigate] = useLocation();
+  const dailyGoalMinutes =
+    Number(
+      (stats?.settings as Record<string, unknown> | undefined)
+        ?.dailyGoalMinutes,
+    ) || 240;
+  const { data: overview } = trpc.study.overview.useQuery({
+    minutes: dailyGoalMinutes,
+  });
+  const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
+  const focusBlock = overview?.plan.blocks?.[0];
 
   const [expandedDiscipline, setExpandedDiscipline] = useState<number | null>(
     null,
@@ -139,8 +157,35 @@ export default function Dashboard() {
   const showOnboarding =
     !isLoading && !onboardingCompleted && !hasAnyDisciplines;
 
+  const startFocus = (block: any) => {
+    if (!block) {
+      navigate("/plan");
+      return;
+    }
+    if (block.kind === "revisao") {
+      navigate("/revisions");
+      return;
+    }
+    if (block.kind === "mapear") {
+      navigate("/edital");
+      return;
+    }
+    if (block.topicId) {
+      sessionStorage.setItem(
+        "qs_prefill",
+        JSON.stringify({
+          topicId: block.topicId,
+          topicName: block.topicName,
+          disciplineId: block.disciplineId,
+          autoStart: true,
+        }),
+      );
+    }
+    navigate("/question-session");
+  };
+
   return (
-    <div className="space-y-8 w-full pb-10">
+    <div className="space-y-6 w-full pb-10">
       {showOnboarding && (
         <OnboardingWizard
           onComplete={() => utils.dashboard.getStats.invalidate()}
@@ -151,40 +196,127 @@ export default function Dashboard() {
       <SleepWarning />
       <MassStudyAlert />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Painel
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Gestão centralizada do seu desempenho.
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none h-10 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
-            onClick={() => setCustomizeOpen(true)}
-          >
-            <LayoutDashboard size={14} className="mr-2 opacity-60" />{" "}
-            Personalizar
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none h-10 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
-            disabled={tec.isImporting}
-            onClick={() => tec.setDialogOpen(true)}
-          >
-            <Upload size={14} className="mr-2 opacity-60" />{" "}
-            {tec.isImporting ? "..." : "Importar"}
-          </Button>
-          <input
-            ref={tec.fileInputRef}
-            type="file"
-            className="hidden"
-            accept=".xlsx,.xls"
-            onChange={tec.handleFileUpload}
-          />
+      <PageHeader
+        eyebrow="Visão geral"
+        title="Painel"
+        description="O essencial para decidir o próximo passo — sem ruído."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              className="h-9 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
+              onClick={() => setCustomizeOpen(true)}
+            >
+              <LayoutDashboard size={14} className="mr-2 opacity-60" />{" "}
+              Personalizar
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 rounded-md bg-secondary/50 border-border text-[10px] font-bold uppercase tracking-wider"
+              disabled={tec.isImporting}
+              onClick={() => tec.setDialogOpen(true)}
+            >
+              <Upload size={14} className="mr-2 opacity-60" />{" "}
+              {tec.isImporting ? "..." : "Importar"}
+            </Button>
+            <input
+              ref={tec.fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".xlsx,.xls"
+              onChange={tec.handleFileUpload}
+            />
+          </>
+        }
+      />
+
+      <div className="soe-card overflow-hidden border-primary/20 bg-[var(--primary-bg-subtle)]">
+        <div className="grid gap-6 p-5 md:grid-cols-[1.35fr_1fr] md:p-6">
+          <div className="flex flex-col justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+                  Foco agora
+                </span>
+                {overview && (
+                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                    {overview.coverage.weightedCoveragePct}% do edital coberto
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
+                {focusBlock?.title || "Defina seu próximo passo"}
+              </h2>
+              <p className="max-w-xl text-xs text-muted-foreground md:text-sm">
+                {focusBlock?.reason ||
+                  "Importe o edital ou abra o plano para o SOE montar seu roteiro do dia."}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                onClick={() => startFocus(focusBlock)}
+              >
+                <Play size={13} className="mr-2" />
+                {focusBlock ? "Começar agora" : "Montar plano"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                onClick={() => navigate("/plan")}
+              >
+                Ver plano completo <ArrowRight size={13} className="ml-2" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                onClick={() => void openTecBrowser(pushTokenData?.token || "")}
+              >
+                <Globe size={13} className="mr-2" /> Abrir TEC
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card/70 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                Roteiro de hoje
+              </span>
+              <span className="text-[10px] font-semibold text-muted-foreground">
+                {overview?.plan.plannedMinutes || 0}min
+              </span>
+            </div>
+            {overview?.plan.blocks?.length ? (
+              <div className="space-y-2">
+                {overview.plan.blocks
+                  .slice(0, 3)
+                  .map((block: any, index: number) => (
+                    <button
+                      key={block.id}
+                      onClick={() => startFocus(block)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-secondary/50"
+                    >
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-secondary text-[9px] font-bold text-muted-foreground">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-foreground/90">
+                        {block.title}
+                      </span>
+                      <span className="text-[9px] font-medium text-muted-foreground">
+                        {block.minutes}min
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 py-4 text-[11px] text-muted-foreground">
+                <Layers size={14} /> Sem tarefas para hoje.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -299,7 +431,9 @@ export default function Dashboard() {
                 Próxima Prova
               </p>
               <span className="text-[9px] font-semibold text-amber-500/80 group-hover:text-amber-400 transition-colors">
-                {exams.exams && exams.exams.length > 0 ? "Gerenciar" : "+ Adicionar"}
+                {exams.exams && exams.exams.length > 0
+                  ? "Gerenciar"
+                  : "+ Adicionar"}
               </span>
             </div>
             <div className="flex items-baseline gap-2">
@@ -482,10 +616,13 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <Target size={18} className="text-amber-500" />
-              {exams.editingId ? "Editar Prova" : "Gerenciar Provas / Concursos"}
+              {exams.editingId
+                ? "Editar Prova"
+                : "Gerenciar Provas / Concursos"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Cadastre a data da sua prova para ativar a contagem regressiva e as recomendações do Modo Pré-Prova.
+              Cadastre a data da sua prova para ativar a contagem regressiva e
+              as recomendações do Modo Pré-Prova.
             </DialogDescription>
           </DialogHeader>
 
@@ -498,16 +635,24 @@ export default function Dashboard() {
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {exams.exams.map((ex: any) => {
                   const dDate = ex.date ? parseISO(ex.date) : null;
-                  const diff = dDate && !isNaN(dDate.getTime()) ? differenceInDays(dDate, nowDate) : null;
+                  const diff =
+                    dDate && !isNaN(dDate.getTime())
+                      ? differenceInDays(dDate, nowDate)
+                      : null;
                   return (
                     <div
                       key={ex.id}
                       className="p-3 rounded-lg bg-secondary/40 border border-border/50 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-foreground truncate">{ex.name}</p>
+                        <p className="font-bold text-foreground truncate">
+                          {ex.name}
+                        </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {ex.date} {diff !== null ? `(${diff >= 0 ? `${diff} dias restantes` : "Encerrada"})` : ""}
+                          {ex.date}{" "}
+                          {diff !== null
+                            ? `(${diff >= 0 ? `${diff} dias restantes` : "Encerrada"})`
+                            : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -582,8 +727,8 @@ export default function Dashboard() {
               {exams.isSaving
                 ? "Salvando..."
                 : exams.editingId
-                ? "Atualizar Prova"
-                : "Cadastrar Prova"}
+                  ? "Atualizar Prova"
+                  : "Cadastrar Prova"}
             </Button>
           </DialogFooter>
         </DialogContent>

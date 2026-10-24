@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Search, X, BookOpen, RefreshCw, ListChecks, ChevronRight } from "lucide-react";
+import {
+  Search,
+  X,
+  BookOpen,
+  RefreshCw,
+  ListChecks,
+  ChevronRight,
+} from "lucide-react";
 
 interface SearchResult {
-  type: "topic" | "discipline" | "revision";
+  type: "topic" | "discipline" | "revision" | "action";
   id: number | string;
   title: string;
   subtitle: string;
@@ -18,15 +25,20 @@ export function GlobalSearch() {
   const [, navigate] = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: stats } = trpc.dashboard.getStats.useQuery(undefined, { enabled: open });
-  const { data: revisionsData } = trpc.revision.list.useQuery({ completed: false }, { enabled: open });
+  const { data: stats } = trpc.dashboard.getStats.useQuery(undefined, {
+    enabled: open,
+  });
+  const { data: revisionsData } = trpc.revision.list.useQuery(
+    { completed: false },
+    { enabled: open },
+  );
 
   // Ctrl+F / Cmd+F listener
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
         e.preventDefault();
-        setOpen(v => !v);
+        setOpen((v) => !v);
       }
       if (e.key === "Escape") setOpen(false);
     };
@@ -42,17 +54,82 @@ export function GlobalSearch() {
   }, [open]);
 
   const results = useMemo<SearchResult[]>(() => {
-    if (!query.trim() || !stats) return [];
-    const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!query.trim()) return [];
+    const q = query
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
     const match = (s: string) =>
-      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q);
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes(q);
 
     const out: SearchResult[] = [];
+
+    // Ações/páginas principais
+    const actions: SearchResult[] = [
+      {
+        type: "action",
+        id: "plan",
+        title: "Plano de aprovação",
+        subtitle: "Cobertura do edital e foco do dia",
+        href: "/plan",
+      },
+      {
+        type: "action",
+        id: "train",
+        title: "Treinos",
+        subtitle: "Abrir TEC Browser e registrar questões",
+        href: "/question-session",
+      },
+      {
+        type: "action",
+        id: "stats",
+        title: "Estatísticas",
+        subtitle: "Desempenho, lacunas e prioridades",
+        href: "/statistics",
+      },
+      {
+        type: "action",
+        id: "edital",
+        title: "Editais",
+        subtitle: "Importar conteúdo programático",
+        href: "/edital",
+      },
+      {
+        type: "action",
+        id: "revisions",
+        title: "Revisões",
+        subtitle: "Pendências e revisão espaçada",
+        href: "/revisions",
+      },
+      {
+        type: "action",
+        id: "calendar",
+        title: "Calendário",
+        subtitle: "Cronograma 25/50",
+        href: "/calendar",
+      },
+    ];
+    for (const action of actions) {
+      if (match(action.title) || match(action.subtitle)) out.push(action);
+    }
+
+    if (!stats) return out.slice(0, 8);
 
     // Disciplines
     for (const d of stats.disciplineStats ?? []) {
       if (match(d.name)) {
-        out.push({ type: "discipline", id: d.disciplineId, title: d.name, subtitle: `${d.topicCount ?? 0} temas`, href: "/disciplines", color: d.color });
+        out.push({
+          type: "discipline",
+          id: d.disciplineId,
+          title: d.name,
+          subtitle: `${d.topicCount ?? 0} temas`,
+          href: "/disciplines",
+          color: d.color,
+        });
       }
     }
 
@@ -60,13 +137,22 @@ export function GlobalSearch() {
     for (const d of stats.disciplineStats ?? []) {
       for (const t of d.topics ?? []) {
         if (match(t.name) || match(d.name)) {
-          const acc = t.performance && (t.performance.correctCount + t.performance.errorCount) > 0
-            ? Math.round(t.performance.correctCount / (t.performance.correctCount + t.performance.errorCount) * 100)
-            : null;
+          const acc =
+            t.performance &&
+            t.performance.correctCount + t.performance.errorCount > 0
+              ? Math.round(
+                  (t.performance.correctCount /
+                    (t.performance.correctCount + t.performance.errorCount)) *
+                    100,
+                )
+              : null;
           out.push({
-            type: "topic", id: t.id, title: t.name,
+            type: "topic",
+            id: t.id,
+            title: t.name,
             subtitle: `${d.name}${acc !== null ? ` · ${acc}% acerto` : ""}`,
-            href: "/", color: d.color,
+            href: "/",
+            color: d.color,
           });
         }
       }
@@ -74,13 +160,16 @@ export function GlobalSearch() {
 
     // Pending revisions/tests
     for (const rev of revisionsData ?? []) {
-      const topicName = (stats.disciplineStats ?? [])
-        .flatMap(d => d.topics ?? [])
-        .find(t => t.id === rev.topicId)?.name ?? "Tema";
-      const label = rev.type === "test" ? "Teste" : `Revisão ${rev.revisionNumber}`;
+      const topicName =
+        (stats.disciplineStats ?? [])
+          .flatMap((d) => d.topics ?? [])
+          .find((t) => t.id === rev.topicId)?.name ?? "Tema";
+      const label =
+        rev.type === "test" ? "Teste" : `Revisão ${rev.revisionNumber}`;
       if (match(topicName) || match(label)) {
         out.push({
-          type: "revision", id: rev.id,
+          type: "revision",
+          id: rev.id,
           title: topicName,
           subtitle: `${label} · ${rev.scheduledDate}`,
           href: "/calendar",
@@ -94,12 +183,14 @@ export function GlobalSearch() {
   const iconFor = (type: SearchResult["type"]) => {
     if (type === "discipline") return <BookOpen className="w-3.5 h-3.5" />;
     if (type === "topic") return <ListChecks className="w-3.5 h-3.5" />;
+    if (type === "action") return <ChevronRight className="w-3.5 h-3.5" />;
     return <RefreshCw className="w-3.5 h-3.5" />;
   };
 
   const labelFor = (type: SearchResult["type"]) => {
     if (type === "discipline") return "Disciplina";
     if (type === "topic") return "Tema";
+    if (type === "action") return "Ir para";
     return "Pendente";
   };
 
@@ -113,26 +204,39 @@ export function GlobalSearch() {
     >
       <div
         className="w-full max-w-xl mx-4 rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}
+        style={{
+          background: "var(--card-bg)",
+          border: "1px solid var(--card-border)",
+        }}
       >
         {/* Input */}
-        <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: "1px solid var(--card-border)" }}>
-          <Search className="w-4 h-4 flex-shrink-0" style={{ color: "var(--muted-text)" }} />
+        <div
+          className="flex items-center gap-3 px-4 py-3.5"
+          style={{ borderBottom: "1px solid var(--card-border)" }}
+        >
+          <Search
+            className="w-4 h-4 flex-shrink-0"
+            style={{ color: "var(--muted-text)" }}
+          />
           <input
             ref={inputRef}
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar temas, disciplinas, revisões..."
             className="flex-1 bg-transparent outline-none text-sm"
             style={{ color: "var(--app-fg)" }}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === "Enter" && results[0]) {
                 navigate(results[0].href);
                 setOpen(false);
               }
             }}
           />
-          <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:opacity-60" style={{ color: "var(--muted-text)" }}>
+          <button
+            onClick={() => setOpen(false)}
+            className="p-1 rounded-lg hover:opacity-60"
+            style={{ color: "var(--muted-text)" }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -143,20 +247,38 @@ export function GlobalSearch() {
             {results.map((r, i) => (
               <li key={`${r.type}-${r.id}-${i}`}>
                 <button
-                  onClick={() => { navigate(r.href); setOpen(false); }}
+                  onClick={() => {
+                    navigate(r.href);
+                    setOpen(false);
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:opacity-80 transition-opacity"
                   style={{ color: "var(--app-fg)" }}
                 >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: r.color ? `${r.color}22` : "var(--stat-bg)", color: r.color || "var(--muted-text)" }}>
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: r.color ? `${r.color}22` : "var(--stat-bg)",
+                      color: r.color || "var(--muted-text)",
+                    }}
+                  >
                     {iconFor(r.type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{r.title}</p>
-                    <p className="text-xs truncate" style={{ color: "var(--muted-text)" }}>{r.subtitle}</p>
+                    <p
+                      className="text-xs truncate"
+                      style={{ color: "var(--muted-text)" }}
+                    >
+                      {r.subtitle}
+                    </p>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md flex-shrink-0"
-                    style={{ background: "var(--stat-bg)", color: "var(--muted-text)" }}>
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded-md flex-shrink-0"
+                    style={{
+                      background: "var(--stat-bg)",
+                      color: "var(--muted-text)",
+                    }}
+                  >
                     {labelFor(r.type)}
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 opacity-30" />
@@ -165,13 +287,28 @@ export function GlobalSearch() {
             ))}
           </ul>
         ) : query.trim() ? (
-          <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--muted-text)" }}>
+          <div
+            className="px-4 py-8 text-center text-sm"
+            style={{ color: "var(--muted-text)" }}
+          >
             Nenhum resultado para "<strong>{query}</strong>"
           </div>
         ) : (
-          <div className="px-4 py-5 text-center text-xs" style={{ color: "var(--muted-text)" }}>
-            Digite para buscar · <kbd className="px-1.5 py-0.5 rounded text-[10px]"
-              style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)" }}>Esc</kbd> para fechar
+          <div
+            className="px-4 py-5 text-center text-xs"
+            style={{ color: "var(--muted-text)" }}
+          >
+            Digite para buscar ·{" "}
+            <kbd
+              className="px-1.5 py-0.5 rounded text-[10px]"
+              style={{
+                background: "var(--stat-bg)",
+                border: "1px solid var(--card-border)",
+              }}
+            >
+              Esc
+            </kbd>{" "}
+            para fechar
           </div>
         )}
       </div>
@@ -182,7 +319,9 @@ export function GlobalSearch() {
 // Botão discreto para abrir a busca (usado no header)
 export function SearchButton() {
   const handleClick = () => {
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true }));
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true }),
+    );
   };
   return (
     <button
@@ -192,8 +331,14 @@ export function SearchButton() {
       style={{ color: "var(--muted-text)" }}
     >
       <Search className="w-4 h-4" />
-      <kbd className="hidden lg:inline text-[10px] px-1.5 py-0.5 rounded"
-        style={{ background: "var(--stat-bg)", border: "1px solid var(--card-border)", color: "var(--muted-text)" }}>
+      <kbd
+        className="hidden lg:inline text-[10px] px-1.5 py-0.5 rounded"
+        style={{
+          background: "var(--stat-bg)",
+          border: "1px solid var(--card-border)",
+          color: "var(--muted-text)",
+        }}
+      >
         Ctrl+F
       </kbd>
     </button>

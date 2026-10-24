@@ -114,6 +114,19 @@ vi.mock("@/lib/trpc", () => ({
       },
       getHeatmap: { useQuery: () => ({ data: [] }) },
     },
+    study: {
+      overview: {
+        useQuery: () => ({
+          data: {
+            coverage: { weightedCoveragePct: 62, readiness: 55 },
+            plan: { plannedMinutes: 90, blocks: [] },
+          },
+        }),
+      },
+    },
+    import: {
+      getICalUrl: { useQuery: () => ({ data: { token: "test" } }) },
+    },
     note: {
       list: { useQuery: () => ({ data: [] }) },
     },

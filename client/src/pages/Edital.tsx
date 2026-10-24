@@ -46,6 +46,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 
@@ -534,36 +535,28 @@ function EditalTab({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Conteúdo Programático
-            </h1>
-            <p className="text-[11px] font-medium text-muted-foreground opacity-60 uppercase tracking-wider">
-              Mapeamento de Edital e Desempenho
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
-            onClick={() => setShowGuide(true)}
-          >
-            <HelpCircle size={14} className="mr-2" /> Guia
-          </Button>
-          <Button
-            className="h-9 px-6 rounded-md text-[10px] font-bold uppercase tracking-wider"
-            onClick={() => setImportModalOpen(true)}
-          >
-            <Plus size={14} className="mr-2" /> Importar Conteúdo (IA)
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Conteúdo"
+        title="Conteúdo Programático"
+        description="Mapeamento do edital, cobertura e desempenho por tópico."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+              onClick={() => setShowGuide(true)}
+            >
+              <HelpCircle size={14} className="mr-2" /> Guia
+            </Button>
+            <Button
+              className="h-9 px-6 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              onClick={() => setImportModalOpen(true)}
+            >
+              <Plus size={14} className="mr-2" /> Importar Conteúdo (IA)
+            </Button>
+          </>
+        }
+      />
 
       {showGuide && (
         <Dialog open={showGuide} onOpenChange={setShowGuide}>
@@ -1901,7 +1894,7 @@ export default function Edital() {
   ];
 
   return (
-    <div className="w-full space-y-10 pb-10">
+    <div className="w-full space-y-6 pb-10">
       <div className="flex items-center gap-8 border-b border-border">
         {tabs.map((t) => {
           const Icon = t.icon;

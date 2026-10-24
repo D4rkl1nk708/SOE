@@ -54,9 +54,10 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
 import { initTecBrowserListener } from "@/lib/tecBrowser";
+import { openTecBrowser } from "@/lib/openTecBrowser";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import QuestionErrors from "./QuestionErrors";
 import SubjectiveAnswersTab, {
   HighlightedText,
@@ -429,27 +430,6 @@ export default function QuestionSession() {
     results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
   const progress = (currentIndex / totalQ) * 100;
 
-  const openTecBrowser = async () => {
-    if ((window as any).electron?.ipcRenderer) {
-      (window as any).electron.ipcRenderer.send(
-        "open-tec-browser",
-        pushTokenRef.current,
-      );
-      return;
-    }
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const { TecBrowser } = await import("@/lib/tecBrowser");
-        await TecBrowser.open({ url: "https://www.tecconcursos.com.br/" });
-        return;
-      } catch (e) {
-        console.warn("TecBrowser fallback to iframe:", e);
-      }
-    }
-    (window as any).showTecMobile = true;
-    document.dispatchEvent(new CustomEvent("soe-open-mobile-browser"));
-  };
-
   const TabNav = () => (
     <div className="flex gap-1 p-1.5 rounded-2xl bg-secondary/40 border border-border w-full overflow-x-auto no-scrollbar">
       {[
@@ -474,25 +454,12 @@ export default function QuestionSession() {
   if (phase === "setup") {
     return (
       <div className="max-w-7xl mx-auto space-y-8 pb-20">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
-              <Zap className="w-6 h-6 text-[var(--primary)]" />
-            </div>
-            <div className="space-y-1">
-              <h1
-                className="text-3xl font-black tracking-tight"
-                style={{ color: "var(--app-fg)" }}
-              >
-                Treino
-              </h1>
-              <p className="text-sm opacity-60">Questões e performance.</p>
-            </div>
-          </div>
-          <div className="w-full sm:w-auto">
-            <TabNav />
-          </div>
-        </div>
+        <PageHeader
+          eyebrow="Execução"
+          title="Treino"
+          description="Abra o TEC, responda e deixe o SOE registrar cada acerto e erro."
+          actions={<TabNav />}
+        />
 
         {activeTab === "session" && (
           <>
@@ -512,7 +479,7 @@ export default function QuestionSession() {
                 </div>
               </div>
               <button
-                onClick={openTecBrowser}
+                onClick={() => void openTecBrowser(pushTokenRef.current)}
                 className="h-10 px-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"
               >
                 <ExternalLink className="w-4 h-4" /> Abrir TEC
@@ -707,7 +674,7 @@ export default function QuestionSession() {
                 </p>
               </div>
               <button
-                onClick={openTecBrowser}
+                onClick={() => void openTecBrowser(pushTokenRef.current)}
                 className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]"
               >
                 <ExternalLink className="w-5 h-5" />{" "}
