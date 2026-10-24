@@ -25,6 +25,7 @@ import {
   PenLine,
   Zap,
   FlaskConical,
+  Target,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
@@ -42,6 +43,7 @@ const NAV_GROUPS = [
     label: "Principal",
     items: [
       { path: "/", label: "Início", icon: LayoutDashboard },
+      { path: "/plan", label: "Plano", icon: Target },
       { path: "/question-session", label: "Treinos", icon: ListChecks },
       { path: "/mentor", label: "IA", icon: Sparkles },
       { path: "/lab", label: "Laboratório", icon: FlaskConical },
@@ -75,6 +77,12 @@ const MOBILE_PRIMARY = [
 ];
 
 const MOBILE_SECONDARY = [
+  {
+    path: "/plan",
+    label: "Plano",
+    icon: Target,
+    color: "#f97316",
+  },
   {
     path: "/disciplines",
     label: "Disciplinas",

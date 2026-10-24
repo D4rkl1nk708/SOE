@@ -10,6 +10,7 @@ import { editalRouter } from "./editalRouter";
 import { labRouter } from "./labRouter";
 import { questionErrorRouter } from "./questionErrorRouter";
 import { essayRouter } from "./essayRouter";
+import { studyRouter } from "./studyRouter";
 import { callAiProvider } from "./aiProviders";
 import {
   buildSchedule,
@@ -38,6 +39,7 @@ import {
 export const appRouter = router({
   system: systemRouter,
   edital: editalRouter,
+  study: studyRouter,
   auth: router({
     me: publicProcedure.query(({ ctx }) => {
       return ctx.user;
