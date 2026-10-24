@@ -236,7 +236,7 @@ function Sidebar({
         {!collapsed && (
           <button
             onClick={onToggle}
-            className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+            className="w-8 h-8 rounded-full bg-secondary/40 border border-border/70 flex items-center justify-center hover:bg-secondary/60 transition-all opacity-40 hover:opacity-100"
             title="Recolher menu"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -248,7 +248,7 @@ function Sidebar({
         <div className="flex justify-center pb-4">
           <button
             onClick={onToggle}
-            className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-full bg-secondary/40 border border-border/70 flex items-center justify-center hover:bg-secondary/60 transition-all"
             title="Expandir menu"
           >
             <ChevronRight className="w-3.5 h-3.5" />
@@ -268,7 +268,7 @@ function Sidebar({
                 {group.label}
               </p>
             ) : (
-              <div className="my-4 mx-auto w-4 h-[1px] bg-white/5" />
+              <div className="my-4 mx-auto w-4 h-[1px] bg-secondary/40" />
             )}
             <div className="space-y-1">
               {group.items.map((item) => (
@@ -405,7 +405,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <SearchButton />
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all"
+              className="p-2 rounded-xl hover:bg-secondary/40 active:scale-95 transition-all"
               style={{ color: "var(--muted-text)" }}
             >
               {theme === "light" ? (

@@ -85,10 +85,10 @@ export function FeaturesModal() {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col"
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-[2.5rem] bg-[#0A0A0A] border border-border shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col"
           >
             {/* Header */}
-            <div className="p-8 md:p-10 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-white/[0.02] to-transparent">
+            <div className="p-8 md:p-10 border-b border-border/70 flex items-center justify-between bg-gradient-to-r from-white/[0.02] to-transparent">
               <div className="flex items-center gap-5">
                 <div className="w-14 h-14 rounded-2xl bg-[var(--primary)] flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]">
                   <Layers className="text-white w-7 h-7" />
@@ -97,14 +97,14 @@ export function FeaturesModal() {
                   <h2 className="text-3xl font-black tracking-tight text-white">
                     Catálogo de Recursos
                   </h2>
-                  <p className="text-white/40 text-sm font-medium">
+                  <p className="text-muted-foreground text-sm font-medium">
                     Explore todo o poder do ecossistema SOE
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                className="p-4 rounded-2xl bg-secondary/40 hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all"
               >
                 <X size={24} />
               </button>
@@ -119,7 +119,7 @@ export function FeaturesModal() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
-                    className="group p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-[var(--primary-border)] hover:bg-white/[0.04] transition-all"
+                    className="group p-8 rounded-[2rem] bg-secondary/20 border border-border/70 hover:border-[var(--primary-border)] hover:bg-white/[0.04] transition-all"
                   >
                     <div className="flex items-center gap-4 mb-6">
                       <div className="w-12 h-12 rounded-xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] flex items-center justify-center text-[var(--primary)] group-hover:scale-110 transition-transform">
@@ -151,14 +151,14 @@ export function FeaturesModal() {
               {/* Bonus Footer */}
               <div className="mt-8 p-8 rounded-[2rem] bg-gradient-to-br from-[var(--primary)]/10 to-transparent border border-[var(--primary)]/20 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/10 rounded-xl">
+                  <div className="p-3 bg-secondary/60 rounded-xl">
                     <Sparkles size={20} className="text-[var(--primary)]" />
                   </div>
                   <div>
                     <p className="text-sm font-black text-white uppercase tracking-widest">
                       SOE v4.9.8 Premium
                     </p>
-                    <p className="text-xs text-white/40">
+                    <p className="text-xs text-muted-foreground">
                       Todas as ferramentas estão ativas e sincronizadas.
                     </p>
                   </div>

@@ -499,7 +499,7 @@ export default function Revisions() {
           })
         }
       >
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 rounded-2xl bg-white/[0.02] border border-white/5">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1 rounded-2xl bg-secondary/20 border border-border/70">
           <TabsTrigger
             value="scheduled"
             className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-[var(--primary)] data-[state=active]:text-[var(--primary-foreground)]"
@@ -520,7 +520,7 @@ export default function Revisions() {
           </TabsTrigger>
           <TabsTrigger
             value="ignored"
-            className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-white/10"
+            className="flex flex-col items-center gap-1.5 py-3 rounded-xl data-[state=active]:bg-secondary/60"
           >
             <EyeOff className="h-3.5 w-3.5" />
             <span className="text-[9px] font-black uppercase tracking-widest">

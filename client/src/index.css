@@ -92,8 +92,28 @@
   --accent-green: #10b981;
   --accent-amber: #f59e0b;
   --accent-red: #ef4444;
+
+  /* Aliases legados usados por várias telas antes do design system.
+     Sem isto, var(--card-bg), var(--muted-text) etc. ficavam inválidos
+     e o contraste quebrava no tema claro. */
   --app-bg: var(--background);
   --app-fg: var(--foreground);
+  --card-bg: var(--card);
+  --card-border: var(--border);
+  --muted-text: var(--muted-foreground);
+  --stat-bg: var(--secondary);
+  --input-bg: var(--background);
+  --header-bg: var(--background);
+  --sidebar-bg: var(--sidebar);
+  --sidebar-fg: var(--sidebar-foreground);
+  --sidebar-border-color: var(--sidebar-border);
+  --primary-bg-subtle: color-mix(
+    in srgb,
+    var(--primary) 10%,
+    var(--background)
+  );
+  --primary-border: color-mix(in srgb, var(--primary) 26%, var(--border));
+  --primary-shadow: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 .dark {

@@ -154,12 +154,14 @@ function RichEditor({
       {/* Premium Toolbar */}
       <div
         id="tour-notes-toolbar"
-        className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-white/5 bg-white/[0.01] relative"
+        className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-border/70 bg-white/[0.01] relative"
       >
         <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth mask-fade-right pr-12">
           {toolbarGroups.map((group, gi) => (
             <Fragment key={gi}>
-              {gi > 0 && <div className="w-px h-5 bg-white/10 mx-1 shrink-0" />}
+              {gi > 0 && (
+                <div className="w-px h-5 bg-secondary/60 mx-1 shrink-0" />
+              )}
               {group.map((btn) => (
                 <button
                   key={btn.cmd + (btn.val ?? "")}
@@ -168,20 +170,20 @@ function RichEditor({
                     e.preventDefault();
                     exec(btn.cmd, btn.val);
                   }}
-                  className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all active:scale-90"
+                  className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all active:scale-90"
                 >
                   {btn.icon}
                 </button>
               ))}
             </Fragment>
           ))}
-          <div className="w-px h-5 bg-white/10 mx-1 shrink-0" />
+          <div className="w-px h-5 bg-secondary/60 mx-1 shrink-0" />
           <button
             onMouseDown={(e) => {
               e.preventDefault();
               imgInputRef.current?.click();
             }}
-            className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 text-white/40 hover:text-white transition-all"
+            className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all"
           >
             <ImagePlus size={16} />
           </button>
@@ -210,7 +212,7 @@ function RichEditor({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  className="absolute top-full right-0 mt-3 p-1.5 rounded-2xl shadow-2xl z-[100] w-52 bg-[var(--card-bg)] border border-white/10 backdrop-blur-3xl overflow-hidden"
+                  className="absolute top-full right-0 mt-3 p-1.5 rounded-2xl shadow-2xl z-[100] w-52 bg-[var(--card-bg)] border border-border backdrop-blur-3xl overflow-hidden"
                 >
                   {[
                     { id: "summarize", label: "Resumir Seleção" },
@@ -224,7 +226,7 @@ function RichEditor({
                         e.preventDefault();
                         handleAiAction(a.id as any);
                       }}
-                      className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/5 transition-all opacity-60 hover:opacity-100"
+                      className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-secondary/40 transition-all opacity-60 hover:opacity-100"
                     >
                       {a.label}
                     </button>
@@ -414,7 +416,7 @@ export default function Notes() {
       {/* Sidebar */}
       <div
         id="tour-notes-sidebar"
-        className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-white/5 bg-white/[0.01] backdrop-blur-3xl transition-all`}
+        className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-border/70 bg-white/[0.01] backdrop-blur-3xl transition-all`}
       >
         <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div className="flex items-center justify-between">
@@ -441,14 +443,14 @@ export default function Notes() {
               placeholder="Buscar no acervo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-3 rounded-2xl text-xs outline-none bg-white/5 border border-white/5 focus:border-[var(--primary-border)] transition-all"
+              className="w-full pl-9 pr-4 py-3 rounded-2xl text-xs outline-none bg-secondary/40 border border-border/70 focus:border-[var(--primary-border)] transition-all"
             />
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <button
               onClick={() => setFilterDisciplineId(null)}
-              className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${!filterDisciplineId ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-white/5 text-white/30 border-white/5"}`}
+              className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${!filterDisciplineId ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-secondary/40 text-muted-foreground border-border/70"}`}
             >
               Todos
             </button>
@@ -460,7 +462,7 @@ export default function Notes() {
                 <button
                   key={d.id}
                   onClick={() => setFilterDisciplineId(d.id)}
-                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${filterDisciplineId === d.id ? "text-white" : "text-white/30 border-white/5"}`}
+                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${filterDisciplineId === d.id ? "text-white" : "text-muted-foreground border-border/70"}`}
                   style={{
                     backgroundColor:
                       filterDisciplineId === d.id ? d.color : undefined,
@@ -484,7 +486,7 @@ export default function Notes() {
               <div
                 key={note.id}
                 onClick={() => setActiveNoteId(note.id)}
-                className={`group p-4 rounded-2xl cursor-pointer transition-all border ${isActive ? "bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] shadow-inner" : "border-transparent hover:bg-white/5"}`}
+                className={`group p-4 rounded-2xl cursor-pointer transition-all border ${isActive ? "bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] shadow-inner" : "border-transparent hover:bg-secondary/40"}`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {disc && (
@@ -515,13 +517,13 @@ export default function Notes() {
           })}
         </div>
 
-        <div className="p-4 border-t border-white/5 mt-auto">
+        <div className="p-4 border-t border-border/70 mt-auto">
           <button
             onClick={() => {
               setIsCreating(true);
               importFileRef.current?.click();
             }}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-white/5 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-border/70 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all active:scale-[0.98]"
           >
             <Upload size={14} /> Importar Arquivo
           </button>
@@ -532,11 +534,11 @@ export default function Notes() {
       <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
         {activeNote ? (
           <>
-            <div className="px-4 md:px-8 py-3 md:py-4 border-b border-white/5 flex items-center justify-between gap-2 md:gap-6 backdrop-blur-md">
+            <div className="px-4 md:px-8 py-3 md:py-4 border-b border-border/70 flex items-center justify-between gap-2 md:gap-6 backdrop-blur-md">
               <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
                 <button
                   onClick={() => setActiveNoteId(null)}
-                  className="md:hidden p-3 rounded-xl bg-white/5 text-[var(--primary)] shrink-0"
+                  className="md:hidden p-3 rounded-xl bg-secondary/40 text-[var(--primary)] shrink-0"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -557,7 +559,7 @@ export default function Notes() {
               </div>
 
               <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                <div className="hidden xs:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/5">
+                <div className="hidden xs:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/40 border border-border/70">
                   {isDirty ? (
                     <Clock size={12} className="text-amber-500 animate-pulse" />
                   ) : (
@@ -581,7 +583,7 @@ export default function Notes() {
                     if (confirm("Excluir anotação?"))
                       deleteNote.mutate({ id: (activeNote as any).id });
                   }}
-                  className="p-3.5 rounded-xl hover:bg-rose-500/10 text-white/20 hover:text-rose-500 transition-all active:scale-90"
+                  className="p-3.5 rounded-xl hover:bg-rose-500/10 text-muted-foreground/70 hover:text-rose-500 transition-all active:scale-90"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -602,7 +604,7 @@ export default function Notes() {
           <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center">
             <div className="relative mb-10">
               <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-10 animate-pulse" />
-              <div className="relative p-10 rounded-[3.5rem] bg-white/[0.02] border border-white/5 shadow-2xl">
+              <div className="relative p-10 rounded-[3.5rem] bg-secondary/20 border border-border/70 shadow-2xl">
                 <FileText size={64} className="text-white/10" />
               </div>
             </div>
@@ -630,7 +632,7 @@ export default function Notes() {
                   setIsCreating(true);
                   importFileRef.current?.click();
                 }}
-                className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest opacity-60 hover:opacity-100 transition-all"
+                className="px-8 py-4 rounded-2xl bg-secondary/40 border border-border font-black text-xs uppercase tracking-widest opacity-60 hover:opacity-100 transition-all"
               >
                 <Upload size={14} className="inline mr-2" /> Importar
               </button>
@@ -647,7 +649,7 @@ export default function Notes() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-[var(--card-bg)] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="w-full max-w-md bg-[var(--card-bg)] border border-border rounded-[2.5rem] shadow-2xl overflow-hidden"
             >
               <div className="p-6 md:p-10 space-y-8">
                 <div className="flex items-center justify-between">
@@ -659,7 +661,7 @@ export default function Notes() {
                   </h2>
                   <button
                     onClick={() => setIsCreating(false)}
-                    className="p-3 rounded-2xl bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-500 transition-all"
+                    className="p-3 rounded-2xl bg-secondary/40 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-all"
                   >
                     <X size={20} />
                   </button>
@@ -675,7 +677,7 @@ export default function Notes() {
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       placeholder="Ex: Controle de Constitucionalidade"
-                      className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-sm outline-none focus:border-[var(--primary-border)] transition-all"
+                      className="w-full px-6 py-4 rounded-2xl bg-secondary/40 border border-border text-sm outline-none focus:border-[var(--primary-border)] transition-all"
                     />
                   </div>
 
@@ -689,7 +691,7 @@ export default function Notes() {
                         onChange={(e) =>
                           setNewDisciplineId(e.target.value as any)
                         }
-                        className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none cursor-pointer"
+                        className="w-full px-5 py-4 rounded-2xl bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none cursor-pointer"
                       >
                         <option value="">Selecionar...</option>
                         {disciplines.map((d: any) => (
@@ -707,7 +709,7 @@ export default function Notes() {
                         value={newTopicId}
                         onChange={(e) => setNewTopicId(e.target.value as any)}
                         disabled={!newDisciplineId}
-                        className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none disabled:opacity-20 cursor-pointer"
+                        className="w-full px-5 py-4 rounded-2xl bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none disabled:opacity-20 cursor-pointer"
                       >
                         <option value="">Nenhum</option>
                         {allTopics

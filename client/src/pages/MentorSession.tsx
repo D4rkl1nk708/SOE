@@ -477,7 +477,7 @@ export default function MentorSession() {
                         setSelectedTopicId(null);
                         setSelectedTopicName("");
                       }}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-sm outline-none"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/40 border border-border/70 text-sm outline-none"
                     >
                       <option value="">Selecionar...</option>
                       {disciplines?.map((d) => (
@@ -497,7 +497,7 @@ export default function MentorSession() {
                         <button
                           key={d}
                           onClick={() => setDifficulty(d)}
-                          className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${difficulty === d ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]" : "bg-white/5 text-white/30 border-white/5 hover:bg-white/10"}`}
+                          className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${difficulty === d ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]" : "bg-secondary/40 text-muted-foreground border-border/70 hover:bg-secondary/60"}`}
                         >
                           {DIFFICULTY_LABELS[d].split(" ")[1]}
                         </button>
@@ -602,7 +602,7 @@ export default function MentorSession() {
                       const isCorrect =
                         alt.letter === currentQuestion.correctAnswer;
                       let statusStyle =
-                        "bg-white/5 border-white/5 hover:bg-white/10";
+                        "bg-secondary/40 border-border/70 hover:bg-secondary/60";
                       if (confirmed) {
                         if (isCorrect)
                           statusStyle =
@@ -610,7 +610,7 @@ export default function MentorSession() {
                         else if (isSelected)
                           statusStyle =
                             "bg-rose-500/10 border-rose-500 text-rose-500";
-                        else statusStyle = "opacity-30 border-white/5";
+                        else statusStyle = "opacity-30 border-border/70";
                       } else if (isSelected) {
                         statusStyle =
                           "bg-[var(--primary-bg-subtle)] border-[var(--primary)] shadow-lg shadow-[var(--primary-shadow)]";
@@ -700,7 +700,7 @@ export default function MentorSession() {
                       alt.letter ===
                       diagnosis.fixationQuestions[fixationIndex].correctAnswer;
                     let statusStyle =
-                      "bg-white/5 border-white/5 hover:bg-white/10";
+                      "bg-secondary/40 border-border/70 hover:bg-secondary/60";
                     if (fixationConfirmed) {
                       if (isCorrect)
                         statusStyle =
@@ -710,7 +710,7 @@ export default function MentorSession() {
                           "bg-rose-500/10 border-rose-500 text-rose-500";
                     } else if (isSelected)
                       statusStyle =
-                        "bg-white/10 border-[var(--primary-border)]";
+                        "bg-secondary/60 border-[var(--primary-border)]";
 
                     return (
                       <button
@@ -719,7 +719,7 @@ export default function MentorSession() {
                         onClick={() => setFixationAnswer(alt.letter)}
                         className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left ${statusStyle}`}
                       >
-                        <span className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center font-black text-[10px] shrink-0">
+                        <span className="w-7 h-7 rounded-lg bg-secondary/40 flex items-center justify-center font-black text-[10px] shrink-0">
                           {alt.letter}
                         </span>
                         <span className="text-xs font-medium leading-relaxed">

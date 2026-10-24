@@ -70,7 +70,7 @@ export function AiPostMortem({
         </div>
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-white/10 shadow-inner">
+            <div className="p-3 rounded-2xl bg-secondary/60 shadow-inner">
               <Brain size={28} />
             </div>
             <div>
@@ -87,7 +87,7 @@ export function AiPostMortem({
             </p>
 
             {postMortem.analogy && (
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10 italic text-sm">
+              <div className="p-4 rounded-xl bg-secondary/40 border border-border italic text-sm">
                 <span className="opacity-40 not-italic font-black text-[10px] uppercase block mb-1">
                   Analogia "Suja":
                 </span>
@@ -95,7 +95,7 @@ export function AiPostMortem({
               </div>
             )}
 
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-secondary/40 border border-border">
               <Target size={18} className="shrink-0" />
               <p className="text-xs font-bold">
                 <span className="opacity-40 uppercase tracking-widest mr-2">
@@ -111,8 +111,8 @@ export function AiPostMortem({
   }
 
   return (
-    <div className="soe-card p-10 border-dashed border-white/10 flex flex-col items-center text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-[var(--primary)] shadow-lg shadow-white/5">
+    <div className="soe-card p-10 border-dashed border-border flex flex-col items-center text-center space-y-6">
+      <div className="w-16 h-16 rounded-full bg-secondary/40 flex items-center justify-center text-[var(--primary)] shadow-lg shadow-white/5">
         <Sparkles
           size={32}
           className={analyzeMut.isPending ? "animate-pulse" : ""}
@@ -130,7 +130,7 @@ export function AiPostMortem({
       <button
         onClick={handleAnalyze}
         disabled={analyzeMut.isPending}
-        className="px-8 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white/10 active:scale-95 transition-all flex items-center gap-3"
+        className="px-8 py-3.5 rounded-2xl bg-secondary/40 border border-border text-[11px] font-black uppercase tracking-[0.2em] hover:bg-secondary/60 active:scale-95 transition-all flex items-center gap-3"
       >
         {analyzeMut.isPending ? (
           <>

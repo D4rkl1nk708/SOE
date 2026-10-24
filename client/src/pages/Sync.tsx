@@ -811,7 +811,7 @@ export default function Sync() {
         </div>
 
         {/* Connection Status Badge */}
-        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 border border-white/5">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-secondary/40 border border-border/70">
           <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
           <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
             {isDesktop ? "Terminal Host Ativo" : "Cliente Mobile Conectado"}
@@ -880,7 +880,7 @@ export default function Sync() {
                       </div>
 
                       {syncInfo.ips.length > 1 && (
-                        <div className="pt-3 border-t border-white/5">
+                        <div className="pt-3 border-t border-border/70">
                           <p className="text-[10px] uppercase font-bold opacity-40 mb-2">
                             Placas de rede disponíveis:
                           </p>
@@ -899,7 +899,7 @@ export default function Sync() {
                                   className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border flex items-center gap-2 ${
                                     isSelected
                                       ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
-                                      : "bg-white/5 text-white/70 border-white/10 hover:bg-white/10"
+                                      : "bg-secondary/40 text-white/70 border-border hover:bg-secondary/60"
                                   }`}
                                 >
                                   <span className="font-mono">{ip}</span>
@@ -958,7 +958,7 @@ export default function Sync() {
                           <button
                             onClick={startListening}
                             disabled={waitingReceive}
-                            className={`w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border ${received ? "bg-[var(--accent-green)] text-white border-[var(--accent-green)]" : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10"}`}
+                            className={`w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border ${received ? "bg-[var(--accent-green)] text-white border-[var(--accent-green)]" : "bg-secondary/40 text-muted-foreground border-border/70 hover:bg-secondary/60"}`}
                           >
                             {received
                               ? "✓ Dados recebidos"
@@ -978,7 +978,7 @@ export default function Sync() {
                     </div>
                   </>
                 ) : (
-                  <div className="p-12 text-center bg-white/5 rounded-[2rem] border-2 border-dashed border-white/10">
+                  <div className="p-12 text-center bg-secondary/40 rounded-[2rem] border-2 border-dashed border-border">
                     <Wifi size={40} className="mx-auto mb-4 opacity-20" />
                     <p className="text-sm font-bold opacity-40">
                       Nenhuma rede Wi-Fi detectada.
@@ -1024,7 +1024,7 @@ export default function Sync() {
                   <button
                     onClick={handlePush}
                     disabled={pushing}
-                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.98] transition-all"
+                    className="group relative flex items-center justify-between p-6 rounded-[2rem] bg-secondary/40 border border-border hover:bg-secondary/60 active:scale-[0.98] transition-all"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-[var(--primary-bg-subtle)] flex items-center justify-center text-[var(--primary)]">
@@ -1101,7 +1101,7 @@ export default function Sync() {
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-xs opacity-60">
+              <div className="p-4 rounded-xl bg-secondary/40 border border-border/70 text-xs opacity-60">
                 <p className="mb-2">
                   💡 <strong>Alternativas de compartilhamento:</strong>
                 </p>
@@ -1142,7 +1142,7 @@ export default function Sync() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handleExportFile}
-                className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all"
+                className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-secondary/40 border border-border/70 hover:bg-secondary/60 transition-all"
               >
                 <Share2 className="text-[var(--primary)]" />
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
@@ -1150,7 +1150,7 @@ export default function Sync() {
                 </span>
               </button>
               <label className="cursor-pointer">
-                <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-secondary/40 border border-border/70 hover:bg-secondary/60 transition-all">
                   <Upload className="text-[var(--accent-green)]" />
                   <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
                     {importLoading ? "Carregando" : "Importar"}
@@ -1189,7 +1189,7 @@ export default function Sync() {
                     checkCloudSync();
                     refetchHistory();
                   }}
-                  className="p-2 rounded-lg hover:bg-white/5 text-white/30 transition-colors"
+                  className="p-2 rounded-lg hover:bg-secondary/40 text-muted-foreground transition-colors"
                 >
                   <RotateCw size={16} />
                 </button>
@@ -1239,7 +1239,7 @@ export default function Sync() {
                       setPushingCloud(false);
                     }
                   }}
-                  className="flex-1 py-2 text-[10px] font-black uppercase tracking-widest bg-white/5 hover:bg-white/10 text-white rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  className="flex-1 py-2 text-[10px] font-black uppercase tracking-widest bg-secondary/40 hover:bg-secondary/60 text-white rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 >
                   <Cloud size={14} />
                   {pushingCloud ? "Enviando..." : "Salvar na Nuvem"}
@@ -1251,7 +1251,7 @@ export default function Sync() {
                   Array.from({ length: 3 }).map((_, i) => (
                     <div
                       key={i}
-                      className="h-14 rounded-xl bg-white/5 animate-pulse"
+                      className="h-14 rounded-xl bg-secondary/40 animate-pulse"
                     />
                   ))
                 ) : backups.length === 0 ? (
@@ -1263,7 +1263,7 @@ export default function Sync() {
                   backups.map((b) => (
                     <div
                       key={b.name}
-                      className="group flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all"
+                      className="group flex items-center gap-4 p-4 rounded-xl bg-secondary/20 border border-border/70 hover:bg-secondary/40 transition-all"
                     >
                       <div className="w-8 h-8 rounded-lg bg-[var(--accent-green)]/10 flex items-center justify-center text-[var(--accent-green)]">
                         <ShieldCheck size={14} />
@@ -1310,7 +1310,7 @@ export default function Sync() {
                               toast.error(e.message);
                             }
                           }}
-                          className="p-1.5 hover:bg-white/10 rounded-md text-white/70"
+                          className="p-1.5 hover:bg-secondary/60 rounded-md text-white/70"
                           title="Importar"
                         >
                           <Download size={14} />
@@ -1371,7 +1371,7 @@ export default function Sync() {
                     {syncHistory.map((h, i) => (
                       <div
                         key={i}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.01] border border-white/5"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.01] border border-border/70"
                       >
                         <div
                           className={`w-6 h-6 rounded-lg flex items-center justify-center ${h.type === "upload" ? "bg-blue-500/10 text-blue-400" : "bg-green-500/10 text-green-400"}`}
@@ -1402,7 +1402,7 @@ export default function Sync() {
                 )}
               </div>
 
-              <div className="mt-6 pt-6 border-t border-white/5">
+              <div className="mt-6 pt-6 border-t border-border/70">
                 <p className="text-[9px] font-black uppercase tracking-widest opacity-20 text-center leading-relaxed">
                   Backups retidos por 30 dias
                   <br />
@@ -1442,7 +1442,7 @@ export default function Sync() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70">
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-2">
                     Seu Dispositivo
                   </p>
@@ -1478,7 +1478,7 @@ export default function Sync() {
                 </button>
                 <button
                   onClick={() => setDelta(null)}
-                  className="w-full py-4 rounded-2xl bg-white/5 text-white/40 font-black text-xs uppercase tracking-widest hover:text-white transition-all"
+                  className="w-full py-4 rounded-2xl bg-secondary/40 text-muted-foreground font-black text-xs uppercase tracking-widest hover:text-foreground transition-all"
                 >
                   Cancelar Importação
                 </button>
@@ -1501,7 +1501,7 @@ export default function Sync() {
               initial={{ opacity: 0, scale: 0.92, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="w-full max-w-md p-6 rounded-3xl bg-[#12141a] border border-white/10 shadow-2xl space-y-6 text-white"
+              className="w-full max-w-md p-6 rounded-3xl bg-[#12141a] border border-border shadow-2xl space-y-6 text-white"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1527,7 +1527,7 @@ export default function Sync() {
               </div>
 
               {/* Barra de Progresso Animada */}
-              <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
+              <div className="h-3 w-full bg-secondary/60 rounded-full overflow-hidden p-0.5 border border-border/70">
                 <motion.div
                   className="h-full bg-gradient-to-r from-[var(--primary)] to-emerald-400 rounded-full"
                   initial={{ width: "0%" }}
@@ -1559,7 +1559,7 @@ export default function Sync() {
                         className={`p-2 rounded-xl flex items-center gap-2 border transition-all ${
                           isDone
                             ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                            : "bg-white/5 border-white/5 opacity-40"
+                            : "bg-secondary/40 border-border/70 opacity-40"
                         }`}
                       >
                         <CheckCircle2
@@ -1575,7 +1575,7 @@ export default function Sync() {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-[11px] opacity-60 text-center">
+              <div className="p-3 rounded-xl bg-secondary/40 border border-border/70 text-[11px] opacity-60 text-center">
                 {syncProgress.percent < 100
                   ? "Não feche o aplicativo durante a sincronização..."
                   : "✓ Concluído! Recarregando para aplicar novos dados..."}

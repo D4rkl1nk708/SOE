@@ -195,10 +195,11 @@ describe("OnboardingWizard Component", () => {
     fireEvent.click(screen.getByText(/Finalizar configuração/i));
 
     // Done
-    await waitFor(() => expect(screen.getByText(/Tudo pronto/i)).toBeTruthy(), {
-      timeout: 2000,
-    });
-    fireEvent.click(screen.getByText(/Ir para o Dashboard/i));
+    await waitFor(
+      () => expect(screen.getByText(/fluxo está pronto/i)).toBeTruthy(),
+      { timeout: 2000 },
+    );
+    fireEvent.click(screen.getByText(/explorar o Dashboard/i));
     expect(onComplete).toHaveBeenCalled();
   });
 });

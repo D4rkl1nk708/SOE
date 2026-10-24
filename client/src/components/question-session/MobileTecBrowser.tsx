@@ -134,7 +134,7 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in slide-in-from-bottom duration-500">
       {/* Barra superior de controle */}
-      <div className="h-16 shrink-0 bg-slate-900 border-b border-white/10 flex items-center justify-between px-3 sm:px-6">
+      <div className="h-16 shrink-0 bg-card text-foreground border-b border-border flex items-center justify-between px-3 sm:px-6">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center shrink-0">
             <Zap size={16} className="text-black" />
@@ -177,7 +177,7 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
               setTempUrl(serverUrl);
               setShowConfig(!showConfig);
             }}
-            className="p-2 sm:p-2.5 bg-white/5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1 text-[11px]"
+            className="p-2 sm:p-2.5 bg-secondary/40 rounded-xl text-white/70 hover:text-foreground hover:bg-secondary/60 transition-all flex items-center gap-1 text-[11px]"
             title="Opções de Conexão"
           >
             <Settings size={14} />
@@ -185,7 +185,7 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
           {!useDirectMode && (
             <button
               onClick={forceSync}
-              className="p-2 sm:p-2.5 bg-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary)] hover:text-black transition-all flex items-center gap-1 text-white"
+              className="p-2 sm:p-2.5 bg-secondary/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--primary)] hover:text-black transition-all flex items-center gap-1 text-white"
             >
               <RotateCcw size={12} /> Sincronizar
             </button>
@@ -239,7 +239,7 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
 
       {/* Painel de Configuração do Servidor */}
       {showConfig && (
-        <div className="bg-slate-900/95 border-b border-white/10 p-4 text-white text-xs space-y-3 animate-in slide-in-from-top duration-200">
+        <div className="bg-card text-foreground/95 border-b border-border p-4 text-white text-xs space-y-3 animate-in slide-in-from-top duration-200">
           <div className="flex items-center justify-between">
             <span className="font-bold flex items-center gap-2">
               <Settings size={14} className="text-[var(--primary)]" />
@@ -247,19 +247,19 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
             </span>
             <button
               onClick={() => setShowConfig(false)}
-              className="text-white/40 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               <X size={14} />
             </button>
           </div>
 
-          <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/10">
+          <div className="flex gap-2 p-1 bg-secondary/20 rounded-xl border border-border">
             <button
               onClick={() => handleSwitchMode(false)}
               className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 !useDirectMode
                   ? "bg-[var(--primary)] text-black shadow"
-                  : "text-white/60 hover:text-white"
+                  : "text-white/60 hover:text-foreground"
               }`}
             >
               Modo Integrado (Proxy SOE)
@@ -269,7 +269,7 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
               className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 useDirectMode
                   ? "bg-blue-500 text-white shadow"
-                  : "text-white/60 hover:text-white"
+                  : "text-white/60 hover:text-foreground"
               }`}
             >
               Modo Direto (tecconcursos.com.br)
@@ -297,13 +297,13 @@ export function MobileTecBrowser({ pushToken }: { pushToken: string }) {
                 </button>
                 <button
                   onClick={() => setTempUrl("http://localhost:3000")}
-                  className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-mono"
+                  className="px-2.5 py-1 bg-secondary/60 hover:bg-white/20 rounded text-[10px] font-mono"
                 >
                   localhost:3000 (Cabo USB)
                 </button>
                 <button
                   onClick={() => setTempUrl("http://10.0.2.2:3000")}
-                  className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-mono"
+                  className="px-2.5 py-1 bg-secondary/60 hover:bg-white/20 rounded text-[10px] font-mono"
                 >
                   10.0.2.2:3000 (Emulador)
                 </button>

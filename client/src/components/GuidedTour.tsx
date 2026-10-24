@@ -281,7 +281,7 @@ export function GuidedTour() {
                 }
           }
         >
-          <div className="bg-[#111]/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] relative overflow-hidden ring-1 ring-white/10 w-full">
+          <div className="bg-[#111]/95 backdrop-blur-3xl border border-border rounded-[2.5rem] p-8 shadow-[0_20px_100px_rgba(0,0,0,0.8)] relative overflow-hidden ring-1 ring-white/10 w-full">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[80px] rounded-full" />
 
             {notFound ? (
@@ -302,7 +302,7 @@ export function GuidedTour() {
                       setCurrentStep((s) => s + 1);
                     else setIsActive(false);
                   }}
-                  className="mt-4 px-6 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white/60 transition-all"
+                  className="mt-4 px-6 py-2 bg-secondary/40 hover:bg-secondary/60 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white/60 transition-all"
                 >
                   Pular este passo
                 </button>
@@ -314,7 +314,7 @@ export function GuidedTour() {
                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white">
                     Sincronizando
                   </p>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-white/30 italic">
+                  <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground italic">
                     Aguardando {step.url}...
                   </p>
                 </div>
@@ -322,7 +322,7 @@ export function GuidedTour() {
             ) : (
               <>
                 <div className="flex items-center gap-4 mb-6 relative">
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-xl">
+                  <div className="w-14 h-14 rounded-2xl bg-secondary/40 border border-border flex items-center justify-center shadow-xl">
                     {step.icon}
                   </div>
                   <div>
@@ -333,7 +333,7 @@ export function GuidedTour() {
                       {GLOBAL_TOUR_STEPS.map((_, i) => (
                         <div
                           key={i}
-                          className={`h-1 rounded-full transition-all duration-500 ${i === currentStep ? "w-6 bg-primary" : "w-1.5 bg-white/10"}`}
+                          className={`h-1 rounded-full transition-all duration-500 ${i === currentStep ? "w-6 bg-primary" : "w-1.5 bg-secondary/60"}`}
                         />
                       ))}
                     </div>
@@ -348,7 +348,7 @@ export function GuidedTour() {
             <div className="flex items-center justify-between relative">
               <button
                 onClick={() => setIsActive(false)}
-                className="p-3.5 rounded-2xl bg-white/5 hover:bg-rose-500/10 border border-white/5 text-white/40 hover:text-rose-500 transition-all active:scale-90"
+                className="p-3.5 rounded-2xl bg-secondary/40 hover:bg-rose-500/10 border border-border/70 text-muted-foreground hover:text-rose-500 transition-all active:scale-90"
               >
                 <X size={20} />
               </button>
@@ -357,7 +357,7 @@ export function GuidedTour() {
                 {currentStep > 0 && (
                   <button
                     onClick={() => setCurrentStep((s) => s - 1)}
-                    className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-white/60 hover:text-white transition-all active:scale-90"
+                    className="w-12 h-12 rounded-2xl bg-secondary/40 hover:bg-secondary/60 border border-border/70 flex items-center justify-center text-white/60 hover:text-foreground transition-all active:scale-90"
                   >
                     <ChevronLeft size={22} />
                   </button>

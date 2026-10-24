@@ -105,7 +105,7 @@ export function PlateauRadarWidget() {
         {plateauedTopics.slice(0, 3).map((t, i) => (
           <div
             key={i}
-            className="group relative p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-rose-500/30 transition-all cursor-pointer overflow-hidden"
+            className="group relative p-4 rounded-2xl bg-secondary/20 border border-border/70 hover:border-rose-500/30 transition-all cursor-pointer overflow-hidden"
             onClick={() => {
               setSelected(t);
               setDossier(null);
@@ -133,12 +133,12 @@ export function PlateauRadarWidget() {
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+            <div className="mt-3 pt-3 border-t border-border/70 flex items-center justify-between">
               <div className="flex gap-2">
-                <div className="px-2 py-0.5 rounded-md bg-white/5 text-[0.6rem] font-black uppercase tracking-widest opacity-40">
+                <div className="px-2 py-0.5 rounded-md bg-secondary/40 text-[0.6rem] font-black uppercase tracking-widest opacity-40">
                   {t.questionsResolved} Questões
                 </div>
-                <div className="px-2 py-0.5 rounded-md bg-white/5 text-[0.6rem] font-black uppercase tracking-widest opacity-40">
+                <div className="px-2 py-0.5 rounded-md bg-secondary/40 text-[0.6rem] font-black uppercase tracking-widest opacity-40">
                   {t.revisionCount} Revs
                 </div>
               </div>
@@ -185,7 +185,7 @@ export function PlateauRadarWidget() {
                 {dossier.map((item: any, i: number) => (
                   <div
                     key={i}
-                    className="p-5 rounded-2xl bg-[var(--app-bg)] border border-white/5 shadow-inner space-y-3 relative overflow-hidden"
+                    className="p-5 rounded-2xl bg-[var(--app-bg)] border border-border/70 shadow-inner space-y-3 relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                       {item.type === "analogy" ? (
