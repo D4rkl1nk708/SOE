@@ -214,7 +214,7 @@ export default function Topics() {
         {(filters.search || filters.disciplineId) && (
           <button
             onClick={clearFilters}
-            className="h-10 px-4 rounded-md bg-destructive/5 text-destructive border border-destructive/10 hover:bg-destructive hover:text-white transition-all"
+            className="h-10 px-4 rounded-md bg-destructive/5 text-destructive border border-destructive/10 hover:bg-destructive hover:text-foreground transition-all"
           >
             <X size={16} />
           </button>

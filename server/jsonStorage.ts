@@ -1,710 +1,69 @@
+import type {
+  Discipline,
+  Topic,
+  Revision,
+  MockExam,
+  StudyNote,
+  UserSettings,
+  User,
+  Flashcard,
+  QuestionError,
+  EssayCorrection,
+  Essay,
+  TecTopicSnapshot,
+  TecSnapshot,
+  CadernoTec,
+  Database,
+} from "../shared/types";
+
+export type {
+  Discipline,
+  Topic,
+  Revision,
+  MockExam,
+  StudyNote,
+  UserSettings,
+  User,
+  Flashcard,
+  QuestionError,
+  EssayCorrection,
+  Essay,
+  TecTopicSnapshot,
+  TecSnapshot,
+  CadernoTec,
+  Database,
+};
+import { persistBase64Media } from "./mediaStorage";
 import { smartMergeDatabases, normalizeString } from "../shared/merge";
 import * as fs from "fs";
 import * as path from "path";
 
-// Data directory for JSON files
-let DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
-let DB_FILE = path.join(DATA_DIR, "database.json");
+// ── Core Storage Engine delegated to server/storage/engine.ts ─────────────────
+import {
+  readDatabase,
+  writeDatabase,
+  runInTransaction,
+  acquireWriteLock,
+  resetCache,
+  setDataDir,
+  getDataDir,
+  getDbFile,
+  getEmptyDatabase,
+  now,
+} from "./storage/engine";
 
-export function setDataDir(newDir: string) {
-  DATA_DIR = newDir;
-  DB_FILE = path.join(DATA_DIR, "database.json");
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// ─── In-memory cache ──────────────────────────────────────────────────────────
-// Avoids reading the file from disk on every operation.
-// Invalidated on every write so reads always reflect the latest state.
-let _dbCache: Database | null = null;
-let _dbCacheVersion = 0; // bumped on every write
-export function resetCache() {
-  _dbCache = null;
-  _dbCacheVersion = 0;
-}
-
-let _writeLock: Promise<any> = Promise.resolve();
-
-function acquireWriteLock(fn: () => any) {
-  _writeLock = _writeLock.then(async () => {
-    try {
-      await fn();
-    } catch (err) {
-      console.error("[jsonStorage] Lock execution error:", err);
-    }
-  });
-}
-
-async function runInTransaction<T>(
-  fn: (db: Database) => T | Promise<T>,
-): Promise<T> {
-  const result = await (_writeLock = _writeLock
-    .then(async () => {
-      try {
-        const db = readDatabase();
-        const res = await fn(db);
-        // We don't call writeDatabase here because we want to be explicit,
-        // but we could. For now, let's just make sure the callers use the db we give them.
-        return res;
-      } catch (err) {
-        console.error("[jsonStorage] Transaction error:", err);
-        throw err;
-      }
-    })
-    .catch(() => {})); // prevent lock chain from breaking
-  return result as T;
-}
-
-// Type definitions
-export interface Discipline {
-  id: number;
-  userId: number;
-  name: string;
-  color: string;
-  weight: number;
-  order: number;
-  performance?: {
-    questionsResolved: number;
-    accuracy: number;
-    correctCount: number;
-    errorCount: number;
-    lastImportedAt: string;
-  };
-  studyTimeSeconds: number; // Total study time in seconds
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Topic {
-  id: number;
-  userId: number;
-  disciplineId: number;
-  name: string;
-  order: number;
-  studyDate: string;
-  notes: string | null;
-  performance?: {
-    questionsResolved: number;
-    accuracy: number;
-    correctCount: number;
-    errorCount: number;
-    // R01 - Matriz de Origem do Erro
-    errorByAttention?: number;
-    errorByForgetting?: number;
-    errorByTheory?: number;
-    errorByTrap?: number;
-    // R04 - Inferência por Tempo de Resposta (agregado)
-    fastErrors?: number;
-    slowErrors?: number;
-    // History snapshots for R07/R09
-    history?: Array<{
-      date: string;
-      accuracy: number;
-      questionsResolved: number;
-    }>;
-    // TEC — dados enriquecidos de incidência e banca
-    incidencia?: number; // 0.0–1.0 — percentual de incidência do assunto na banca/concurso
-    totalQuestoesBanca?: number; // total de questões disponíveis no TEC para este assunto
-    bancaDominante?: string; // banca com mais questões neste assunto (ex: "CESPE")
-    bancaStats?: Record<string, { correct: number; wrong: number }>; // desempenho por banca
-    dificuldade?: number; // 0.0–1.0 — dificuldade média do assunto no TEC
-    lastImportedAt?: string; // ISO datetime da última importação TEC
-  };
-  studyTimeSeconds: number;
-  // R26 - Anotações de Sobrevivência (per-topic)
-  topicNotes?: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Revision {
-  id: number;
-  userId: number;
-  topicId: number;
-  scheduledDate: string;
-  type: "revision" | "test";
-  revisionNumber: number;
-  completed: boolean;
-  ignored: boolean;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  link?: string; // Link opcional para caderno de questões (TEC, etc.)
-  // F04 - Índice de Dificuldade de Evocação
-  recallRating?: 1 | 2 | 3 | 4 | 5; // 1=não lembrei nada, 5=lembrei fácil
-  // F01 - Free Recall Mode
-  freeRecallText?: string; // O que o usuário escreveu no free recall
-}
-
-export interface MockExam {
-  id: number;
-  userId: number;
-  name: string;
-  date: string;
-  correct: number;
-  wrong: number;
-  blank: number;
-  totalQuestions: number;
-  score: number; // For CESPE: correct - wrong
-  createdAt: string;
-}
-
-export interface StudyNote {
-  id: number;
-  userId: number;
-  disciplineId: number;
-  topicId?: number;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UserSettings {
-  examDate?: string;
-  examName?: string;
-  exams?: { id: string; name: string; date: string }[];
-  editalCycle?: {
-    id: string;
-    title: string;
-    durationMinutes: number;
-    done: boolean;
-  }[];
-  editalRows?: {
-    id: string;
-    discipline: string;
-    topic: string;
-    completed: boolean;
-    notes?: string;
-    // enriched fields from xlsx import
-    incidencia?: number; // 0-1 percentage weight
-    quantidade?: number; // absolute question count
-    acerto?: number; // 0-1 hit rate
-    revisar?: boolean;
-    avancar?: boolean;
-    discursiva?: boolean;
-    isHeader?: boolean; // first row of a discipline group
-  }[];
-  cycleConfig?: {
-    type: "numbered" | "weekdays";
-    count: number; // number of cycles (for numbered) or days of week selected
-    selectedDays?: number[]; // 0=Sun,1=Mon... for weekdays type
-    assignments?: { cycleKey: string; disciplineId: number }[]; // which discipline goes in which cycle
-  };
-  theme: "light" | "dark";
-  studyStreak: {
-    current: number;
-    best: number;
-    lastStudyDate: string | null;
-  };
-  /** Dias entre testes (padrão 3) */
-  testIntervalDays?: number;
-  /** Dias entre revisões - fase 1 (padrão 25). 0 = sem revisões */
-  revisionIntervalDays?: number;
-  /** Dias entre revisões - fase 2 (padrão 50) */
-  revisionSecondPhaseDays?: number;
-  /** Meta diária de estudo em minutos */
-  dailyGoalMinutes?: number;
-  /** Anotações globais do usuário - R26 */
-  topicNotes?: Array<{
-    id: string;
-    topicPattern: string;
-    text: string;
-    triggeredCount: number;
-  }>;
-  /** Afinidade de banca - R18 */
-  bancaStats?: Record<string, { correct: number; wrong: number }>;
-  /** Medidor de fadiga - R28: questões por sessão registradas */
-  fatigueLog?: Array<{
-    date: string;
-    questionsCount: number;
-    hourOfDay: number;
-    accuracy: number;
-  }>;
-  /** Metas de dopamina - R29 */
-  gamificationPoints?: number;
-  /** Dashboard widget visibility/order config */
-  dashboardConfig?: {
-    hiddenWidgets?: string[];
-    extraWidgets?: string[];
-  };
-  // ===== NEW FEATURES v10 =====
-  /** F09 - Registro de estado emocional antes de estudar */
-  emotionLog?: Array<{
-    date: string; // ISO datetime
-    mood: 1 | 2 | 3 | 4 | 5; // 1=muito mal, 5=ótimo
-    hourOfDay: number;
-  }>;
-  /** F10 - Horário de pico registrado (horas com melhor desempenho) */
-  peakHours?: Array<{ hour: number; avgAccuracy: number; sessions: number }>;
-  /** Configurações de sincronização inteligente do TEC */
-  tecSmartDisciplineMatching?: boolean;
-  tecAskBeforeCreatingDiscipline?: boolean;
-  tecDisciplineAliases?: Record<string, number>;
-  pendingTecDisciplines?: Array<{
-    id: string;
-    disciplineName: string;
-    topicName: string;
-    timestamp: string;
-    suggestedDisciplineId?: number;
-    suggestedDisciplineName?: string;
-  }>;
-  /** F15 - Registro de horário de encerramento de estudo (sono) */
-  sleepLog?: Array<{
-    date: string;
-    endStudyHour: number;
-    alertIssued: boolean;
-  }>;
-  /** Sync History - F20 */
-  syncHistory?: Array<{
-    type: "upload" | "download";
-    date: string;
-    fileName?: string;
-    status: "success" | "failure";
-    message?: string;
-  }>;
-  /** F07 - Timer intercalação: tempo máximo contínuo na mesma disciplina (min) */
-  attentionAlertMinutes?: number; // padrão 45
-  /** F08 - Feedback postergado: mostrar gabarito só no final do bloco */
-  delayedFeedback?: boolean;
-  /** F16 - Modo pré-prova ativado automaticamente X dias antes */
-  preExamDays?: number; // padrão 7
-  /** F10 - Score de horário por sessão de estudo */
-  studySessionLog?: Array<{
-    date: string;
-    hourStart: number;
-    durationMin: number;
-    accuracy: number;
-    disciplineId?: number;
-  }>;
-  /** Token secreto usado pelo userscript Tampermonkey para autenticar pushes em tempo real */
-  pushToken?: string;
-  /** Chaves de API de Inteligência Artificial cadastradas pelo usuário (para o Mentor SOE) */
-  aiApiKey?: string;
-  aiProvider?: "gemini" | "openai" | "claude";
-  /** Sincronização em Nuvem Invisível: Diretório de auto-backup (para espelhar no Google Drive/Dropbox localmente) */
-  autoBackupDir?: string;
-  autoBackupEnabled?: boolean;
-  /** Foto de perfil em Base64 ou URL */
-  profileImage?: string;
-  /** Preferência do Electron: Minimizar para a bandeja ao fechar a janela */
-  minimizeToTray?: boolean;
-  /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
-  mentorObservations?: string[];
-  /** F31 - Matriz de Confusão Conceitual (Tópicos que o aluno confunde entre si) */
-  conceptConfusions?: Array<{
-    id: string;
-    conceptA: string;
-    conceptB: string;
-    explanation: string;
-    detectedAt: string;
-    occurrences: number;
-  }>;
-}
-
-export interface User {
-  id: number;
-  openId: string;
-  name: string | null;
-  email: string | null;
-  loginMethod: string | null;
-  role: "user" | "admin";
-  settings: UserSettings;
-  createdAt: string;
-  updatedAt: string;
-  lastSignedIn: string;
-}
-
-export interface Flashcard {
-  id: number;
-  userId: number;
-  disciplineId: number;
-  topicId?: number;
-  noteId?: number;
-  front: string;
-  back: string;
-  // spaced repetition state
-  interval: number; // days until next review
-  easeFactor: number; // SM-2 ease factor (default 2.5)
-  repetitions: number; // times reviewed successfully
-  nextReviewDate: string; // YYYY-MM-DD
-  archived?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface QuestionError {
-  id: number;
-  userId: number;
-  topicId: number;
-  disciplineId: number;
-  // Parsed from TEC paste
-  questionId?: string; // e.g. "#3872741"
-  banca?: string; // e.g. "CEBRASPE (CESPE)"
-  year?: number;
-  contest?: string; // e.g. "Agente Fazendário Estadual (SEFAZ PR)/Administrador"
-  statement: string; // full question statement
-  alternatives: { letter: string; text: string }[];
-  userAnswer?: string; // e.g. "B"
-  correctAnswer?: string; // e.g. "C"
-  // Classification
-  errorOrigin?: "attention" | "forgetting" | "theory" | "trap";
-  // AI analysis saved per question
-  aiAnalysis?: string;
-  aiAnalyzedAt?: string;
-  // AI revision tip
-  aiRevisionTip?: string;
-  aiRevisionTipAt?: string;
-  // AI similar questions
-  aiSimilarQuestions?: string;
-  aiSimilarQuestionsAt?: string;
-  // AI flashcard generated
-  aiFlashcardGenerated?: boolean;
-  resolution?: string; // NOVO: comentário da resolução importado do TEC
-  supportText?: string; // NOVO: texto de apoio da questão
-  source?: "manual" | "tec" | "mined"; // NOVO: origem da questão
-  // IDEA 1: Mapeamento Psicológico de Distratores
-  distractorPattern?:
-    | "absolutist"
-    | "partial"
-    | "similar"
-    | "negative"
-    | "timing"
-    | "calculation";
-  createdAt: string;
-}
-
-export interface EssayCorrection {
-  score: number;
-  feedback: string; // Markdown formatted feedback
-  errors: Array<{
-    type: string;
-    description: string;
-    suggestion?: string;
-    line?: number;
-  }>;
-  gradeBreakdown: Record<string, number>; // e.g., { "Gramática": 2.0, "Coesão": 3.0 }
-}
-
-export interface Essay {
-  id: number;
-  userId: number;
-  disciplineId: number;
-  topicId?: number;
-  title: string; // Tema da redação
-  banca: string;
-  originalImage?: string; // Base64 or URL
-  transcription: string;
-  correction?: EssayCorrection;
-  status: "draft" | "pending" | "corrected";
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ============ TEC SNAPSHOT — histórico de performance por importação ============
-export interface TecTopicSnapshot {
-  topicName: string;
-  disciplineName: string;
-  questionsResolved: number;
-  correctCount: number;
-  errorCount: number;
-  accuracy: number;
-}
-
-export interface TecSnapshot {
-  id: number;
-  userId: number;
-  importedAt: string; // ISO datetime
-  totalQuestions: number;
-  totalCorrect: number;
-  totalErrors: number;
-  overallAccuracy: number;
-  topics: TecTopicSnapshot[];
-}
-
-export interface CadernoTec {
-  cadernoId: string;
-  cadernoUrl: string;
-  disciplina: string;
-  lastSync: string; // ISO datetime
-  topicsCount: number;
-}
-
-interface Database {
-  users: User[];
-  disciplines: Discipline[];
-  topics: Topic[];
-  revisions: Revision[];
-  mockExams: MockExam[];
-  notes: StudyNote[];
-  flashcards: Flashcard[];
-  questionErrors: QuestionError[];
-  essays: Essay[];
-  tecSnapshots: TecSnapshot[];
-  cadernosTec: Record<number, CadernoTec[]>;
-  counters: {
-    users: number;
-    disciplines: number;
-    topics: number;
-    revisions: number;
-    mockExams: number;
-    notes: number;
-    flashcards: number;
-    questionErrors: number;
-    essays: number;
-    tecSnapshots: number;
-  };
-}
-
-// Initialize empty database
-function getEmptyDatabase(): Database {
-  return {
-    users: [],
-    disciplines: [],
-    topics: [],
-    revisions: [],
-    mockExams: [],
-    notes: [],
-    flashcards: [],
-    questionErrors: [],
-    essays: [],
-    tecSnapshots: [],
-    cadernosTec: {},
-    counters: {
-      users: 0,
-      disciplines: 0,
-      topics: 0,
-      revisions: 0,
-      mockExams: 0,
-      notes: 0,
-      flashcards: 0,
-      questionErrors: 0,
-      essays: 0,
-      tecSnapshots: 0,
-    },
-  };
-}
-
-// Read database from file (uses in-memory cache when available)
-function fixEncoding(str: string): string {
-  if (typeof str !== "string") return str;
-  try {
-    let hasHigh = false;
-    for (let i = 0; i < str.length; i++) {
-      if (str.charCodeAt(i) > 127) {
-        hasHigh = true;
-        break;
-      }
-    }
-    if (!hasHigh) return str;
-    const bytes = Buffer.alloc(str.length);
-    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xff;
-    const fixed = bytes.toString("utf8");
-    if (!fixed.includes("\ufffd")) return fixed;
-  } catch {}
-  return str;
-}
-
-function readDatabase(): Database {
-  // Return cached version if available (invalidated after every write)
-  if (_dbCache !== null) return _dbCache;
-
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, "utf-8");
-      const db = JSON.parse(data);
-      if (db.users) {
-        console.log(
-          `[Database] Banco carregado. Usuários encontrados: ${db.users.length}`,
-        );
-      }
-      // Migration for new fields if they don't exist
-      if (!db.mockExams) db.mockExams = [];
-      if (!db.notes) db.notes = [];
-      if (!db.flashcards) db.flashcards = [];
-      if (!db.questionErrors) db.questionErrors = [];
-      if (!db.essays) db.essays = [];
-      if (!db.tecSnapshots) db.tecSnapshots = [];
-      if (!db.cadernosTec) db.cadernosTec = {};
-      if (!db.counters.mockExams) db.counters.mockExams = 0;
-      if (!db.counters.notes) db.counters.notes = 0;
-      if (!db.counters.flashcards) db.counters.flashcards = 0;
-      if (!db.counters.questionErrors) db.counters.questionErrors = 0;
-      if (!db.counters.essays) db.counters.essays = 0;
-      if (!db.counters.tecSnapshots) db.counters.tecSnapshots = 0;
-      // Migration helpers — raw JSON records may be missing fields added in later versions
-      type RawRecord = Record<string, unknown>;
-      // Migrate disciplines to have studyTimeSeconds
-      db.disciplines = (db.disciplines as unknown as RawRecord[])
-        .map((d) => ({
-          ...d,
-          name: fixEncoding(d.name as string),
-          studyTimeSeconds: (d.studyTimeSeconds as number) || 0,
-          weight: (d.weight as number) || 1,
-          order: (d.order as number) || 0,
-        }))
-        .sort((a, b) => (b.weight as number) - (a.weight as number))
-        .map((d, idx) => ({
-          ...d,
-          order: d.order || idx + 1,
-        })) as unknown as Discipline[];
-      // Migrate topics to have studyTimeSeconds
-      db.topics = (db.topics as unknown as RawRecord[]).map((t) => ({
-        ...t,
-        name: fixEncoding(t.name as string),
-        notes: t.notes ? fixEncoding(t.notes as string) : t.notes,
-        studyTimeSeconds: (t.studyTimeSeconds as number) || 0,
-        order: typeof t.order === "number" ? t.order : Number(t.id),
-      })) as unknown as Topic[];
-      // Migrate settings to support exams and edital data
-      db.users = (db.users as unknown as RawRecord[]).map((u) => {
-        const rawSettings = (u.settings as RawRecord) || {
-          theme: "light",
-          studyStreak: { current: 0, best: 0, lastStudyDate: null },
-        };
-        const examsFromLegacy =
-          rawSettings.examDate && rawSettings.examName
-            ? [
-                {
-                  id: "legacy-exam",
-                  name: rawSettings.examName as string,
-                  date: rawSettings.examDate as string,
-                },
-              ]
-            : [];
-        return {
-          ...u,
-          settings: {
-            ...rawSettings,
-            exams: Array.isArray(rawSettings.exams)
-              ? rawSettings.exams
-              : examsFromLegacy,
-            editalCycle: Array.isArray(rawSettings.editalCycle)
-              ? rawSettings.editalCycle
-              : [],
-            editalRows: Array.isArray(rawSettings.editalRows)
-              ? rawSettings.editalRows
-              : [],
-          },
-        };
-      }) as unknown as User[];
-      // Migrate revisions to have ignored field
-      db.revisions = (db.revisions as unknown as RawRecord[]).map((r) => ({
-        ...r,
-        ignored: (r.ignored as boolean) || false,
-      })) as unknown as Revision[];
-
-      // Deduplicate disciplines by normalized name
-      const seenDiscNorm = new Map<string, number>();
-      const dupDiscMap = new Map<number, number>();
-      const uniqueDisciplines: Discipline[] = [];
-      for (const d of db.disciplines) {
-        const norm = normalizeString(d.name);
-        if (!norm) continue;
-        if (!seenDiscNorm.has(norm)) {
-          seenDiscNorm.set(norm, d.id);
-          uniqueDisciplines.push(d);
-        } else {
-          const canonicalId = seenDiscNorm.get(norm)!;
-          dupDiscMap.set(d.id, canonicalId);
-        }
-      }
-      if (dupDiscMap.size > 0) {
-        db.disciplines = uniqueDisciplines;
-        for (const t of db.topics) {
-          if (dupDiscMap.has(t.disciplineId)) {
-            t.disciplineId = dupDiscMap.get(t.disciplineId)!;
-          }
-        }
-        for (const qe of (db.questionErrors || [])) {
-          if (dupDiscMap.has(qe.disciplineId)) {
-            qe.disciplineId = dupDiscMap.get(qe.disciplineId)!;
-          }
-        }
-        for (const n of (db.notes || [])) {
-          if (dupDiscMap.has(n.disciplineId)) {
-            n.disciplineId = dupDiscMap.get(n.disciplineId)!;
-          }
-        }
-      }
-      // Persist encoding fixes back to disk (one-time migration)
-      if (!db._encodingFixed) {
-        db._encodingFixed = true;
-        try {
-          fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-        } catch {}
-      }
-      _dbCache = db;
-      return db;
-    }
-  } catch (error) {
-    console.error("Error reading database:", error);
-  }
-  const empty = getEmptyDatabase();
-  _dbCache = empty;
-  return empty;
-}
-
-let _autoBackupTimeout: any = null;
-function triggerDebouncedBackup(db: Database) {
-  if (_autoBackupTimeout) clearTimeout(_autoBackupTimeout);
-  _autoBackupTimeout = setTimeout(() => {
-    try {
-      if (db.users && db.users.length > 0) {
-        const primaryUser = db.users[0];
-        if (
-          primaryUser.settings?.autoBackupEnabled &&
-          primaryUser.settings.autoBackupDir
-        ) {
-          const targetDir = primaryUser.settings.autoBackupDir;
-          if (!fs.existsSync(targetDir)) {
-            fs.mkdirSync(targetDir, { recursive: true });
-          }
-          const backupFile = path.join(targetDir, "soe_backup_sync.json");
-          fs.copyFileSync(DB_FILE, backupFile);
-        }
-      }
-    } catch (copyErr) {
-      console.error("SOE Auto-Backup Error:", copyErr);
-    }
-  }, 3000);
-}
-
-// Write database to file (invalidates cache, queues through write lock)
-function writeDatabase(db: Database): void {
-  // Invalidate cache immediately so subsequent reads get the new data
-  _dbCache = db;
-  _dbCacheVersion++;
-
-  // Queue the actual disk write behind the lock
-  acquireWriteLock(() => {
-    try {
-      const tempFile = `${DB_FILE}.tmp`;
-      // Compact JSON write for maximum speed and lower disk footprint
-      fs.writeFileSync(tempFile, JSON.stringify(db), "utf-8");
-      fs.renameSync(tempFile, DB_FILE);
-
-      // AUTO-BACKUP debounced (non-blocking)
-      triggerDebouncedBackup(db);
-    } catch (error) {
-      // If the write fails, clear cache so the next read will reload from disk
-      _dbCache = null;
-      console.error("Error writing database:", error);
-      throw error;
-    }
-  });
-}
-
-// Get current timestamp
-function now(): string {
-  return new Date().toISOString();
-}
+export {
+  readDatabase,
+  writeDatabase,
+  runInTransaction,
+  acquireWriteLock,
+  resetCache,
+  setDataDir,
+  getDataDir,
+  getDbFile,
+  getEmptyDatabase,
+  now,
+};
 
 // ============ USER OPERATIONS ============
 
@@ -1038,15 +397,18 @@ export async function deleteTopic(id: number, userId: number): Promise<void> {
   writeDatabase(db);
 }
 
-
 export async function mergeDisciplines(
   userId: number,
   sourceId: number,
   targetId: number,
 ): Promise<{ success: boolean; movedTopics: number }> {
   const db = readDatabase();
-  const sourceDisc = db.disciplines.find((d) => d.id === sourceId && d.userId === userId);
-  const targetDisc = db.disciplines.find((d) => d.id === targetId && d.userId === userId);
+  const sourceDisc = db.disciplines.find(
+    (d) => d.id === sourceId && d.userId === userId,
+  );
+  const targetDisc = db.disciplines.find(
+    (d) => d.id === targetId && d.userId === userId,
+  );
   if (!sourceDisc || !targetDisc) {
     throw new Error("Disciplina de origem ou destino não encontrada");
   }
@@ -1075,8 +437,11 @@ export async function mergeDisciplines(
     }
   }
 
-  targetDisc.studyTimeSeconds = (targetDisc.studyTimeSeconds || 0) + (sourceDisc.studyTimeSeconds || 0);
-  db.disciplines = db.disciplines.filter((d) => d.id !== sourceId || d.userId !== userId);
+  targetDisc.studyTimeSeconds =
+    (targetDisc.studyTimeSeconds || 0) + (sourceDisc.studyTimeSeconds || 0);
+  db.disciplines = db.disciplines.filter(
+    (d) => d.id !== sourceId || d.userId !== userId,
+  );
 
   writeDatabase(db);
   return { success: true, movedTopics };
@@ -1088,8 +453,12 @@ export async function mergeTopics(
   targetId: number,
 ): Promise<{ success: boolean; movedRevisions: number }> {
   const db = readDatabase();
-  const sourceTopic = db.topics.find((t) => t.id === sourceId && t.userId === userId);
-  const targetTopic = db.topics.find((t) => t.id === targetId && t.userId === userId);
+  const sourceTopic = db.topics.find(
+    (t) => t.id === sourceId && t.userId === userId,
+  );
+  const targetTopic = db.topics.find(
+    (t) => t.id === targetId && t.userId === userId,
+  );
   if (!sourceTopic || !targetTopic) {
     throw new Error("Tema de origem ou destino não encontrado");
   }
@@ -1118,20 +487,33 @@ export async function mergeTopics(
     }
   }
 
-  const sPerf = sourceTopic.performance || { questionsResolved: 0, correctCount: 0, errorCount: 0 };
-  const tPerf = targetTopic.performance || { questionsResolved: 0, correctCount: 0, errorCount: 0 };
-  const newResolved = (sPerf.questionsResolved || 0) + (tPerf.questionsResolved || 0);
+  const sPerf = sourceTopic.performance || {
+    questionsResolved: 0,
+    correctCount: 0,
+    errorCount: 0,
+  };
+  const tPerf = targetTopic.performance || {
+    questionsResolved: 0,
+    correctCount: 0,
+    errorCount: 0,
+  };
+  const newResolved =
+    (sPerf.questionsResolved || 0) + (tPerf.questionsResolved || 0);
   const newCorrect = (sPerf.correctCount || 0) + (tPerf.correctCount || 0);
   const newError = (sPerf.errorCount || 0) + (tPerf.errorCount || 0);
   targetTopic.performance = {
     questionsResolved: newResolved,
     correctCount: newCorrect,
     errorCount: newError,
-    accuracy: newResolved > 0 ? Math.round((newCorrect / newResolved) * 100) : 0,
-    lastStudied: sourceTopic.performance?.lastStudied || targetTopic.performance?.lastStudied,
+    accuracy:
+      newResolved > 0 ? Math.round((newCorrect / newResolved) * 100) : 0,
+    lastStudied:
+      sourceTopic.performance?.lastStudied ||
+      targetTopic.performance?.lastStudied,
   };
 
-  targetTopic.studyTimeSeconds = (targetTopic.studyTimeSeconds || 0) + (sourceTopic.studyTimeSeconds || 0);
+  targetTopic.studyTimeSeconds =
+    (targetTopic.studyTimeSeconds || 0) + (sourceTopic.studyTimeSeconds || 0);
   db.topics = db.topics.filter((t) => t.id !== sourceId || t.userId !== userId);
 
   writeDatabase(db);
@@ -1456,10 +838,17 @@ export async function importDatabaseForUser(
 
     const db = readDatabase();
     const merged = smartMergeDatabases(db, importedDb, currentUserId);
-    writeDatabase(merged);
-    resetCache();
+    const stats = merged._mergeReport;
+    // O relatório é metadado de retorno, não deve ser persistido no banco.
+    delete (merged as { _mergeReport?: unknown })._mergeReport;
+    writeDatabase(merged as unknown as Database);
+    // writeDatabase já atualiza o cache; resetCache() aqui fazia a leitura
+    // seguinte pegar o arquivo antigo antes do rename terminar.
     console.log(
-      `[Import] Smart merge finalizado com sucesso para UserID=${currentUserId}. Matérias: ${merged.disciplines.length}, Tópicos: ${merged.topics.length}, Erros: ${merged.questionErrors.length}`,
+      `[Import] Smart merge finalizado para UserID=${currentUserId}: ` +
+        `${stats?.disciplinesCount ?? merged.disciplines.length} matérias, ` +
+        `${stats?.topicsCount ?? merged.topics.length} tópicos, ` +
+        `${stats?.questionErrorsCount ?? (merged.questionErrors?.length || 0)} erros.`,
     );
   } catch (error) {
     console.error("[Import] Erro fatal:", error);
@@ -1467,16 +856,23 @@ export async function importDatabaseForUser(
   }
 }
 
-export function syncReceiveDatabase(incomingJson: string | object): { success: boolean; stats?: any } {
-  const incoming = typeof incomingJson === "string" ? JSON.parse(incomingJson) : incomingJson;
+export function syncReceiveDatabase(incomingJson: string | object): {
+  success: boolean;
+  stats?: any;
+} {
+  const incoming =
+    typeof incomingJson === "string" ? JSON.parse(incomingJson) : incomingJson;
   if (!incoming || typeof incoming !== "object") {
     throw new Error("Payload de sincronização inválido.");
   }
   const db = readDatabase();
   const merged = smartMergeDatabases(db, incoming);
-  writeDatabase(merged);
-  resetCache();
-  return { success: true, stats: merged._mergeReport };
+  const stats = merged._mergeReport;
+  delete (merged as { _mergeReport?: unknown })._mergeReport;
+  writeDatabase(merged as unknown as Database);
+  // Não chamar resetCache(): o cache já contém o merge e limpar forçaria uma
+  // leitura do arquivo antes da escrita enfileirada terminar.
+  return { success: true, stats };
 }
 
 export async function importDatabase(jsonString: string): Promise<void> {
@@ -2388,9 +1784,7 @@ export async function integrateMinedQuestions(
       const subjectName = q.subject || "Geral";
       const normSubject = normalizeString(subjectName);
       let disc = db.disciplines.find(
-        (d) =>
-          d.userId === userId &&
-          normalizeString(d.name) === normSubject,
+        (d) => d.userId === userId && normalizeString(d.name) === normSubject,
       );
       if (!disc) {
         db.counters.disciplines++;
@@ -2552,8 +1946,10 @@ export async function saveEssay(
 ): Promise<Essay> {
   const db = readDatabase();
   db.counters.essays++;
+  const originalImage = persistBase64Media(data.originalImage, "essay");
   const record: Essay = {
     ...data,
+    originalImage,
     id: db.counters.essays,
     createdAt: now(),
     updatedAt: now(),
@@ -2571,7 +1967,9 @@ export async function getEssaysByUser(
   let items = db.essays.filter((e) => e.userId === userId);
   if (disciplineId)
     items = items.filter((e) => e.disciplineId === disciplineId);
-  return items.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  return items.sort((a, b) =>
+    (b.createdAt || "").localeCompare(a.createdAt || ""),
+  );
 }
 
 export async function getEssayById(
@@ -2590,7 +1988,14 @@ export async function updateEssay(
   const db = readDatabase();
   const idx = db.essays.findIndex((e) => e.id === id && e.userId === userId);
   if (idx === -1) return null;
-  db.essays[idx] = { ...db.essays[idx], ...data, updatedAt: now() };
+  const updateData = { ...data };
+  if (updateData.originalImage) {
+    updateData.originalImage = persistBase64Media(
+      updateData.originalImage,
+      "essay",
+    );
+  }
+  db.essays[idx] = { ...db.essays[idx], ...updateData, updatedAt: now() };
   writeDatabase(db);
   return db.essays[idx];
 }
@@ -2932,7 +2337,7 @@ export async function getTecRegressions(
   }> = [];
   for (const curTopic of current.topics) {
     const prevTopic = previous.topics.find(
-      (t) =>
+      (t: any) =>
         t.topicName === curTopic.topicName &&
         t.disciplineName === curTopic.disciplineName,
     );
@@ -2963,8 +2368,10 @@ export async function getWeakTopicsFromSnapshot(
   const snaps = await getTecSnapshots(userId, 1);
   if (!snaps[0]) return [];
   return snaps[0].topics
-    .filter((t) => t.accuracy < accuracyThreshold && t.questionsResolved >= 5)
-    .sort((a, b) => a.accuracy - b.accuracy);
+    .filter(
+      (t: any) => t.accuracy < accuracyThreshold && t.questionsResolved >= 5,
+    )
+    .sort((a: any, b: any) => a.accuracy - b.accuracy);
 }
 
 // ============ CADERNOS TEC (tempo real via userscript) ============
@@ -2987,7 +2394,8 @@ export async function saveCadernoTec(
 export async function getCadernosTec(userId: number): Promise<CadernoTec[]> {
   const db = readDatabase();
   return (db.cadernosTec?.[userId] ?? []).sort(
-    (a, b) => new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime(),
+    (a: any, b: any) =>
+      new Date(b.lastSync).getTime() - new Date(a.lastSync).getTime(),
   );
 }
 

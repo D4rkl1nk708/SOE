@@ -2053,7 +2053,7 @@ Retorne um JSON:
         provider: z.enum(["gemini", "openai", "claude"]).default("gemini"),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       // 1. Pegar questões do TEC JSON
       const tecQuestions = await storage.getRandomTecJsonQuestions(4);
 
@@ -2078,7 +2078,7 @@ Retorne um JSON:
       }
 
       // 3. Gerar 2 questões de "Maldade" (Banca Mirror) baseadas nas confusões do usuário
-      const settings = await storage.getUserSettings(1); // TODO: get real userId from ctx
+      const settings = await storage.getUserSettings(ctx.user.id);
       const confusions = settings?.conceptConfusions || [];
       let mirrorQuestions: any[] = [];
 

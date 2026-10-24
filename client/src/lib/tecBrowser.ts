@@ -1,5 +1,6 @@
 import { registerPlugin, Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
+import { normalizeString } from "@shared/utils";
 
 export interface TecBrowserPluginInterface {
   open(options: { url: string }): Promise<void>;
@@ -7,15 +8,16 @@ export interface TecBrowserPluginInterface {
   sync(): Promise<void>;
   addListener(
     eventName: "soeTecEvent",
-    listenerFunc: (event: any) => void
+    listenerFunc: (event: any) => void,
   ): Promise<any>;
   addListener(
     eventName: "browserClosed",
-    listenerFunc: () => void
+    listenerFunc: () => void,
   ): Promise<any>;
 }
 
-export const TecBrowser = registerPlugin<TecBrowserPluginInterface>("TecBrowser");
+export const TecBrowser =
+  registerPlugin<TecBrowserPluginInterface>("TecBrowser");
 
 export async function handleTecEvent(eventData: any, pushToken?: string) {
   if (!eventData) return;
@@ -25,17 +27,22 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
   // 1. Obter URL base do servidor configurado se houver (para sincronizar com PC se online)
   let serverUrl = "";
   try {
-    serverUrl = (localStorage.getItem("soe_tec_server_url") || "").trim().replace(/\/$/, "");
+    serverUrl = (localStorage.getItem("soe_tec_server_url") || "")
+      .trim()
+      .replace(/\/$/, "");
   } catch {}
 
   if (serverUrl) {
     try {
       let endpoint = "";
       if (type === "SOE_TEC_INCREMENT_STATS") endpoint = "/api/tec/increment";
-      else if (type === "SOE_TEC_WRONG_QUESTION") endpoint = "/api/tec/wrong-question";
+      else if (type === "SOE_TEC_WRONG_QUESTION")
+        endpoint = "/api/tec/wrong-question";
       else if (type === "SOE_TEC_DATA") endpoint = "/api/tec/caderno-push";
-      else if (type === "SOE_TEC_BANCA_INCREMENT") endpoint = "/api/tec/banca-increment";
-      else if (type === "SOE_TEC_CADERNOS_LIST") endpoint = "/api/tec/cadernos-list";
+      else if (type === "SOE_TEC_BANCA_INCREMENT")
+        endpoint = "/api/tec/banca-increment";
+      else if (type === "SOE_TEC_CADERNOS_LIST")
+        endpoint = "/api/tec/cadernos-list";
 
       if (endpoint) {
         fetch(`${serverUrl}${endpoint}`, {
@@ -69,7 +76,7 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
       const discName = payload.disciplina || "TEC Concursos";
       const discList = await localDisciplineList();
       const foundDisc = discList.find(
-        (d: any) => d.name.toLowerCase() === discName.toLowerCase(),
+        (d: any) => normalizeString(d.name) === normalizeString(discName),
       );
       const discId = foundDisc
         ? foundDisc.id
@@ -113,15 +120,18 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
             payload.correctAdd > 0
               ? "✓ Acerto registrado no SOE!"
               : "✗ Erro registrado no SOE!",
-            { position: "bottom-center" }
+            { position: "bottom-center" },
           );
         }
       }
-    } else if (type === "SOE_TEC_WRONG_QUESTION" && (payload?.statement || payload?.questionId)) {
+    } else if (
+      type === "SOE_TEC_WRONG_QUESTION" &&
+      (payload?.statement || payload?.questionId)
+    ) {
       const discName = payload.disciplina || "TEC Concursos";
       const discList = await localDisciplineList();
       const foundDisc = discList.find(
-        (d: any) => d.name.toLowerCase() === discName.toLowerCase(),
+        (d: any) => normalizeString(d.name) === normalizeString(discName),
       );
       const discId = foundDisc
         ? foundDisc.id
@@ -138,7 +148,7 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
         : { topics: [] };
       const foundTopic = topicData.topics.find(
         (t: any) =>
-          t.name.toLowerCase() === (payload.assunto || "").toLowerCase(),
+          normalizeString(t.name) === normalizeString(payload.assunto || ""),
       );
       const topicId = foundTopic
         ? foundTopic.id
@@ -156,12 +166,18 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
         banca: payload.banca,
         year: payload.year,
         contest: payload.contest,
-        statement: payload.statement || (payload.questionId ? `Questão #${payload.questionId}` : "Questão TEC"),
+        statement:
+          payload.statement ||
+          (payload.questionId
+            ? `Questão #${payload.questionId}`
+            : "Questão TEC"),
         alternatives: payload.alternatives || [],
         correctAnswer: payload.correctAnswer,
         userAnswer: payload.userAnswer,
       });
-      console.log("[SOE TEC Handler] Questão salva no Caderno de Erros com sucesso!");
+      console.log(
+        "[SOE TEC Handler] Questão salva no Caderno de Erros com sucesso!",
+      );
       toast.success("✗ Erro salvo no Caderno de Erros!", {
         position: "bottom-center",
       });
@@ -171,7 +187,7 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
         const discName = row.disciplina || "TEC Concursos";
         const discList = await localDisciplineList();
         const foundDisc = discList.find(
-          (d: any) => d.name.toLowerCase() === discName.toLowerCase(),
+          (d: any) => normalizeString(d.name) === normalizeString(discName),
         );
         const discId = foundDisc
           ? foundDisc.id
@@ -186,7 +202,8 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
         if (discId) {
           const topicData = await localTopicList({ disciplineId: discId });
           const foundTopic = topicData.topics.find(
-            (t: any) => t.name.toLowerCase() === row.assunto.toLowerCase(),
+            (t: any) =>
+              normalizeString(t.name) === normalizeString(row.assunto || ""),
           );
           const topicId = foundTopic
             ? foundTopic.id
@@ -214,14 +231,19 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
 }
 
 let isListenerActive = false;
+let currentPushToken = "";
+
 export function initTecBrowserListener(pushToken?: string) {
+  // O token chega depois do primeiro render (query assíncrona). Antes, o
+  // listener era criado com token vazio e nunca atualizava.
+  if (pushToken) currentPushToken = pushToken;
   if (isListenerActive) return;
   isListenerActive = true;
 
   if (Capacitor.isNativePlatform()) {
     try {
       TecBrowser.addListener("soeTecEvent", (event: any) => {
-        handleTecEvent(event, pushToken);
+        void handleTecEvent(event, currentPushToken);
       });
     } catch (e) {
       console.warn("[TecBrowser] Falha ao registrar addListener:", e);
@@ -231,7 +253,7 @@ export function initTecBrowserListener(pushToken?: string) {
   // Compatibilidade com eventos via postMessage (modo iframe/desktop)
   window.addEventListener("message", (e) => {
     if (e.data && e.data._soe_internal) {
-      handleTecEvent(e.data, pushToken);
+      void handleTecEvent(e.data, currentPushToken);
     }
   });
 }

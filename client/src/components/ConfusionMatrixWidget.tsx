@@ -120,7 +120,7 @@ export function ConfusionMatrixWidget() {
         {confusions.slice(0, 3).map((c, i) => (
           <div
             key={i}
-            className="group p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer"
+            className="group p-4 rounded-xl bg-secondary/25 border border-border/70 hover:border-purple-500/30 transition-all cursor-pointer"
             onClick={() => {
               setSelected(c);
               setMnemonic(null);
@@ -185,7 +185,7 @@ export function ConfusionMatrixWidget() {
             )}
 
             {mockData && (
-              <div className="space-y-4 pt-4 border-t border-white/10 animate-in fade-in">
+              <div className="space-y-4 pt-4 border-t border-border animate-in fade-in">
                 <h3 className="font-black text-rose-400 flex items-center gap-2 uppercase tracking-widest text-xs">
                   <AlertCircle size={16} />{" "}
                   {mockData.mockTitle || "Simulador de Maldades"}
@@ -197,7 +197,7 @@ export function ConfusionMatrixWidget() {
                     return (
                       <div
                         key={qIdx}
-                        className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3"
+                        className="p-4 rounded-xl bg-secondary/40 border border-border space-y-3"
                       >
                         <p className="text-sm font-bold leading-relaxed">
                           {qIdx + 1}. {q.statement}
@@ -207,7 +207,7 @@ export function ConfusionMatrixWidget() {
                             const isSelected = mockAnswers[qIdx] === a.letter;
                             const isCorrect = a.letter === q.correctAnswer;
                             let btnClass =
-                              "border-white/10 bg-white/5 hover:bg-white/10 text-left";
+                              "border-border bg-secondary/40 hover:bg-secondary/60 text-left";
                             if (answered) {
                               if (isCorrect)
                                 btnClass =
@@ -217,7 +217,7 @@ export function ConfusionMatrixWidget() {
                                   "border-rose-500/50 bg-rose-500/10 text-rose-400 line-through opacity-70";
                               else
                                 btnClass =
-                                  "border-white/5 bg-transparent opacity-30 text-left";
+                                  "border-border/70 bg-transparent opacity-30 text-left";
                             } else if (isSelected) {
                               btnClass = "border-purple-500 bg-purple-500/20";
                             }
@@ -264,7 +264,7 @@ export function ConfusionMatrixWidget() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-white/5">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-border/70">
               <Button
                 variant="outline"
                 className="gap-2"

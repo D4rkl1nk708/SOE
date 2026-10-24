@@ -82,7 +82,7 @@ function AIHealthCheck({
       <button
         onClick={runTest}
         disabled={testMut.isPending}
-        className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-white/10 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-xl bg-secondary/40 border border-border/70 text-muted-foreground hover:text-foreground hover:bg-secondary/60 font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
       >
         {testMut.isPending ? (
           <Loader2 size={14} className="animate-spin" />
@@ -97,7 +97,7 @@ function AIHealthCheck({
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-2"
+            className="p-3 rounded-xl bg-secondary/30 border border-border/70 space-y-2"
           >
             {report.details.map((d: any, i: number) => (
               <div key={i} className="space-y-1">
@@ -166,6 +166,9 @@ function SettingsTab() {
   );
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupDir, setAutoBackupDir] = useState("");
+  const [section, setSection] = useState<"appearance" | "ai" | "data">(
+    "appearance",
+  );
 
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const updateSettings = trpc.v10.updateV10Settings.useMutation({
@@ -194,237 +197,261 @@ function SettingsTab() {
     updateSettings.mutate({ autoBackupEnabled, autoBackupDir });
 
   return (
-    <div className="space-y-10 py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Visual & Interface Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="space-y-2">
-          <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
-            Visual & Interface
-          </h3>
-          <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">
-            Customize a experiência visual do seu ecossistema SOE.
-          </p>
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            {(["light", "dark"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => {
-                  if (theme !== m) toggleTheme();
-                }}
-                className={`flex items-center gap-4 p-6 rounded-3xl border transition-all ${theme === m ? "bg-primary/10 border-primary" : "bg-white/5 border-white/5 opacity-50 hover:opacity-100"}`}
-              >
-                <div
-                  className={`p-3 rounded-2xl ${theme === m ? "bg-primary text-white" : "bg-white/10 text-white/40"}`}
-                >
-                  {m === "light" ? <Sun size={20} /> : <Moon size={20} />}
-                </div>
-                <div className="text-left">
-                  <p
-                    className={`font-black text-[10px] uppercase tracking-widest ${theme === m ? "text-white" : "text-white/40"}`}
-                  >
-                    Modo {m === "light" ? "Claro" : "Escuro"}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+    <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex w-fit flex-wrap gap-1 rounded-lg border border-border bg-secondary/40 p-1">
+        {[
+          { id: "appearance", label: "Aparência", icon: Palette },
+          { id: "ai", label: "Inteligência Artificial", icon: Cpu },
+          { id: "data", label: "Dados & Sync", icon: Database },
+        ].map((item) => {
+          const Icon = item.icon;
+          const active = section === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setSection(item.id as typeof section)}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                active
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon size={13} />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
 
-          <div className="p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-6">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">
-              Esquema de Cores
+      {section === "appearance" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="space-y-2">
+            <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
+              Visual & Interface
+            </h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+              Customize a experiência visual do seu ecossistema SOE.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {(Object.entries(COLOR_THEMES) as [ColorTheme, any][]).map(
-                ([key, cfg]) => {
-                  const color = theme === "dark" ? cfg.dark : cfg.light;
-                  const selected = colorTheme === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setColorTheme(key)}
-                      className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all ${selected ? "bg-primary/5 border-primary shadow-lg shadow-primary/5" : "bg-transparent border-white/5 opacity-40 hover:opacity-100"}`}
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              {(["light", "dark"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    if (theme !== m) toggleTheme();
+                  }}
+                  className={`flex items-center gap-4 p-6 rounded-3xl border transition-all ${theme === m ? "bg-primary/10 border-primary" : "bg-secondary/40 border-border/70 opacity-50 hover:opacity-100"}`}
+                >
+                  <div
+                    className={`p-3 rounded-2xl ${theme === m ? "bg-primary text-white" : "bg-secondary/60 text-muted-foreground"}`}
+                  >
+                    {m === "light" ? <Sun size={20} /> : <Moon size={20} />}
+                  </div>
+                  <div className="text-left">
+                    <p
+                      className={`font-black text-[10px] uppercase tracking-widest ${theme === m ? "text-white" : "text-muted-foreground"}`}
                     >
-                      <div
-                        className="w-8 h-8 rounded-full border-2 border-background shadow-xl"
-                        style={{ background: color }}
-                      />
-                      <span className="text-[8px] font-black uppercase tracking-widest truncate">
-                        {cfg.label}
-                      </span>
-                    </button>
-                  );
-                },
-              )}
+                      Modo {m === "light" ? "Claro" : "Escuro"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="p-8 rounded-[2rem] bg-secondary/20 border border-border/70 space-y-6">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40">
+                Esquema de Cores
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {(Object.entries(COLOR_THEMES) as [ColorTheme, any][]).map(
+                  ([key, cfg]) => {
+                    const color = theme === "dark" ? cfg.dark : cfg.light;
+                    const selected = colorTheme === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setColorTheme(key)}
+                        className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all ${selected ? "bg-primary/5 border-primary shadow-lg shadow-primary/5" : "bg-transparent border-border/70 opacity-40 hover:opacity-100"}`}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-background shadow-xl"
+                          style={{ background: color }}
+                        />
+                        <span className="text-[8px] font-black uppercase tracking-widest truncate">
+                          {cfg.label}
+                        </span>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="h-px bg-white/5 w-full" />
+      {section === "ai" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="space-y-2">
+            <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
+              Inteligência Artificial
+            </h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+              Gerencie os motores que alimentam o Mentor e a Mineração.
+            </p>
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest opacity-30 ml-1">
+                  Provedor
+                </label>
+                <select
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as any)}
+                  className="w-full px-5 py-4 rounded-2xl bg-secondary/40 border border-border/70 text-xs font-bold outline-none focus:border-primary transition-all"
+                >
+                  <option value="gemini">Google Gemini</option>
+                  <option value="openai">OpenAI (GPT)</option>
+                  <option value="claude">Anthropic (Claude)</option>
+                </select>
+              </div>
+              <div className="flex flex-col justify-end gap-3">
+                <button
+                  onClick={handleSaveAI}
+                  disabled={updateSettings.isPending}
+                  className="h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95"
+                >
+                  {updateSettings.isPending
+                    ? "Salvando..."
+                    : "Salvar Configuração"}
+                </button>
+              </div>
+            </div>
 
-      {/* AI Intelligence Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="space-y-2">
-          <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
-            Inteligência Artificial
-          </h3>
-          <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">
-            Gerencie os motores que alimentam o Mentor e a Mineração.
-          </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[9px] font-black uppercase tracking-widest opacity-30">
+                  Chaves de API
+                </label>
+                <AIHealthCheck apiKey={apiKey} provider={provider} />
+              </div>
+              <textarea
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={`Insira suas chaves aqui...`}
+                rows={4}
+                className="w-full px-6 py-5 rounded-[2rem] bg-secondary/40 border border-border/70 text-[11px] font-mono outline-none resize-none focus:border-primary transition-all custom-scrollbar"
+              />
+            </div>
+          </div>
         </div>
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase tracking-widest opacity-30 ml-1">
-                Provedor
-              </label>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as any)}
-                className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/5 text-xs font-bold outline-none focus:border-primary transition-all"
+      )}
+
+      {section === "data" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="space-y-2">
+            <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
+              Sistema & Backup
+            </h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+              Sincronização em nuvem e preferências de execução.
+            </p>
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            {isElectronApp && (
+              <label
+                className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${minimizeToTray ? "bg-primary/5 border-primary" : "bg-secondary/40 border-border/70 opacity-50"}`}
               >
-                <option value="gemini">Google Gemini</option>
-                <option value="openai">OpenAI (GPT)</option>
-                <option value="claude">Anthropic (Claude)</option>
-              </select>
-            </div>
-            <div className="flex flex-col justify-end gap-3">
-              <button
-                onClick={handleSaveAI}
-                disabled={updateSettings.isPending}
-                className="h-14 rounded-2xl bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95"
-              >
-                {updateSettings.isPending
-                  ? "Salvando..."
-                  : "Salvar Configuração"}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between ml-1">
-              <label className="text-[9px] font-black uppercase tracking-widest opacity-30">
-                Chaves de API
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center ${minimizeToTray ? "bg-primary text-white shadow-lg" : "bg-secondary/60 text-muted-foreground"}`}
+                  >
+                    <Minimize2 size={20} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-widest">
+                      Execução em Segundo Plano
+                    </span>
+                    <p className="text-[9px] font-bold opacity-30 uppercase">
+                      Minimiza para a bandeja ao fechar
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={minimizeToTray}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    handleTrayToggle(val);
+                    updateSettings.mutate({ minimizeToTray: val });
+                  }}
+                  className="hidden"
+                />
+                <div
+                  className={`w-12 h-6 rounded-full p-1 transition-all ${minimizeToTray ? "bg-primary" : "bg-secondary/60"}`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-all ${minimizeToTray ? "ml-6" : "ml-0"}`}
+                  />
+                </div>
               </label>
-              <AIHealthCheck apiKey={apiKey} provider={provider} />
-            </div>
-            <textarea
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={`Insira suas chaves aqui...`}
-              rows={4}
-              className="w-full px-6 py-5 rounded-[2rem] bg-white/5 border border-white/5 text-[11px] font-mono outline-none resize-none focus:border-primary transition-all custom-scrollbar"
-            />
-          </div>
-        </div>
-      </div>
+            )}
 
-      <div className="h-px bg-white/5 w-full" />
-
-      {/* Cloud & System Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="space-y-2">
-          <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
-            Sistema & Backup
-          </h3>
-          <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">
-            Sincronização em nuvem e preferências de execução.
-          </p>
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          {isElectronApp && (
             <label
-              className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${minimizeToTray ? "bg-primary/5 border-primary" : "bg-white/5 border-white/5 opacity-50"}`}
+              className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${autoBackupEnabled ? "bg-primary/5 border-primary" : "bg-secondary/40 border-border/70 opacity-50"}`}
             >
               <div className="flex items-center gap-4">
                 <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${minimizeToTray ? "bg-primary text-white shadow-lg" : "bg-white/10 text-white/30"}`}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${autoBackupEnabled ? "bg-primary text-white shadow-lg" : "bg-secondary/60 text-muted-foreground"}`}
                 >
-                  <Minimize2 size={20} />
+                  <ShieldCheck size={20} />
                 </div>
                 <div>
                   <span className="text-xs font-black uppercase tracking-widest">
-                    Execução em Segundo Plano
+                    Backup em Tempo Real
                   </span>
                   <p className="text-[9px] font-bold opacity-30 uppercase">
-                    Minimiza para a bandeja ao fechar
+                    Sincroniza com Google Drive / Dropbox
                   </p>
                 </div>
               </div>
               <input
                 type="checkbox"
-                checked={minimizeToTray}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  handleTrayToggle(val);
-                  updateSettings.mutate({ minimizeToTray: val });
-                }}
+                checked={autoBackupEnabled}
+                onChange={(e) => setAutoBackupEnabled(e.target.checked)}
                 className="hidden"
               />
               <div
-                className={`w-12 h-6 rounded-full p-1 transition-all ${minimizeToTray ? "bg-primary" : "bg-white/10"}`}
+                className={`w-12 h-6 rounded-full p-1 transition-all ${autoBackupEnabled ? "bg-primary" : "bg-secondary/60"}`}
               >
                 <div
-                  className={`w-4 h-4 rounded-full bg-white transition-all ${minimizeToTray ? "ml-6" : "ml-0"}`}
+                  className={`w-4 h-4 rounded-full bg-white transition-all ${autoBackupEnabled ? "ml-6" : "ml-0"}`}
                 />
               </div>
             </label>
-          )}
 
-          <label
-            className={`flex items-center justify-between p-6 rounded-[2rem] border transition-all cursor-pointer ${autoBackupEnabled ? "bg-primary/5 border-primary" : "bg-white/5 border-white/5 opacity-50"}`}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center ${autoBackupEnabled ? "bg-primary text-white shadow-lg" : "bg-white/10 text-white/30"}`}
-              >
-                <ShieldCheck size={20} />
+            {autoBackupEnabled && (
+              <div className="flex gap-3 animate-in slide-in-from-left-4 duration-300">
+                <input
+                  type="text"
+                  value={autoBackupDir}
+                  onChange={(e) => setAutoBackupDir(e.target.value)}
+                  placeholder="Caminho da pasta na nuvem..."
+                  className="flex-1 px-5 py-4 rounded-2xl bg-secondary/40 border border-border/70 text-xs font-bold outline-none focus:border-primary transition-all"
+                />
+                <button
+                  onClick={handleSaveSync}
+                  className="px-8 rounded-2xl bg-secondary/40 hover:bg-secondary/60 border border-border/70 text-[9px] font-black uppercase tracking-widest transition-all"
+                >
+                  Salvar
+                </button>
               </div>
-              <div>
-                <span className="text-xs font-black uppercase tracking-widest">
-                  Backup em Tempo Real
-                </span>
-                <p className="text-[9px] font-bold opacity-30 uppercase">
-                  Sincroniza com Google Drive / Dropbox
-                </p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={autoBackupEnabled}
-              onChange={(e) => setAutoBackupEnabled(e.target.checked)}
-              className="hidden"
-            />
-            <div
-              className={`w-12 h-6 rounded-full p-1 transition-all ${autoBackupEnabled ? "bg-primary" : "bg-white/10"}`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white transition-all ${autoBackupEnabled ? "ml-6" : "ml-0"}`}
-              />
-            </div>
-          </label>
-
-          {autoBackupEnabled && (
-            <div className="flex gap-3 animate-in slide-in-from-left-4 duration-300">
-              <input
-                type="text"
-                value={autoBackupDir}
-                onChange={(e) => setAutoBackupDir(e.target.value)}
-                placeholder="Caminho da pasta na nuvem..."
-                className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/5 text-xs font-bold outline-none focus:border-primary transition-all"
-              />
-              <button
-                onClick={handleSaveSync}
-                className="px-8 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 text-[9px] font-black uppercase tracking-widest transition-all"
-              >
-                Salvar
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -504,13 +531,13 @@ function DiarioOficialTab() {
           <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
             Configuração de Busca
           </h3>
-          <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
             O SOE monitora automaticamente as publicações da União em busca de
             citações ao seu nome.
           </p>
         </div>
         <div className="lg:col-span-2 space-y-8">
-          <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 space-y-8 relative overflow-hidden">
+          <div className="p-8 rounded-[2.5rem] bg-secondary/20 border border-border/70 space-y-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none select-none">
               <FileText size={120} />
             </div>
@@ -525,7 +552,7 @@ function DiarioOficialTab() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder="Ex: João Da Silva Pereira"
-                  className="flex-1 px-6 h-14 rounded-2xl bg-white/5 border border-white/5 text-sm font-bold outline-none focus:border-primary transition-all shadow-inner"
+                  className="flex-1 px-6 h-14 rounded-2xl bg-secondary/40 border border-border/70 text-sm font-bold outline-none focus:border-primary transition-all shadow-inner"
                 />
                 <button
                   type="button"
@@ -556,7 +583,7 @@ function DiarioOficialTab() {
                       setIntervalMinutes(p.value);
                       if (saved) douSaveConfig({ intervalMinutes: p.value });
                     }}
-                    className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${intervalMinutes === p.value ? "bg-primary/10 border-primary text-white" : "bg-transparent border-white/5 text-white/20 hover:bg-white/5"}`}
+                    className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${intervalMinutes === p.value ? "bg-primary/10 border-primary text-primary" : "bg-transparent border-border/70 text-muted-foreground/70 hover:bg-secondary/40"}`}
                   >
                     {p.label}
                   </button>
@@ -569,7 +596,7 @@ function DiarioOficialTab() {
 
       {saved && (
         <>
-          <div className="h-px bg-white/5 w-full" />
+          <div className="h-px bg-secondary/40 w-full" />
 
           {/* Real-time Status Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -577,13 +604,13 @@ function DiarioOficialTab() {
               <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
                 Status em Tempo Real
               </h3>
-              <p className="text-[10px] font-bold text-white/30 uppercase leading-relaxed">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
                 Resultado da última varredura automática realizada pelo sistema.
               </p>
             </div>
             <div className="lg:col-span-2 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="p-8 rounded-[2rem] bg-secondary/20 border border-border/70 space-y-2">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 text-primary">
                     Último Checkpoint
                   </p>
@@ -594,7 +621,7 @@ function DiarioOficialTab() {
                   </p>
                 </div>
                 <div
-                  className={`p-8 rounded-[2rem] border transition-all flex flex-col justify-center ${lastResult?.newCount ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/[0.02] border-white/5"}`}
+                  className={`p-8 rounded-[2rem] border transition-all flex flex-col justify-center ${lastResult?.newCount ? "bg-emerald-500/10 border-emerald-500/20" : "bg-secondary/20 border-border/70"}`}
                 >
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30">
                     Ocorrências
@@ -635,7 +662,7 @@ function DiarioOficialTab() {
                   href={`https://www.in.gov.br/consulta/-/buscar/dou?q=${encodeURIComponent(`"${name}"`)}&s=todos&exactDate=all&sortType=0`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-16 h-16 rounded-[2rem] bg-white/5 hover:bg-white/10 border border-white/5 text-white/20 hover:text-white transition-all flex items-center justify-center"
+                  className="w-16 h-16 rounded-[2rem] bg-secondary/40 hover:bg-secondary/60 border border-border/70 text-muted-foreground/70 hover:text-foreground transition-all flex items-center justify-center"
                 >
                   <ExternalLink size={20} />
                 </a>
@@ -719,7 +746,7 @@ export default function Profile() {
       {/* Premium Profile Banner */}
       <div className="relative group">
         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-[3rem] blur-xl opacity-50 group-hover:opacity-75 transition duration-1000"></div>
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8 bg-secondary/40 backdrop-blur-md border border-white/5 p-10 rounded-[3rem] overflow-hidden">
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8 bg-secondary/40 backdrop-blur-md border border-border/70 p-10 rounded-[3rem] overflow-hidden">
           <div className="flex items-center gap-8">
             <div
               className="relative group/avatar cursor-pointer"
@@ -730,7 +757,7 @@ export default function Profile() {
                 className="relative w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-primary to-purple-600 p-[2px] shadow-2xl group-hover/avatar:scale-105 transition-transform duration-500"
                 style={{ boxShadow: "0 0 20px rgba(var(--primary-rgb), 0.3)" }}
               >
-                <div className="w-full h-full rounded-[2.4rem] overflow-hidden bg-secondary flex items-center justify-center border border-white/10">
+                <div className="w-full h-full rounded-[2.4rem] overflow-hidden bg-secondary flex items-center justify-center border border-border">
                   {stats?.settings?.profileImage ? (
                     <img
                       src={stats.settings.profileImage}
@@ -745,7 +772,7 @@ export default function Profile() {
                 </div>
 
                 {/* Camera Overlay */}
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-[2.5rem]">
+                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-[2.5rem]">
                   <Camera size={24} className="text-white" />
                 </div>
               </div>
@@ -777,7 +804,7 @@ export default function Profile() {
 
           <button
             onClick={logout}
-            className="flex items-center justify-center gap-3 px-8 h-14 rounded-2xl bg-white/5 hover:bg-rose-500/10 text-white/40 hover:text-rose-500 border border-white/5 hover:border-rose-500/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest group"
+            className="flex items-center justify-center gap-3 px-8 h-14 rounded-2xl bg-secondary/40 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 border border-border/70 hover:border-rose-500/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest group"
           >
             <LogOut
               size={18}
@@ -789,7 +816,7 @@ export default function Profile() {
       </div>
 
       {/* Elegant Tab Navigation */}
-      <div className="flex flex-wrap md:flex-nowrap items-center justify-center bg-secondary/20 p-2 rounded-[2.5rem] border border-white/5 backdrop-blur-sm shadow-inner">
+      <div className="flex flex-wrap md:flex-nowrap items-center justify-center bg-secondary/20 p-2 rounded-[2.5rem] border border-border/70 backdrop-blur-sm shadow-inner">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -800,7 +827,7 @@ export default function Profile() {
                 setTab(t.id);
                 window.location.hash = t.id;
               }}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-500 ${active ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-500 ${active ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
             >
               <Icon size={18} className={active ? "animate-pulse" : ""} />
               <div className="text-left hidden sm:block">
@@ -820,7 +847,7 @@ export default function Profile() {
 
       {/* Main Content Viewport */}
       <div className="min-h-[600px] animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="bg-gradient-to-b from-white/[0.02] to-transparent rounded-[3rem] p-1 border-t border-white/5">
+        <div className="bg-gradient-to-b from-white/[0.02] to-transparent rounded-[3rem] p-1 border-t border-border/70">
           {tab === "dou" && <DiarioOficialTab />}
           {tab === "settings" && <SettingsTab />}
           {tab === "history" && <History />}

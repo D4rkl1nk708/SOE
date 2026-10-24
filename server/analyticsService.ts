@@ -99,10 +99,6 @@ export async function getDashboardStats(userId: number) {
     settings,
     disciplineStats: disciplines.map((d) => {
       const discTopics = topicsByDiscipline.get(d.id) ?? [];
-      const totalResolved = discTopics.reduce(
-        (s, t) => s + (t.performance?.questionsResolved ?? 0),
-        0,
-      );
       const totalCorrect = discTopics.reduce(
         (s, t) => s + (t.performance?.correctCount ?? 0),
         0,
@@ -111,19 +107,32 @@ export async function getDashboardStats(userId: number) {
         (s, t) => s + (t.performance?.errorCount ?? 0),
         0,
       );
+      // questionsResolved pode estar inconsistente em bancos antigos; o
+      // maior entre o total declarado e corretas+erros evita subcontagem.
+      const totalResolved = Math.max(
+        discTopics.reduce(
+          (s, t) => s + (t.performance?.questionsResolved ?? 0),
+          0,
+        ),
+        totalCorrect + totalError,
+      );
       const aggPerformance =
-        totalResolved > 0
-          ? {
-              questionsResolved: totalResolved,
-              accuracy: Math.round((totalCorrect / totalResolved) * 100),
-              correctCount: totalCorrect,
-              errorCount: totalError,
-            }
-          : d.performance;
-      const studyTimeSeconds =
-        discTopics.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0) ||
-        d.studyTimeSeconds ||
-        0;
+        (d.performance?.questionsResolved || 0) > totalResolved
+          ? d.performance
+          : totalResolved > 0
+            ? {
+                questionsResolved: totalResolved,
+                accuracy: Math.round((totalCorrect / totalResolved) * 100),
+                correctCount: totalCorrect,
+                errorCount: totalError,
+              }
+            : d.performance;
+      // d.studyTimeSeconds já é max(disciplina, soma dos tópicos); manter o
+      // maior valor evita perder tempo registrado no nível da disciplina.
+      const studyTimeSeconds = Math.max(
+        d.studyTimeSeconds || 0,
+        discTopics.reduce((s, t) => s + (t.studyTimeSeconds ?? 0), 0),
+      );
 
       return {
         disciplineId: d.id,
@@ -592,7 +601,7 @@ export async function runMonteCarloSimulation(
 
   // Aproximação: chance de aprovação considerando nota de corte em 70%
   const approvalChance = Math.round(
-    (1 - results.filter((r) => r >= 0.7).length / results.length) * 100,
+    (results.filter((r) => r >= 0.7).length / results.length) * 100,
   );
   const cutoffRisk = Math.round(
     (results.filter((r) => r < 0.7).length / results.length) * 100,

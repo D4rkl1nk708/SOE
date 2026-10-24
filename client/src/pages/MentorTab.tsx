@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 
 function RenderText({ text }: { text: string }) {
   return (
-    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-p:mb-6 prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-md">
+    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-p:mb-6 prose-pre:bg-secondary/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md">
       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
         {text}
       </ReactMarkdown>
@@ -422,7 +422,7 @@ export default function MentorTab() {
                           setShowRegressions(false);
                         }}
                         title="Gerar Mnemônico"
-                        className="w-8 h-8 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-white transition-all"
+                        className="w-8 h-8 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-foreground transition-all"
                       >
                         <Wand2 size={14} />
                       </button>

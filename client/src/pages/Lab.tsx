@@ -1165,7 +1165,7 @@ export default function Lab() {
                               },
                             );
                           }}
-                          className="mt-6 w-full h-10 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all bg-secondary/50 hover:bg-primary hover:text-white"
+                          className="mt-6 w-full h-10 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all bg-secondary/50 hover:bg-primary hover:text-foreground"
                         >
                           <Play size={14} className="mr-2 fill-current" /> Gerar
                           Desafio Inédito

@@ -792,7 +792,7 @@ export default function SOEAnalytics() {
                 </div>
                 <button
                   onClick={() => setReportOpen(false)}
-                  className="p-2 rounded-xl hover:bg-white/5 transition-colors"
+                  className="p-2 rounded-xl hover:bg-secondary/40 transition-colors"
                 >
                   <AlertCircle
                     className="w-6 h-6 rotate-45"

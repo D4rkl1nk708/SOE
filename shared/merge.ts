@@ -50,7 +50,11 @@ const nowIso = () => new Date().toISOString();
 /**
  * Creates a unique fingerprint hash for a question error.
  */
-export function getQuestionErrorKey(qe: any, canonicalDiscId: number, canonicalTopId: number): string {
+export function getQuestionErrorKey(
+  qe: any,
+  canonicalDiscId: number,
+  canonicalTopId: number,
+): string {
   if (qe.questionId && String(qe.questionId).trim()) {
     return "qid:" + String(qe.questionId).trim().toLowerCase();
   }
@@ -63,12 +67,24 @@ export function smartMergeDatabases(
   dbB: Database | null | undefined,
   targetUserId?: number,
 ): Database {
-  const safeA: Database = dbA && typeof dbA === "object" ? dbA : { users: [], disciplines: [], topics: [], revisions: [], counters: {} };
-  const safeB: Database = dbB && typeof dbB === "object" ? dbB : { users: [], disciplines: [], topics: [], revisions: [], counters: {} };
+  const safeA: Database =
+    dbA && typeof dbA === "object"
+      ? dbA
+      : { users: [], disciplines: [], topics: [], revisions: [], counters: {} };
+  const safeB: Database =
+    dbB && typeof dbB === "object"
+      ? dbB
+      : { users: [], disciplines: [], topics: [], revisions: [], counters: {} };
 
   // 1. Determine active user ID & settings
-  const userA = Array.isArray(safeA.users) && safeA.users.length > 0 ? safeA.users[0] : null;
-  const userB = Array.isArray(safeB.users) && safeB.users.length > 0 ? safeB.users[0] : null;
+  const userA =
+    Array.isArray(safeA.users) && safeA.users.length > 0
+      ? safeA.users[0]
+      : null;
+  const userB =
+    Array.isArray(safeB.users) && safeB.users.length > 0
+      ? safeB.users[0]
+      : null;
   const effectiveUserId = targetUserId || userA?.id || userB?.id || 1;
 
   const settingsA = (userA?.settings as Record<string, any>) || {};
@@ -84,8 +100,16 @@ export function smartMergeDatabases(
   }
 
   // Merge streak
-  const streakA = settingsA.studyStreak || { current: 0, best: 0, lastStudyDate: null };
-  const streakB = settingsB.studyStreak || { current: 0, best: 0, lastStudyDate: null };
+  const streakA = settingsA.studyStreak || {
+    current: 0,
+    best: 0,
+    lastStudyDate: null,
+  };
+  const streakB = settingsB.studyStreak || {
+    current: 0,
+    best: 0,
+    lastStudyDate: null,
+  };
   const mergedStreak = {
     current: Math.max(streakA.current || 0, streakB.current || 0),
     best: Math.max(streakA.best || 0, streakB.best || 0),
@@ -93,16 +117,20 @@ export function smartMergeDatabases(
   };
 
   const mergedSettings = {
-    ...settingsA,
+    // A é o banco atual (dispositivo local); B é o recebido. O local vence
+    // para não trocar tema, chave de IA, diretório de backup etc. no sync.
     ...settingsB,
+    ...settingsA,
     exams: Array.from(examMap.values()),
     studyStreak: mergedStreak,
-    editalCycle: (Array.isArray(settingsA.editalCycle) && settingsA.editalCycle.length > 0)
-      ? settingsA.editalCycle
-      : (settingsB.editalCycle || []),
-    editalRows: (Array.isArray(settingsA.editalRows) && settingsA.editalRows.length > 0)
-      ? settingsA.editalRows
-      : (settingsB.editalRows || []),
+    editalCycle:
+      Array.isArray(settingsA.editalCycle) && settingsA.editalCycle.length > 0
+        ? settingsA.editalCycle
+        : settingsB.editalCycle || [],
+    editalRows:
+      Array.isArray(settingsA.editalRows) && settingsA.editalRows.length > 0
+        ? settingsA.editalRows
+        : settingsB.editalRows || [],
   };
 
   const primaryUser = {
@@ -138,7 +166,10 @@ export function smartMergeDatabases(
           name: d.name.trim(),
           color: d.color || "var(--primary)",
           weight: typeof d.weight === "number" ? d.weight : 1,
-          order: typeof d.order === "number" ? d.order : canonicalDisciplines.size + 1,
+          order:
+            typeof d.order === "number"
+              ? d.order
+              : canonicalDisciplines.size + 1,
           studyTimeSeconds: Number(d.studyTimeSeconds) || 0,
           createdAt: d.createdAt || nowIso(),
           updatedAt: d.updatedAt || nowIso(),
@@ -147,9 +178,14 @@ export function smartMergeDatabases(
         mapTarget.set(d.id, canonical.id);
       } else {
         const existing = canonicalDisciplines.get(key)!;
-        existing.studyTimeSeconds = Math.max(existing.studyTimeSeconds || 0, Number(d.studyTimeSeconds) || 0);
-        if (d.color && existing.color === "var(--primary)") existing.color = d.color;
-        if (typeof d.weight === "number" && !existing.weight) existing.weight = d.weight;
+        existing.studyTimeSeconds = Math.max(
+          existing.studyTimeSeconds || 0,
+          Number(d.studyTimeSeconds) || 0,
+        );
+        if (d.color && existing.color === "var(--primary)")
+          existing.color = d.color;
+        if (typeof d.weight === "number" && !existing.weight)
+          existing.weight = d.weight;
         if (d.updatedAt && String(d.updatedAt) > String(existing.updatedAt)) {
           existing.updatedAt = d.updatedAt;
           existing.name = d.name.trim();
@@ -168,11 +204,16 @@ export function smartMergeDatabases(
   const canonicalTopics = new Map<string, any>();
   let nextTopId = 1;
 
-  const processTopics = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+  const processTopics = (
+    list: any[],
+    discMap: Map<number, number>,
+    topMap: Map<number, number>,
+  ) => {
     if (!Array.isArray(list)) return;
     for (const t of list) {
       if (!t || !t.name) continue;
-      const canonicalDiscId = discMap.get(t.disciplineId) || discMap.get(Number(t.disciplineId));
+      const canonicalDiscId =
+        discMap.get(t.disciplineId) || discMap.get(Number(t.disciplineId));
       if (!canonicalDiscId) continue;
 
       const normName = normalizeString(t.name);
@@ -188,7 +229,8 @@ export function smartMergeDatabases(
           p.questionsResolved = totalDerived;
           p.correctCount = cor;
           p.errorCount = err;
-          p.accuracy = totalDerived > 0 ? Math.round((cor / totalDerived) * 100) : 0;
+          p.accuracy =
+            totalDerived > 0 ? Math.round((cor / totalDerived) * 100) : 0;
         }
 
         const canonical = {
@@ -209,13 +251,22 @@ export function smartMergeDatabases(
         topMap.set(t.id, canonical.id);
       } else {
         const existing = canonicalTopics.get(topKey)!;
-        existing.studyTimeSeconds = Math.max(existing.studyTimeSeconds || 0, Number(t.studyTimeSeconds) || 0);
+        existing.studyTimeSeconds = Math.max(
+          existing.studyTimeSeconds || 0,
+          Number(t.studyTimeSeconds) || 0,
+        );
 
-        if (t.notes && (!existing.notes || t.notes.length > existing.notes.length)) {
+        if (
+          t.notes &&
+          (!existing.notes || t.notes.length > existing.notes.length)
+        ) {
           existing.notes = t.notes;
         }
 
-        if (t.studyDate && (!existing.studyDate || t.studyDate > existing.studyDate)) {
+        if (
+          t.studyDate &&
+          (!existing.studyDate || t.studyDate < existing.studyDate)
+        ) {
           existing.studyDate = t.studyDate;
         }
 
@@ -227,8 +278,14 @@ export function smartMergeDatabases(
         if (!curPerf && newPerf) {
           existing.performance = { ...newPerf };
         } else if (curPerf && newPerf) {
-          const curRes = Number(curPerf.questionsResolved) || (Number(curPerf.correctCount) || 0) + (Number(curPerf.errorCount) || 0);
-          const newRes = Number(newPerf.questionsResolved) || (Number(newPerf.correctCount) || 0) + (Number(newPerf.errorCount) || 0);
+          const curRes =
+            Number(curPerf.questionsResolved) ||
+            (Number(curPerf.correctCount) || 0) +
+              (Number(curPerf.errorCount) || 0);
+          const newRes =
+            Number(newPerf.questionsResolved) ||
+            (Number(newPerf.correctCount) || 0) +
+              (Number(newPerf.errorCount) || 0);
           const curCor = Number(curPerf.correctCount) || 0;
           const newCor = Number(newPerf.correctCount) || 0;
           const curErr = Number(curPerf.errorCount) || 0;
@@ -236,16 +293,25 @@ export function smartMergeDatabases(
 
           // Merge history by date
           const mergedHistMap = new Map<string, any>();
-          for (const h of curPerf.history || []) if (h && h.date) mergedHistMap.set(h.date, h);
+          for (const h of curPerf.history || [])
+            if (h && h.date) mergedHistMap.set(h.date, h);
           for (const h of newPerf.history || []) {
             if (!h || !h.date) continue;
             if (!mergedHistMap.has(h.date)) {
               mergedHistMap.set(h.date, h);
             } else {
               const prevH = mergedHistMap.get(h.date);
-              const maxQ = Math.max(prevH.questionsResolved || 0, h.questionsResolved || 0);
-              const bestAcc = maxQ === h.questionsResolved ? h.accuracy : prevH.accuracy;
-              mergedHistMap.set(h.date, { ...prevH, questionsResolved: maxQ, accuracy: bestAcc });
+              const maxQ = Math.max(
+                prevH.questionsResolved || 0,
+                h.questionsResolved || 0,
+              );
+              const bestAcc =
+                maxQ === h.questionsResolved ? h.accuracy : prevH.accuracy;
+              mergedHistMap.set(h.date, {
+                ...prevH,
+                questionsResolved: maxQ,
+                accuracy: bestAcc,
+              });
             }
           }
 
@@ -253,17 +319,36 @@ export function smartMergeDatabases(
           let finalCorrect = 0;
           let finalError = 0;
 
-          // Case 1: Identical question counts -> keep maximum accuracy
+          const incomingIsNewer =
+            Boolean(newPerf.lastImportedAt) &&
+            (!curPerf.lastImportedAt ||
+              String(newPerf.lastImportedAt) > String(curPerf.lastImportedAt));
+
+          // Case 1: Identical question counts -> keep the snapshot with the
+          // best accuracy and keep correct+error === resolved.
           if (curRes === newRes) {
             finalResolved = curRes;
-            finalCorrect = Math.max(curCor, newCor);
-            finalError = Math.max(curErr, newErr);
+            const curAcc = curRes > 0 ? curCor / curRes : 0;
+            const newAcc = newRes > 0 ? newCor / newRes : 0;
+            if (newAcc > curAcc) {
+              finalCorrect = newCor;
+              finalError = newErr;
+            } else {
+              finalCorrect = curCor;
+              finalError = curErr;
+            }
           }
           // Case 2: One device is an offline/mobile subset answered independently (e.g. 200 on PC and 10 on Mobile)
           // When the smaller count is significantly smaller (< 20% of the larger) or < 50 questions, ADD them!
-          // This handles cases like: 200 on desktop + 10 on mobile = 210 total
-          else if (Math.min(curRes, newRes) > 0 && 
-                   (Math.min(curRes, newRes) < 50 || Math.min(curRes, newRes) < Math.max(curRes, newRes) * 0.2)) {
+          // This handles cases like: 200 on desktop + 10 on mobile = 210 total.
+          // Exige lastImportedAt mais novo: sem isso o mesmo payload era somado
+          // de novo a cada sync (210 -> 220 -> 230...).
+          else if (
+            incomingIsNewer &&
+            Math.min(curRes, newRes) > 0 &&
+            (Math.min(curRes, newRes) < 50 ||
+              Math.min(curRes, newRes) < Math.max(curRes, newRes) * 0.2)
+          ) {
             const isCurSmaller = curRes < newRes;
             const smallCor = isCurSmaller ? curCor : newCor;
             const smallErr = isCurSmaller ? curErr : newErr;
@@ -286,7 +371,12 @@ export function smartMergeDatabases(
           }
 
           finalResolved = Math.max(finalResolved, finalCorrect + finalError);
-          const finalAcc = finalResolved > 0 ? Math.round((finalCorrect / finalResolved) * 100) : 0;
+          // Mantém a invariante correta+erros = respondidas.
+          finalError = Math.max(0, finalResolved - finalCorrect);
+          const finalAcc =
+            finalResolved > 0
+              ? Math.round((finalCorrect / finalResolved) * 100)
+              : 0;
 
           existing.performance = {
             ...curPerf,
@@ -295,6 +385,8 @@ export function smartMergeDatabases(
             accuracy: finalAcc,
             correctCount: finalCorrect,
             errorCount: finalError,
+            lastImportedAt:
+              newPerf.lastImportedAt || curPerf.lastImportedAt || nowIso(),
             history: Array.from(mergedHistMap.values()),
           };
         }
@@ -317,12 +409,20 @@ export function smartMergeDatabases(
   const canonicalErrors = new Map<string, any>();
   let nextErrId = 1;
 
-  const processQuestionErrors = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+  const processQuestionErrors = (
+    list: any[],
+    discMap: Map<number, number>,
+    topMap: Map<number, number>,
+  ) => {
     if (!Array.isArray(list)) return;
     for (const qe of list) {
       if (!qe) continue;
-      const canonicalDiscId = discMap.get(qe.disciplineId) || discMap.get(Number(qe.disciplineId)) || 0;
-      const canonicalTopId = topMap.get(qe.topicId) || topMap.get(Number(qe.topicId)) || 0;
+      const canonicalDiscId =
+        discMap.get(qe.disciplineId) ||
+        discMap.get(Number(qe.disciplineId)) ||
+        0;
+      const canonicalTopId =
+        topMap.get(qe.topicId) || topMap.get(Number(qe.topicId)) || 0;
       if (!canonicalDiscId || !canonicalTopId) continue;
 
       const key = getQuestionErrorKey(qe, canonicalDiscId, canonicalTopId);
@@ -352,9 +452,12 @@ export function smartMergeDatabases(
           existing.aiSimilarQuestions = qe.aiSimilarQuestions;
           existing.aiSimilarQuestionsAt = qe.aiSimilarQuestionsAt || nowIso();
         }
-        if (qe.errorOrigin && !existing.errorOrigin) existing.errorOrigin = qe.errorOrigin;
-        if (qe.userAnswer && !existing.userAnswer) existing.userAnswer = qe.userAnswer;
-        if (qe.correctAnswer && !existing.correctAnswer) existing.correctAnswer = qe.correctAnswer;
+        if (qe.errorOrigin && !existing.errorOrigin)
+          existing.errorOrigin = qe.errorOrigin;
+        if (qe.userAnswer && !existing.userAnswer)
+          existing.userAnswer = qe.userAnswer;
+        if (qe.correctAnswer && !existing.correctAnswer)
+          existing.correctAnswer = qe.correctAnswer;
       }
     }
   };
@@ -370,11 +473,15 @@ export function smartMergeDatabases(
     if (!Array.isArray(list)) return;
     for (const r of list) {
       if (!r) continue;
-      const canonicalTopId = topMap.get(r.topicId) || topMap.get(Number(r.topicId));
+      const canonicalTopId =
+        topMap.get(r.topicId) || topMap.get(Number(r.topicId));
       if (!canonicalTopId) continue;
 
       const schedDate = (r.scheduledDate || "").slice(0, 10);
-      const revKey = `${canonicalTopId}::${r.type || "revision"}::${r.revisionNumber ?? 0}::${schedDate}`;
+      const revNumber = Number.isFinite(Number(r.revisionNumber))
+        ? Number(r.revisionNumber)
+        : 1;
+      const revKey = `${canonicalTopId}::${r.type || "revision"}::${revNumber}::${schedDate}`;
 
       if (!canonicalRevisions.has(revKey)) {
         canonicalRevisions.set(revKey, {
@@ -384,7 +491,7 @@ export function smartMergeDatabases(
           topicId: canonicalTopId,
           scheduledDate: r.scheduledDate || nowIso().slice(0, 10),
           type: r.type || "revision",
-          revisionNumber: r.revisionNumber ?? 1,
+          revisionNumber: revNumber,
           completed: Boolean(r.completed),
           ignored: Boolean(r.ignored),
           completedAt: r.completedAt || (r.completed ? nowIso() : null),
@@ -419,11 +526,19 @@ export function smartMergeDatabases(
       if (!m || !m.name) continue;
       const key = `${normalizeString(m.name)}::${m.date || ""}`;
       if (!canonicalMockExams.has(key)) {
-        canonicalMockExams.set(key, { ...m, id: nextMockId++, userId: effectiveUserId });
+        canonicalMockExams.set(key, {
+          ...m,
+          id: nextMockId++,
+          userId: effectiveUserId,
+        });
       } else {
         const existing = canonicalMockExams.get(key)!;
         if ((m.score || 0) > (existing.score || 0)) {
-          canonicalMockExams.set(key, { ...m, id: existing.id, userId: effectiveUserId });
+          canonicalMockExams.set(key, {
+            ...m,
+            id: existing.id,
+            userId: effectiveUserId,
+          });
         }
       }
     }
@@ -434,12 +549,19 @@ export function smartMergeDatabases(
   // 7. Notes
   const canonicalNotes = new Map<string, any>();
   let nextNoteId = 1;
-  const processNotes = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+  const processNotes = (
+    list: any[],
+    discMap: Map<number, number>,
+    topMap: Map<number, number>,
+  ) => {
     if (!Array.isArray(list)) return;
     for (const n of list) {
       if (!n || !n.title) continue;
-      const canonicalDiscId = discMap.get(n.disciplineId) || discMap.get(Number(n.disciplineId)) || 0;
-      const canonicalTopId = n.topicId ? (topMap.get(n.topicId) || topMap.get(Number(n.topicId)) || 0) : 0;
+      const canonicalDiscId =
+        discMap.get(n.disciplineId) || discMap.get(Number(n.disciplineId)) || 0;
+      const canonicalTopId = n.topicId
+        ? topMap.get(n.topicId) || topMap.get(Number(n.topicId)) || 0
+        : 0;
       const key = `${canonicalDiscId}::${canonicalTopId}::${normalizeString(n.title)}`;
       if (!canonicalNotes.has(key)) {
         canonicalNotes.set(key, {
@@ -451,8 +573,17 @@ export function smartMergeDatabases(
         });
       } else {
         const existing = canonicalNotes.get(key)!;
-        if ((n.content || "").length > (existing.content || "").length || (n.updatedAt && n.updatedAt > existing.updatedAt)) {
-          canonicalNotes.set(key, { ...n, id: existing.id, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId || undefined });
+        if (
+          (n.content || "").length > (existing.content || "").length ||
+          (n.updatedAt && n.updatedAt > existing.updatedAt)
+        ) {
+          canonicalNotes.set(key, {
+            ...n,
+            id: existing.id,
+            userId: effectiveUserId,
+            disciplineId: canonicalDiscId,
+            topicId: canonicalTopId || undefined,
+          });
         }
       }
     }
@@ -463,24 +594,48 @@ export function smartMergeDatabases(
   // 8. Flashcards
   const canonicalFlashcards = new Map<string, any>();
   let nextFlashId = 1;
-  const processFlashcards = (list: any[], topMap: Map<number, number>) => {
+  const processFlashcards = (
+    list: any[],
+    discMap: Map<number, number>,
+    topMap: Map<number, number>,
+  ) => {
     if (!Array.isArray(list)) return;
     for (const f of list) {
       if (!f || !f.front) continue;
-      const canonicalTopId = f.topicId ? (topMap.get(f.topicId) || topMap.get(Number(f.topicId)) || 0) : 0;
-      const key = `${canonicalTopId}::${normalizeString(f.front)}`;
+      const canonicalDiscId =
+        discMap.get(f.disciplineId) || discMap.get(Number(f.disciplineId)) || 0;
+      const canonicalTopId = f.topicId
+        ? topMap.get(f.topicId) || topMap.get(Number(f.topicId)) || 0
+        : 0;
+      const key = `${canonicalDiscId}::${canonicalTopId}::${normalizeString(f.front)}::${normalizeString(f.back)}`;
       if (!canonicalFlashcards.has(key)) {
-        canonicalFlashcards.set(key, { ...f, id: nextFlashId++, userId: effectiveUserId, topicId: canonicalTopId || undefined });
+        canonicalFlashcards.set(key, {
+          ...f,
+          id: nextFlashId++,
+          userId: effectiveUserId,
+          disciplineId: canonicalDiscId,
+          topicId: canonicalTopId || undefined,
+        });
       } else {
         const existing = canonicalFlashcards.get(key)!;
-        if ((f.reviews || 0) > (existing.reviews || 0)) {
-          canonicalFlashcards.set(key, { ...f, id: existing.id, userId: effectiveUserId, topicId: canonicalTopId || undefined });
+        const newRep = Number(f.repetitions) || 0;
+        const curRep = Number(existing.repetitions) || 0;
+        const newUpdated = String(f.updatedAt || "");
+        const curUpdated = String(existing.updatedAt || "");
+        if (newRep > curRep || (newRep === curRep && newUpdated > curUpdated)) {
+          canonicalFlashcards.set(key, {
+            ...f,
+            id: existing.id,
+            userId: effectiveUserId,
+            disciplineId: canonicalDiscId,
+            topicId: canonicalTopId || undefined,
+          });
         }
       }
     }
   };
-  processFlashcards(safeA.flashcards || [], mapTopIdA);
-  processFlashcards(safeB.flashcards || [], mapTopIdB);
+  processFlashcards(safeA.flashcards || [], mapDiscIdA, mapTopIdA);
+  processFlashcards(safeB.flashcards || [], mapDiscIdB, mapTopIdB);
 
   // 9. Subjective Answers & Concept Confusions
   const canonicalSubjective = new Map<string, any>();
@@ -489,15 +644,32 @@ export function smartMergeDatabases(
     if (!Array.isArray(list)) return;
     for (const sa of list) {
       if (!sa) continue;
-      const canonicalTopId = topMap.get(sa.topicId) || topMap.get(Number(sa.topicId)) || 0;
-      const textKey = normalizeString(sa.statement || sa.transcription || sa.topicName || "").slice(0, 80);
-      const key = sa.id ? `id:${sa.id}` : `${canonicalTopId}::${textKey}::${sa.banca || ""}`;
+      const canonicalTopId =
+        topMap.get(sa.topicId) || topMap.get(Number(sa.topicId)) || 0;
+      const textKey = normalizeString(
+        sa.statement || sa.transcription || sa.topicName || "",
+      ).slice(0, 80);
+      // O id é local ao dispositivo; usar createdAt/texto como identidade
+      // evita duplicar a mesma resposta a cada sync.
+      const key = sa.createdAt
+        ? `created:${sa.createdAt}::${canonicalTopId}`
+        : `${canonicalTopId}::${textKey}::${sa.banca || ""}`;
       if (!canonicalSubjective.has(key)) {
-        canonicalSubjective.set(key, { ...sa, id: nextSubjId++, userId: effectiveUserId, topicId: canonicalTopId });
+        canonicalSubjective.set(key, {
+          ...sa,
+          id: nextSubjId++,
+          userId: effectiveUserId,
+          topicId: canonicalTopId,
+        });
       } else {
         const existing = canonicalSubjective.get(key);
         if (sa.score !== undefined && existing.score === undefined) {
-          canonicalSubjective.set(key, { ...sa, id: existing.id, userId: effectiveUserId, topicId: canonicalTopId });
+          canonicalSubjective.set(key, {
+            ...sa,
+            id: existing.id,
+            userId: effectiveUserId,
+            topicId: canonicalTopId,
+          });
         }
       }
     }
@@ -508,12 +680,22 @@ export function smartMergeDatabases(
   // 9b. Canonical Essays (Redações)
   const canonicalEssays = new Map<string, any>();
   let nextEssayId = 1;
-  const processEssays = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+  const processEssays = (
+    list: any[],
+    discMap: Map<number, number>,
+    topMap: Map<number, number>,
+  ) => {
     if (!Array.isArray(list)) return;
     for (const e of list) {
       if (!e || !e.title) continue;
-      const canonicalDiscId = discMap.get(e.disciplineId) || discMap.get(Number(e.disciplineId)) || e.disciplineId || 0;
-      const canonicalTopId = e.topicId ? (topMap.get(e.topicId) || topMap.get(Number(e.topicId)) || 0) : undefined;
+      const canonicalDiscId =
+        discMap.get(e.disciplineId) ||
+        discMap.get(Number(e.disciplineId)) ||
+        e.disciplineId ||
+        0;
+      const canonicalTopId = e.topicId
+        ? topMap.get(e.topicId) || topMap.get(Number(e.topicId)) || 0
+        : undefined;
       const key = `${canonicalDiscId}::${normalizeString(e.title)}::${normalizeString(e.banca || "")}`;
       if (!canonicalEssays.has(key)) {
         canonicalEssays.set(key, {
@@ -526,9 +708,23 @@ export function smartMergeDatabases(
       } else {
         const existing = canonicalEssays.get(key);
         if (e.status === "corrected" && existing.status !== "corrected") {
-          canonicalEssays.set(key, { ...e, id: existing.id, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId });
-        } else if ((e.transcription || "").length > (existing.transcription || "").length) {
-          canonicalEssays.set(key, { ...e, id: existing.id, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId });
+          canonicalEssays.set(key, {
+            ...e,
+            id: existing.id,
+            userId: effectiveUserId,
+            disciplineId: canonicalDiscId,
+            topicId: canonicalTopId,
+          });
+        } else if (
+          (e.transcription || "").length > (existing.transcription || "").length
+        ) {
+          canonicalEssays.set(key, {
+            ...e,
+            id: existing.id,
+            userId: effectiveUserId,
+            disciplineId: canonicalDiscId,
+            topicId: canonicalTopId,
+          });
         }
       }
     }
@@ -544,7 +740,11 @@ export function smartMergeDatabases(
       if (!c || !c.conceptA || !c.conceptB) continue;
       const key = `${normalizeString(c.conceptA)}::${normalizeString(c.conceptB)}`;
       if (!canonicalConfusions.has(key)) {
-        canonicalConfusions.set(key, { ...c, id: nextConfId++, userId: effectiveUserId });
+        canonicalConfusions.set(key, {
+          ...c,
+          id: nextConfId++,
+          userId: effectiveUserId,
+        });
       }
     }
   };
@@ -554,20 +754,28 @@ export function smartMergeDatabases(
   // 10. TecSnapshots
   const canonicalSnapshots = new Map<string, any>();
   let nextSnapId = 1;
-  const processSnapshots = (list: any[], discMap: Map<number, number>, topMap: Map<number, number>) => {
+  const processSnapshots = (list: any[]) => {
     if (!Array.isArray(list)) return;
     for (const s of list) {
       if (!s) continue;
-      const canonicalDiscId = discMap.get(s.disciplineId) || 0;
-      const canonicalTopId = topMap.get(s.topicId) || 0;
-      const key = `${canonicalDiscId}::${canonicalTopId}::${(s.snapshotDate || s.createdAt || "").slice(0, 10)}`;
+      // TecSnapshot é um retrato agregado por importação (importedAt + topics),
+      // não possui disciplineId/topicId. A chave anterior (0::0::data) colapsava
+      // todos os snapshots em um só.
+      const importedAt = s.importedAt || s.createdAt || s.date || "";
+      const key = String(importedAt || s.id || "");
+      if (!key) continue;
       if (!canonicalSnapshots.has(key)) {
-        canonicalSnapshots.set(key, { ...s, id: nextSnapId++, userId: effectiveUserId, disciplineId: canonicalDiscId, topicId: canonicalTopId });
+        canonicalSnapshots.set(key, {
+          ...s,
+          id: nextSnapId++,
+          userId: effectiveUserId,
+          importedAt: importedAt || nowIso(),
+        });
       }
     }
   };
-  processSnapshots(safeA.tecSnapshots || [], mapDiscIdA, mapTopIdA);
-  processSnapshots(safeB.tecSnapshots || [], mapDiscIdB, mapTopIdB);
+  processSnapshots(safeA.tecSnapshots || []);
+  processSnapshots(safeB.tecSnapshots || []);
 
   // 11. Mentor Sessions & AI Conversations
   const canonicalMentorSessions = new Map<string, any>();
@@ -577,13 +785,13 @@ export function smartMergeDatabases(
       if (!ms || !ms.id) continue;
       const key = String(ms.id);
       if (!canonicalMentorSessions.has(key)) {
-        canonicalMentorSessions.set(key, ms);
+        canonicalMentorSessions.set(key, { ...ms, userId: effectiveUserId });
       } else {
         const existing = canonicalMentorSessions.get(key);
         const msgsNew = ms.messages?.length || 0;
         const msgsCur = existing.messages?.length || 0;
         if (msgsNew >= msgsCur) {
-          canonicalMentorSessions.set(key, ms);
+          canonicalMentorSessions.set(key, { ...ms, userId: effectiveUserId });
         }
       }
     }
@@ -595,10 +803,22 @@ export function smartMergeDatabases(
   const finalTopics = Array.from(canonicalTopics.values());
   for (const disc of canonicalDisciplines.values()) {
     const discTopics = finalTopics.filter((t) => t.disciplineId === disc.id);
-    const resolved = discTopics.reduce((s, t) => s + (t.performance?.questionsResolved || 0), 0);
-    const correct = discTopics.reduce((s, t) => s + (t.performance?.correctCount || 0), 0);
-    const errors = discTopics.reduce((s, t) => s + (t.performance?.errorCount || 0), 0);
-    const studySecs = Math.max(disc.studyTimeSeconds || 0, discTopics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0));
+    const resolved = discTopics.reduce(
+      (s, t) => s + (t.performance?.questionsResolved || 0),
+      0,
+    );
+    const correct = discTopics.reduce(
+      (s, t) => s + (t.performance?.correctCount || 0),
+      0,
+    );
+    const errors = discTopics.reduce(
+      (s, t) => s + (t.performance?.errorCount || 0),
+      0,
+    );
+    const studySecs = Math.max(
+      disc.studyTimeSeconds || 0,
+      discTopics.reduce((s, t) => s + (t.studyTimeSeconds || 0), 0),
+    );
     const accuracy = resolved > 0 ? Math.round((correct / resolved) * 100) : 0;
 
     disc.studyTimeSeconds = studySecs;
@@ -611,11 +831,43 @@ export function smartMergeDatabases(
   }
 
   const finalDisciplines = Array.from(canonicalDisciplines.values()).sort(
-    (a, b) => (a.order ?? 999) - (b.order ?? 999)
+    (a, b) => (a.order ?? 999) - (b.order ?? 999),
   );
 
   const finalRevisions = Array.from(canonicalRevisions.values());
   const finalErrors = Array.from(canonicalErrors.values());
+
+  // Cadernos TEC: unir por cadernoId e reatribuir ao usuário efetivo. O merge
+  // anterior sobrescrevia a lista inteira quando os dois lados usavam a mesma
+  // chave de usuário.
+  const cadernoMap = new Map<string, any>();
+  for (const source of [safeA.cadernosTec, safeB.cadernosTec]) {
+    for (const list of Object.values(source || {})) {
+      for (const c of Array.isArray(list) ? list : []) {
+        const id = String(c?.cadernoId || "");
+        if (!id) continue;
+        const prev = cadernoMap.get(id);
+        if (!prev) {
+          cadernoMap.set(id, { ...c });
+        } else {
+          prev.lastSync =
+            String(c.lastSync || "") > String(prev.lastSync || "")
+              ? c.lastSync
+              : prev.lastSync;
+          prev.topicsCount = Math.max(
+            Number(prev.topicsCount) || 0,
+            Number(c.topicsCount) || 0,
+          );
+          prev.cadernoUrl = prev.cadernoUrl || c.cadernoUrl;
+          prev.disciplina = prev.disciplina || c.disciplina;
+        }
+      }
+    }
+  }
+  const mergedCadernos =
+    cadernoMap.size > 0
+      ? { [effectiveUserId]: Array.from(cadernoMap.values()) }
+      : {};
 
   const mergedDb: Database = {
     users: [primaryUser],
@@ -631,7 +883,7 @@ export function smartMergeDatabases(
     subjectiveAnswers: Array.from(canonicalSubjective.values()),
     conceptConfusions: Array.from(canonicalConfusions.values()),
     mentorSessions: Array.from(canonicalMentorSessions.values()),
-    cadernosTec: { ...(safeA.cadernosTec || {}), ...(safeB.cadernosTec || {}) },
+    cadernosTec: mergedCadernos,
     counters: {
       users: 1,
       disciplines: nextDiscId - 1,
@@ -649,7 +901,10 @@ export function smartMergeDatabases(
       topicsCount: finalTopics.length,
       questionErrorsCount: finalErrors.length,
       revisionsCount: finalRevisions.length,
-      totalQuestionsResolved: finalTopics.reduce((s, t) => s + (t.performance?.questionsResolved || 0), 0),
+      totalQuestionsResolved: finalTopics.reduce(
+        (s, t) => s + (t.performance?.questionsResolved || 0),
+        0,
+      ),
     },
   };
 

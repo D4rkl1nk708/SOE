@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Sparkles,
   Lightbulb,
+  Printer,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -33,10 +34,10 @@ import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function Statistics() {
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
-  const { data: weekly } = trpc.dashboard.getWeeklyStats.useQuery();
   const { data: mockExams } = trpc.mockExam.list.useQuery();
   const { data: revisions } = trpc.revision.list.useQuery({ completed: false });
   const { data: completedRevisions } = trpc.revision.list.useQuery({
@@ -93,17 +94,33 @@ export default function Statistics() {
     );
 
   const disciplineStats = (stats?.disciplineStats || []) as any[];
-  const totalQuestions = disciplineStats.reduce(
-    (acc, d) => acc + (d.performance?.questionsResolved || 0),
-    0,
-  );
-  const totalCorrect = disciplineStats.reduce(
-    (acc, d) => acc + (d.performance?.correctCount || 0),
-    0,
-  );
+
+  const resolvedOf = (d: any) =>
+    Math.max(
+      Number(d.performance?.questionsResolved) || 0,
+      (Number(d.performance?.correctCount) || 0) +
+        (Number(d.performance?.errorCount) || 0),
+    );
+
+  const disciplineRows = disciplineStats.map((d) => {
+    const resolved = resolvedOf(d);
+    const correct = Number(d.performance?.correctCount) || 0;
+    const errors = Math.max(0, resolved - correct);
+    return {
+      ...d,
+      resolved,
+      correct,
+      errors,
+      accuracy: resolved > 0 ? Math.round((correct / resolved) * 100) : 0,
+    };
+  });
+
+  const totalQuestions = disciplineRows.reduce((acc, d) => acc + d.resolved, 0);
+  const totalCorrect = disciplineRows.reduce((acc, d) => acc + d.correct, 0);
+  const totalErrors = disciplineRows.reduce((acc, d) => acc + d.errors, 0);
   const overallAccuracy =
     totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  const totalStudyTime = disciplineStats.reduce(
+  const totalStudyTime = disciplineRows.reduce(
     (acc, d) => acc + (d.studyTimeSeconds || 0),
     0,
   );
@@ -115,13 +132,23 @@ export default function Statistics() {
     return h === 0 ? `${m}min` : `${h}h${m > 0 ? m + "m" : ""}`;
   };
 
-  const disciplinesByAccuracy = [...disciplineStats]
-    .filter((d) => d.performance && d.performance.questionsResolved > 0)
-    .sort(
-      (a, b) => (b.performance?.accuracy || 0) - (a.performance?.accuracy || 0),
-    );
+  // "Top performance" com amostra minúscula é ruído (1/1 = 100%). Só entra no
+  // ranking quem tem pelo menos 10 questões; se ninguém tiver, usa todos e
+  // avisa na interface.
+  const MIN_SAMPLE = 10;
+  const rankedWithSample = disciplineRows
+    .filter((d) => d.resolved >= MIN_SAMPLE)
+    .sort((a, b) => b.accuracy - a.accuracy || b.resolved - a.resolved);
+  const rankedAll = disciplineRows
+    .filter((d) => d.resolved > 0)
+    .sort((a, b) => b.accuracy - a.accuracy || b.resolved - a.resolved);
+  const topRanked = rankedWithSample.length > 0 ? rankedWithSample : rankedAll;
+  const topSampleNote =
+    rankedWithSample.length > 0
+      ? `Amostra mínima de ${MIN_SAMPLE} questões`
+      : "Amostra pequena: interprete com cautela";
 
-  const studyTimeData = [...disciplineStats]
+  const studyTimeData = [...disciplineRows]
     .filter((d) => (d.studyTimeSeconds || 0) > 0)
     .sort((a, b) => (b.studyTimeSeconds || 0) - (a.studyTimeSeconds || 0))
     .slice(0, 7)
@@ -131,29 +158,88 @@ export default function Statistics() {
       color: d.color,
     }));
 
-  const accuracyData = disciplinesByAccuracy.slice(0, 8).map((d) => ({
+  const accuracyData = topRanked.slice(0, 8).map((d) => ({
     name: d.name.length > 14 ? d.name.slice(0, 13) + "…" : d.name,
-    acerto: d.performance?.accuracy || 0,
+    acerto: d.accuracy,
+    amostra: d.resolved,
     color: d.color,
   }));
 
-  const examChartData =
-    mockExams
-      ?.slice()
-      .reverse()
-      .map((e) => ({
-        data: format(new Date(e.date), "dd/MM"),
-        acerto: Math.round((e.correct / e.totalQuestions) * 100),
-      })) || [];
+  const examChartData = (mockExams || [])
+    .filter((e) => Number(e.totalQuestions) > 0)
+    .slice()
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((e) => {
+      const date = new Date(e.date);
+      if (Number.isNaN(date.getTime())) return null;
+      return {
+        data: format(date, "dd/MM"),
+        acerto: Math.round(
+          (Number(e.correct) / Number(e.totalQuestions)) * 100,
+        ),
+      };
+    })
+    .filter(Boolean) as { data: string; acerto: number }[];
 
-  const totalRevisions =
-    (revisions?.length || 0) + (completedRevisions?.length || 0);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const allRevisions = [
+    ...(revisions || []),
+    ...(completedRevisions || []),
+  ] as any[];
+  const activeRevisions = allRevisions.filter((r) => !r.ignored);
+  const completedCount = activeRevisions.filter((r) => r.completed).length;
+  const dueCount = activeRevisions.filter(
+    (r) => !r.completed && r.scheduledDate <= todayStr,
+  ).length;
   const completionRate =
-    totalRevisions > 0
-      ? Math.round(((completedRevisions?.length || 0) / totalRevisions) * 100)
+    completedCount + dueCount > 0
+      ? Math.round((completedCount / (completedCount + dueCount)) * 100)
       : 0;
 
-  const thisW = (weekly as any)?.thisWeek;
+  const weekStartStr = format(
+    new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+    "yyyy-MM-dd",
+  );
+  const weekLogs = (sessionLogs as any[]).filter(
+    (l) => l?.date && l.date >= weekStartStr,
+  );
+  const weekMinutes = weekLogs.reduce(
+    (acc, l) => acc + (Number(l.durationMin) || 0),
+    0,
+  );
+  const weekWeight = weekLogs.reduce(
+    (acc, l) => acc + (Number(l.durationMin) || 1),
+    0,
+  );
+  const weekAccuracy =
+    weekWeight > 0
+      ? Math.round(
+          weekLogs.reduce((acc, l) => {
+            const raw = Number(l.accuracy) || 0;
+            const normalized = raw <= 1 ? raw * 100 : raw;
+            return acc + normalized * (Number(l.durationMin) || 1);
+          }, 0) / weekWeight,
+        )
+      : 0;
+
+  const sampleRows = rankedWithSample.length > 0 ? rankedWithSample : rankedAll;
+  const strongest = sampleRows[0];
+  const weakest = [...sampleRows].sort(
+    (a, b) => a.accuracy - b.accuracy || b.resolved - a.resolved,
+  )[0];
+  const priority = [...sampleRows].sort((a, b) => {
+    const score = (d: any) => (100 - d.accuracy) * Math.log10(d.resolved + 10);
+    return score(b) - score(a);
+  })[0];
+
+  const insightHtml = aiInsight
+    ? aiInsight
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-primary">$1</strong>')
+        .replace(/\n/g, "<br/>")
+    : "";
 
   const CT = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -171,53 +257,78 @@ export default function Statistics() {
   };
 
   return (
-    <div className="space-y-10 w-full pb-10 animate-in fade-in duration-500">
-      <div className="flex items-start justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Analytics & Performance
-          </h1>
-          <p className="text-[11px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest">
-            Métricas reais e insights de aprovação
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowShare(true)}
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
-          >
-            <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
-          </Button>
-          {!resetConfirm ? (
-            <button
-              onClick={() => setResetConfirm(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
-              title="Zerar estatísticas"
-            >
-              <AlertCircle size={16} />
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setResetConfirm(false)}
-                className="h-9 px-3 text-[10px] font-bold uppercase"
-              >
-                Voltar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => resetAllStats.mutate()}
-                disabled={resetAllStats.isPending}
-                className="h-9 px-4 text-[10px] font-bold uppercase"
-              >
-                Zerar Tudo
-              </Button>
-            </div>
-          )}
+    <div className="space-y-6 w-full pb-10 animate-in fade-in duration-500">
+      {/* ── Cabeçalho exclusivo para Impressão / PDF ────────────────────────── */}
+      <div className="print-only border-b border-gray-300 pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-gray-900">
+              SOE Estudos
+            </h1>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Relatório Executivo de Desempenho & Analytics
+            </p>
+          </div>
+          <div className="text-right text-xs text-gray-500">
+            <p>Gerado em: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+            <p>
+              Total de Questões: {totalQuestions} | Acurácia Geral:{" "}
+              {overallAccuracy}%
+            </p>
+          </div>
         </div>
       </div>
+      <PageHeader
+        eyebrow="Diagnóstico"
+        title="Analytics & Performance"
+        description="Métricas reais, lacunas e prioridades — sem inflar amostras pequenas."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest print:hidden"
+              title="Exportar como PDF ou Imprimir Relatório"
+            >
+              <Printer className="w-3.5 h-3.5 mr-2" /> Imprimir / PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowShare(true)}
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
+            >
+              <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
+            </Button>
+            {!resetConfirm ? (
+              <button
+                onClick={() => setResetConfirm(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
+                title="Zerar estatísticas"
+              >
+                <AlertCircle size={16} />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setResetConfirm(false)}
+                  className="h-9 px-3 text-[10px] font-bold uppercase"
+                >
+                  Voltar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => resetAllStats.mutate()}
+                  disabled={resetAllStats.isPending}
+                  className="h-9 px-4 text-[10px] font-bold uppercase"
+                >
+                  Zerar Tudo
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      />
 
       <AnimatePresence>
         {aiInsight && (
@@ -235,12 +346,7 @@ export default function Statistics() {
               </p>
               <p
                 className="text-sm font-bold leading-relaxed text-foreground/80"
-                dangerouslySetInnerHTML={{
-                  __html: aiInsight.replace(
-                    /\*\*(.*?)\*\*/g,
-                    '<strong class="text-primary">$1</strong>',
-                  ),
-                }}
+                dangerouslySetInnerHTML={{ __html: insightHtml }}
               />
             </div>
             <Sparkles className="absolute -right-2 -bottom-2 w-16 h-16 opacity-5 rotate-12 text-primary" />
@@ -260,21 +366,21 @@ export default function Statistics() {
           {
             label: "Aproveitamento",
             val: `${overallAccuracy}%`,
-            sub: "Média de acertos",
+            sub: "Acurácia ponderada",
             icon: Target,
             color: "var(--accent-green)",
           },
           {
             label: "Questões",
             val: totalQuestions,
-            sub: "Itens resolvidos",
+            sub: `${totalErrors} erros no total`,
             icon: CheckCircle2,
             color: "var(--accent-blue)",
           },
           {
             label: "Revisões",
-            val: completedRevisions?.length || 0,
-            sub: `${completionRate}% conclusão`,
+            val: completedCount,
+            sub: `${completionRate}% das vencidas`,
             icon: Zap,
             color: "var(--accent-amber)",
           },
@@ -301,6 +407,63 @@ export default function Statistics() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="soe-card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Lightbulb className="w-4 h-4 text-accent-amber" />
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground">
+            Leitura rápida
+          </h2>
+        </div>
+        {sampleRows.length === 0 ? (
+          <p className="text-xs font-semibold text-muted-foreground opacity-60">
+            Resolva algumas questões para o SOE identificar padrões e
+            prioridades.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-md bg-secondary/20 border border-border/50">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
+                Mais consistente
+              </p>
+              <p className="text-sm font-bold text-accent-green truncate">
+                {strongest?.name || "—"}
+              </p>
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                {strongest
+                  ? `${strongest.accuracy}% de acerto em ${strongest.resolved} questões`
+                  : "Sem dados suficientes"}
+              </p>
+            </div>
+            <div className="p-4 rounded-md bg-secondary/20 border border-border/50">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
+                Maior lacuna
+              </p>
+              <p className="text-sm font-bold text-accent-red truncate">
+                {weakest?.name || "—"}
+              </p>
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                {weakest
+                  ? `${weakest.accuracy}% de acerto em ${weakest.resolved} questões`
+                  : "Sem dados suficientes"}
+              </p>
+            </div>
+            <div className="p-4 rounded-md bg-secondary/20 border border-border/50">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 mb-1">
+                Prioridade agora
+              </p>
+              <p className="text-sm font-bold text-accent-amber truncate">
+                {priority?.name || "—"}
+              </p>
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                {priority
+                  ? `${priority.errors} erros em ${priority.resolved} questões`
+                  : "Sem dados suficientes"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -378,11 +541,16 @@ export default function Statistics() {
             </div>
 
             <div className="soe-card p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <Target className="w-4 h-4 text-accent-green" />
-                <h2 className="text-[10px] font-bold uppercase tracking-widest">
-                  Top Performance
-                </h2>
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <Target className="w-4 h-4 text-accent-green" />
+                  <h2 className="text-[10px] font-bold uppercase tracking-widest">
+                    Acurácia por disciplina
+                  </h2>
+                </div>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground opacity-40 text-right">
+                  {topSampleNote}
+                </span>
               </div>
               <div className="h-48 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -519,11 +687,23 @@ export default function Statistics() {
                     className="text-accent-green opacity-60"
                   />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">
-                    Frequência
+                    Sessões (7d)
                   </span>
                 </div>
                 <span className="text-xs font-bold text-accent-green">
-                  +{thisW?.questions || 0}q
+                  {weekLogs.length}
+                </span>
+              </div>
+
+              <div className="p-4 rounded-md bg-secondary/30 border border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Clock size={14} className="text-primary opacity-60" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">
+                    Tempo (7d)
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-primary">
+                  {formatTime(weekMinutes * 60)}
                 </span>
               </div>
 
@@ -536,6 +716,18 @@ export default function Statistics() {
                 </div>
                 <span className="text-xs font-bold text-accent-amber">
                   {(stats as any)?.settings?.studyStreak?.current || 0} dias
+                </span>
+              </div>
+
+              <div className="p-4 rounded-md bg-secondary/30 border border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Target size={14} className="text-accent-green opacity-60" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">
+                    Acurácia (7d)
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-accent-green">
+                  {weekAccuracy}%
                 </span>
               </div>
             </div>

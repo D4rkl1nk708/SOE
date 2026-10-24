@@ -25,6 +25,8 @@ import {
   PenLine,
   Zap,
   FlaskConical,
+  Target,
+  Clock,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
@@ -39,28 +41,36 @@ declare const __APP_VERSION__: string;
 // ── Navigation groups ────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
-    label: "Principal",
+    label: "Foco",
     items: [
       { path: "/", label: "Início", icon: LayoutDashboard },
+      { path: "/plan", label: "Plano", icon: Target },
       { path: "/question-session", label: "Treinos", icon: ListChecks },
-      { path: "/mentor", label: "IA", icon: Sparkles },
-      { path: "/lab", label: "Laboratório", icon: FlaskConical },
+      { path: "/mentor", label: "Mentor IA", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Estudos",
+    items: [
+      { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
+      { path: "/revisions", label: "Revisões", icon: Clock },
+      { path: "/calendar", label: "Calendário", icon: CalendarDays },
+      { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
+      { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
     ],
   },
   {
     label: "Conteúdo",
     items: [
-      { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
-      { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
       { path: "/flashcards", label: "Flashcards", icon: Brain },
       { path: "/notes", label: "Anotações", icon: StickyNote },
+      { path: "/edital", label: "Editais", icon: Sheet },
     ],
   },
   {
-    label: "Organização",
+    label: "Sistema",
     items: [
-      { path: "/calendar", label: "Calendário", icon: CalendarDays },
-      { path: "/edital", label: "Editais", icon: Sheet },
+      { path: "/lab", label: "Laboratório", icon: FlaskConical },
       { path: "/sync", label: "Sync & Backup", icon: Wifi },
     ],
   },
@@ -76,10 +86,22 @@ const MOBILE_PRIMARY = [
 
 const MOBILE_SECONDARY = [
   {
+    path: "/plan",
+    label: "Plano",
+    icon: Target,
+    color: "#f97316",
+  },
+  {
     path: "/disciplines",
     label: "Disciplinas",
     icon: BarChart3,
     color: "#3b82f6",
+  },
+  {
+    path: "/revisions",
+    label: "Revisões",
+    icon: Clock,
+    color: "#0ea5e9",
   },
   {
     path: "/statistics",
@@ -214,7 +236,7 @@ function Sidebar({
         {!collapsed && (
           <button
             onClick={onToggle}
-            className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+            className="w-8 h-8 rounded-full bg-secondary/40 border border-border/70 flex items-center justify-center hover:bg-secondary/60 transition-all opacity-40 hover:opacity-100"
             title="Recolher menu"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -226,7 +248,7 @@ function Sidebar({
         <div className="flex justify-center pb-4">
           <button
             onClick={onToggle}
-            className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-full bg-secondary/40 border border-border/70 flex items-center justify-center hover:bg-secondary/60 transition-all"
             title="Expandir menu"
           >
             <ChevronRight className="w-3.5 h-3.5" />
@@ -246,7 +268,7 @@ function Sidebar({
                 {group.label}
               </p>
             ) : (
-              <div className="my-4 mx-auto w-4 h-[1px] bg-white/5" />
+              <div className="my-4 mx-auto w-4 h-[1px] bg-secondary/40" />
             )}
             <div className="space-y-1">
               {group.items.map((item) => (
@@ -367,27 +389,23 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <div className="flex items-center gap-2.5">
             <SoeLogo size={28} />
-            <span
-              className="font-bold text-[15px] tracking-[-0.4px]"
-              style={{ color: "var(--primary)" }}
-            >
-              SOE
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span
+                className="font-bold text-[13px] tracking-[-0.3px]"
+                style={{ color: "var(--primary)" }}
+              >
+                SOE
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {currentLabel}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() =>
-                window.dispatchEvent(new CustomEvent("soe-start-tour"))
-              }
-              className="p-2 rounded-xl text-primary active:scale-95 transition-all"
-              title="Iniciar Tour"
-            >
-              <Zap className="w-[22px] h-[22px]" />
-            </button>
+          <div className="flex items-center gap-3">
             <SearchButton />
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl hover:bg-white/5 active:scale-95 transition-all"
+              className="p-2 rounded-xl hover:bg-secondary/40 active:scale-95 transition-all"
               style={{ color: "var(--muted-text)" }}
             >
               {theme === "light" ? (
@@ -501,7 +519,9 @@ export function Layout({ children }: { children: ReactNode }) {
           className="flex-1 overflow-x-hidden overflow-y-auto w-full"
           style={{ background: "var(--app-bg)" }}
         >
-          <div className="w-full p-3 md:p-6">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] p-3 md:p-6">
+            {children}
+          </div>
         </main>
       </div>
 

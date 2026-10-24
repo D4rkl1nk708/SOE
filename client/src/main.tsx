@@ -58,25 +58,12 @@ const trpcClient = trpc.createClient({
         url: trpcUrl,
         transformer: superjson,
         fetch(input, init) {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-          const projectId =
-            supabaseUrl.match(/https:\/\/(.*?)\.supabase/)?.[1] || "default";
-          const authKey = `sb-${projectId}-auth-token`;
-          const authString = localStorage.getItem(authKey);
-          let token = "";
-          if (authString) {
-            try {
-              const parsed = JSON.parse(authString);
-              token = parsed.access_token;
-            } catch (e) {}
-          }
           return globalThis.fetch(input, {
             ...(init ?? {}),
             headers: {
               ...(init?.headers ?? {}),
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            credentials: "omit", // Using JWT instead of cookies
+            credentials: "include",
           });
         },
       }),

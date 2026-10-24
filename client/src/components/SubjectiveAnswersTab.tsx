@@ -115,7 +115,7 @@ function formatDate(iso: string) {
 
 function StatBox({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="soe-card p-4 flex flex-col items-center justify-center gap-1 bg-white/[0.02]">
+    <div className="soe-card p-4 flex flex-col items-center justify-center gap-1 bg-secondary/20">
       <span
         className="text-2xl font-black tabular-nums"
         style={{ color: "var(--app-fg)" }}
@@ -169,7 +169,7 @@ export function HighlightedText({
               }}
             >
               {desvio.trecho_original}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-2xl bg-slate-900 text-white text-[10px] opacity-0 group-hover/desvio:opacity-100 pointer-events-none transition-opacity z-10 shadow-2xl border border-white/10">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-2xl bg-card text-foreground text-white text-[10px] opacity-0 group-hover/desvio:opacity-100 pointer-events-none transition-opacity z-10 shadow-2xl border border-border">
                 <p className="font-black text-rose-400 mb-1.5 uppercase tracking-widest">
                   {desvio.tipo}
                 </p>
@@ -242,7 +242,7 @@ function AnswerCard({
       <div className="flex items-start gap-4 p-4">
         {/* Thumbnail */}
         <div
-          className="w-16 h-16 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer group/thumb relative border border-white/5"
+          className="w-16 h-16 rounded-2xl flex-shrink-0 overflow-hidden flex items-center justify-center cursor-pointer group/thumb relative border border-border/70"
           style={{ background: "var(--stat-bg)" }}
           onClick={() => setShowImageModal(true)}
         >
@@ -254,7 +254,7 @@ function AnswerCard({
                 className="w-full h-full object-cover group-hover/thumb:opacity-50 transition-opacity"
                 onError={() => setImgError(true)}
               />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-black/40">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-secondary/20">
                 <Maximize2 className="w-5 h-5 text-white" />
               </div>
             </>
@@ -270,7 +270,7 @@ function AnswerCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span
-              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/5 border border-white/5"
+              className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-secondary/40 border border-border/70"
               style={{ color: "var(--muted-text)" }}
             >
               {answer.banca}
@@ -322,7 +322,7 @@ function AnswerCard({
       {/* Expand toggle */}
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-colors border-t"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-secondary/40 transition-colors border-t"
         style={{
           borderColor: "var(--card-border)",
           color: expanded ? "var(--primary)" : "var(--muted-text)",
@@ -443,7 +443,7 @@ function AnswerCard({
                           {correction.deducoes!.map((d, i) => (
                             <div
                               key={i}
-                              className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2 border border-white/5"
+                              className="flex items-center justify-between bg-secondary/40 rounded-xl px-3 py-2 border border-border/70"
                             >
                               <span
                                 className="text-[11px] font-medium"
@@ -763,7 +763,7 @@ function AnswerCard({
           <div className="relative w-full h-full flex items-center justify-center p-4">
             <button
               onClick={() => setShowImageModal(false)}
-              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all backdrop-blur-md"
+              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-secondary/60 text-white hover:bg-white/20 transition-all backdrop-blur-md"
             >
               <X className="w-6 h-6" />
             </button>
@@ -1067,7 +1067,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                 <button
                   key={d.id}
                   onClick={() => toggleDisc(d.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-2 ${isSelected ? "shadow-lg" : "hover:bg-white/5"}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-2 ${isSelected ? "shadow-lg" : "hover:bg-secondary/40"}`}
                   style={{
                     background: isSelected ? d.color : "transparent",
                     color: isSelected ? "white" : "var(--app-fg)",
@@ -1083,7 +1083,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
         </div>
 
         {focusDiscIds.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-4 border-t border-white/5">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-4 border-t border-border/70">
             <div className="text-[10px] font-black uppercase tracking-widest opacity-60 text-emerald-500">
               {focusDiscIds.length} disciplina
               {focusDiscIds.length > 1 ? "s" : ""} no radar da IA
@@ -1092,7 +1092,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
             {!question && (
               <div className="flex items-center gap-2 w-full sm:w-auto relative">
                 <select
-                  className="px-3 py-2 rounded-lg text-xs font-bold border outline-none bg-white/5"
+                  className="px-3 py-2 rounded-lg text-xs font-bold border outline-none bg-secondary/40"
                   style={{
                     borderColor: "var(--card-border)",
                     color: "var(--app-fg)",
@@ -1101,7 +1101,11 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                   onChange={(e) => setBanca(e.target.value)}
                 >
                   {BANCAS.map((b) => (
-                    <option key={b.id} value={b.id} className="bg-slate-900">
+                    <option
+                      key={b.id}
+                      value={b.id}
+                      className="bg-card text-foreground"
+                    >
                       {b.label}
                     </option>
                   ))}
@@ -1111,7 +1115,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                   <button
                     onClick={() => generateQuestion("recommended")}
                     disabled={generating}
-                    className="px-4 py-2 rounded-l-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 border-r border-white/10"
+                    className="px-4 py-2 rounded-l-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 shadow-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 border-r border-border"
                     style={{ background: "var(--primary)", color: "white" }}
                   >
                     {generating ? (
@@ -1133,13 +1137,13 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                   </button>
 
                   {isInitialDropdownOpen && (
-                    <div className="absolute top-full mt-2 right-0 w-60 bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute top-full mt-2 right-0 w-60 bg-[#09090b] border border-border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                       <button
                         onClick={() => {
                           setIsInitialDropdownOpen(false);
                           generateQuestion("recommended");
                         }}
-                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-white/5 flex items-center gap-2 transition-colors"
+                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-secondary/40 flex items-center gap-2 transition-colors"
                         style={{ color: "var(--app-fg)" }}
                       >
                         <Sparkles className="w-4 h-4 text-emerald-500" />
@@ -1155,7 +1159,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                           setIsInitialDropdownOpen(false);
                           generateQuestion("random");
                         }}
-                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-white/5 flex items-center gap-2 transition-colors mt-1"
+                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-secondary/40 flex items-center gap-2 transition-colors mt-1"
                         style={{ color: "var(--app-fg)" }}
                       >
                         <Shuffle className="w-4 h-4 text-amber-500" />
@@ -1257,20 +1261,20 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
               <div className="relative">
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="px-4 py-3 rounded-2xl font-bold text-xs bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-2"
+                  className="px-4 py-3 rounded-2xl font-bold text-xs bg-secondary/40 hover:bg-secondary/60 transition-colors flex items-center gap-2"
                   style={{ color: "var(--app-fg)" }}
                 >
                   Gerar Outra <ChevronDown className="w-3.5 h-3.5 opacity-60" />
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute bottom-full mb-2 right-0 w-60 bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                  <div className="absolute bottom-full mb-2 right-0 w-60 bg-[#09090b] border border-border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <button
                       onClick={() => {
                         setIsDropdownOpen(false);
                         generateQuestion("recommended");
                       }}
-                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-white/5 flex items-center gap-2 transition-colors"
+                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-secondary/40 flex items-center gap-2 transition-colors"
                       style={{ color: "var(--app-fg)" }}
                     >
                       <Sparkles className="w-4 h-4 text-emerald-500" />
@@ -1286,7 +1290,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                         setIsDropdownOpen(false);
                         generateQuestion("random");
                       }}
-                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-white/5 flex items-center gap-2 transition-colors mt-1"
+                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-secondary/40 flex items-center gap-2 transition-colors mt-1"
                       style={{ color: "var(--app-fg)" }}
                     >
                       <Shuffle className="w-4 h-4 text-amber-500" />
@@ -1335,7 +1339,7 @@ Retorne APENAS um JSON válido (sem markdown, sem blocos de código) no formato:
                     toast.error("Erro ao salvar rascunho.");
                   }
                 }}
-                className="px-4 py-3 rounded-2xl font-bold text-xs bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-2"
+                className="px-4 py-3 rounded-2xl font-bold text-xs bg-secondary/40 hover:bg-secondary/60 transition-colors flex items-center gap-2"
                 style={{ color: "var(--app-fg)" }}
               >
                 Salvar Rascunho
@@ -1548,7 +1552,7 @@ export default function SubjectiveAnswersTab() {
       />
 
       {/* Rascunhos e Questões Salvas */}
-      <div className="soe-card p-6 border-white/5 bg-white/[0.02] rounded-[2rem] border relative overflow-hidden">
+      <div className="soe-card p-6 border-border/70 bg-secondary/20 rounded-[2rem] border relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
             <h3
@@ -1564,7 +1568,7 @@ export default function SubjectiveAnswersTab() {
           </div>
           <button
             onClick={() => setIsManualModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-secondary/40 border border-border hover:bg-secondary/60 transition-colors flex items-center gap-2"
             style={{ color: "var(--app-fg)" }}
           >
             <PenLine className="w-4 h-4 text-emerald-500" /> Criar Questão
@@ -1582,12 +1586,12 @@ export default function SubjectiveAnswersTab() {
             {drafts.map((d) => (
               <div
                 key={d.id}
-                className="p-4 rounded-2xl border border-white/5 bg-black/20 flex flex-col justify-between gap-4"
+                className="p-4 rounded-2xl border border-border/70 bg-secondary/30 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span
-                      className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/5 border border-white/5"
+                      className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-secondary/40 border border-border/70"
                       style={{ color: "var(--muted-text)" }}
                     >
                       {d.banca}
@@ -1609,12 +1613,12 @@ export default function SubjectiveAnswersTab() {
                     {d.questionStatement}
                   </p>
                   {d.transcription && (
-                    <div className="bg-white/5 p-2 rounded-xl border border-white/5 text-[11px] opacity-60 truncate">
+                    <div className="bg-secondary/40 p-2 rounded-xl border border-border/70 text-[11px] opacity-60 truncate">
                       <strong>Rascunho do texto:</strong> {d.transcription}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between pt-2 border-t border-border/70">
                   <button
                     onClick={() => handleDeleteDraft(d.id)}
                     className="text-[10px] font-black uppercase tracking-widest text-rose-500 hover:underline"
@@ -1708,7 +1712,7 @@ export default function SubjectiveAnswersTab() {
             background: "var(--stat-bg)",
           }}
         >
-          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center bg-white/5 mb-4">
+          <div className="w-16 h-16 rounded-[2rem] flex items-center justify-center bg-secondary/40 mb-4">
             <ImageOff className="w-8 h-8 opacity-20" />
           </div>
           <p
@@ -1777,7 +1781,7 @@ export default function SubjectiveAnswersTab() {
 
       {/* Manual Question Dialog */}
       <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="max-w-xl bg-[#09090b] border border-white/10 rounded-[2rem] p-6 text-left">
+        <DialogContent className="max-w-xl bg-[#09090b] border border-border rounded-[2rem] p-6 text-left">
           <DialogHeader>
             <DialogTitle
               className="text-lg font-black tracking-tight flex items-center gap-2"
@@ -1802,17 +1806,21 @@ export default function SubjectiveAnswersTab() {
                   setManualDisciplineId(Number(e.target.value) || "");
                   setManualTopicId("");
                 }}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5"
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-secondary/40"
                 style={{
                   borderColor: "var(--card-border)",
                   color: "var(--app-fg)",
                 }}
               >
-                <option value="" className="bg-slate-900">
+                <option value="" className="bg-card text-foreground">
                   Selecione uma disciplina...
                 </option>
                 {(disciplines as any[])?.map((d) => (
-                  <option key={d.id} value={d.id} className="bg-slate-900">
+                  <option
+                    key={d.id}
+                    value={d.id}
+                    className="bg-card text-foreground"
+                  >
                     {d.name}
                   </option>
                 ))}
@@ -1830,19 +1838,23 @@ export default function SubjectiveAnswersTab() {
                 value={manualTopicId}
                 onChange={(e) => setManualTopicId(Number(e.target.value) || "")}
                 disabled={!manualDisciplineId}
-                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5 disabled:opacity-40"
+                className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-secondary/40 disabled:opacity-40"
                 style={{
                   borderColor: "var(--card-border)",
                   color: "var(--app-fg)",
                 }}
               >
-                <option value="" className="bg-slate-900">
+                <option value="" className="bg-card text-foreground">
                   Selecione um tema...
                 </option>
                 {topicsData?.topics
                   ?.filter((t) => t.disciplineId === manualDisciplineId)
                   ?.map((t) => (
-                    <option key={t.id} value={t.id} className="bg-slate-900">
+                    <option
+                      key={t.id}
+                      value={t.id}
+                      className="bg-card text-foreground"
+                    >
                       {t.name}
                     </option>
                   ))}
@@ -1860,14 +1872,18 @@ export default function SubjectiveAnswersTab() {
                 <select
                   value={manualBanca}
                   onChange={(e) => setManualBanca(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-white/5"
+                  className="w-full px-3 py-2.5 rounded-xl text-xs font-bold border outline-none bg-secondary/40"
                   style={{
                     borderColor: "var(--card-border)",
                     color: "var(--app-fg)",
                   }}
                 >
                   {BANCAS.map((b) => (
-                    <option key={b.id} value={b.id} className="bg-slate-900">
+                    <option
+                      key={b.id}
+                      value={b.id}
+                      className="bg-card text-foreground"
+                    >
                       {b.label}
                     </option>
                   ))}
@@ -1886,7 +1902,7 @@ export default function SubjectiveAnswersTab() {
                 value={manualQuestion}
                 onChange={(e) => setManualQuestion(e.target.value)}
                 placeholder="Digite o enunciado completo da questão discursiva aqui..."
-                className="w-full h-36 p-3 rounded-xl text-xs border outline-none bg-white/5 focus:ring-1 focus:ring-emerald-500"
+                className="w-full h-36 p-3 rounded-xl text-xs border outline-none bg-secondary/40 focus:ring-1 focus:ring-emerald-500"
                 style={{
                   borderColor: "var(--card-border)",
                   color: "var(--app-fg)",
@@ -1898,7 +1914,7 @@ export default function SubjectiveAnswersTab() {
           <div className="flex gap-2 justify-end mt-6">
             <button
               onClick={() => setIsManualModalOpen(false)}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold border bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold border bg-secondary/40 border-border hover:bg-secondary/60 transition-colors"
               style={{ color: "var(--app-fg)" }}
             >
               Cancelar

@@ -40,13 +40,13 @@ export function FontSizeControl() {
 
   return (
     <div
-      className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl px-2 py-1"
+      className="flex items-center gap-1 bg-secondary/40 border border-border rounded-xl px-2 py-1"
       title={`Zoom do Sistema: ${zoom}%`}
     >
       <button
         onClick={decrease}
         disabled={zoom <= MIN_ZOOM}
-        className="p-1 rounded-lg hover:bg-white/10 transition-all disabled:opacity-20"
+        className="p-1 rounded-lg hover:bg-secondary/60 transition-all disabled:opacity-20"
         title="Diminuir texto"
       >
         <Minus size={14} className="opacity-60" />
@@ -62,7 +62,7 @@ export function FontSizeControl() {
       <button
         onClick={increase}
         disabled={zoom >= MAX_ZOOM}
-        className="p-1 rounded-lg hover:bg-white/10 transition-all disabled:opacity-20"
+        className="p-1 rounded-lg hover:bg-secondary/60 transition-all disabled:opacity-20"
         title="Aumentar texto"
       >
         <Plus size={14} className="opacity-60" />

@@ -276,4 +276,50 @@ describe("jsonStorage Integration Tests", () => {
     const stats = await storage.getDashboardStats(user.id);
     expect(stats.disciplineStats[0].studyTimeSeconds).toBe(3600);
   });
+
+  it("syncReceiveDatabase reflete o merge imediatamente e não persiste _mergeReport", async () => {
+    await storage.upsertUser({ openId: "local-user", name: "Local" });
+    const user = (await storage.getUserByOpenId("local-user"))!;
+    await storage.createDiscipline({
+      userId: user.id,
+      name: "Português",
+      color: "#000",
+      weight: 1,
+    });
+
+    const result = storage.syncReceiveDatabase({
+      users: [{ id: 99, openId: "android", name: "Android", settings: {} }],
+      disciplines: [
+        {
+          id: 50,
+          userId: 99,
+          name: "Matemática",
+          color: "#111",
+          weight: 1,
+          studyTimeSeconds: 0,
+        },
+      ],
+      topics: [
+        {
+          id: 500,
+          userId: 99,
+          disciplineId: 50,
+          name: "Frações",
+          studyDate: "2026-01-01",
+          notes: null,
+          studyTimeSeconds: 0,
+        },
+      ],
+      revisions: [],
+      counters: {},
+    });
+
+    expect(result.success).toBe(true);
+    const discs = await storage.getDisciplinesByUser(user.id);
+    expect(discs.map((d) => d.name).sort()).toEqual([
+      "Matemática",
+      "Português",
+    ]);
+    expect((storage.readDatabase() as any)._mergeReport).toBeUndefined();
+  });
 });
