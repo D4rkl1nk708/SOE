@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
@@ -104,52 +105,80 @@ export default function Calendar() {
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const queryParams = useMemo(() => ({
-    startDate: calendarStart.toISOString().split("T")[0],
-    endDate: calendarEnd.toISOString().split("T")[0],
-  }), [calendarStart, calendarEnd]);
+  const queryParams = useMemo(
+    () => ({
+      startDate: calendarStart.toISOString().split("T")[0],
+      endDate: calendarEnd.toISOString().split("T")[0],
+    }),
+    [calendarStart, calendarEnd],
+  );
 
   const isAndroid = Capacitor.isNativePlatform();
-  
+
   // Fetch all activities for the month without limit
-  const { data: activitiesData, isLoading: activitiesLoading } = trpc.calendar.getActivities.useQuery(
-    { ...queryParams, limit: 10000, offset: 0 }, // High limit to get all activities
-    { 
-      staleTime: 30000, // Cache for 30 seconds
-    }
-  );
-  
-  const activities = Array.isArray(activitiesData) ? activitiesData : activitiesData?.activities || [];
-  const totalActivities = Array.isArray(activitiesData) ? activitiesData.length : activitiesData?.total || 0;
+  const { data: activitiesData, isLoading: activitiesLoading } =
+    trpc.calendar.getActivities.useQuery(
+      { ...queryParams, limit: 10000, offset: 0 }, // High limit to get all activities
+      {
+        staleTime: 30000, // Cache for 30 seconds
+      },
+    );
+
+  const activities = Array.isArray(activitiesData)
+    ? activitiesData
+    : activitiesData?.activities || [];
+  const totalActivities = Array.isArray(activitiesData)
+    ? activitiesData.length
+    : activitiesData?.total || 0;
   const loading = activitiesLoading;
 
   const markCompletedMut = trpc.calendar.markCompleted.useMutation({
     onMutate: async ({ revisionId, completed }) => {
       setPendingToggles((prev) => new Set(prev).add(revisionId));
-      await utils.calendar.getActivities.cancel({ ...queryParams, limit: 50, offset: 0 });
-      const previousActivities = utils.calendar.getActivities.getData({ ...queryParams, limit: 50, offset: 0 });
+      await utils.calendar.getActivities.cancel({
+        ...queryParams,
+        limit: 50,
+        offset: 0,
+      });
+      const previousActivities = utils.calendar.getActivities.getData({
+        ...queryParams,
+        limit: 50,
+        offset: 0,
+      });
 
       if (previousActivities) {
-        const oldArray = Array.isArray(previousActivities) ? previousActivities : previousActivities.activities;
+        const oldArray = Array.isArray(previousActivities)
+          ? previousActivities
+          : previousActivities.activities;
         if (oldArray) {
-          utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, (old) => {
-            const currentArray = Array.isArray(old) ? old : old?.activities;
-            return currentArray 
-              ? currentArray.map((a) => (a.id === revisionId ? { ...a, completed } : a))
-              : [];
-          });
+          utils.calendar.getActivities.setData(
+            { ...queryParams, limit: 50, offset: 0 },
+            (old) => {
+              const currentArray = Array.isArray(old) ? old : old?.activities;
+              return currentArray
+                ? currentArray.map((a) =>
+                    a.id === revisionId ? { ...a, completed } : a,
+                  )
+                : [];
+            },
+          );
         }
       }
       return { previousActivities, revisionId };
     },
     onError: (err, vars, ctx) => {
       if (ctx?.previousActivities) {
-        utils.calendar.getActivities.setData({ ...queryParams, limit: 50, offset: 0 }, ctx.previousActivities);
+        utils.calendar.getActivities.setData(
+          { ...queryParams, limit: 50, offset: 0 },
+          ctx.previousActivities,
+        );
       }
       toast.error("Falha ao atualizar tarefa. Tente novamente.");
     },
     onSuccess: (_, vars) => {
-      toast.success(vars.completed ? "Marcado como feito!" : "Marcado como pendente!");
+      toast.success(
+        vars?.completed ? "Marcado como feito!" : "Marcado como pendente!",
+      );
     },
     onSettled: (_, __, ___, ctx) => {
       if (ctx?.revisionId) {
@@ -159,7 +188,11 @@ export default function Calendar() {
           return next;
         });
       }
-      utils.calendar.getActivities.invalidate({ ...queryParams, limit: 50, offset: 0 });
+      utils.calendar.getActivities.invalidate({
+        ...queryParams,
+        limit: 50,
+        offset: 0,
+      });
       utils.dashboard.getStats.invalidate();
     },
   });
@@ -406,10 +439,11 @@ export default function Calendar() {
               </div>
 
               {/* Activity Timeline List */}
-              <div 
+              <div
                 className="p-10 overflow-y-auto custom-scrollbar flex-1 bg-[#0a0a0a] flex flex-col gap-6"
                 onScroll={(e) => {
-                  const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                  const { scrollTop, scrollHeight, clientHeight } =
+                    e.currentTarget;
                   if (scrollHeight - scrollTop - clientHeight < 250) {
                     setModalVisibleCount((prev) => prev + 15);
                   }
@@ -481,7 +515,10 @@ export default function Calendar() {
                     return true;
                   });
 
-                  const visibleActivities = filteredActivities.slice(0, modalVisibleCount);
+                  const visibleActivities = filteredActivities.slice(
+                    0,
+                    modalVisibleCount,
+                  );
                   const hasMore = filteredActivities.length > modalVisibleCount;
 
                   if (filteredActivities.length > 0) {
@@ -679,15 +716,25 @@ export default function Calendar() {
                               variant="outline"
                               size="sm"
                               className="bg-white/5 border-white/10 hover:bg-white/10 text-xs rounded-xl"
-                              onClick={() => setModalVisibleCount((prev) => Math.min(prev + 15, filteredActivities.length))}
+                              onClick={() =>
+                                setModalVisibleCount((prev) =>
+                                  Math.min(
+                                    prev + 15,
+                                    filteredActivities.length,
+                                  ),
+                                )
+                              }
                             >
-                              Carregar mais ({filteredActivities.length - modalVisibleCount} tarefas restantes)
+                              Carregar mais (
+                              {filteredActivities.length - modalVisibleCount}{" "}
+                              tarefas restantes)
                             </Button>
                           </div>
                         )}
                         {!hasMore && filteredActivities.length > 15 && (
                           <div className="pt-3 text-center text-[10px] text-white/30 uppercase tracking-widest">
-                            Todas as {filteredActivities.length} tarefas carregadas
+                            Todas as {filteredActivities.length} tarefas
+                            carregadas
                           </div>
                         )}
                       </div>

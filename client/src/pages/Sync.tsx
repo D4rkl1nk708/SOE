@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
@@ -34,20 +35,33 @@ import { trpc } from "@/lib/trpc";
 const isAndroid = Capacitor.isNativePlatform();
 const isDesktop = !isAndroid;
 
-// ── QR Code generator (utility remains the same, styling improved) ───────────
+// ── QR Code generator (Fast, 100% offline via local qrcode library) ───────────
 async function getQRDataURL(text: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).QRCode) {
-      buildQR(text, resolve, reject);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-    script.onload = () => buildQR(text, resolve, reject);
-    script.onerror = reject;
-    document.body.appendChild(script);
-  });
+  try {
+    return await QRCode.toDataURL(text, {
+      width: 280,
+      margin: 1,
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+      errorCorrectionLevel: "M",
+    });
+  } catch (e) {
+    console.warn("Direct QRCode error, falling back to canvas:", e);
+    return new Promise((resolve, reject) => {
+      if ((window as any).QRCode) {
+        buildQR(text, resolve, reject);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src =
+        "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+      script.onload = () => buildQR(text, resolve, reject);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
 }
 function buildQR(
   text: string,
@@ -203,14 +217,18 @@ export default function Sync() {
       setSyncInfo(data);
       if (data.ips && data.ips.length > 0) {
         const recommended = data.details?.find(
-          (d: any) => d.isRecommended && !d.isVirtual && !d.address.startsWith("172."),
+          (d: any) =>
+            d.isRecommended && !d.isVirtual && !d.address.startsWith("172."),
         )?.address;
         const nonVirtual = data.details?.find(
           (d: any) => !d.isVirtual && !d.address.startsWith("172."),
         )?.address;
         const lan192 = data.ips.find((ip: string) => ip.startsWith("192.168."));
         const lan10 = data.ips.find((ip: string) => ip.startsWith("10."));
-        setSelectedIp((prev) => prev || recommended || nonVirtual || lan192 || lan10 || data.ips[0]);
+        setSelectedIp(
+          (prev) =>
+            prev || recommended || nonVirtual || lan192 || lan10 || data.ips[0],
+        );
       }
     } catch {}
   }, []);
@@ -308,7 +326,9 @@ export default function Sync() {
           () =>
             reject(
               new Error(
-                "TIMEOUT: O PC não respondeu em " + Math.round(timeoutMs / 1000) + "s. Verifique se ambos estão no mesmo Wi-Fi e se o app SOE está aberto no computador.",
+                "TIMEOUT: O PC não respondeu em " +
+                  Math.round(timeoutMs / 1000) +
+                  "s. Verifique se ambos estão no mesmo Wi-Fi e se o app SOE está aberto no computador.",
               ),
             ),
           timeoutMs,
@@ -363,7 +383,8 @@ export default function Sync() {
   } | null>(null);
 
   const confirmImport = async (json: string, forceOverwrite = false) => {
-    const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
+    const { localImportImportBackup, localImportExportBackup } =
+      await import("@/lib/localDb");
     await localImportImportBackup({ json, forceOverwrite });
     toast.success("Dados sincronizados com sucesso!");
     setTimeout(() => window.location.reload(), 2000);
@@ -401,7 +422,10 @@ export default function Sync() {
         timeoutMs: 120000,
       });
       if (res.status < 200 || res.status >= 300) {
-        const errDetail = res.data?.message || res.data?.error || `Erro de resposta do PC (HTTP ${res.status})`;
+        const errDetail =
+          res.data?.message ||
+          res.data?.error ||
+          `Erro de resposta do PC (HTTP ${res.status})`;
         throw new Error(errDetail);
       }
 
@@ -409,20 +433,23 @@ export default function Sync() {
         active: true,
         percent: 45,
         title: "Processando e Mesclando Dados...",
-        description: "Unificando questões, revisões, matérias e conversas de IA",
+        description:
+          "Unificando questões, revisões, matérias e conversas de IA",
       });
 
       const json =
         typeof res.data === "string" ? res.data : JSON.stringify(res.data);
 
-      const { localImportImportBackup, localImportExportBackup } = await import("@/lib/localDb");
+      const { localImportImportBackup, localImportExportBackup } =
+        await import("@/lib/localDb");
       await localImportImportBackup({ json });
 
       setSyncProgress({
         active: true,
         percent: 75,
         title: "Sincronizando de volta ao PC...",
-        description: "Garantindo 100% de paridade bidirecional em ambos os lados",
+        description:
+          "Garantindo 100% de paridade bidirecional em ambos os lados",
       });
 
       // Sincroniza de volta para o PC automaticamente para paridade imediata
@@ -482,7 +509,8 @@ export default function Sync() {
         description: "Lendo matérias, temas, erros, conversas e estatísticas",
       });
 
-      const { localImportExportBackup, localImportImportBackup } = await import("@/lib/localDb");
+      const { localImportExportBackup, localImportImportBackup } =
+        await import("@/lib/localDb");
       const json = await localImportExportBackup();
 
       setSyncProgress({
@@ -692,105 +720,70 @@ export default function Sync() {
     loading: boolean;
     footerAction?: React.ReactNode;
   }) => {
-    const [flipped, setFlipped] = useState(false);
     return (
-      <div className="w-full" style={{ perspective: "1000px" }}>
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            height: 380,
-            transformStyle: "preserve-3d",
-            transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-          }}
-        >
-          {/* FRONT */}
-          <div className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between border-2 border-transparent hover:border-[var(--primary-border)] transition-colors">
-            <div className="flex items-center gap-2.5 w-full">
-              <div
-                className="p-2 rounded-lg"
-                style={{ background: `${iconColor}15` }}
-              >
-                <Icon size={18} style={{ color: iconColor }} />
-              </div>
-              <span
-                className="font-black text-sm uppercase tracking-wider"
-                style={{ color: "var(--app-fg)" }}
-              >
-                {title}
+      <div className="soe-card p-6 flex flex-col items-center justify-between border-2 border-transparent hover:border-[var(--primary-border)] transition-all min-h-[420px]">
+        {/* Top Header */}
+        <div className="flex items-center justify-between w-full mb-3">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="p-2 rounded-lg"
+              style={{ background: `${iconColor}15` }}
+            >
+              <Icon size={18} style={{ color: iconColor }} />
+            </div>
+            <span
+              className="font-black text-sm uppercase tracking-wider"
+              style={{ color: "var(--app-fg)" }}
+            >
+              {title}
+            </span>
+          </div>
+          <span className="text-[9px] uppercase tracking-widest font-black text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded-full border border-[var(--primary)]/20">
+            Pronto para leitura
+          </span>
+        </div>
+
+        {/* QR Code Center Display */}
+        <div className="flex-1 flex flex-col items-center justify-center w-full my-2">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3">
+              <RefreshCw
+                size={36}
+                className="text-[var(--primary)] animate-spin opacity-50"
+              />
+              <span className="text-[10px] uppercase font-bold tracking-widest text-white/50">
+                Gerando QR Code...
               </span>
             </div>
-            <div className="w-full flex-1 my-4 rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-4 bg-white/[0.01]">
-              <div className="relative">
-                <QrCode size={40} className="text-white/10" />
-                <Zap
-                  size={14}
-                  className="absolute -top-1 -right-1 text-[var(--primary)] animate-pulse"
-                />
-              </div>
-              <p className="text-[10px] text-white/40 text-center mt-3 leading-relaxed">
-                {subtitle}
-              </p>
+          ) : qrUrl ? (
+            <div className="p-3 bg-white rounded-2xl shadow-2xl border-4 border-white/90 animate-in zoom-in-95 duration-300">
+              <img
+                src={qrUrl}
+                alt={title}
+                className="w-44 h-44 md:w-48 md:h-48 block object-contain"
+              />
             </div>
-            <button
-              onClick={() => setFlipped(true)}
-              className="w-full py-3 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              <RotateCw size={14} /> Revelar QR Code
-            </button>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-rose-500/70 p-6 rounded-2xl border border-rose-500/20 bg-rose-500/5">
+              <AlertCircle size={32} />
+              <span className="text-[10px] uppercase font-bold tracking-widest text-center">
+                Aguardando conexão com a rede...
+              </span>
+            </div>
+          )}
+        </div>
 
-          {/* BACK */}
-          <div
-            className="soe-card absolute inset-0 backface-hidden p-6 flex flex-col items-center justify-between rotate-y-180"
-            style={{
-              borderColor: `${iconColor}40`,
-              background: "var(--stat-bg)",
-            }}
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2.5">
-                <Icon size={18} style={{ color: iconColor }} />
-                <span
-                  className="font-black text-sm uppercase tracking-wider"
-                  style={{ color: "var(--app-fg)" }}
-                >
-                  {title}
-                </span>
-              </div>
-              <button
-                onClick={() => setFlipped(false)}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-white/20 hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="flex-1 flex items-center justify-center w-full p-2">
-              {loading ? (
-                <RefreshCw
-                  size={28}
-                  className="text-[var(--primary)] animate-spin opacity-40"
-                />
-              ) : qrUrl ? (
-                <div className="p-2 bg-white rounded-xl shadow-2xl">
-                  <img
-                    src={qrUrl}
-                    alt="QR"
-                    className="w-40 h-40 md:w-44 md:h-44 block object-contain"
-                  />
-                </div>
-              ) : (
-                <AlertCircle size={28} className="text-rose-500/40" />
-              )}
-            </div>
-            <div className="w-full space-y-3">
-              {footerAction}
-              <p className="text-[10px] text-center uppercase tracking-widest opacity-30 font-black">
-                Escaneie com o App Mobile
-              </p>
-            </div>
-          </div>
+        {/* Instructions & Subtitle */}
+        <p className="text-[11px] text-center opacity-60 max-w-xs my-2 font-medium leading-relaxed">
+          {subtitle}
+        </p>
+
+        {/* Action Button & Instructions Footer */}
+        <div className="w-full space-y-2 mt-2">
+          {footerAction}
+          <p className="text-[9px] text-center uppercase tracking-widest opacity-40 font-black">
+            Aponte a câmera do celular no app SOE
+          </p>
         </div>
       </div>
     );
@@ -936,9 +929,10 @@ export default function Sync() {
                         if (!isVirt) return null;
                         return (
                           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
-                            <strong>⚠️ Aviso:</strong> Este IP é virtual (WSL/Hyper-V). 
-                            O celular não conseguirá conectar. Selecione o IP da sua 
-                            placa Wi-Fi física (geralmente 192.168.x.x).
+                            <strong>⚠️ Aviso:</strong> Este IP é virtual
+                            (WSL/Hyper-V). O celular não conseguirá conectar.
+                            Selecione o IP da sua placa Wi-Fi física (geralmente
+                            192.168.x.x).
                           </div>
                         );
                       })()}
@@ -977,9 +971,10 @@ export default function Sync() {
                     </div>
 
                     <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
-                      <strong>💡 Dica:</strong> Após escanear e completar a transferência, 
-                      ambos os dispositivos terão os dados sincronizados automaticamente. 
-                      Não é necessário fazer nos dois sentidos.
+                      <strong>💡 Dica:</strong> Após escanear e completar a
+                      transferência, ambos os dispositivos terão os dados
+                      sincronizados automaticamente. Não é necessário fazer nos
+                      dois sentidos.
                     </div>
                   </>
                 ) : (
@@ -997,10 +992,11 @@ export default function Sync() {
             ) : (
               <div className="space-y-6">
                 <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
-                  <strong>📱 Como sincronizar:</strong> Abra o SOE no PC, vá em Sync & Backup, 
-                  e escaneie o QR Code desejado com a câmera deste celular.
+                  <strong>📱 Como sincronizar:</strong> Abra o SOE no PC, vá em
+                  Sync & Backup, e escaneie o QR Code desejado com a câmera
+                  deste celular.
                 </div>
-                
+
                 <div className="grid gap-4">
                   <button
                     onClick={handlePull}
@@ -1071,7 +1067,8 @@ export default function Sync() {
                   Backup em Nuvem
                 </h2>
                 <p className="text-xs opacity-50">
-                  Compartilhe ou restaure backups via Google Drive e outros serviços.
+                  Compartilhe ou restaure backups via Google Drive e outros
+                  serviços.
                 </p>
               </div>
             </div>
@@ -1105,11 +1102,21 @@ export default function Sync() {
               </div>
 
               <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-xs opacity-60">
-                <p className="mb-2">💡 <strong>Alternativas de compartilhamento:</strong></p>
+                <p className="mb-2">
+                  💡 <strong>Alternativas de compartilhamento:</strong>
+                </p>
                 <ul className="space-y-1 ml-4 list-disc">
-                  <li>Use o botão "Exportar" abaixo para salvar o arquivo JSON</li>
-                  <li>No Android, o compartilhador do sistema permite enviar para WhatsApp, Email, Google Drive, etc.</li>
-                  <li>No PC, o arquivo é baixado diretamente para sua pasta Downloads</li>
+                  <li>
+                    Use o botão "Exportar" abaixo para salvar o arquivo JSON
+                  </li>
+                  <li>
+                    No Android, o compartilhador do sistema permite enviar para
+                    WhatsApp, Email, Google Drive, etc.
+                  </li>
+                  <li>
+                    No PC, o arquivo é baixado diretamente para sua pasta
+                    Downloads
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1577,7 +1584,6 @@ export default function Sync() {
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

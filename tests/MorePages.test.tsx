@@ -54,6 +54,11 @@ vi.mock("@capacitor/core", () => ({
   CapacitorHttp: {
     request: vi.fn(),
   },
+  // QuestionSession importa tecBrowser, que registra o plugin no topo.
+  registerPlugin: vi.fn(() => ({
+    addListener: vi.fn(),
+    removeAllListeners: vi.fn(),
+  })),
 }));
 
 // Mock framer-motion

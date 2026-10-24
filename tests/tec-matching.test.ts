@@ -1,5 +1,10 @@
+/** @vitest-environment node */
 import { describe, test, expect } from "vitest";
 import { normalizeString, isFuzzyMatch } from "../shared/utils";
+import {
+  areDisciplineSynonyms,
+  findBestDisciplineMatch,
+} from "../server/tecDisciplineMatcher";
 
 describe("TEC Matching Logic", () => {
   describe("normalizeString", () => {
@@ -62,6 +67,46 @@ describe("TEC Matching Logic", () => {
       const dbTopic = "Atos Administrativos";
       const tecTopic = "Atos Administrativos [CEBRASPE]";
       expect(isFuzzyMatch(dbTopic, tecTopic)).toBe(true);
+    });
+  });
+
+  describe("findBestDisciplineMatch", () => {
+    const disciplines = [
+      { id: 1, name: "Direito Civil" },
+      { id: 2, name: "Direito Processual Civil" },
+      { id: 3, name: "Inteligência Artificial" },
+      { id: 4, name: "Direito" },
+      { id: 5, name: "Tecnologia da Informação" },
+    ];
+
+    test("não confunde ramos distintos do Direito Civil", () => {
+      expect(
+        areDisciplineSynonyms("Direito Civil", "Direito Processual Civil"),
+      ).toBe(false);
+      expect(
+        findBestDisciplineMatch(disciplines, "Direito Processual Civil")
+          .discipline?.id,
+      ).toBe(2);
+    });
+
+    test("não usa 'ia'/'ti' como substring de outra palavra", () => {
+      expect(
+        findBestDisciplineMatch(disciplines, "Ciência de Dados").discipline,
+      ).toBeNull();
+    });
+
+    test("não funde disciplina genérica de uma palavra por subconjunto", () => {
+      expect(
+        findBestDisciplineMatch(disciplines, "Direito Ambiental").discipline,
+      ).toBeNull();
+    });
+
+    test("reconhece sigla e nome exato", () => {
+      expect(findBestDisciplineMatch(disciplines, "TI").discipline?.id).toBe(5);
+      expect(
+        findBestDisciplineMatch(disciplines, "inteligencia artificial")
+          .discipline?.id,
+      ).toBe(3);
     });
   });
 });

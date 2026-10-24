@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,29 +7,31 @@ import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { Layout } from "./components/Layout";
-import Dashboard from "@/pages/Dashboard";
-import Disciplines from "@/pages/Disciplines";
-import Topics from "@/pages/Topics";
-import Calendar from "@/pages/Calendar";
-import History from "@/pages/History";
-import Revisions from "@/pages/Revisions";
-import MockExams from "@/pages/MockExams";
-import Notes from "@/pages/Notes";
-import Flashcards from "@/pages/Flashcards";
-import Simulado from "@/pages/Simulado";
-import TopicStats from "@/pages/TopicStats";
-import Edital from "@/pages/Edital";
-import Statistics from "@/pages/Statistics";
-import Sync from "@/pages/Sync";
-import Profile from "@/pages/Profile";
-import QuestionSession from "@/pages/QuestionSession";
-import QuestionErrors from "@/pages/QuestionErrors";
-import Lab from "@/pages/Lab";
-import DisciplinesPage from "@/pages/DisciplinesPage";
-import StatisticsPage from "@/pages/StatisticsPage";
-import CienciaDosEstudos from "@/pages/CienciaDosEstudos";
-import IntercalacaoPlanner from "@/pages/IntercalacaoPlanner";
-import MentorTab from "@/pages/MentorTab";
+
+// ── Lazy-loaded pages (code-split per route) ──────────────────────────────────
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Disciplines = lazy(() => import("@/pages/Disciplines"));
+const Topics = lazy(() => import("@/pages/Topics"));
+const Calendar = lazy(() => import("@/pages/Calendar"));
+const History = lazy(() => import("@/pages/History"));
+const Revisions = lazy(() => import("@/pages/Revisions"));
+const MockExams = lazy(() => import("@/pages/MockExams"));
+const Notes = lazy(() => import("@/pages/Notes"));
+const Flashcards = lazy(() => import("@/pages/Flashcards"));
+const Simulado = lazy(() => import("@/pages/Simulado"));
+const TopicStats = lazy(() => import("@/pages/TopicStats"));
+const Edital = lazy(() => import("@/pages/Edital"));
+const Statistics = lazy(() => import("@/pages/Statistics"));
+const Sync = lazy(() => import("@/pages/Sync"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const QuestionSession = lazy(() => import("@/pages/QuestionSession"));
+const QuestionErrors = lazy(() => import("@/pages/QuestionErrors"));
+const Lab = lazy(() => import("@/pages/Lab"));
+const DisciplinesPage = lazy(() => import("@/pages/DisciplinesPage"));
+const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
+const CienciaDosEstudos = lazy(() => import("@/pages/CienciaDosEstudos"));
+const IntercalacaoPlanner = lazy(() => import("@/pages/IntercalacaoPlanner"));
+const MentorTab = lazy(() => import("@/pages/MentorTab"));
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
@@ -55,31 +57,39 @@ function Router() {
   }, []);
 
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/disciplines" component={DisciplinesPage} />
-      <Route path="/topics" component={Topics} />
-      <Route path="/revisions" component={Revisions} />
-      <Route path="/statistics" component={StatisticsPage} />
-      <Route path="/calendar" component={Calendar} />
-      <Route path="/mock-exams" component={MockExams} />
-      <Route path="/notes" component={Notes} />
-      <Route path="/flashcards" component={Flashcards} />
-      <Route path="/simulado" component={Simulado} />
-      <Route path="/topic-stats" component={TopicStats} />
-      <Route path="/edital" component={Edital} />
-      <Route path="/history" component={History} />
-      <Route path="/sync" component={Sync} />
-      <Route path="/question-session" component={QuestionSession} />
-      <Route path="/question-errors" component={QuestionErrors} />
-      <Route path="/lab" component={Lab} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
-      <Route path="/intercalacao" component={IntercalacaoPlanner} />
-      <Route path="/mentor" component={MentorTab} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/disciplines" component={DisciplinesPage} />
+        <Route path="/topics" component={Topics} />
+        <Route path="/revisions" component={Revisions} />
+        <Route path="/statistics" component={StatisticsPage} />
+        <Route path="/calendar" component={Calendar} />
+        <Route path="/mock-exams" component={MockExams} />
+        <Route path="/notes" component={Notes} />
+        <Route path="/flashcards" component={Flashcards} />
+        <Route path="/simulado" component={Simulado} />
+        <Route path="/topic-stats" component={TopicStats} />
+        <Route path="/edital" component={Edital} />
+        <Route path="/history" component={History} />
+        <Route path="/sync" component={Sync} />
+        <Route path="/question-session" component={QuestionSession} />
+        <Route path="/question-errors" component={QuestionErrors} />
+        <Route path="/lab" component={Lab} />
+        <Route path="/profile" component={Profile} />
+        <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
+        <Route path="/intercalacao" component={IntercalacaoPlanner} />
+        <Route path="/mentor" component={MentorTab} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

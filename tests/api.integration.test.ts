@@ -89,4 +89,23 @@ describe("API Integration Tests", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("não expõe /api/sync/export para origens públicas", async () => {
+    const response = await request(app)
+      .get("/api/sync/export")
+      .set("Origin", "https://evil.example.com");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("permite /api/sync/export para origem local", async () => {
+    const response = await request(app)
+      .get("/api/sync/export")
+      .set("Origin", "http://127.0.0.1:3000");
+
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://127.0.0.1:3000",
+    );
+  });
 });

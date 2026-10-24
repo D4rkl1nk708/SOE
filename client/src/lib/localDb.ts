@@ -123,6 +123,7 @@ interface Counters {
   flashcards: number;
   tecSnapshots: number;
   conceptConfusions: number;
+  essays: number;
 }
 
 interface Flashcard {
@@ -370,6 +371,7 @@ async function getCounters(): Promise<Counters> {
     flashcards: m.flashcards ?? 0,
     tecSnapshots: m.tecSnapshots ?? 0,
     conceptConfusions: m.conceptConfusions ?? 0,
+    essays: m.essays ?? 0,
   };
 }
 
@@ -924,12 +926,12 @@ export async function localCalendarGetActivities(input: {
     .where("userId")
     .equals(LOCAL_USER_ID)
     .toArray();
-  
+
   const topics = await db.topics
     .where("userId")
     .equals(LOCAL_USER_ID)
     .toArray();
-  
+
   const disciplines = await db.disciplines
     .where("userId")
     .equals(LOCAL_USER_ID)
@@ -940,7 +942,7 @@ export async function localCalendarGetActivities(input: {
     (r) =>
       r.scheduledDate >= input.startDate &&
       r.scheduledDate <= input.endDate &&
-      !r.ignored
+      !r.ignored,
   );
 
   // Join with topics and disciplines to get names and colors
@@ -977,7 +979,7 @@ export async function localCalendarGetActivities(input: {
   const total = activities.length;
   const limit = input.limit || 10000;
   const offset = input.offset || 0;
-  
+
   // If limit is very high, return all activities without pagination
   if (limit >= 10000) {
     return {
@@ -986,7 +988,7 @@ export async function localCalendarGetActivities(input: {
       hasMore: false,
     };
   }
-  
+
   const paginatedActivities = activities.slice(offset, offset + limit);
   const hasMore = offset + limit < total;
 
@@ -1016,7 +1018,10 @@ export async function localImportExportBackup(): Promise<string> {
 
   let mentorSessions: any[] = [];
   try {
-    const rawMentor = typeof window !== "undefined" ? localStorage.getItem("soe_mentor_sessions") : null;
+    const rawMentor =
+      typeof window !== "undefined"
+        ? localStorage.getItem("soe_mentor_sessions")
+        : null;
     if (rawMentor) mentorSessions = JSON.parse(rawMentor);
   } catch {}
 
@@ -1122,8 +1127,7 @@ export async function localImportImportBackup(input: {
         await db.subjectiveAnswers.put(sa);
       for (const cc of data.conceptConfusions ?? [])
         await db.conceptConfusions.put(cc);
-      for (const e of data.essays ?? [])
-        await db.essays.put(e);
+      for (const e of data.essays ?? []) await db.essays.put(e);
 
       // Legacy: keep extraCollections for backward compat
       if (data.cadernosTec)
@@ -1133,12 +1137,19 @@ export async function localImportImportBackup(input: {
         });
 
       // Restore mentorSessions in localStorage for AI chat conversations
-      if (Array.isArray(data.mentorSessions) && data.mentorSessions.length > 0) {
+      if (
+        Array.isArray(data.mentorSessions) &&
+        data.mentorSessions.length > 0
+      ) {
         try {
-          const rawCurrent = typeof window !== "undefined" ? localStorage.getItem("soe_mentor_sessions") : null;
+          const rawCurrent =
+            typeof window !== "undefined"
+              ? localStorage.getItem("soe_mentor_sessions")
+              : null;
           const currentList: any[] = rawCurrent ? JSON.parse(rawCurrent) : [];
           const sessionMap = new Map<string, any>();
-          for (const s of currentList) if (s && s.id) sessionMap.set(String(s.id), s);
+          for (const s of currentList)
+            if (s && s.id) sessionMap.set(String(s.id), s);
           for (const s of data.mentorSessions) {
             if (!s || !s.id) continue;
             const key = String(s.id);
@@ -1151,7 +1162,10 @@ export async function localImportImportBackup(input: {
               if (newMsgs >= existMsgs) sessionMap.set(key, s);
             }
           }
-          localStorage.setItem("soe_mentor_sessions", JSON.stringify(Array.from(sessionMap.values())));
+          localStorage.setItem(
+            "soe_mentor_sessions",
+            JSON.stringify(Array.from(sessionMap.values())),
+          );
         } catch (e) {
           console.warn("Could not merge mentor sessions into localStorage:", e);
         }
@@ -2177,12 +2191,16 @@ export async function localSaveConceptConfusion(
 }
 
 // ============ ESSAY (REDAÇÕES) LOCAL PROCEDURES ============
-export async function localEssayList(disciplineId?: number): Promise<(Essay & { id: number })[]> {
+export async function localEssayList(
+  disciplineId?: number,
+): Promise<(Essay & { id: number })[]> {
   let list = await db.essays.where("userId").equals(LOCAL_USER_ID).toArray();
   if (disciplineId) {
     list = list.filter((e) => e.disciplineId === disciplineId);
   }
-  return list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")) as (Essay & { id: number })[];
+  return list.sort((a, b) =>
+    (b.createdAt || "").localeCompare(a.createdAt || ""),
+  ) as (Essay & { id: number })[];
 }
 
 export async function localEssaySave(input: {
@@ -2214,7 +2232,10 @@ export async function localEssaySave(input: {
   return { id };
 }
 
-export async function localEssayUpdate(id: number, data: Partial<Essay>): Promise<{ success: boolean }> {
+export async function localEssayUpdate(
+  id: number,
+  data: Partial<Essay>,
+): Promise<{ success: boolean }> {
   await db.essays.update(id, {
     ...data,
     updatedAt: now(),
@@ -2222,7 +2243,9 @@ export async function localEssayUpdate(id: number, data: Partial<Essay>): Promis
   return { success: true };
 }
 
-export async function localEssayDelete(id: number): Promise<{ success: boolean }> {
+export async function localEssayDelete(
+  id: number,
+): Promise<{ success: boolean }> {
   await db.essays.delete(id);
   return { success: true };
 }
