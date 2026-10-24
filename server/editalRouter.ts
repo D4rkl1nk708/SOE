@@ -1,31 +1,47 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
-// @ts-ignore
-import pdf from "pdf-parse/lib/pdf-parse.js";
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
+import {
+  inspectEdital,
+  loadEditalText,
+  parseEditalWithAi,
+} from "./editalParser";
 
 export const editalRouter = router({
   /**
-   * Analisa o texto do edital (ou extraído de PDF) via IA para gerar a grade de estudos
+   * Inspeciona o PDF/texto sem IA: detecta título, páginas, tamanho do
+   * conteúdo programático e cargos/especialidades disponíveis.
+   */
+  inspect: protectedProcedure
+    .input(
+      z.object({
+        text: z.string().optional(),
+        pdfBase64: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return inspectEdital(input);
+    }),
+
+  /**
+   * Analisa o texto do edital (ou extraído de PDF) via IA para gerar a grade
+   * de estudos. O conteúdo programático é localizado no edital e dividido em
+   * blocos antes de ir para a IA; antes o código cortava os primeiros 15 mil
+   * caracteres e nunca chegava ao item "DOS OBJETOS DE AVALIAÇÃO".
    */
   parseEdital: protectedProcedure
     .input(
       z.object({
         text: z.string().optional(),
         pdfBase64: z.string().optional(),
-        role: z.string().optional(), // Cargo pretendido
+        role: z.string().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      let content = input.text || "";
-
-      if (input.pdfBase64) {
-        const buffer = Buffer.from(input.pdfBase64, "base64");
-        const data = await pdf(buffer);
-        content = data.text;
-      }
+      const { text } = await loadEditalText(input);
+      const content = text || "";
 
       if (!content || content.trim().length < 50) {
         throw new Error(
@@ -33,54 +49,33 @@ export const editalRouter = router({
         );
       }
 
-      // Prompt para a IA
-      const prompt = `
-Você é um especialista em concursos públicos e organização de editais.
-Sua tarefa é ler o conteúdo programático abaixo e extrair uma lista estruturada de DISCIPLINAS e seus respectivos TÓPICOS.
-
-CARGO PRETENDIDO: ${input.role || "Não especificado"}
-
-CONTEÚDO DO EDITAL:
----
-${content.substring(0, 15000)} // Limitando para não estourar tokens se o edital for gigante
----
-
-REGRAS DE EXTRAÇÃO:
-1. Identifique claramente o nome da DISCIPLINA (ex: Direito Administrativo, Língua Portuguesa).
-2. Para cada disciplina, liste os TÓPICOS de estudo de forma concisa.
-3. Se houver muitos sub-tópicos, agrupe-os em tópicos principais para não gerar uma lista infinita.
-4. Ignore partes que não sejam conteúdo de estudo (ex: cronogramas de prova, requisitos do cargo, etc).
-5. Foque APENAS no cargo "${input.role}" se houver múltiplos cargos no texto.
-
-RETORNE APENAS UM JSON no seguinte formato (sem texto antes ou depois):
-[
-  { "discipline": "NOME DA DISCIPLINA", "topic": "NOME DO TÓPICO 1" },
-  { "discipline": "NOME DA DISCIPLINA", "topic": "NOME DO TÓPICO 2" },
-  ...
-]
-
-DICA: Se o texto for confuso, use sua base de conhecimento sobre concursos para inferir a divisão correta das matérias comuns.
-`;
-
       const userSettings = await storage.getUserSettings(ctx.user.id);
-      const provider = userSettings?.aiProvider || "gemini";
+      const provider = (userSettings?.aiProvider || "gemini") as
+        | "gemini"
+        | "openai"
+        | "claude";
       const apiKey = userSettings?.aiApiKey || "";
-
-      const response = await callAiProvider(provider, apiKey, prompt, 3000);
-      const parsed = extractJSON(response) as any[];
-
-      if (!Array.isArray(parsed)) {
-        throw new Error("A IA não retornou um formato de lista válido.");
+      if (!apiKey) {
+        throw new Error(
+          "Configure sua chave de IA em Perfil > Configurações de IA para importar o edital.",
+        );
       }
 
-      // Mapear para o formato do EditalTopico do frontend (ids temporários)
-      return parsed.map((item, idx) => ({
-        id: `ai-${Date.now()}-${idx}`,
-        discipline: item.discipline,
-        topic: item.topic,
-        completed: false,
-        isHeader: false,
-      }));
+      const parsed = await parseEditalWithAi({
+        text: content,
+        role: input.role,
+        apiKey,
+        provider,
+        callAi: callAiProvider,
+      });
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error(
+          "A IA não encontrou tópicos. Verifique se o PDF contém o conteúdo programático e selecione o cargo correto.",
+        );
+      }
+
+      return parsed;
     }),
 
   /**

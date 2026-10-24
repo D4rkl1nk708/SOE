@@ -429,8 +429,29 @@ export default function QuestionSession() {
     results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
   const progress = (currentIndex / totalQ) * 100;
 
+  const openTecBrowser = async () => {
+    if ((window as any).electron?.ipcRenderer) {
+      (window as any).electron.ipcRenderer.send(
+        "open-tec-browser",
+        pushTokenRef.current,
+      );
+      return;
+    }
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { TecBrowser } = await import("@/lib/tecBrowser");
+        await TecBrowser.open({ url: "https://www.tecconcursos.com.br/" });
+        return;
+      } catch (e) {
+        console.warn("TecBrowser fallback to iframe:", e);
+      }
+    }
+    (window as any).showTecMobile = true;
+    document.dispatchEvent(new CustomEvent("soe-open-mobile-browser"));
+  };
+
   const TabNav = () => (
-    <div className="flex gap-1 p-1.5 rounded-2xl bg-white/5 border border-white/10 w-full overflow-x-auto no-scrollbar">
+    <div className="flex gap-1 p-1.5 rounded-2xl bg-secondary/40 border border-border w-full overflow-x-auto no-scrollbar">
       {[
         { id: "session", label: "Treinos", icon: ListChecks },
         { id: "browser", label: "Browser", icon: Globe },
@@ -441,8 +462,7 @@ export default function QuestionSession() {
         <button
           key={t.id}
           onClick={() => setActiveTab(t.id as any)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.id ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)]" : "opacity-40 hover:opacity-70"}`}
-          style={{ color: activeTab === t.id ? undefined : "var(--app-fg)" }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === t.id ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}
         >
           <t.icon className="h-4 w-4" /> {t.label}
         </button>
@@ -475,174 +495,200 @@ export default function QuestionSession() {
         </div>
 
         {activeTab === "session" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-7 space-y-6">
-              <div className="soe-card p-6 space-y-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                  <Play className="w-5 h-5 text-[var(--primary)]" />
-                  <h3 className="font-black text-sm uppercase tracking-widest">
-                    Configurar Sessão Manual
-                  </h3>
+          <>
+            <div className="soe-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-[var(--primary-border)] bg-[var(--primary-bg-subtle)]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-[var(--primary)]" />
                 </div>
-
-                {prefillTopicName && selectedTopic && (
-                  <div className="p-4 rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
-                        <Zap className="w-5 h-5 text-[var(--primary)]" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black opacity-50 uppercase">
-                          Agendado
-                        </p>
-                        <p className="text-sm font-black">{prefillTopicName}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedTopic(null);
-                        sessionStorage.removeItem("qs_prefill");
-                      }}
-                      className="text-[10px] font-black uppercase text-[var(--primary)] px-3 py-1.5 rounded-lg border border-[var(--primary-border)] hover:bg-[var(--primary-bg-subtle)] transition-all"
-                    >
-                      Trocar
-                    </button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
-                      Disciplina
-                    </label>
-                    <select
-                      data-testid="discipline-select"
-                      className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none"
-                      value={selectedDisc ?? ""}
-                      onChange={(e) => {
-                        setSelectedDisc(
-                          e.target.value ? Number(e.target.value) : null,
-                        );
-                        setSelectedTopic(null);
-                      }}
-                    >
-                      <option value="" className="bg-slate-900">
-                        Selecionar...
-                      </option>
-                      {(disciplines as any[])?.map((d) => (
-                        <option
-                          key={d.id}
-                          value={d.id}
-                          className="bg-slate-900"
-                        >
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
-                      Tema / Assunto
-                    </label>
-                    <select
-                      data-testid="topic-select"
-                      className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 font-bold text-sm focus:outline-none disabled:opacity-20"
-                      value={selectedTopic ?? ""}
-                      onChange={(e) =>
-                        setSelectedTopic(
-                          e.target.value ? Number(e.target.value) : null,
-                        )
-                      }
-                      disabled={!selectedDisc}
-                    >
-                      <option value="" className="bg-slate-900">
-                        Selecionar...
-                      </option>
-                      {topics.map((t: any) => (
-                        <option
-                          key={t.id}
-                          value={t.id}
-                          className="bg-slate-900"
-                        >
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider">
+                    Fluxo principal: TEC Browser
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Abra o TEC dentro do SOE. Cada acerto/erro volta
+                    automaticamente para o seu histórico.
+                  </p>
                 </div>
+              </div>
+              <button
+                onClick={openTecBrowser}
+                className="h-10 px-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"
+              >
+                <ExternalLink className="w-4 h-4" /> Abrir TEC
+              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="lg:col-span-7 space-y-6">
+                <div className="soe-card p-6 space-y-6">
+                  <div className="flex items-center gap-3 border-b border-border/60 pb-4">
+                    <Play className="w-5 h-5 text-[var(--primary)]" />
+                    <h3 className="font-black text-sm uppercase tracking-widest">
+                      Configurar Sessão Manual
+                    </h3>
+                  </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
-                    Quantidade de Questões
-                  </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                    {[5, 10, 15, 20, 30, 50].map((n) => (
+                  {prefillTopicName && selectedTopic && (
+                    <div className="p-4 rounded-2xl bg-[var(--primary-bg-subtle)] border border-[var(--primary-border)] flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--primary-bg-subtle)] flex items-center justify-center">
+                          <Zap className="w-5 h-5 text-[var(--primary)]" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black opacity-50 uppercase">
+                            Agendado
+                          </p>
+                          <p className="text-sm font-black">
+                            {prefillTopicName}
+                          </p>
+                        </div>
+                      </div>
                       <button
-                        key={n}
-                        onClick={() => setTotalQ(n)}
-                        className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-white/5 opacity-40 hover:opacity-100"}`}
-                        style={{ color: "var(--app-fg)" }}
+                        onClick={() => {
+                          setSelectedTopic(null);
+                          sessionStorage.removeItem("qs_prefill");
+                        }}
+                        className="text-[10px] font-black uppercase text-[var(--primary)] px-3 py-1.5 rounded-lg border border-[var(--primary-border)] hover:bg-[var(--primary-bg-subtle)] transition-all"
                       >
-                        {n}
+                        Trocar
                       </button>
-                    ))}
-                    <input
-                      type="number"
-                      value={totalQ}
-                      onChange={(e) =>
-                        setTotalQ(Math.max(1, parseInt(e.target.value) || 1))
-                      }
-                      className="bg-white/5 border border-white/10 rounded-xl px-2 text-center text-xs font-black"
-                    />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
+                        Disciplina
+                      </label>
+                      <select
+                        data-testid="discipline-select"
+                        className="w-full px-4 py-3 rounded-2xl bg-secondary/40 border border-border font-bold text-sm focus:outline-none"
+                        value={selectedDisc ?? ""}
+                        onChange={(e) => {
+                          setSelectedDisc(
+                            e.target.value ? Number(e.target.value) : null,
+                          );
+                          setSelectedTopic(null);
+                        }}
+                      >
+                        <option value="" className="bg-card text-foreground">
+                          Selecionar...
+                        </option>
+                        {(disciplines as any[])?.map((d) => (
+                          <option
+                            key={d.id}
+                            value={d.id}
+                            className="bg-card text-foreground"
+                          >
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
+                        Tema / Assunto
+                      </label>
+                      <select
+                        data-testid="topic-select"
+                        className="w-full px-4 py-3 rounded-2xl bg-secondary/40 border border-border font-bold text-sm focus:outline-none disabled:opacity-20"
+                        value={selectedTopic ?? ""}
+                        onChange={(e) =>
+                          setSelectedTopic(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        disabled={!selectedDisc}
+                      >
+                        <option value="" className="bg-card text-foreground">
+                          Selecionar...
+                        </option>
+                        {topics.map((t: any) => (
+                          <option
+                            key={t.id}
+                            value={t.id}
+                            className="bg-card text-foreground"
+                          >
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">
+                      Quantidade de Questões
+                    </label>
+                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                      {[5, 10, 15, 20, 30, 50].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setTotalQ(n)}
+                          className={`py-2 rounded-xl text-xs font-black transition-all ${totalQ === n ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-secondary/40 opacity-40 hover:opacity-100"}`}
+                          style={{ color: "var(--app-fg)" }}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        value={totalQ}
+                        onChange={(e) =>
+                          setTotalQ(Math.max(1, parseInt(e.target.value) || 1))
+                        }
+                        className="bg-secondary/40 border border-border rounded-xl px-2 text-center text-xs font-black"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    className="w-full h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
+                    disabled={!selectedDisc || !selectedTopic}
+                    onClick={() => {
+                      setStartTime(Date.now());
+                      setPhase("session");
+                      setCurrentIndex(0);
+                      setResults([]);
+                      setAwaitingOrigin(false);
+                      setElapsed(0);
+                      sessionStorage.removeItem("qs_prefill");
+                    }}
+                  >
+                    <Play className="w-5 h-5 fill-[var(--primary-foreground)]" />{" "}
+                    INICIAR
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 space-y-6">
+                <div className="soe-card p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Timer className="w-20 h-20" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Timer className="w-4 h-4 text-[var(--primary)]" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)]">
+                      Timer de Estudo
+                    </h3>
+                  </div>
+                  <StudyTimer />
                 </div>
 
-                <button
-                  className="w-full h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
-                  disabled={!selectedDisc || !selectedTopic}
-                  onClick={() => {
-                    setStartTime(Date.now());
-                    setPhase("session");
-                    setCurrentIndex(0);
-                    setResults([]);
-                    setAwaitingOrigin(false);
-                    setElapsed(0);
-                    sessionStorage.removeItem("qs_prefill");
-                  }}
-                >
-                  <Play className="w-5 h-5 fill-[var(--primary-foreground)]" />{" "}
-                  INICIAR
-                </button>
+                <div className="soe-card p-6 bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/10">
+                  <h4 className="font-black text-xs uppercase tracking-widest text-emerald-500 mb-2">
+                    Por que registrar aqui?
+                  </h4>
+                  <p className="text-xs opacity-60 leading-relaxed">
+                    Ao registrar suas questões manualmente ou pelo browser, o
+                    SOE constrói seu
+                    <strong> Mapa de Calor de Performance</strong>, permitindo
+                    que a IA identifique seus pontos fracos automaticamente.
+                  </p>
+                </div>
               </div>
             </div>
-
-            <div className="lg:col-span-5 space-y-6">
-              <div className="soe-card p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5">
-                  <Timer className="w-20 h-20" />
-                </div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Timer className="w-4 h-4 text-[var(--primary)]" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)]">
-                    Timer de Estudo
-                  </h3>
-                </div>
-                <StudyTimer />
-              </div>
-
-              <div className="soe-card p-6 bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/10">
-                <h4 className="font-black text-xs uppercase tracking-widest text-emerald-500 mb-2">
-                  Por que registrar aqui?
-                </h4>
-                <p className="text-xs opacity-60 leading-relaxed">
-                  Ao registrar suas questões manualmente ou pelo browser, o SOE
-                  constrói seu
-                  <strong> Mapa de Calor de Performance</strong>, permitindo que
-                  a IA identifique seus pontos fracos automaticamente.
-                </p>
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         {activeTab === "browser" && (
@@ -661,32 +707,7 @@ export default function QuestionSession() {
                 </p>
               </div>
               <button
-                onClick={async () => {
-                  if ((window as any).electron?.ipcRenderer) {
-                    (window as any).electron.ipcRenderer.send(
-                      "open-tec-browser",
-                      pushTokenRef.current,
-                    );
-                  } else if (Capacitor.isNativePlatform()) {
-                    try {
-                      const { TecBrowser } = await import("@/lib/tecBrowser");
-                      await TecBrowser.open({
-                        url: "https://www.tecconcursos.com.br/",
-                      });
-                    } catch (e) {
-                      console.warn("TecBrowser fallback to iframe:", e);
-                      (window as any).showTecMobile = true;
-                      document.dispatchEvent(
-                        new CustomEvent("soe-open-mobile-browser"),
-                      );
-                    }
-                  } else {
-                    (window as any).showTecMobile = true;
-                    document.dispatchEvent(
-                      new CustomEvent("soe-open-mobile-browser"),
-                    );
-                  }
-                }}
+                onClick={openTecBrowser}
                 className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]"
               >
                 <ExternalLink className="w-5 h-5" />{" "}
@@ -738,7 +759,7 @@ export default function QuestionSession() {
           </div>
         </div>
 
-        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div className="h-1.5 rounded-full bg-secondary/40 overflow-hidden">
           <div
             className="h-full bg-[var(--primary)] shadow-[0_0_15px_var(--primary-shadow)] transition-all duration-500"
             style={{ width: `${progress}%` }}
@@ -768,7 +789,7 @@ export default function QuestionSession() {
           ].map((s) => (
             <div
               key={s.label}
-              className={`rounded-2xl p-4 text-center border border-white/5 ${s.bg}`}
+              className={`rounded-2xl p-4 text-center border border-border/60 ${s.bg}`}
             >
               <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">
                 {s.label}
@@ -780,11 +801,10 @@ export default function QuestionSession() {
 
         {!awaitingOrigin && !showPasteArea && (
           <div className="soe-card p-10 space-y-8 flex flex-col items-center">
-            <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center relative">
-              <span className="text-4xl font-black opacity-20">
+            <div className="w-20 h-20 rounded-2xl bg-secondary/40 border border-border flex items-center justify-center">
+              <span className="text-3xl font-black opacity-30">
                 #{currentIndex + 1}
               </span>
-              <div className="absolute inset-0 rounded-full border-4 border-[var(--primary-shadow)] border-t-[var(--primary)] animate-spin" />
             </div>
 
             <div className="text-center space-y-2">
@@ -797,14 +817,14 @@ export default function QuestionSession() {
             <div className="grid grid-cols-2 gap-4 w-full">
               <button
                 onClick={() => handleAnswer(true)}
-                className="py-6 md:py-8 rounded-[2rem] bg-emerald-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-emerald-500/20 active:scale-[0.95] transition-all group"
+                className="py-6 md:py-8 rounded-2xl bg-emerald-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-emerald-500/20 active:scale-[0.95] transition-all group"
               >
                 <CheckCircle2 className="w-10 h-10 group-hover:scale-110 transition-transform" />{" "}
                 ACERTEI
               </button>
               <button
                 onClick={() => handleAnswer(false)}
-                className="py-6 md:py-8 rounded-[2rem] bg-rose-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-rose-500/20 active:scale-[0.95] transition-all group"
+                className="py-6 md:py-8 rounded-2xl bg-rose-500 text-white font-black text-lg flex flex-col items-center gap-3 shadow-xl shadow-rose-500/20 active:scale-[0.95] transition-all group"
               >
                 <XCircle className="w-10 h-10 group-hover:scale-110 transition-transform" />{" "}
                 ERREI
@@ -841,7 +861,7 @@ export default function QuestionSession() {
                   <button
                     key={o.id}
                     onClick={() => handleOrigin(o.id)}
-                    className="p-4 rounded-2xl text-left transition-all active:scale-95 border border-white/10 bg-white/5 hover:bg-white/10 group"
+                    className="p-4 rounded-2xl text-left transition-all active:scale-95 border border-border bg-secondary/40 hover:bg-secondary/60 group"
                   >
                     <div className="flex items-center gap-3 mb-2">
                       <div
@@ -866,7 +886,7 @@ export default function QuestionSession() {
             </div>
             <button
               onClick={() => handleOrigin(null)}
-              className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest opacity-30 border border-white/5"
+              className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest opacity-30 border border-border/60"
             >
               Ignorar classificação
             </button>
@@ -903,12 +923,12 @@ export default function QuestionSession() {
                     setParseError("");
                   }}
                   placeholder={"Cole aqui..."}
-                  className="w-full rounded-2xl bg-black/40 border border-white/10 p-4 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--primary-shadow)] resize-none"
+                  className="w-full rounded-2xl bg-secondary/20 border border-border p-4 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[var(--primary-shadow)] resize-none"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={advance}
-                    className="py-4 rounded-2xl font-black text-xs uppercase tracking-widest opacity-40 bg-white/5 border border-white/10"
+                    className="py-4 rounded-2xl font-black text-xs uppercase tracking-widest opacity-40 bg-secondary/40 border border-border"
                   >
                     Pular
                   </button>
@@ -931,7 +951,7 @@ export default function QuestionSession() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                <div className="p-4 rounded-2xl bg-secondary/40 border border-border space-y-3">
                   <p className="text-xs font-black text-[var(--primary)] uppercase">
                     {parsed.questionId || "Questão Identificada"}
                   </p>
@@ -990,7 +1010,7 @@ export default function QuestionSession() {
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col items-center text-center space-y-2">
-        <div className="p-4 bg-[var(--primary)]/10 rounded-full mb-2">
+        <div className="p-4 bg-[var(--primary-bg-subtle)] rounded-full mb-2">
           <Flag className="w-8 h-8 text-[var(--primary)]" />
         </div>
         <h1 className="text-4xl font-black tracking-tight">
@@ -1010,7 +1030,7 @@ export default function QuestionSession() {
         <p className="text-sm font-bold opacity-60 uppercase tracking-widest">
           {correctCount} acertos · {wrongCount} erros · {totalQ} totais
         </p>
-        <div className="h-3 rounded-full bg-white/5 overflow-hidden max-w-xs mx-auto mt-6">
+        <div className="h-3 rounded-full bg-secondary/40 overflow-hidden max-w-xs mx-auto mt-6">
           <div
             className={`h-full transition-all duration-1000`}
             style={{
@@ -1043,7 +1063,7 @@ export default function QuestionSession() {
                         {o.count} ({pct}%)
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-secondary/40 overflow-hidden">
                       <div
                         className="h-full"
                         style={{ width: `${pct}%`, backgroundColor: o.color }}
@@ -1062,7 +1082,7 @@ export default function QuestionSession() {
         )}
 
         <div className="soe-card p-6 flex flex-col justify-center items-center text-center space-y-4">
-          <div className="p-3 bg-white/5 rounded-2xl">
+          <div className="p-3 bg-secondary/40 rounded-2xl">
             <Clock className="w-8 h-8 opacity-40" />
           </div>
           <div>
@@ -1099,13 +1119,13 @@ export default function QuestionSession() {
               setAwaitingOrigin(false);
               setShowPasteArea(false);
             }}
-            className="py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+            className="py-4 rounded-2xl bg-secondary/40 border border-border font-black text-xs uppercase tracking-widest hover:bg-secondary/60 transition-all flex items-center justify-center gap-2"
           >
             <RotateCcw className="w-4 h-4" /> Nova Sessão
           </button>
           <button
             onClick={() => navigate("/")}
-            className="py-4 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+            className="py-4 rounded-2xl bg-secondary/40 border border-border font-black text-xs uppercase tracking-widest hover:bg-secondary/60 transition-all flex items-center justify-center gap-2"
           >
             <ChevronLeft className="w-4 h-4" /> Voltar ao Início
           </button>

@@ -229,6 +229,15 @@ function parseXlsxRows(wb: any): EditalTopico[] {
 }
 
 // ─── Edital Tab ─────────────────────────────────────────────────────────────
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function EditalTab({
   rows,
   setRows,
@@ -312,15 +321,18 @@ function EditalTab({
     file: null as File | null,
   });
   const [manualForm, setManualForm] = useState({ discipline: "", topics: "" });
+  const [inspection, setInspection] = useState<any>(null);
+  const [preview, setPreview] = useState<EditalTopico[] | null>(null);
+  const inspectEdital = trpc.edital.inspect.useMutation({
+    onError: (err) => toast.error("Não foi possível ler o PDF: " + err.message),
+  });
 
   const parseEditalAi = trpc.edital.parseEdital.useMutation({
     onSuccess: (data) => {
-      const updated = [...rows, ...data];
-      setRows(updated);
-      saveAll(updated);
-      setImportModalOpen(false);
-      setIaForm({ role: "", text: "", file: null });
-      toast.success(`${data.length} tópicos extraídos!`);
+      setPreview(data as EditalTopico[]);
+      toast.success(
+        `${data.length} tópicos encontrados. Revise antes de importar.`,
+      );
     },
     onError: (err) => toast.error(err.message),
   });
@@ -337,25 +349,58 @@ function EditalTab({
     onError: (err) => toast.error(err.message),
   });
 
+  const handleFileChange = async (file: File | null) => {
+    setIaForm((prev) => ({ ...prev, file }));
+    setPreview(null);
+    setInspection(null);
+    if (!file) return;
+    try {
+      const pdfBase64 = await fileToBase64(file);
+      const info = await inspectEdital.mutateAsync({ pdfBase64 });
+      setInspection(info);
+      if (info.cargos?.length === 1) {
+        setIaForm((prev) => ({ ...prev, file, role: info.cargos[0].title }));
+      }
+    } catch {
+      // O erro já é mostrado pelo onError da mutation.
+    }
+  };
+
   const handleAiSubmit = async () => {
-    if (!iaForm.role) return toast.error("Informe o cargo.");
     if (!iaForm.text && !iaForm.file)
       return toast.error("Forneça texto ou PDF.");
 
     let pdfBase64: string | undefined;
+    let info = inspection;
     if (iaForm.file) {
-      const reader = new FileReader();
-      pdfBase64 = await new Promise((resolve) => {
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.readAsDataURL(iaForm.file!);
-      });
+      pdfBase64 = await fileToBase64(iaForm.file);
+      if (!info) {
+        info = await inspectEdital.mutateAsync({ pdfBase64 });
+        setInspection(info);
+      }
+    }
+
+    if (info?.cargos?.length > 1 && !iaForm.role) {
+      return toast.error("Selecione o cargo/especialidade detectado no PDF.");
     }
 
     parseEditalAi.mutate({
-      role: iaForm.role,
+      role: iaForm.role || info?.cargos?.[0]?.title,
       text: iaForm.text,
       pdfBase64,
     });
+  };
+
+  const confirmPreview = () => {
+    if (!preview) return;
+    const updated = [...rows, ...preview];
+    setRows(updated);
+    saveAll(updated);
+    setPreview(null);
+    setInspection(null);
+    setImportModalOpen(false);
+    setIaForm({ role: "", text: "", file: null });
+    toast.success(`${preview.length} tópicos importados!`);
   };
 
   const handleManualSubmit = () => {
@@ -944,7 +989,16 @@ function EditalTab({
       </Dialog>
 
       {/* Import Modal */}
-      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
+      <Dialog
+        open={importModalOpen}
+        onOpenChange={(open) => {
+          setImportModalOpen(open);
+          if (!open) {
+            setPreview(null);
+            setInspection(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl rounded-lg border-border bg-card p-0 overflow-hidden">
           <DialogHeader className="p-6 border-b border-border bg-secondary/30">
             <div className="flex items-center gap-4">
@@ -1000,6 +1054,43 @@ function EditalTab({
                       }
                       className="w-full h-10 px-4 rounded-md bg-secondary/30 border border-border text-sm font-bold outline-none focus:border-primary transition-all"
                     />
+                    {inspection && (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50">
+                          {inspection.pages > 0
+                            ? `${inspection.pages} páginas · `
+                            : ""}
+                          {inspection.hasProgram
+                            ? `${Math.round(inspection.programChars / 1000)} mil caracteres de conteúdo programático`
+                            : "Conteúdo programático não localizado automaticamente"}
+                        </p>
+                        {inspection.cargos?.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {inspection.cargos.map((cargo: any) => (
+                              <button
+                                key={cargo.id}
+                                type="button"
+                                onClick={() =>
+                                  setIaForm((prev) => ({
+                                    ...prev,
+                                    role: cargo.title,
+                                  }))
+                                }
+                                className={`max-w-full text-left px-3 py-1.5 rounded-md border text-[9px] font-bold transition-all ${
+                                  iaForm.role === cargo.title
+                                    ? "border-primary/40 bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                                title={cargo.title}
+                              >
+                                {cargo.title.slice(0, 80)}
+                                {cargo.title.length > 80 ? "…" : ""}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-1.5">
@@ -1016,10 +1107,7 @@ function EditalTab({
                           accept=".pdf"
                           className="hidden"
                           onChange={(e) =>
-                            setIaForm({
-                              ...iaForm,
-                              file: e.target.files?.[0] || null,
-                            })
+                            void handleFileChange(e.target.files?.[0] || null)
                           }
                         />
                       </label>
@@ -1048,6 +1136,55 @@ function EditalTab({
                     ? "Processando..."
                     : "Extrair Estrutura com IA"}
                 </Button>
+
+                {preview && (
+                  <div className="mt-6 rounded-lg border border-primary/20 bg-primary/[0.02] p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Prévia da importação
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {preview.length} tópicos em{" "}
+                          {new Set(preview.map((item) => item.discipline)).size}{" "}
+                          disciplinas
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPreview(null)}
+                        >
+                          Descartar
+                        </Button>
+                        <Button size="sm" onClick={confirmPreview}>
+                          Confirmar importação
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                      {preview.slice(0, 40).map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-start gap-2 text-[10px]"
+                        >
+                          <span className="font-bold text-primary shrink-0 max-w-[180px] truncate">
+                            {item.discipline}
+                          </span>
+                          <span className="text-muted-foreground truncate">
+                            {item.topic}
+                          </span>
+                        </div>
+                      ))}
+                      {preview.length > 40 && (
+                        <p className="text-[9px] text-muted-foreground opacity-50">
+                          + {preview.length - 40} tópicos...
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </TabsContent>
               <TabsContent
                 value="manual"
