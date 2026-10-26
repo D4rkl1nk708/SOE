@@ -27,6 +27,8 @@ import {
   FlaskConical,
   Target,
   Clock,
+  Wrench,
+  LayoutGrid,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
@@ -75,6 +77,44 @@ const NAV_GROUPS = [
   },
 ];
 
+// Visão focada: 3 áreas. O resto fica em Ferramentas ou na visão completa.
+const FOCUSED_NAV_GROUPS = [
+  {
+    label: "Hoje",
+    items: [
+      { path: "/", label: "Início", icon: LayoutDashboard },
+      { path: "/plan", label: "Plano", icon: Target },
+      { path: "/calendar", label: "Calendário", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Estudar",
+    items: [
+      { path: "/question-session", label: "Treinos", icon: ListChecks },
+      { path: "/edital", label: "Editais", icon: Sheet },
+      { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
+      { path: "/mentor", label: "Mentor IA", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
+      { path: "/sync", label: "Sync & Backup", icon: Wifi },
+    ],
+  },
+];
+
+const TOOLS_ITEMS = [
+  { path: "/revisions", label: "Revisões", icon: Clock },
+  { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
+  { path: "/question-errors", label: "Questões erradas", icon: ClipboardX },
+  { path: "/flashcards", label: "Flashcards", icon: Brain },
+  { path: "/notes", label: "Anotações", icon: StickyNote },
+  { path: "/lab", label: "Laboratório", icon: FlaskConical },
+  { path: "/history", label: "Histórico", icon: CheckCircle2 },
+];
+
 // Flat list for mobile bottom bar — only the most-used 4 items + "More"
 const MOBILE_PRIMARY = [
   { path: "/", label: "Início", icon: LayoutDashboard },
@@ -111,12 +151,6 @@ const MOBILE_SECONDARY = [
   { path: "/flashcards", label: "Flashcards", icon: Brain, color: "#f59e0b" },
   { path: "/notes", label: "Anotações", icon: StickyNote, color: "#8b5cf6" },
   { path: "/edital", label: "Editais", icon: Sheet, color: "#ec4899" },
-  {
-    path: "/special-stages",
-    label: "Oral & Títulos",
-    icon: Target,
-    color: "#f97316",
-  },
   {
     path: "/mock-exams",
     label: "Simulados",
@@ -212,11 +246,17 @@ function Sidebar({
   collapsed,
   onToggle,
   location,
+  navMode,
+  onToggleNavMode,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   location: string;
+  navMode: "focused" | "complete";
+  onToggleNavMode: () => void;
 }) {
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const navGroups = navMode === "focused" ? FOCUSED_NAV_GROUPS : NAV_GROUPS;
   return (
     <aside
       className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out relative ${collapsed ? "w-[64px]" : "w-[200px]"} bg-sidebar border-r border-border`}
@@ -263,7 +303,7 @@ function Sidebar({
 
       {/* Grouped nav */}
       <nav className="flex-1 overflow-y-auto px-1 py-4 space-y-8 custom-scrollbar">
-        {NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.label} className="space-y-2">
             {!collapsed ? (
               <p
@@ -289,6 +329,40 @@ function Sidebar({
             </div>
           </div>
         ))}
+
+        {navMode === "focused" && (
+          <div className="space-y-1">
+            <button
+              onClick={() => setToolsOpen((value) => !value)}
+              className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-[11px] font-semibold transition-colors ${
+                collapsed ? "justify-center" : ""
+              } text-muted-foreground hover:bg-secondary/50 hover:text-foreground`}
+              title="Ferramentas"
+            >
+              <Wrench className="h-4 w-4 flex-shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left">Ferramentas</span>
+                  <ChevronRight
+                    className={`h-3.5 w-3.5 transition-transform ${toolsOpen ? "rotate-90" : ""}`}
+                  />
+                </>
+              )}
+            </button>
+            {toolsOpen &&
+              !collapsed &&
+              TOOLS_ITEMS.map((item) => (
+                <NavItem
+                  key={item.path}
+                  path={item.path}
+                  label={item.label}
+                  icon={item.icon}
+                  collapsed={collapsed}
+                  active={isActivePath(location, item.path)}
+                />
+              ))}
+          </div>
+        )}
       </nav>
 
       {/* Bottom: Configurações + version */}
@@ -314,6 +388,18 @@ function Sidebar({
             </span>
           )}
         </Link>
+        {!collapsed && (
+          <button
+            onClick={onToggleNavMode}
+            className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-[10px] font-semibold text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+            title="Alternar organização do menu"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            {navMode === "focused"
+              ? "Ver visão completa"
+              : "Voltar à visão focada"}
+          </button>
+        )}
         {!collapsed && (
           <div className="px-5 pt-4 flex flex-col gap-2">
             <div className="flex items-center justify-between px-1">
@@ -344,6 +430,24 @@ function Sidebar({
 // ── Root Layout ───────────────────────────────────────────────────────────────
 export function Layout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [navMode, setNavMode] = useState<"focused" | "complete">(() => {
+    try {
+      return localStorage.getItem("soe_nav_mode") === "complete"
+        ? "complete"
+        : "focused";
+    } catch {
+      return "focused";
+    }
+  });
+  const toggleNavMode = () => {
+    setNavMode((current) => {
+      const next = current === "focused" ? "complete" : "focused";
+      try {
+        localStorage.setItem("soe_nav_mode", next);
+      } catch {}
+      return next;
+    });
+  };
   useFontScale();
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
@@ -386,6 +490,8 @@ export function Layout({ children }: { children: ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         location={location}
+        navMode={navMode}
+        onToggleNavMode={toggleNavMode}
       />
 
       {/* Content area */}
@@ -671,6 +777,16 @@ export function Layout({ children }: { children: ReactNode }) {
                     );
                   })}
                 </div>
+                <DropdownMenu.Separator className="my-2 h-px bg-border" />
+                <DropdownMenu.Item
+                  onSelect={toggleNavMode}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-[11px] font-semibold text-muted-foreground outline-none data-[highlighted]:bg-secondary"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  {navMode === "focused"
+                    ? "Ver menu completo"
+                    : "Voltar ao menu focado"}
+                </DropdownMenu.Item>
                 <DropdownMenu.Arrow
                   className="fill-current"
                   style={{ color: "var(--card-border)" }}

@@ -194,7 +194,7 @@ export default function QuestionSession() {
 
   const [activeTab, setActiveTab] = useState<
     "session" | "errors" | "browser" | "subjetivas" | "essays"
-  >("session");
+  >("browser");
   const [showTimer, setShowTimer] = useState(false);
 
   const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
@@ -476,8 +476,7 @@ export default function QuestionSession() {
   const TabNav = () => (
     <div className="flex gap-1 p-1.5 rounded-2xl bg-secondary/40 border border-border w-full overflow-x-auto no-scrollbar">
       {[
-        { id: "session", label: "Treinos", icon: ListChecks },
-        { id: "browser", label: "Browser", icon: Globe },
+        { id: "browser", label: "TEC", icon: Globe },
         { id: "errors", label: "Erros", icon: ClipboardX },
         { id: "subjetivas", label: "Subjetivas", icon: PenLine },
         { id: "essays", label: "Redações", icon: FileText },
@@ -521,12 +520,20 @@ export default function QuestionSession() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => void openTecBrowser(pushTokenRef.current)}
-                className="h-10 px-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"
-              >
-                <ExternalLink className="w-4 h-4" /> Abrir TEC
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab("browser")}
+                  className="h-10 px-3 rounded-xl border border-border text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                >
+                  Voltar ao TEC
+                </button>
+                <button
+                  onClick={() => void openTecBrowser(pushTokenRef.current)}
+                  className="h-10 px-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"
+                >
+                  <ExternalLink className="w-4 h-4" /> Abrir TEC
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <div className="lg:col-span-7 space-y-6">
@@ -534,7 +541,7 @@ export default function QuestionSession() {
                   <div className="flex items-center gap-3 border-b border-border/60 pb-4">
                     <Play className="w-5 h-5 text-[var(--primary)]" />
                     <h3 className="font-black text-sm uppercase tracking-widest">
-                      Configurar Sessão Manual
+                      Registro manual (opcional)
                     </h3>
                   </div>
 
@@ -724,6 +731,12 @@ export default function QuestionSession() {
                 {(window as any).electron?.ipcRenderer
                   ? "Acessar TEC Concursos"
                   : "Abrir Navegador Automático"}
+              </button>
+              <button
+                onClick={() => setActiveTab("session")}
+                className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Treino manual (opcional)
               </button>
             </div>
             <MobileTecBrowser pushToken={pushTokenData?.token || ""} />
