@@ -92,6 +92,45 @@ export const appRouter = router({
               }),
             )
             .optional(),
+          specialStages: z
+            .array(
+              z.object({
+                id: z.string(),
+                type: z.enum(["oral", "titulos"]),
+                title: z.string(),
+                status: z.enum(["pendente", "em_preparacao", "concluido"]),
+                score: z.number().optional(),
+                notes: z.string().optional(),
+                updatedAt: z.string(),
+              }),
+            )
+            .optional(),
+          editalVersions: z
+            .array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                savedAt: z.string(),
+                rows: z.array(
+                  z.object({
+                    id: z.string(),
+                    discipline: z.string(),
+                    topic: z.string(),
+                    completed: z.boolean(),
+                    notes: z.string().optional(),
+                    incidencia: z.number().optional(),
+                    quantidade: z.number().optional(),
+                    acerto: z.number().optional(),
+                    revisar: z.boolean().optional(),
+                    avancar: z.boolean().optional(),
+                    discursiva: z.boolean().optional(),
+                    isHeader: z.boolean().optional(),
+                  }),
+                ),
+              }),
+            )
+            .max(8)
+            .optional(),
           cycleConfig: z
             .object({
               type: z.enum(["numbered", "weekdays"]),

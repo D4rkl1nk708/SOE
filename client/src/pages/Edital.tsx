@@ -27,6 +27,7 @@ import {
   Sparkles,
   Wand2,
   UploadCloud,
+  History,
 } from "lucide-react";
 import {
   Dialog,
@@ -242,6 +243,7 @@ function fileToBase64(file: File): Promise<string> {
 function EditalTab({
   rows,
   setRows,
+  data,
 }: {
   rows: EditalTopico[];
   setRows: React.Dispatch<React.SetStateAction<EditalTopico[]>>;
@@ -261,6 +263,8 @@ function EditalTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTopicText, setEditingTopicText] = useState("");
   const [showGuide, setShowGuide] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: disciplines } = trpc.discipline.list.useQuery();
@@ -433,6 +437,64 @@ function EditalTab({
     });
   };
 
+  const versions = ((data?.settings as any)?.editalVersions || []) as Array<{
+    id: string;
+    name: string;
+    savedAt: string;
+    rows: EditalTopico[];
+  }>;
+
+  const saveVersionSnapshot = () => {
+    if (rows.length === 0) {
+      toast.error("Não há conteúdo para versionar.");
+      return;
+    }
+    const version = {
+      id: `edital-ver-${Date.now()}`,
+      name: `Versão ${versions.length + 1}`,
+      savedAt: new Date().toISOString(),
+      rows,
+    };
+    updateSettings.mutate({
+      editalVersions: [...versions, version].slice(-8),
+    });
+    utils.dashboard.getStats.invalidate();
+    toast.success("Versão do edital salva.");
+  };
+
+  const rowKey = (row: EditalTopico) =>
+    `${row.discipline.trim().toLowerCase()}::${row.topic.trim().toLowerCase()}`;
+
+  const selectedVersion = versions.find((v) => v.id === selectedVersionId);
+  const diff = (() => {
+    if (!selectedVersion) return null;
+    const oldMap = new Map(
+      selectedVersion.rows
+        .filter((row) => !row.isHeader)
+        .map((row) => [rowKey(row), row]),
+    );
+    const currentMap = new Map(
+      rows.filter((row) => !row.isHeader).map((row) => [rowKey(row), row]),
+    );
+    const added = [...currentMap.keys()].filter((key) => !oldMap.has(key));
+    const removed = [...oldMap.keys()].filter((key) => !currentMap.has(key));
+    const changed: string[] = [];
+    for (const key of currentMap.keys()) {
+      const oldRow = oldMap.get(key);
+      const newRow = currentMap.get(key);
+      if (!oldRow || !newRow) continue;
+      if (
+        oldRow.completed !== newRow.completed ||
+        (oldRow.acerto ?? null) !== (newRow.acerto ?? null) ||
+        (oldRow.incidencia ?? null) !== (newRow.incidencia ?? null) ||
+        (oldRow.revisar ?? false) !== (newRow.revisar ?? false)
+      ) {
+        changed.push(key);
+      }
+    }
+    return { added, removed, changed };
+  })();
+
   const toggleCompleted = (id: string) => {
     const updated = rows.map((r) =>
       r.id === id ? { ...r, completed: !r.completed } : r,
@@ -547,6 +609,21 @@ function EditalTab({
               onClick={() => setShowGuide(true)}
             >
               <HelpCircle size={14} className="mr-2" /> Guia
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              onClick={saveVersionSnapshot}
+            >
+              <History size={14} className="mr-2" /> Salvar versão
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              onClick={() => setVersionsOpen(true)}
+            >
+              <FileText size={14} className="mr-2" /> Histórico (
+              {versions.length})
             </Button>
             <Button
               className="h-9 px-6 rounded-md text-[10px] font-bold uppercase tracking-wider"
@@ -1257,6 +1334,108 @@ function EditalTab({
               </TabsContent>
             </div>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={versionsOpen} onOpenChange={setVersionsOpen}>
+        <DialogContent className="max-w-3xl rounded-lg border-border bg-card p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b border-border bg-secondary/30">
+            <DialogTitle className="text-lg font-bold">
+              Histórico do edital
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Compare a versão atual com uma versão salva para ver retificações.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+            {versions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma versão salva. Use “Salvar versão” antes de importar uma
+                retificação.
+              </p>
+            ) : (
+              <>
+                <select
+                  value={selectedVersionId}
+                  onChange={(e) => setSelectedVersionId(e.target.value)}
+                  className="h-10 w-full rounded-md border border-border bg-secondary/30 px-3 text-xs font-bold"
+                >
+                  <option value="">Selecione uma versão...</option>
+                  {versions.map((version) => (
+                    <option key={version.id} value={version.id}>
+                      {version.name} ·{" "}
+                      {new Date(version.savedAt).toLocaleString("pt-BR")}
+                    </option>
+                  ))}
+                </select>
+
+                {diff && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        {
+                          label: "Adicionados",
+                          value: diff.added.length,
+                          color: "var(--accent-green)",
+                        },
+                        {
+                          label: "Removidos",
+                          value: diff.removed.length,
+                          color: "var(--accent-red)",
+                        },
+                        {
+                          label: "Alterados",
+                          value: diff.changed.length,
+                          color: "var(--accent-amber)",
+                        },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-md border border-border p-3"
+                        >
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {item.label}
+                          </p>
+                          <p
+                            className="text-xl font-semibold tabular-nums"
+                            style={{ color: item.color }}
+                          >
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      {diff.added.slice(0, 20).map((key) => (
+                        <p
+                          key={`add-${key}`}
+                          className="text-[11px] text-accent-green"
+                        >
+                          + {key.split("::")[1]}
+                        </p>
+                      ))}
+                      {diff.removed.slice(0, 20).map((key) => (
+                        <p
+                          key={`rem-${key}`}
+                          className="text-[11px] text-accent-red"
+                        >
+                          − {key.split("::")[1]}
+                        </p>
+                      ))}
+                      {diff.changed.slice(0, 20).map((key) => (
+                        <p
+                          key={`chg-${key}`}
+                          className="text-[11px] text-accent-amber"
+                        >
+                          ~ {key.split("::")[1]}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

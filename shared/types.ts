@@ -112,6 +112,29 @@ export interface StudyNote {
   updatedAt: string;
 }
 
+export interface EditalRow {
+  id: string;
+  discipline: string;
+  topic: string;
+  completed: boolean;
+  notes?: string;
+  // enriched fields from xlsx import
+  incidencia?: number; // 0-1 percentage weight
+  quantidade?: number; // absolute question count
+  acerto?: number; // 0-1 hit rate
+  revisar?: boolean;
+  avancar?: boolean;
+  discursiva?: boolean;
+  isHeader?: boolean; // first row of a discipline group
+}
+
+export interface EditalVersion {
+  id: string;
+  name: string;
+  savedAt: string;
+  rows: EditalRow[];
+}
+
 export type ConfidenceLevel = "chute" | "acho" | "certeza";
 
 export interface QuestionAttempt {
@@ -140,21 +163,9 @@ export interface UserSettings {
     durationMinutes: number;
     done: boolean;
   }[];
-  editalRows?: {
-    id: string;
-    discipline: string;
-    topic: string;
-    completed: boolean;
-    notes?: string;
-    // enriched fields from xlsx import
-    incidencia?: number; // 0-1 percentage weight
-    quantidade?: number; // absolute question count
-    acerto?: number; // 0-1 hit rate
-    revisar?: boolean;
-    avancar?: boolean;
-    discursiva?: boolean;
-    isHeader?: boolean; // first row of a discipline group
-  }[];
+  editalRows?: EditalRow[];
+  /** Versionamento do edital para comparar retificações */
+  editalVersions?: EditalVersion[];
   cycleConfig?: {
     type: "numbered" | "weekdays";
     count: number; // number of cycles (for numbered) or days of week selected
@@ -261,6 +272,16 @@ export interface UserSettings {
   minimizeToTray?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
+  /** Fases especiais: prova oral, títulos, etc. */
+  specialStages?: Array<{
+    id: string;
+    type: "oral" | "titulos";
+    title: string;
+    status: "pendente" | "em_preparacao" | "concluido";
+    score?: number;
+    notes?: string;
+    updatedAt: string;
+  }>;
   /** Disciplinas da rotina base diária (lente independente do edital) */
   baseDisciplineIds?: number[];
   /** Tentativas com confiança declarada (máx. ~3000) */

@@ -56,6 +56,7 @@ const NAV_GROUPS = [
       { path: "/revisions", label: "Revisões", icon: Clock },
       { path: "/calendar", label: "Calendário", icon: CalendarDays },
       { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
+      { path: "/special-stages", label: "Oral & Títulos", icon: Target },
       { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
     ],
   },
@@ -112,6 +113,12 @@ const MOBILE_SECONDARY = [
   { path: "/flashcards", label: "Flashcards", icon: Brain, color: "#f59e0b" },
   { path: "/notes", label: "Anotações", icon: StickyNote, color: "#8b5cf6" },
   { path: "/edital", label: "Editais", icon: Sheet, color: "#ec4899" },
+  {
+    path: "/special-stages",
+    label: "Oral & Títulos",
+    icon: Target,
+    color: "#f97316",
+  },
   {
     path: "/mock-exams",
     label: "Simulados",
