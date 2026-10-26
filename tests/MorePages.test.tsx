@@ -221,7 +221,7 @@ describe("Sync Component", () => {
 describe("QuestionErrors Component", () => {
   test("renders QuestionErrors", async () => {
     render(<QuestionErrors />);
-    expect(screen.getByText(/Painel de Erros/i)).toBeTruthy();
+    expect(screen.getByText(/Questões erradas/i)).toBeTruthy();
   });
 });
 

@@ -105,7 +105,7 @@ function AIActionButton({
     <button
       onClick={onClick}
       disabled={loading}
-      className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${done ? "border-transparent" : "border-border/70"}`}
+      className={`group flex items-center justify-center gap-1.5 rounded-md border px-2.5 py-2 text-[9px] font-bold uppercase tracking-wider transition-all ${done ? "border-transparent" : "border-border/70"}`}
       style={{
         background: done ? `${color}15` : "var(--stat-bg)",
         color: done ? color : "var(--muted-text)",
@@ -309,47 +309,39 @@ export default function QuestionErrors() {
     loadingAction?.id === id && loadingAction?.action === action;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-5 animate-in fade-in duration-700">
       {/* Premium Header Area */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-secondary/20 border border-border/70 p-8 rounded-[2.5rem] relative overflow-hidden">
+      <div className="soe-card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500 opacity-[0.03] blur-[100px] -mr-32 -mt-32" />
 
         <div className="space-y-2 relative">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
-              <XCircle size={18} />
+            <div className="rounded-md bg-rose-500/10 p-1.5 text-rose-500">
+              <XCircle size={15} />
             </div>
-            <h2
-              className="text-3xl font-black tracking-tight"
-              style={{ color: "var(--app-fg)" }}
-            >
-              Painel de Erros
+            <h2 className="text-xl font-semibold tracking-tight">
+              Questões erradas
             </h2>
           </div>
-          <p className="text-sm opacity-50 font-medium">
-            Transforme suas falhas em aprendizado com diagnóstico de IA.
+          <p className="text-[11px] text-muted-foreground">
+            Revise o erro, entenda a causa e gere reforço com IA.
           </p>
         </div>
 
         <div
-          className={`flex items-center gap-4 px-6 py-4 rounded-2xl border transition-all ${dbApiKey ? "bg-emerald-500/5 border-emerald-500/10 text-emerald-500" : "bg-rose-500/5 border-rose-500/10 text-rose-500"}`}
+          className={`flex items-center gap-2 rounded-md border px-3 py-2 ${dbApiKey ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500" : "border-rose-500/20 bg-rose-500/5 text-rose-500"}`}
         >
-          <Zap size={18} className={dbApiKey ? "animate-pulse" : ""} />
-          <div className="text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
-              Status do Motor
-            </p>
-            <p className="text-xs font-black uppercase tracking-widest">
-              {dbApiKey ? `IA Ativa (${dbProvider})` : "IA Desativada"}
-            </p>
-          </div>
+          <Zap size={13} />
+          <span className="text-[9px] font-bold uppercase tracking-wider">
+            {dbApiKey ? `IA ativa · ${dbProvider}` : "IA desativada"}
+          </span>
         </div>
       </div>
 
       {/* Advanced Filter Control */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-2 bg-white/[0.01] rounded-[2rem]">
+      <div className="soe-card grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
         <div className="md:col-span-1 space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">
+          <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             Disciplina
           </label>
           <select
@@ -358,7 +350,7 @@ export default function QuestionErrors() {
               setFilterDisc(e.target.value ? Number(e.target.value) : "");
               setFilterTopic("");
             }}
-            className="w-full bg-secondary/40 border border-border/70 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all cursor-pointer"
+            className="h-10 w-full rounded-md border border-border bg-secondary/30 px-3 text-xs font-semibold text-foreground outline-none focus:border-primary"
           >
             <option value="">Todas as Matérias</option>
             {(disciplines as any[])?.map((d: any) => (
@@ -373,7 +365,7 @@ export default function QuestionErrors() {
           </select>
         </div>
         <div className="md:col-span-1 space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">
+          <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             Assunto
           </label>
           <select
@@ -382,7 +374,7 @@ export default function QuestionErrors() {
               setFilterTopic(e.target.value ? Number(e.target.value) : "")
             }
             disabled={!filterDisc}
-            className="w-full bg-secondary/40 border border-border/70 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all disabled:opacity-20 cursor-pointer"
+            className="h-10 w-full rounded-md border border-border bg-secondary/30 px-3 text-xs font-semibold text-foreground outline-none focus:border-primary disabled:opacity-40"
           >
             <option value="">Todos os Temas</option>
             {topics.map((t: any) => (
@@ -397,13 +389,13 @@ export default function QuestionErrors() {
           </select>
         </div>
         <div className="md:col-span-1 space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">
+          <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             Natureza do Erro
           </label>
           <select
             value={filterOrigin}
             onChange={(e) => setFilterOrigin(e.target.value)}
-            className="w-full bg-secondary/40 border border-border/70 text-[var(--app-fg)] rounded-2xl px-5 h-14 text-xs font-bold outline-none focus:border-[var(--primary)] transition-all cursor-pointer"
+            className="h-10 w-full rounded-md border border-border bg-secondary/30 px-3 text-xs font-semibold text-foreground outline-none focus:border-primary"
           >
             <option value="">Qualquer Origem</option>
             {Object.entries(ORIGIN_LABELS).map(([id, info]) => (
@@ -420,7 +412,7 @@ export default function QuestionErrors() {
               setFilterTopic("");
               setFilterOrigin("");
             }}
-            className="w-full h-14 bg-secondary/40 border border-border/70 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 transition-all flex items-center justify-center gap-2"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary/30 text-[9px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             <RefreshCw size={14} /> Limpar Filtros
           </button>
@@ -436,24 +428,21 @@ export default function QuestionErrors() {
           </p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="soe-card p-24 flex flex-col items-center justify-center gap-6 opacity-40 border-dashed">
-          <div className="w-20 h-20 rounded-[2rem] bg-secondary/40 flex items-center justify-center mb-2">
-            <CheckCircle2 size={32} />
-          </div>
-          <div className="text-center">
-            <p className="text-xl font-black uppercase tracking-widest">
-              Nenhum Erro Registrado
-            </p>
-            <p className="text-xs mt-2 font-medium">
-              Suas questões incorretas serão listadas aqui automaticamente.
-            </p>
-          </div>
+        <div className="soe-card flex flex-col items-center justify-center gap-3 border-dashed p-12 text-center">
+          <CheckCircle2 size={26} className="text-muted-foreground/40" />
+          <p className="text-sm font-semibold">Nenhum erro registrado</p>
+          <p className="text-[11px] text-muted-foreground">
+            Suas questões incorretas aparecerão aqui automaticamente.
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex items-center gap-4 px-2 mb-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">
-              {filtered.length} Incidentes Detectados no Período
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-semibold text-muted-foreground">
+              {filtered.length} questões salvas
+            </span>
+            <span className="text-[9px] text-muted-foreground/60">
+              clique em detalhes para ver alternativas e IA
             </span>
           </div>
 
@@ -475,12 +464,12 @@ export default function QuestionErrors() {
                 key={e.id}
                 className={`soe-card group overflow-hidden transition-all duration-300 ${isExpanded ? "border-[var(--primary-border)] shadow-2xl shadow-[var(--primary-shadow)]/5" : "hover:border-border"}`}
               >
-                <div className="p-8">
+                <div className="p-5">
                   <div className="flex flex-col md:flex-row items-start gap-6">
-                    <div className="shrink-0 w-14 h-14 rounded-[1.2rem] bg-rose-500/5 border border-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner">
-                      <XCircle size={24} />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-rose-500/10 bg-rose-500/5 text-rose-500">
+                      <XCircle size={16} />
                     </div>
-                    <div className="flex-1 min-w-0 space-y-6">
+                    <div className="min-w-0 flex-1 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex flex-wrap items-center gap-2">
                           {e.banca && (
@@ -528,16 +517,13 @@ export default function QuestionErrors() {
                             </>
                           )}
                         </div>
-                        <p
-                          className="text-base font-black leading-tight tracking-tight"
-                          style={{ color: "var(--app-fg)" }}
-                        >
+                        <p className="line-clamp-3 text-sm font-semibold leading-relaxed">
                           {e.statement}
                         </p>
                       </div>
 
                       {e.userAnswer && e.correctAnswer && (
-                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.01] border border-border/70 w-fit">
+                        <div className="flex w-fit flex-wrap items-center gap-3 rounded-md border border-border bg-secondary/20 p-2.5">
                           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500">
                             <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                             Você: {e.userAnswer}
@@ -552,8 +538,8 @@ export default function QuestionErrors() {
                     </div>
                   </div>
 
-                  <div className="mt-8 pt-8 border-t border-border/70 flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full sm:w-auto">
+                  <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-border pt-4 sm:flex-row">
+                    <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto lg:grid-cols-4">
                       <AIActionButton
                         label="Analisar"
                         doneLabel="Re-analisar"
@@ -597,7 +583,7 @@ export default function QuestionErrors() {
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                       <button
                         onClick={() => setExpanded(isExpanded ? null : e.id)}
-                        className={`flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 h-12 rounded-2xl transition-all border ${isExpanded ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-secondary/40 hover:bg-secondary/60 border-border/70 font-black text-[10px] uppercase tracking-widest"}`}
+                        className={`flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-[9px] font-bold uppercase tracking-wider transition-all ${isExpanded ? "border-primary bg-primary text-primary-foreground" : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"}`}
                       >
                         {isExpanded ? (
                           <ChevronUp size={18} />
@@ -616,9 +602,9 @@ export default function QuestionErrors() {
                             setTimeout(() => setDeleting(null), 3000);
                           }
                         }}
-                        className={`w-12 h-12 rounded-2xl transition-all border flex items-center justify-center ${deleting === e.id ? "bg-rose-500 border-rose-500 text-white animate-pulse" : "bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/10 text-rose-500"}`}
+                        className={`flex h-9 w-9 items-center justify-center rounded-md border transition-all ${deleting === e.id ? "border-rose-500 bg-rose-500 text-white animate-pulse" : "border-rose-500/10 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10"}`}
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>
@@ -632,12 +618,12 @@ export default function QuestionErrors() {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-8 pb-8 space-y-8 pt-6 border-t border-border/70 bg-secondary/30">
+                      <div className="space-y-5 border-t border-border bg-secondary/20 px-5 pb-5 pt-4">
                         <div className="space-y-4">
                           <p className="text-[10px] font-black uppercase tracking-widest opacity-30 flex items-center gap-2">
                             <Info size={12} /> Contexto do Enunciado
                           </p>
-                          <div className="p-6 rounded-[2rem] bg-secondary/20 border border-border/70 shadow-inner">
+                          <div className="rounded-md border border-border bg-card p-4">
                             <p
                               className="text-sm font-medium leading-relaxed whitespace-pre-wrap"
                               style={{ color: "var(--app-fg)" }}
@@ -659,14 +645,14 @@ export default function QuestionErrors() {
                                 return (
                                   <div
                                     key={a.letter}
-                                    className={`p-5 rounded-[1.5rem] border flex gap-6 transition-all ${isCorrect ? "bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5" : isUser ? "bg-rose-500/5 border-rose-500/20" : "bg-secondary/40 border-border/70 opacity-40"}`}
+                                    className={`flex gap-4 rounded-md border p-4 transition-all ${isCorrect ? "bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/5" : isUser ? "bg-rose-500/5 border-rose-500/20" : "bg-secondary/40 border-border/70 opacity-40"}`}
                                   >
                                     <div
-                                      className={`shrink-0 w-10 h-10 rounded-[1rem] flex items-center justify-center font-black text-sm ${isCorrect ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : isUser ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-secondary/60 text-muted-foreground"}`}
+                                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold ${isCorrect ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : isUser ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-secondary/60 text-muted-foreground"}`}
                                     >
                                       {a.letter}
                                     </div>
-                                    <div className="flex-1 pt-2">
+                                    <div className="flex-1 pt-1">
                                       <p
                                         className="text-sm font-semibold leading-relaxed"
                                         style={{ color: "var(--app-fg)" }}
