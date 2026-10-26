@@ -23,6 +23,7 @@ import QuestionSession from "@/pages/QuestionSession";
 import Lab from "@/pages/Lab";
 import Sync from "@/pages/Sync";
 import Profile from "@/pages/Profile";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Topics from "@/pages/Topics";
 import Revisions from "@/pages/Revisions";
 import Notes from "@/pages/Notes";
@@ -211,10 +212,13 @@ describe("Page Components", () => {
 
   test("Profile renders without crashing", async () => {
     await act(async () => {
-      render(<Profile />);
+      render(
+        <ThemeProvider>
+          <Profile />
+        </ThemeProvider>,
+      );
     });
-    // Check for tab labels present in Profile page
-    expect(screen.getAllByText(/Ajustes/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Configurações/i).length).toBeGreaterThan(0);
   });
 
   test("Topics renders without crashing", () => {

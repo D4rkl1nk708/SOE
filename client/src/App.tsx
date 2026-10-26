@@ -11,7 +11,6 @@ import { Layout } from "./components/Layout";
 // ── Lazy-loaded pages (code-split per route) ──────────────────────────────────
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const StudyPlan = lazy(() => import("@/pages/StudyPlan"));
-const SpecialStages = lazy(() => import("@/pages/SpecialStages"));
 const Disciplines = lazy(() => import("@/pages/Disciplines"));
 const Topics = lazy(() => import("@/pages/Topics"));
 const Calendar = lazy(() => import("@/pages/Calendar"));
@@ -69,7 +68,6 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/plan" component={StudyPlan} />
-        <Route path="/special-stages" component={SpecialStages} />
         <Route path="/disciplines" component={DisciplinesPage} />
         <Route path="/topics" component={Topics} />
         <Route path="/revisions" component={Revisions} />

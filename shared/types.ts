@@ -272,16 +272,6 @@ export interface UserSettings {
   minimizeToTray?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
-  /** Fases especiais: prova oral, títulos, etc. */
-  specialStages?: Array<{
-    id: string;
-    type: "oral" | "titulos";
-    title: string;
-    status: "pendente" | "em_preparacao" | "concluido";
-    score?: number;
-    notes?: string;
-    updatedAt: string;
-  }>;
   /** Disciplinas da rotina base diária (lente independente do edital) */
   baseDisciplineIds?: number[];
   /** Tentativas com confiança declarada (máx. ~3000) */

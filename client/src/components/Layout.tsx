@@ -32,7 +32,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
 import { FontSizeControl, useFontScale } from "./FontSizeControl";
 import { ChangelogModal } from "./ChangelogModal";
-import { FeaturesModal } from "./FeaturesModal";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { trpc } from "@/lib/trpc";
 
@@ -56,7 +55,6 @@ const NAV_GROUPS = [
       { path: "/revisions", label: "Revisões", icon: Clock },
       { path: "/calendar", label: "Calendário", icon: CalendarDays },
       { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
-      { path: "/special-stages", label: "Oral & Títulos", icon: Target },
       { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
     ],
   },
@@ -318,18 +316,6 @@ function Sidebar({
         </Link>
         {!collapsed && (
           <div className="px-5 pt-4 flex flex-col gap-2">
-            <button
-              onClick={() =>
-                window.dispatchEvent(new CustomEvent("soe-open-features"))
-              }
-              className="flex items-center gap-3 px-4 py-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all group mb-2 shadow-sm"
-            >
-              <Sparkles size={14} className="text-primary" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
-                Recursos
-              </span>
-            </button>
-
             <div className="flex items-center justify-between px-1">
               <span className="text-[10px] font-black opacity-20 tracking-widest uppercase">
                 Versão
@@ -351,7 +337,6 @@ function Sidebar({
       </div>
 
       <ChangelogModal />
-      <FeaturesModal />
     </aside>
   );
 }
@@ -363,6 +348,29 @@ export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { data: user } = trpc.auth.me.useQuery();
+  const { data: contextStats } = trpc.dashboard.getStats.useQuery();
+  const { data: contextOverview } = trpc.study.overview.useQuery({
+    minutes: Number((contextStats?.settings as any)?.dailyGoalMinutes) || 240,
+  });
+  const nextExam = (() => {
+    const exams = ((contextStats?.settings as any)?.exams || []) as Array<{
+      name: string;
+      date: string;
+    }>;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return exams
+      .filter((exam) => exam.date)
+      .map((exam) => ({
+        ...exam,
+        days: Math.ceil(
+          (new Date(`${exam.date}T00:00:00`).getTime() - today.getTime()) /
+            86_400_000,
+        ),
+      }))
+      .filter((exam) => exam.days >= 0)
+      .sort((a, b) => a.days - b.days)[0];
+  })();
 
   const allItems = NAV_GROUPS.flatMap((g) => g.items);
   const currentLabel =
@@ -464,12 +472,31 @@ export function Layout({ children }: { children: ReactNode }) {
             backdropFilter: "blur(12px)",
           }}
         >
-          <h2
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--foreground)", letterSpacing: "-0.25px" }}
-          >
-            {currentLabel}
-          </h2>
+          <div className="flex min-w-0 items-center gap-3">
+            <h2
+              className="truncate text-[13px] font-semibold"
+              style={{ color: "var(--foreground)", letterSpacing: "-0.25px" }}
+            >
+              {currentLabel}
+            </h2>
+            <div className="hidden items-center gap-1.5 xl:flex">
+              {contextOverview && (
+                <>
+                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                    Base {contextOverview.base?.coveragePct ?? 0}%
+                  </span>
+                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                    Edital {contextOverview.coverage.weightedCoveragePct}%
+                  </span>
+                </>
+              )}
+              {nextExam && (
+                <span className="rounded-full border border-primary/25 bg-primary/5 px-2 py-0.5 text-[9px] font-semibold text-primary">
+                  {nextExam.name.slice(0, 22)} · {nextExam.days}d
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-1">
             <FontSizeControl />
             <SearchButton />

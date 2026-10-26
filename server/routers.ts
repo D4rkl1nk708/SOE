@@ -92,19 +92,6 @@ export const appRouter = router({
               }),
             )
             .optional(),
-          specialStages: z
-            .array(
-              z.object({
-                id: z.string(),
-                type: z.enum(["oral", "titulos"]),
-                title: z.string(),
-                status: z.enum(["pendente", "em_preparacao", "concluido"]),
-                score: z.number().optional(),
-                notes: z.string().optional(),
-                updatedAt: z.string(),
-              }),
-            )
-            .optional(),
           editalVersions: z
             .array(
               z.object({

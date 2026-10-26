@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
 import {
   History as HistoryIcon,
   Palette,
@@ -34,6 +33,7 @@ import { useTheme, COLOR_THEMES, ColorTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   douGetConfig,
   douSaveConfig,
@@ -248,7 +248,7 @@ function SettingsTab() {
       </div>
 
       {section === "appearance" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="space-y-4">
           <div className="space-y-2">
             <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
               Visual & Interface
@@ -316,7 +316,7 @@ function SettingsTab() {
       )}
 
       {section === "ai" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="space-y-4">
           <div className="space-y-2">
             <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
               Inteligência Artificial
@@ -374,7 +374,7 @@ function SettingsTab() {
       )}
 
       {section === "study" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="space-y-4">
           <div className="space-y-2">
             <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
               Estudo
@@ -572,7 +572,7 @@ function SettingsTab() {
       )}
 
       {section === "data" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="space-y-4">
           <div className="space-y-2">
             <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
               Sistema & Backup
@@ -748,7 +748,7 @@ function DiarioOficialTab() {
   return (
     <div className="space-y-12 py-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Search Configuration Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="space-y-4">
         <div className="space-y-2">
           <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
             Configuração de Busca
@@ -821,7 +821,7 @@ function DiarioOficialTab() {
           <div className="h-px bg-secondary/40 w-full" />
 
           {/* Real-time Status Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
                 Status em Tempo Real
@@ -898,17 +898,13 @@ function DiarioOficialTab() {
 }
 
 export default function Profile() {
-  const [, navigate] = useLocation();
   const hash = window.location.hash.replace("#", "") as Tab;
   const [tab, setTab] = useState<Tab>(
-    ["dou", "settings", "history", "revisions"].includes(hash)
-      ? (hash as Tab)
-      : "dou",
+    ["history", "revisions", "dou"].includes(hash) ? (hash as Tab) : "settings",
   );
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { user, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const utils = trpc.useUtils();
   const updateSettings = trpc.v10.updateV10Settings.useMutation({
     onSuccess: () => {
@@ -916,164 +912,146 @@ export default function Profile() {
       utils.auth.me.invalidate();
       utils.dashboard.getStats.invalidate();
     },
-    onError: (e) => toast.error("Falha ao salvar foto: " + e.message),
+    onError: (error) => toast.error("Falha ao salvar foto: " + error.message),
   });
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-
     if (file.size > 1024 * 1024) {
       toast.error("A imagem deve ter menos de 1MB.");
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64String = reader.result as string;
-      updateSettings.mutate({ profileImage: base64String });
+      updateSettings.mutate({ profileImage: reader.result as string });
     };
     reader.readAsDataURL(file);
   };
 
-  const TABS = [
+  const TABS: Array<{ id: Tab; label: string; desc: string; icon: any }> = [
     {
-      id: "dou" as Tab,
-      label: "Sentinela",
-      icon: FileText,
-      desc: "Monitoramento DOU",
-    },
-    {
-      id: "settings" as Tab,
-      label: "Sistema",
+      id: "settings",
+      label: "Configurações",
+      desc: "Aparência, IA e dados",
       icon: Settings,
-      desc: "Ajustes e IA",
     },
     {
-      id: "history" as Tab,
-      label: "Linha do Tempo",
+      id: "history",
+      label: "Histórico",
+      desc: "Linha do tempo",
       icon: HistoryIcon,
-      desc: "Progresso",
     },
     {
-      id: "revisions" as Tab,
+      id: "revisions",
       label: "Atividade",
+      desc: "Revisões e log",
       icon: CheckCircle2,
-      desc: "Log de Estudos",
+    },
+    {
+      id: "dou",
+      label: "Sentinela DOU",
+      desc: "Monitoramento",
+      icon: FileText,
     },
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-12 pb-20 px-4 md:px-0">
-      {/* Premium Profile Banner */}
-      <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-[3rem] blur-xl opacity-50 group-hover:opacity-75 transition duration-1000"></div>
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8 bg-secondary/40 backdrop-blur-md border border-border/70 p-10 rounded-[3rem] overflow-hidden">
-          <div className="flex items-center gap-8">
-            <div
-              className="relative group/avatar cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="absolute inset-0 bg-primary blur-3xl opacity-20 group-hover/avatar:opacity-40 transition-opacity animate-pulse" />
-              <div
-                className="relative w-24 h-24 rounded-[2.5rem] bg-gradient-to-br from-primary to-purple-600 p-[2px] shadow-2xl group-hover/avatar:scale-105 transition-transform duration-500"
-                style={{ boxShadow: "0 0 20px rgba(var(--primary-rgb), 0.3)" }}
-              >
-                <div className="w-full h-full rounded-[2.4rem] overflow-hidden bg-secondary flex items-center justify-center border border-border">
-                  {stats?.settings?.profileImage ? (
-                    <img
-                      src={stats.settings.profileImage}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    (user?.name?.[0]?.toUpperCase() ?? (
-                      <User className="w-12 h-12" />
-                    ))
-                  )}
-                </div>
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-20">
+      <PageHeader
+        eyebrow="Conta"
+        title="Perfil"
+        description="Configurações, histórico e monitoramento em um só lugar."
+      />
 
-                {/* Camera Overlay */}
-                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity rounded-[2.5rem]">
-                  <Camera size={24} className="text-white" />
-                </div>
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-background border-4 border-secondary flex items-center justify-center text-[var(--accent-green)] shadow-xl z-10">
-                <ShieldCheck size={18} />
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                className="hidden"
-              />
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-4xl font-black tracking-tighter leading-tight">
-                Olá, {user?.name?.split(" ")[0] ?? "Estudante"}
-              </h1>
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1 rounded-full bg-[var(--accent-green)]/10 text-[var(--accent-green)] text-[9px] font-black uppercase tracking-widest border border-[var(--accent-green)]/20">
-                  Membro Premium
-                </span>
-                <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">
-                  ID: {user?.openId?.slice(0, 8) || "SOE-USER"}
-                </span>
-              </div>
-            </div>
-          </div>
-
+      <div className="soe-card flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
           <button
-            onClick={logout}
-            className="flex items-center justify-center gap-3 px-8 h-14 rounded-2xl bg-secondary/40 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 border border-border/70 hover:border-rose-500/20 transition-all active:scale-95 font-black text-[10px] uppercase tracking-widest group"
+            onClick={() => fileInputRef.current?.click()}
+            className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-secondary"
+            title="Trocar foto"
           >
-            <LogOut
-              size={18}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            <span>Encerrar Sessão</span>
+            {stats?.settings?.profileImage ? (
+              <img
+                src={stats.settings.profileImage}
+                alt="Perfil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-xl font-bold text-muted-foreground">
+                {user?.name?.[0]?.toUpperCase() ?? <User className="h-7 w-7" />}
+              </span>
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+              <Camera size={18} className="text-white" />
+            </span>
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold">
+              {user?.name ?? "Estudante"}
+            </h2>
+            <p className="truncate text-xs text-muted-foreground">
+              {user?.email || "Conta local offline"}
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          onClick={logout}
+          className="self-start sm:self-auto"
+        >
+          <LogOut size={16} className="mr-2" /> Sair
+        </Button>
       </div>
 
-      {/* Elegant Tab Navigation */}
-      <div className="flex flex-wrap md:flex-nowrap items-center justify-center bg-secondary/20 p-2 rounded-[2.5rem] border border-border/70 backdrop-blur-sm shadow-inner">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => {
-                setTab(t.id);
-                window.location.hash = t.id;
-              }}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-500 ${active ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"}`}
-            >
-              <Icon size={18} className={active ? "animate-pulse" : ""} />
-              <div className="text-left hidden sm:block">
-                <p className="font-black text-[10px] uppercase tracking-widest leading-none">
-                  {t.label}
-                </p>
-                <p
-                  className={`text-[8px] mt-1 hidden md:block ${active ? "text-white/60" : "opacity-30"}`}
-                >
-                  {t.desc}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[230px_1fr]">
+        <nav className="soe-card flex gap-1 overflow-x-auto p-2 lg:flex-col">
+          {TABS.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setTab(item.id);
+                  window.location.hash = item.id;
+                }}
+                className={`flex min-w-[150px] items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors lg:min-w-0 ${
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                }`}
+              >
+                <Icon size={16} className="flex-shrink-0" />
+                <span className="min-w-0">
+                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider">
+                    {item.label}
+                  </span>
+                  <span
+                    className={`block truncate text-[9px] ${active ? "text-primary-foreground/70" : "opacity-60"}`}
+                  >
+                    {item.desc}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-      {/* Main Content Viewport */}
-      <div className="min-h-[600px] animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="bg-gradient-to-b from-white/[0.02] to-transparent rounded-[3rem] p-1 border-t border-border/70">
-          {tab === "dou" && <DiarioOficialTab />}
+        <div className="min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {tab === "settings" && <SettingsTab />}
           {tab === "history" && <History />}
           {tab === "revisions" && <Revisions />}
+          {tab === "dou" && <DiarioOficialTab />}
         </div>
       </div>
     </div>
