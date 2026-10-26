@@ -199,6 +199,9 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return storage.getDisciplinesByUser(ctx.user.id);
     }),
+    duplicates: protectedProcedure.query(async ({ ctx }) => {
+      return storage.getDisciplineDuplicateSuggestions(ctx.user.id);
+    }),
     create: protectedProcedure
       .input(
         z.object({
@@ -238,6 +241,14 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await storage.deleteDiscipline(input.id, ctx.user.id);
         return { success: true };
+      }),
+    deleteMany: protectedProcedure
+      .input(z.object({ ids: z.array(z.number()).min(1).max(100) }))
+      .mutation(async ({ ctx, input }) => {
+        for (const id of input.ids) {
+          await storage.deleteDiscipline(id, ctx.user.id);
+        }
+        return { deleted: input.ids.length };
       }),
     reorder: protectedProcedure
       .input(z.object({ orderedIds: z.array(z.number()) }))

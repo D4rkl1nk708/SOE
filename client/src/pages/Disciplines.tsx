@@ -33,6 +33,8 @@ import {
   GraduationCap,
   Target,
   Weight,
+  Merge,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,9 +64,12 @@ export default function Disciplines() {
     color: "#3B82F6",
     weight: 5,
   });
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: disciplines, isLoading } = trpc.discipline.list.useQuery();
+  const { data: duplicates } = trpc.discipline.duplicates.useQuery();
 
   const createMutation = trpc.discipline.create.useMutation({
     onSuccess: () => {
@@ -88,10 +93,38 @@ export default function Disciplines() {
   const deleteMutation = trpc.discipline.delete.useMutation({
     onSuccess: () => {
       utils.discipline.list.invalidate();
+      utils.discipline.duplicates.invalidate();
       toast.success("Disciplina excluída.");
     },
     onError: (error) => toast.error(error.message),
   });
+
+  const deleteManyMutation = trpc.discipline.deleteMany.useMutation({
+    onSuccess: (result) => {
+      utils.discipline.list.invalidate();
+      utils.discipline.duplicates.invalidate();
+      utils.dashboard.getStats.invalidate();
+      setCleanupOpen(false);
+      toast.success(`${result.deleted} disciplinas removidas.`);
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const mergeMutation = trpc.discipline.merge.useMutation({
+    onSuccess: () => {
+      utils.discipline.list.invalidate();
+      utils.discipline.duplicates.invalidate();
+      utils.dashboard.getStats.invalidate();
+      toast.success("Disciplinas consolidadas.");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const suspicious = ((disciplines as any[]) || []).filter(
+    (discipline) =>
+      Number(discipline.weight) <= 1 &&
+      Number(discipline.performance?.questionsResolved) === 0,
+  );
 
   const handleCreate = () => {
     if (!formData.name.trim()) return toast.error("Nome obrigatório");
@@ -120,93 +153,113 @@ export default function Disciplines() {
           </div>
         </div>
 
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="h-10 px-6 rounded-md font-bold text-[10px] uppercase tracking-widest">
-              <Plus size={14} className="mr-2" /> Nova Disciplina
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="rounded-md border-border bg-card max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold">
-                Criar Disciplina
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Defina o nome e a importância estratégica da matéria.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                  Nome da Disciplina
-                </Label>
-                <Input
-                  placeholder="Ex: Direito Administrativo"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="h-11 bg-secondary/50 border-border text-sm font-bold"
-                />
-              </div>
-              <div className="space-y-3">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                  Cor de Identificação
-                </Label>
-                <div className="flex flex-wrap gap-2.5">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      className={cn(
-                        "w-6 h-6 rounded-md border-2 transition-all hover:scale-110",
-                        formData.color === color
-                          ? "border-primary"
-                          : "border-transparent",
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setFormData({ ...formData, color })}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDuplicatesOpen(true)}
+            className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
+          >
+            <Merge size={14} className="mr-2" /> Duplicatas (
+            {duplicates?.length || 0})
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setCleanupOpen(true)}
+            className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
+          >
+            <AlertTriangle size={14} className="mr-2" /> Limpar vazias (
+            {suspicious.length})
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-10 px-6 rounded-md font-bold text-[10px] uppercase tracking-widest">
+                <Plus size={14} className="mr-2" /> Nova Disciplina
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-md border-border bg-card max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">
+                  Criar Disciplina
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Defina o nome e a importância estratégica da matéria.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div className="space-y-2">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                    Peso Estratégico
+                    Nome da Disciplina
                   </Label>
-                  <span className="text-xs font-bold text-primary">
-                    {formData.weight}
-                  </span>
+                  <Input
+                    placeholder="Ex: Direito Administrativo"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className="h-11 bg-secondary/50 border-border text-sm font-bold"
+                  />
                 </div>
-                <Slider
-                  value={[formData.weight]}
-                  onValueChange={([value]) =>
-                    setFormData({ ...formData, weight: value })
-                  }
-                  min={1}
-                  max={10}
-                  step={1}
-                />
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                    Cor de Identificação
+                  </Label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        className={cn(
+                          "w-6 h-6 rounded-md border-2 transition-all hover:scale-110",
+                          formData.color === color
+                            ? "border-primary"
+                            : "border-transparent",
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setFormData({ ...formData, color })}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                      Peso Estratégico
+                    </Label>
+                    <span className="text-xs font-bold text-primary">
+                      {formData.weight}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[formData.weight]}
+                    onValueChange={([value]) =>
+                      setFormData({ ...formData, weight: value })
+                    }
+                    min={1}
+                    max={10}
+                    step={1}
+                  />
+                </div>
               </div>
-            </div>
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateOpen(false)}
-                className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={createMutation.isPending}
-                className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
-              >
-                {createMutation.isPending ? "Criando..." : "Confirmar Criação"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={createMutation.isPending}
+                  className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
+                >
+                  {createMutation.isPending
+                    ? "Criando..."
+                    : "Confirmar Criação"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
@@ -470,6 +523,112 @@ export default function Disciplines() {
               className="h-10 rounded-md font-bold text-[10px] uppercase tracking-widest"
             >
               {updateMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={duplicatesOpen} onOpenChange={setDuplicatesOpen}>
+        <DialogContent className="max-w-2xl rounded-md border-border bg-card p-0 overflow-hidden">
+          <DialogHeader className="border-b border-border p-5">
+            <DialogTitle className="text-lg font-bold">
+              Consolidar duplicatas
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              O SOE encontrou nomes parecidos. A origem é a disciplina com menor
+              peso ou menos questões.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto p-5">
+            {!duplicates?.length ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma duplicata evidente encontrada.
+              </p>
+            ) : (
+              duplicates.map((item: any) => (
+                <div
+                  key={`${item.sourceId}-${item.targetId}`}
+                  className="rounded-md border border-border p-3"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 text-xs">
+                      <p className="font-semibold">
+                        <span className="text-accent-amber">
+                          {item.sourceName}
+                        </span>
+                        <span className="mx-2 text-muted-foreground">→</span>
+                        <span className="text-accent-green">
+                          {item.targetName}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {item.reason} · origem: peso {item.sourceWeight},{" "}
+                        {item.sourceQuestions} questões · destino: peso{" "}
+                        {item.targetWeight}, {item.targetQuestions} questões
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mergeMutation.isPending}
+                      onClick={() =>
+                        mergeMutation.mutate({
+                          sourceId: item.sourceId,
+                          targetId: item.targetId,
+                        })
+                      }
+                    >
+                      Mesclar
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cleanupOpen} onOpenChange={setCleanupOpen}>
+        <DialogContent className="max-w-xl rounded-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              Limpar disciplinas vazias
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Serão excluídas disciplinas com prioridade 1 e nenhuma questão
+              registrada. A exclusão cria um bloqueio para impedir que sync ou
+              importação as recriem.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 space-y-1 overflow-y-auto py-3">
+            {suspicious.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nada para limpar.</p>
+            ) : (
+              suspicious.map((discipline: any) => (
+                <p
+                  key={discipline.id}
+                  className="text-xs text-muted-foreground"
+                >
+                  • {discipline.name}
+                </p>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCleanupOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!suspicious.length || deleteManyMutation.isPending}
+              onClick={() =>
+                deleteManyMutation.mutate({
+                  ids: suspicious.map((discipline: any) => discipline.id),
+                })
+              }
+            >
+              {deleteManyMutation.isPending
+                ? "Removendo..."
+                : `Excluir ${suspicious.length}`}
             </Button>
           </DialogFooter>
         </DialogContent>

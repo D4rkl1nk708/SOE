@@ -479,6 +479,10 @@ export async function configureApp(): Promise<{
         );
         let disc = discMatch.discipline;
 
+        if (!disc && storage.isDisciplineNameBlocked(user.id, discName)) {
+          continue;
+        }
+
         if (!disc) {
           const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
             incomingDiscipline: discName,
@@ -719,6 +723,13 @@ export async function configureApp(): Promise<{
         );
         let disc = discMatch.discipline;
 
+        if (!disc && storage.isDisciplineNameBlocked(user.id, disciplinaName)) {
+          return res.status(400).json({
+            error:
+              "Disciplina excluída pelo usuário; recriação automática bloqueada.",
+          });
+        }
+
         if (!disc) {
           const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
             incomingDiscipline: disciplinaName,
@@ -751,12 +762,10 @@ export async function configureApp(): Promise<{
             console.log(
               `[TEC Server] Skipping discipline creation for "${disciplinaName}" - AI did not approve new discipline creation`,
             );
-            return res
-              .status(400)
-              .json({
-                error:
-                  "Disciplina não encontrada e IA não aprovou criação de nova disciplina",
-              });
+            return res.status(400).json({
+              error:
+                "Disciplina não encontrada e IA não aprovou criação de nova disciplina",
+            });
           }
         }
 
@@ -921,6 +930,16 @@ export async function configureApp(): Promise<{
                   (d) => d.id === aiAnalysis.matchedDisciplineId,
                 ) || null;
             }
+          }
+
+          if (
+            !disc &&
+            storage.isDisciplineNameBlocked(user.id, disciplinaName)
+          ) {
+            return res.status(400).json({
+              error:
+                "Disciplina excluída pelo usuário; recriação automática bloqueada.",
+            });
           }
 
           if (!disc) {

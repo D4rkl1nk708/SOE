@@ -229,4 +229,34 @@ describe("smartMergeDatabases", () => {
     const merged = smartMergeDatabases(pc, mobile, 1);
     expect(merged.subjectiveAnswers).toHaveLength(1);
   });
+
+  it("não ressuscita disciplina excluída em um merge posterior", () => {
+    const pc = database();
+    pc.users[0].settings.deletedDisciplineNames = ["tecnologia da informacao"];
+    const mobile = database({
+      disciplines: [
+        {
+          ...database().disciplines[0],
+          id: 9,
+          name: "Tecnologia da Informação",
+        },
+      ],
+      topics: [
+        {
+          ...database().topics[0],
+          id: 90,
+          disciplineId: 9,
+          name: "Redes",
+        },
+      ],
+    });
+
+    const merged = smartMergeDatabases(pc, mobile, 1);
+    expect(
+      merged.disciplines.some(
+        (discipline: any) => discipline.name === "Tecnologia da Informação",
+      ),
+    ).toBe(false);
+    expect(merged.topics.some((topic: any) => topic.id === 90)).toBe(false);
+  });
 });

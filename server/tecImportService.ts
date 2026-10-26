@@ -285,6 +285,12 @@ export async function processImportRows(
     let discipline: any = discMatch.discipline;
 
     if (!discipline) {
+      if (
+        storage.isDisciplineNameBlocked(userId, row.disciplineName) ||
+        storage.isDisciplineNameBlocked(userId, cleanDiscName)
+      ) {
+        continue;
+      }
       const { id } = await storage.createDiscipline({
         userId,
         name: row.disciplineName,

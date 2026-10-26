@@ -138,6 +138,16 @@ export function smartMergeDatabases(
     ...settingsB,
     ...settingsA,
     questionAttempts: Array.from(attemptMap.values()).slice(-3000),
+    deletedDisciplineNames: Array.from(
+      new Set([
+        ...(Array.isArray(settingsA.deletedDisciplineNames)
+          ? settingsA.deletedDisciplineNames
+          : []),
+        ...(Array.isArray(settingsB.deletedDisciplineNames)
+          ? settingsB.deletedDisciplineNames
+          : []),
+      ]),
+    ),
     exams: Array.from(examMap.values()),
     studyStreak: mergedStreak,
     editalCycle:
@@ -164,6 +174,11 @@ export function smartMergeDatabases(
   };
 
   // 2. Canonical Disciplines (Deduplicated by normalized name)
+  const blockedDisciplineNames = new Set(
+    ((mergedSettings as any).deletedDisciplineNames || []).map((name: string) =>
+      normalizeString(name),
+    ),
+  );
   const mapDiscIdA = new Map<number, number>();
   const mapDiscIdB = new Map<number, number>();
   const canonicalDisciplines = new Map<string, any>();
@@ -175,6 +190,7 @@ export function smartMergeDatabases(
       if (!d || !d.name) continue;
       const key = normalizeString(d.name);
       if (!key) continue;
+      if (blockedDisciplineNames.has(key)) continue;
 
       if (!canonicalDisciplines.has(key)) {
         const canonical = {

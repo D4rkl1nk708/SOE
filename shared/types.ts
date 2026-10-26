@@ -272,6 +272,9 @@ export interface UserSettings {
   minimizeToTray?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
+  /** Nomes normalizados de disciplinas excluídas: impede que importação/sync
+   *  as recriem. Recriar manualmente remove o bloqueio. */
+  deletedDisciplineNames?: string[];
   /** Disciplinas da rotina base diária (lente independente do edital) */
   baseDisciplineIds?: number[];
   /** Tentativas com confiança declarada (máx. ~3000) */
