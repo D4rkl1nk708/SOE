@@ -5,6 +5,7 @@ import type {
   MockExam,
   StudyNote,
   UserSettings,
+  QuestionAttempt,
   User,
   Flashcard,
   QuestionError,
@@ -23,6 +24,7 @@ export type {
   MockExam,
   StudyNote,
   UserSettings,
+  QuestionAttempt,
   User,
   Flashcard,
   QuestionError,
@@ -136,6 +138,41 @@ export async function updateUserSettings(
     db.users[index].settings = { ...db.users[index].settings, ...settings };
     writeDatabase(db);
   }
+}
+
+export async function recordQuestionAttempt(
+  userId: number,
+  attempt: Omit<QuestionAttempt, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: string;
+  },
+): Promise<QuestionAttempt> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const record: QuestionAttempt = {
+    ...attempt,
+    id:
+      attempt.id ||
+      `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: attempt.createdAt || now(),
+  };
+  user.settings.questionAttempts = [
+    ...(user.settings.questionAttempts || []),
+    record,
+  ].slice(-3000);
+  writeDatabase(db);
+  return record;
+}
+
+export async function getQuestionAttempts(
+  userId: number,
+  limit = 500,
+): Promise<QuestionAttempt[]> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const attempts = user?.settings.questionAttempts || [];
+  return attempts.slice(-Math.max(1, limit));
 }
 
 // ============ DISCIPLINE OPERATIONS ============

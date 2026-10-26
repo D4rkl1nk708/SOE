@@ -24,6 +24,18 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
   const { type, payload } = eventData;
   console.log("[SOE TEC Handler] Evento recebido:", type, payload);
 
+  // Modo de captura definido em Configurações > Estudo.
+  // assisted = comportamento atual; manual = apenas local, sem push ao PC;
+  // import = não captura automaticamente.
+  let captureMode = "assisted";
+  try {
+    captureMode = localStorage.getItem("soe_tec_capture_mode") || "assisted";
+  } catch {}
+  if (captureMode === "import") {
+    toast.info("Modo importação: captura automática desativada.");
+    return;
+  }
+
   // 1. Obter URL base do servidor configurado se houver (para sincronizar com PC se online)
   let serverUrl = "";
   try {
@@ -31,6 +43,7 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
       .trim()
       .replace(/\/$/, "");
   } catch {}
+  if (captureMode === "manual") serverUrl = "";
 
   if (serverUrl) {
     try {

@@ -116,11 +116,28 @@ export function smartMergeDatabases(
     lastStudyDate: streakA.lastStudyDate || streakB.lastStudyDate || null,
   };
 
+  const attemptMap = new Map<string, any>();
+  for (const attempt of [
+    ...(Array.isArray(settingsA.questionAttempts)
+      ? settingsA.questionAttempts
+      : []),
+    ...(Array.isArray(settingsB.questionAttempts)
+      ? settingsB.questionAttempts
+      : []),
+  ]) {
+    if (!attempt) continue;
+    const key =
+      attempt.id ||
+      `${attempt.questionId || ""}::${attempt.topicId || ""}::${attempt.createdAt || ""}`;
+    if (!attemptMap.has(key)) attemptMap.set(key, attempt);
+  }
+
   const mergedSettings = {
     // A é o banco atual (dispositivo local); B é o recebido. O local vence
     // para não trocar tema, chave de IA, diretório de backup etc. no sync.
     ...settingsB,
     ...settingsA,
+    questionAttempts: Array.from(attemptMap.values()).slice(-3000),
     exams: Array.from(examMap.values()),
     studyStreak: mergedStreak,
     editalCycle:

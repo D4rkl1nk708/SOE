@@ -75,6 +75,8 @@ interface QuestionResult {
   correct: boolean;
   errorOrigin: ErrorOrigin;
   savedQuestion?: boolean;
+  confidence?: "chute" | "acho" | "certeza" | null;
+  sawResult?: boolean;
 }
 
 interface ParsedQuestion {
@@ -234,6 +236,11 @@ export default function QuestionSession() {
   const [awaitingOrigin, setAwaitingOrigin] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [confidence, setConfidence] = useState<
+    "chute" | "acho" | "certeza" | null
+  >(null);
+  const [sawResult, setSawResult] = useState(false);
+  const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
 
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -271,6 +278,7 @@ export default function QuestionSession() {
       utils.dashboard.getStats.invalidate();
     },
   });
+  const recordAttempt = trpc.study.recordAttempt.useMutation();
   const saveQuestionError = trpc.questionError.save.useMutation({
     onSuccess: () => {
       setQSaved(true);
@@ -292,6 +300,7 @@ export default function QuestionSession() {
     setAutoStarted(true);
     sessionStorage.removeItem("qs_prefill");
     setStartTime(Date.now());
+    setQuestionStartedAt(Date.now());
     setPhase("session");
     setCurrentIndex(0);
     setResults([]);
@@ -323,15 +332,43 @@ export default function QuestionSession() {
     setParsed(null);
     setParseError("");
     setQSaved(false);
+    setConfidence(null);
+    setSawResult(false);
+    setQuestionStartedAt(Date.now());
     if (currentIndex + 1 >= totalQ) setPhase("summary");
     else setCurrentIndex((i) => i + 1);
   };
 
+  const recordCurrentAttempt = (correct: boolean, answered = true) => {
+    if (!selectedTopic) return;
+    recordAttempt.mutate({
+      topicId: selectedTopic,
+      disciplineId: selectedDisc ?? undefined,
+      answered,
+      correct,
+      confidence,
+      confidencePhase: confidence
+        ? sawResult
+          ? "after_result"
+          : "before_result"
+        : null,
+      seconds: Math.max(0, Math.round((Date.now() - questionStartedAt) / 1000)),
+      source: "manual",
+    });
+  };
+
   const handleAnswer = (correct: boolean) => {
+    recordCurrentAttempt(correct, true);
     if (correct) {
       setResults((p) => [
         ...p,
-        { index: currentIndex, correct: true, errorOrigin: null },
+        {
+          index: currentIndex,
+          correct: true,
+          errorOrigin: null,
+          confidence,
+          sawResult,
+        },
       ]);
       advance();
     } else {
@@ -342,7 +379,13 @@ export default function QuestionSession() {
   const handleOrigin = (origin: ErrorOrigin) => {
     setResults((p) => [
       ...p,
-      { index: currentIndex, correct: false, errorOrigin: origin },
+      {
+        index: currentIndex,
+        correct: false,
+        errorOrigin: origin,
+        confidence,
+        sawResult,
+      },
     ]);
     setAwaitingOrigin(false);
     setShowPasteArea(true);
@@ -777,7 +820,54 @@ export default function QuestionSession() {
             <div className="text-center space-y-2">
               <h3 className="text-xl font-black">Qual o resultado?</h3>
               <p className="text-sm opacity-50">
-                Selecione para avançar no treinamento.
+                Marque a confiança antes de registrar o gabarito no SOE.
+              </p>
+            </div>
+
+            <div className="w-full space-y-2 rounded-lg border border-border/70 bg-secondary/20 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Sua confiança
+                </p>
+                <label className="flex cursor-pointer items-center gap-1.5 text-[9px] font-semibold text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={sawResult}
+                    onChange={(e) => setSawResult(e.target.checked)}
+                    className="h-3 w-3 accent-[var(--primary)]"
+                  />
+                  Já vi o gabarito
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "chute", label: "Chute" },
+                  { id: "acho", label: "Acho" },
+                  { id: "certeza", label: "Certeza" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() =>
+                      setConfidence((prev) =>
+                        prev === item.id
+                          ? null
+                          : (item.id as typeof confidence),
+                      )
+                    }
+                    className={`rounded-md border py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      confidence === item.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground/70">
+                {sawResult
+                  ? "Marcado como pós-gabarito: não entra na calibração."
+                  : "Ideal: marcar antes de ver o resultado no TEC."}
               </p>
             </div>
 
@@ -800,9 +890,16 @@ export default function QuestionSession() {
 
             <button
               onClick={() => {
+                recordCurrentAttempt(false, false);
                 setResults((p) => [
                   ...p,
-                  { index: currentIndex, correct: false, errorOrigin: null },
+                  {
+                    index: currentIndex,
+                    correct: false,
+                    errorOrigin: null,
+                    confidence: null,
+                    sawResult,
+                  },
                 ]);
                 advance();
               }}
@@ -955,6 +1052,13 @@ export default function QuestionSession() {
 
   // ── RENDER SUMMARY ─────────────────────────────────────────────────
   const totalWrong = results.filter((r) => !r.correct);
+  const calibratedResults = results.filter((r) => r.confidence && !r.sawResult);
+  const overconfidence = calibratedResults.filter(
+    (r) => r.confidence === "certeza" && !r.correct,
+  ).length;
+  const underconfidence = calibratedResults.filter(
+    (r) => r.confidence === "chute" && r.correct,
+  ).length;
   const originCounts = ERROR_ORIGINS.map((o) => ({
     ...o,
     count: totalWrong.filter((r) => r.errorOrigin === o.id).length,
@@ -1058,6 +1162,44 @@ export default function QuestionSession() {
             </p>
             <p className="text-3xl font-black tabular-nums">{fmt(elapsed)}</p>
           </div>
+        </div>
+      </div>
+
+      <div className="soe-card p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <Target className="h-4 w-4 text-[var(--primary)]" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+            Recibo da sessão
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Calibradas", value: calibratedResults.length },
+            { label: "Overconfidence", value: overconfidence },
+            { label: "Subconfiança", value: underconfidence },
+            { label: "Erros", value: totalWrong.length },
+          ].map((item) => (
+            <div key={item.label} className="rounded-md bg-secondary/20 p-3">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                {item.label}
+              </p>
+              <p className="text-lg font-semibold tabular-nums">{item.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {totalWrong.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate("/question-errors")}
+            >
+              Revisar erros
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => navigate("/plan")}>
+            Ver próximo passo
+          </Button>
         </div>
       </div>
 

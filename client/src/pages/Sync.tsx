@@ -29,6 +29,7 @@ import {
   Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { motion, AnimatePresence } from "framer-motion";
 import { trpc } from "@/lib/trpc";
 
@@ -171,6 +172,7 @@ type BackupEntry = {
 
 export default function Sync() {
   const trpcUtils = trpc.useUtils();
+  const { data: dataHealth } = trpc.study.dataHealth.useQuery();
   const importBackupMutation = trpc.import.importBackup.useMutation();
   const importLocalMutation = trpc.import.importLocalBackup.useMutation();
   const deleteLocalMutation = trpc.import.deleteLocalBackup.useMutation();
@@ -207,6 +209,7 @@ export default function Sync() {
 
   const [waitingReceive, setWaitingReceive] = useState(false);
   const [received, setReceived] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const sseRef = useRef<EventSource | null>(null);
 
   const fetchSyncInfo = useCallback(async () => {
@@ -791,33 +794,19 @@ export default function Sync() {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8 pb-12">
-      {/* Header Imersivo */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
-            <RefreshCw className="w-6 h-6 text-[var(--primary)]" />
+      <PageHeader
+        eyebrow="Continuidade"
+        title="Sync & Backup"
+        description="Transfira entre desktop e celular, exporte arquivos e mantenha cópias de segurança."
+        actions={
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/40 border border-border/70">
+            <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
+            <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
+              {isDesktop ? "Terminal host ativo" : "Cliente mobile"}
+            </span>
           </div>
-          <div>
-            <h1
-              className="text-3xl font-black tracking-tight"
-              style={{ color: "var(--app-fg)" }}
-            >
-              Sync & Backup
-            </h1>
-            <p className="text-sm opacity-60">
-              Sincronização em tempo real e segurança de dados.
-            </p>
-          </div>
-        </div>
-
-        {/* Connection Status Badge */}
-        <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-secondary/40 border border-border/70">
-          <div className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-            {isDesktop ? "Terminal Host Ativo" : "Cliente Mobile Conectado"}
-          </span>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-2">
         {/* Left Column: QR & Sync */}
@@ -1053,74 +1042,131 @@ export default function Sync() {
             )}
           </div>
 
-          {/* Cloud Restoration */}
-          <div className="soe-card p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
-                <Cloud className="w-5 h-5 text-sky-500" />
-              </div>
-              <div>
-                <h2
-                  className="text-xl font-black"
-                  style={{ color: "var(--app-fg)" }}
-                >
-                  Backup em Nuvem
-                </h2>
-                <p className="text-xs opacity-50">
-                  Compartilhe ou restaure backups via Google Drive e outros
-                  serviços.
-                </p>
-              </div>
+          <div className="soe-card p-5">
+            <div className="mb-3 flex items-center gap-3">
+              <ShieldCheck className="h-4 w-4 text-accent-green" />
+              <h2 className="text-[10px] font-bold uppercase tracking-widest">
+                Saúde dos dados
+              </h2>
+              <span
+                className={`ml-auto rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                  dataHealth?.healthy
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-amber-500/10 text-amber-500"
+                }`}
+              >
+                {dataHealth?.healthy ? "Consistente" : "Revisar"}
+              </span>
             </div>
-
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Cole o link do Google Drive..."
-                  value={driveUrl}
-                  onChange={(e) => setDriveUrl(e.target.value)}
-                  className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
-                  style={{
-                    background: "var(--input-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--app-fg)",
-                  }}
-                />
-                <button
-                  onClick={handleImportFromLink}
-                  disabled={linkImportLoading || !driveUrl}
-                  className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
-                >
-                  {linkImportLoading ? (
-                    <RefreshCw className="animate-spin w-4 h-4" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  Importar
-                </button>
+            {dataHealth?.healthy ? (
+              <p className="text-[11px] text-muted-foreground">
+                Nenhuma duplicata ou referência órfã encontrada.
+              </p>
+            ) : (
+              <div className="space-y-1 text-[10px] text-muted-foreground">
+                {dataHealth && (
+                  <>
+                    <p>
+                      {dataHealth.duplicateDisciplines} disciplinas duplicadas
+                    </p>
+                    <p>{dataHealth.duplicateTopics} tópicos duplicados</p>
+                    <p>{dataHealth.orphanTopics} tópicos sem disciplina</p>
+                    <p>{dataHealth.orphanRevisions} revisões sem tópico</p>
+                  </>
+                )}
               </div>
-
-              <div className="p-4 rounded-xl bg-secondary/40 border border-border/70 text-xs opacity-60">
-                <p className="mb-2">
-                  💡 <strong>Alternativas de compartilhamento:</strong>
-                </p>
-                <ul className="space-y-1 ml-4 list-disc">
-                  <li>
-                    Use o botão "Exportar" abaixo para salvar o arquivo JSON
-                  </li>
-                  <li>
-                    No Android, o compartilhador do sistema permite enviar para
-                    WhatsApp, Email, Google Drive, etc.
-                  </li>
-                  <li>
-                    No PC, o arquivo é baixado diretamente para sua pasta
-                    Downloads
-                  </li>
-                </ul>
-              </div>
-            </div>
+            )}
           </div>
+
+          <button
+            onClick={() => setShowAdvanced((value) => !value)}
+            className="soe-card flex w-full items-center justify-between p-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Cloud className="h-5 w-5 text-sky-500" />
+              <div>
+                <p className="text-xs font-bold">Opções avançadas de nuvem</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Importar backup por link do Google Drive.
+                </p>
+              </div>
+            </div>
+            <ChevronRight
+              size={16}
+              className={`text-muted-foreground transition-transform ${showAdvanced ? "rotate-90" : ""}`}
+            />
+          </button>
+
+          {/* Cloud Restoration */}
+          {showAdvanced && (
+            <div className="soe-card p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
+                  <Cloud className="w-5 h-5 text-sky-500" />
+                </div>
+                <div>
+                  <h2
+                    className="text-xl font-black"
+                    style={{ color: "var(--app-fg)" }}
+                  >
+                    Backup em Nuvem
+                  </h2>
+                  <p className="text-xs opacity-50">
+                    Compartilhe ou restaure backups via Google Drive e outros
+                    serviços.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="Cole o link do Google Drive..."
+                    value={driveUrl}
+                    onChange={(e) => setDriveUrl(e.target.value)}
+                    className="flex-1 px-5 py-4 rounded-2xl text-sm outline-none transition-all focus:ring-2 focus:ring-sky-500/50"
+                    style={{
+                      background: "var(--input-bg)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--app-fg)",
+                    }}
+                  />
+                  <button
+                    onClick={handleImportFromLink}
+                    disabled={linkImportLoading || !driveUrl}
+                    className="px-6 rounded-2xl bg-sky-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:opacity-90 transition-all flex items-center gap-2"
+                  >
+                    {linkImportLoading ? (
+                      <RefreshCw className="animate-spin w-4 h-4" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Importar
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-xl bg-secondary/40 border border-border/70 text-xs opacity-60">
+                  <p className="mb-2">
+                    💡 <strong>Alternativas de compartilhamento:</strong>
+                  </p>
+                  <ul className="space-y-1 ml-4 list-disc">
+                    <li>
+                      Use o botão "Exportar" abaixo para salvar o arquivo JSON
+                    </li>
+                    <li>
+                      No Android, o compartilhador do sistema permite enviar
+                      para WhatsApp, Email, Google Drive, etc.
+                    </li>
+                    <li>
+                      No PC, o arquivo é baixado diretamente para sua pasta
+                      Downloads
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Files & Automation */}

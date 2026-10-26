@@ -27,11 +27,13 @@ import {
   Zap,
   ShieldCheck,
   Camera,
+  Target,
 } from "lucide-react";
 import History from "./History";
 import { useTheme, COLOR_THEMES, ColorTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
 import {
   douGetConfig,
   douSaveConfig,
@@ -166,8 +168,19 @@ function SettingsTab() {
   );
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [autoBackupDir, setAutoBackupDir] = useState("");
-  const [section, setSection] = useState<"appearance" | "ai" | "data">(
-    "appearance",
+  const [section, setSection] = useState<
+    "appearance" | "ai" | "study" | "data"
+  >("appearance");
+  const [baseDisciplineIds, setBaseDisciplineIds] = useState<number[]>([]);
+  const [scheduler, setScheduler] = useState<"classic" | "fsrs">("classic");
+  const [tecCaptureMode, setTecCaptureMode] = useState<
+    "manual" | "assisted" | "import"
+  >("assisted");
+  const [fsrsPreviewOpen, setFsrsPreviewOpen] = useState(false);
+  const { data: disciplines } = trpc.discipline.list.useQuery();
+  const fsrsPreview = trpc.study.fsrsPreview.useQuery(
+    { days: 30 },
+    { enabled: fsrsPreviewOpen },
   );
 
   const { data: stats } = trpc.dashboard.getStats.useQuery();
@@ -183,6 +196,16 @@ function SettingsTab() {
       setProvider(s.aiProvider || "gemini");
       setAutoBackupEnabled(s.autoBackupEnabled || false);
       setAutoBackupDir(s.autoBackupDir || "");
+      setBaseDisciplineIds(
+        Array.isArray(s.baseDisciplineIds) ? s.baseDisciplineIds : [],
+      );
+      setScheduler(s.scheduler === "fsrs" ? "fsrs" : "classic");
+      const captureMode =
+        s.tecCaptureMode === "manual" || s.tecCaptureMode === "import"
+          ? s.tecCaptureMode
+          : "assisted";
+      setTecCaptureMode(captureMode);
+      localStorage.setItem("soe_tec_capture_mode", captureMode);
       if (s.minimizeToTray !== undefined) {
         setMinimizeToTray(s.minimizeToTray);
         if (isElectronApp)
@@ -202,6 +225,7 @@ function SettingsTab() {
         {[
           { id: "appearance", label: "Aparência", icon: Palette },
           { id: "ai", label: "Inteligência Artificial", icon: Cpu },
+          { id: "study", label: "Estudo", icon: Target },
           { id: "data", label: "Dados & Sync", icon: Database },
         ].map((item) => {
           const Icon = item.icon;
@@ -345,6 +369,204 @@ function SettingsTab() {
                 className="w-full px-6 py-5 rounded-[2rem] bg-secondary/40 border border-border/70 text-[11px] font-mono outline-none resize-none focus:border-primary transition-all custom-scrollbar"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {section === "study" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="space-y-2">
+            <h3 className="font-black text-xs uppercase tracking-[0.3em] text-primary">
+              Estudo
+            </h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+              Rotina base, agendamento e captura segura do TEC.
+            </p>
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Disciplinas da rotina base
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Elas aparecem no plano diário mesmo quando não fazem parte do
+                  edital atual.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {((disciplines as any[]) || []).map((discipline: any) => {
+                  const checked = baseDisciplineIds.includes(discipline.id);
+                  return (
+                    <label
+                      key={discipline.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-md border border-border/70 px-3 py-2.5 hover:bg-secondary/40"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) =>
+                          setBaseDisciplineIds((prev) =>
+                            e.target.checked
+                              ? [...new Set([...prev, discipline.id])]
+                              : prev.filter((id) => id !== discipline.id),
+                          )
+                        }
+                        className="h-4 w-4 accent-[var(--primary)]"
+                      />
+                      <span
+                        className="text-xs font-semibold truncate"
+                        style={{ color: "var(--app-fg)" }}
+                      >
+                        {discipline.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {(!disciplines || (disciplines as any[]).length === 0) && (
+                <p className="text-[11px] text-muted-foreground">
+                  Cadastre disciplinas primeiro.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Agendador de revisão
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  O 25/50 permanece o padrão. FSRS é experimental e não grava
+                  nada sem confirmação.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  onClick={() => setScheduler("classic")}
+                  className={`rounded-md border p-3 text-left ${scheduler === "classic" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <p className="text-xs font-bold">Clássico 25/50</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Ativo e recomendado
+                  </p>
+                </button>
+                <button
+                  onClick={() => setScheduler("fsrs")}
+                  className={`rounded-md border p-3 text-left ${scheduler === "fsrs" ? "border-accent-amber bg-accent-amber/5" : "border-border"}`}
+                >
+                  <p className="text-xs font-bold">FSRS experimental</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Prévia apenas; não altera o calendário
+                  </p>
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFsrsPreviewOpen((value) => !value)}
+                >
+                  {fsrsPreviewOpen ? "Fechar prévia" : "Ver prévia FSRS"}
+                </Button>
+                {scheduler === "fsrs" && fsrsPreviewOpen && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-accent-amber">
+                    Nada será aplicado sem confirmação
+                  </span>
+                )}
+              </div>
+              {fsrsPreviewOpen && (
+                <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border border-border/60 p-3">
+                  {fsrsPreview.isLoading ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Calculando...
+                    </p>
+                  ) : (
+                    (fsrsPreview.data?.items || []).map((item: any) => (
+                      <div
+                        key={item.topicId}
+                        className="flex items-center justify-between gap-2 text-[10px]"
+                      >
+                        <span className="min-w-0 truncate font-semibold">
+                          {item.topicName}
+                        </span>
+                        <span className="whitespace-nowrap text-muted-foreground">
+                          {item.suggestedIntervalDays}d · {item.suggestedDate}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Captura TEC
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Modo manual é o mais seguro contra ban. Nada de scraping,
+                  busca ou navegação automática.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {[
+                  {
+                    id: "manual",
+                    label: "Manual / assistido",
+                    desc: "Você registra ou clica no botão do SOE.",
+                  },
+                  {
+                    id: "assisted",
+                    label: "Assistido (experimental)",
+                    desc: "Lê apenas a resposta já visível; sem navegar.",
+                  },
+                  {
+                    id: "import",
+                    label: "Importar relatório",
+                    desc: "Copia/exporta o resultado do TEC e importa no SOE.",
+                  },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() =>
+                      setTecCaptureMode(mode.id as typeof tecCaptureMode)
+                    }
+                    className={`flex w-full items-start gap-3 rounded-md border p-3 text-left ${tecCaptureMode === mode.id ? "border-primary bg-primary/5" : "border-border"}`}
+                  >
+                    <span
+                      className={`mt-1 h-2 w-2 rounded-full ${tecCaptureMode === mode.id ? "bg-primary" : "bg-border"}`}
+                    />
+                    <span>
+                      <span className="block text-xs font-bold">
+                        {mode.label}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {mode.desc}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              onClick={() => {
+                localStorage.setItem("soe_tec_capture_mode", tecCaptureMode);
+                updateSettings.mutate({
+                  baseDisciplineIds,
+                  scheduler,
+                  tecCaptureMode,
+                });
+              }}
+              disabled={updateSettings.isPending}
+              className="h-11 rounded-md text-[10px] font-bold uppercase tracking-widest"
+            >
+              {updateSettings.isPending
+                ? "Salvando..."
+                : "Salvar configurações de estudo"}
+            </Button>
           </div>
         </div>
       )}

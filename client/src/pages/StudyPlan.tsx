@@ -57,6 +57,12 @@ const KIND_META: Record<
   },
 };
 
+const LENS_META: Record<string, { label: string; color: string }> = {
+  base: { label: "Rotina base", color: "var(--accent-blue)" },
+  edital: { label: "Edital", color: "var(--primary)" },
+  revisao: { label: "Revisão", color: "var(--accent-amber)" },
+};
+
 const STATUS_META: Record<string, { label: string; color: string }> = {
   pendente: { label: "Pendente", color: "var(--accent-red)" },
   estudado: { label: "Estudado", color: "var(--accent-amber)" },
@@ -78,10 +84,14 @@ export default function StudyPlan() {
   const { data, isLoading, isError, refetch } = trpc.study.overview.useQuery(
     minutes ? { minutes } : undefined,
   );
+  const { data: errorIntel } = trpc.study.errorPatterns.useQuery();
+  const { data: weekly } = trpc.study.weeklyReview.useQuery();
 
   const plan = data?.plan;
   const coverage = data?.coverage;
   const mastery = data?.mastery;
+  const base = data?.base;
+  const calibration = data?.calibration;
 
   const hasEdital = (coverage?.totalRows || 0) > 0;
 
@@ -203,6 +213,72 @@ export default function StudyPlan() {
         ))}
       </div>
 
+      <div className="soe-card p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Layers className="w-4 h-4 text-primary" />
+            <h2 className="text-[10px] font-bold uppercase tracking-widest">
+              Base × Edital
+            </h2>
+          </div>
+          <span className="text-[9px] font-medium text-muted-foreground">
+            métricas globais, sem duplicar estudo
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-border/70 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Rotina base
+              </span>
+              <span className="text-[10px] font-bold tabular-nums">
+                {base?.coveragePct ?? 0}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-[var(--accent-blue)]"
+                style={{ width: `${Math.min(100, base?.coveragePct ?? 0)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              {base?.studied ?? 0}/{base?.topics ?? 0} tópicos com contato ·{" "}
+              {base?.readiness ?? 0}% de prontidão
+            </p>
+            {!base?.configured && (
+              <button
+                onClick={() => navigate("/profile#settings")}
+                className="mt-2 text-[9px] font-bold uppercase tracking-wider text-primary"
+              >
+                Configurar rotina base
+              </button>
+            )}
+          </div>
+          <div className="rounded-lg border border-border/70 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Edital
+              </span>
+              <span className="text-[10px] font-bold tabular-nums">
+                {coverage?.weightedCoveragePct ?? 0}%
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${Math.min(100, coverage?.weightedCoveragePct ?? 0)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              {coverage?.studiedRows ?? 0}/{coverage?.totalRows ?? 0} tópicos
+              cobertos · {coverage?.readiness ?? 0}% de prontidão
+            </p>
+          </div>
+        </div>
+      </div>
+
       {!hasEdital && (
         <div className="soe-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-accent-amber/30">
           <div className="flex items-center gap-3">
@@ -277,6 +353,14 @@ export default function StudyPlan() {
                         >
                           {meta.label}
                         </span>
+                        {block.lens && LENS_META[block.lens] && (
+                          <span
+                            className="rounded-full bg-secondary px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider"
+                            style={{ color: LENS_META[block.lens].color }}
+                          >
+                            {LENS_META[block.lens].label}
+                          </span>
+                        )}
                         <span className="text-[9px] font-bold text-muted-foreground opacity-40">
                           {block.disciplineName}
                         </span>
@@ -391,6 +475,145 @@ export default function StudyPlan() {
               </div>
             )}
           </div>
+
+          <div className="soe-card p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <Target className="w-4 h-4 text-accent-amber" />
+              <h2 className="text-[10px] font-bold uppercase tracking-widest">
+                Calibração de confiança
+              </h2>
+            </div>
+            {!calibration?.calibrated ? (
+              <p className="text-[11px] leading-relaxed text-muted-foreground opacity-70">
+                Marque “chute / acho / certeza” antes de registrar o resultado
+                para o SOE detectar overconfidence.
+              </p>
+            ) : (
+              <div className="space-y-2 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Brier score</span>
+                  <span className="font-bold tabular-nums">
+                    {calibration.brier}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Excesso de confiança
+                  </span>
+                  <span className="font-bold tabular-nums text-accent-red">
+                    {calibration.overconfidence}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subconfiança</span>
+                  <span className="font-bold tabular-nums text-accent-green">
+                    {calibration.underconfidence}
+                  </span>
+                </div>
+                <p className="pt-1 text-[9px] text-muted-foreground">
+                  {calibration.calibrated} tentativas calibradas
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="soe-card p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 text-accent-amber" />
+            <h2 className="text-[10px] font-bold uppercase tracking-widest">
+              Padrões de erro
+            </h2>
+          </div>
+          {!errorIntel?.total ? (
+            <p className="text-[11px] text-muted-foreground opacity-70">
+              Registre erros no TEC ou no treino manual para o SOE encontrar
+              padrões.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {errorIntel.byOrigin.slice(0, 4).map((origin: any) => (
+                <div key={origin.origin}>
+                  <div className="mb-1 flex items-center justify-between text-[10px]">
+                    <span className="font-semibold capitalize">
+                      {origin.origin === "nao_classificado"
+                        ? "Não classificado"
+                        : origin.origin}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {origin.count} · {origin.share}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent-amber)]"
+                      style={{ width: `${origin.share}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {errorIntel.topTopics.slice(0, 3).map((topic: any) => (
+                <p
+                  key={topic.topicId}
+                  className="truncate text-[10px] text-muted-foreground"
+                >
+                  {topic.count}× {topic.topicName} · {topic.disciplineName}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="soe-card p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <Clock className="h-4 w-4 text-accent-green" />
+            <h2 className="text-[10px] font-bold uppercase tracking-widest">
+              Revisão da semana
+            </h2>
+          </div>
+          {!weekly ? (
+            <p className="text-[11px] text-muted-foreground opacity-70">
+              Sem dados suficientes nesta semana.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Questões", value: weekly.answered },
+                  { label: "Acurácia", value: `${weekly.accuracy}%` },
+                  {
+                    label: "Tempo",
+                    value: `${Math.round(weekly.minutes / 60)}h`,
+                  },
+                  { label: "Revisões", value: weekly.revisionsCompleted },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-md bg-secondary/30 p-2.5"
+                  >
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {weekly.wins[0] && (
+                <p className="text-[10px] text-accent-green">
+                  ✓ {weekly.wins[0]}
+                </p>
+              )}
+              {weekly.risks[0] && (
+                <p className="text-[10px] text-accent-red">
+                  ! {weekly.risks[0]}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

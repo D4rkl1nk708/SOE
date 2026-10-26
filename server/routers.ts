@@ -1320,6 +1320,9 @@ ${input.text.substring(0, 8000)}`;
           autoBackupDir: z.string().optional(),
           profileImage: z.string().optional(),
           minimizeToTray: z.boolean().optional(),
+          baseDisciplineIds: z.array(z.number()).optional(),
+          scheduler: z.enum(["classic", "fsrs"]).optional(),
+          tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
