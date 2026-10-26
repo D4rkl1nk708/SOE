@@ -116,11 +116,38 @@ export function smartMergeDatabases(
     lastStudyDate: streakA.lastStudyDate || streakB.lastStudyDate || null,
   };
 
+  const attemptMap = new Map<string, any>();
+  for (const attempt of [
+    ...(Array.isArray(settingsA.questionAttempts)
+      ? settingsA.questionAttempts
+      : []),
+    ...(Array.isArray(settingsB.questionAttempts)
+      ? settingsB.questionAttempts
+      : []),
+  ]) {
+    if (!attempt) continue;
+    const key =
+      attempt.id ||
+      `${attempt.questionId || ""}::${attempt.topicId || ""}::${attempt.createdAt || ""}`;
+    if (!attemptMap.has(key)) attemptMap.set(key, attempt);
+  }
+
   const mergedSettings = {
     // A é o banco atual (dispositivo local); B é o recebido. O local vence
     // para não trocar tema, chave de IA, diretório de backup etc. no sync.
     ...settingsB,
     ...settingsA,
+    questionAttempts: Array.from(attemptMap.values()).slice(-3000),
+    deletedDisciplineNames: Array.from(
+      new Set([
+        ...(Array.isArray(settingsA.deletedDisciplineNames)
+          ? settingsA.deletedDisciplineNames
+          : []),
+        ...(Array.isArray(settingsB.deletedDisciplineNames)
+          ? settingsB.deletedDisciplineNames
+          : []),
+      ]),
+    ),
     exams: Array.from(examMap.values()),
     studyStreak: mergedStreak,
     editalCycle:
@@ -147,6 +174,11 @@ export function smartMergeDatabases(
   };
 
   // 2. Canonical Disciplines (Deduplicated by normalized name)
+  const blockedDisciplineNames = new Set(
+    ((mergedSettings as any).deletedDisciplineNames || []).map((name: string) =>
+      normalizeString(name),
+    ),
+  );
   const mapDiscIdA = new Map<number, number>();
   const mapDiscIdB = new Map<number, number>();
   const canonicalDisciplines = new Map<string, any>();
@@ -158,6 +190,7 @@ export function smartMergeDatabases(
       if (!d || !d.name) continue;
       const key = normalizeString(d.name);
       if (!key) continue;
+      if (blockedDisciplineNames.has(key)) continue;
 
       if (!canonicalDisciplines.has(key)) {
         const canonical = {

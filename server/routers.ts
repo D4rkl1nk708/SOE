@@ -92,6 +92,32 @@ export const appRouter = router({
               }),
             )
             .optional(),
+          editalVersions: z
+            .array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                savedAt: z.string(),
+                rows: z.array(
+                  z.object({
+                    id: z.string(),
+                    discipline: z.string(),
+                    topic: z.string(),
+                    completed: z.boolean(),
+                    notes: z.string().optional(),
+                    incidencia: z.number().optional(),
+                    quantidade: z.number().optional(),
+                    acerto: z.number().optional(),
+                    revisar: z.boolean().optional(),
+                    avancar: z.boolean().optional(),
+                    discursiva: z.boolean().optional(),
+                    isHeader: z.boolean().optional(),
+                  }),
+                ),
+              }),
+            )
+            .max(8)
+            .optional(),
           cycleConfig: z
             .object({
               type: z.enum(["numbered", "weekdays"]),
@@ -173,6 +199,9 @@ export const appRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       return storage.getDisciplinesByUser(ctx.user.id);
     }),
+    duplicates: protectedProcedure.query(async ({ ctx }) => {
+      return storage.getDisciplineDuplicateSuggestions(ctx.user.id);
+    }),
     create: protectedProcedure
       .input(
         z.object({
@@ -212,6 +241,14 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await storage.deleteDiscipline(input.id, ctx.user.id);
         return { success: true };
+      }),
+    deleteMany: protectedProcedure
+      .input(z.object({ ids: z.array(z.number()).min(1).max(100) }))
+      .mutation(async ({ ctx, input }) => {
+        for (const id of input.ids) {
+          await storage.deleteDiscipline(id, ctx.user.id);
+        }
+        return { deleted: input.ids.length };
       }),
     reorder: protectedProcedure
       .input(z.object({ orderedIds: z.array(z.number()) }))
@@ -1320,6 +1357,9 @@ ${input.text.substring(0, 8000)}`;
           autoBackupDir: z.string().optional(),
           profileImage: z.string().optional(),
           minimizeToTray: z.boolean().optional(),
+          baseDisciplineIds: z.array(z.number()).optional(),
+          scheduler: z.enum(["classic", "fsrs"]).optional(),
+          tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {

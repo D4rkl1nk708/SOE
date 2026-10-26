@@ -87,6 +87,14 @@ vi.mock("@/lib/trpc", () => ({
           },
         }),
       },
+      errorPatterns: {
+        useQuery: () => ({
+          data: { total: 0, byOrigin: [], topTopics: [] },
+        }),
+      },
+      weeklyReview: {
+        useQuery: () => ({ data: null }),
+      },
     },
   },
 }));

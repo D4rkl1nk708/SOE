@@ -91,9 +91,31 @@ export interface DisciplineCoverage {
   priority: number;
 }
 
+export interface BaseLensSummary {
+  configured: boolean;
+  disciplines: number;
+  topics: number;
+  studied: number;
+  mastered: number;
+  coveragePct: number;
+  readiness: number;
+}
+
+export interface CalibrationSummary {
+  total: number;
+  calibrated: number;
+  answered: number;
+  skipped: number;
+  accuracy: number;
+  brier: number;
+  overconfidence: number;
+  underconfidence: number;
+}
+
 export interface PlanBlock {
   id: string;
   kind: PlanKind;
+  lens?: "base" | "edital" | "revisao";
   title: string;
   subtitle: string;
   reason: string;
@@ -130,6 +152,8 @@ export interface StudyOverview {
     overdueRevisions: number;
     blocks: PlanBlock[];
   };
+  base: BaseLensSummary;
+  calibration: CalibrationSummary;
   mastery: {
     topics: number;
     avgReadiness: number;
@@ -321,6 +345,86 @@ function buildMastery(
   });
 }
 
+export function computeCalibration(attempts: any[]): CalibrationSummary {
+  const answered = attempts.filter((attempt) => attempt?.answered);
+  const calibrated = answered.filter(
+    (attempt) =>
+      attempt.confidence && attempt.confidencePhase === "before_result",
+  );
+  const weights: Record<string, number> = {
+    chute: 0.25,
+    acho: 0.6,
+    certeza: 0.9,
+  };
+  let brier = 0;
+  let overconfidence = 0;
+  let underconfidence = 0;
+  for (const attempt of calibrated) {
+    const probability = weights[attempt.confidence] ?? 0.5;
+    const outcome = attempt.correct ? 1 : 0;
+    brier += (probability - outcome) ** 2;
+    if (attempt.confidence === "certeza" && !attempt.correct) overconfidence++;
+    if (attempt.confidence === "chute" && attempt.correct) underconfidence++;
+  }
+  return {
+    total: attempts.length,
+    answered: answered.length,
+    skipped: attempts.length - answered.length,
+    calibrated: calibrated.length,
+    accuracy:
+      answered.length > 0
+        ? Math.round(
+            (answered.filter((attempt) => attempt.correct).length /
+              answered.length) *
+              100,
+          )
+        : 0,
+    brier:
+      calibrated.length > 0
+        ? Math.round((brier / calibrated.length) * 1000) / 1000
+        : 0,
+    overconfidence,
+    underconfidence,
+  };
+}
+
+function computeBaseLens(
+  disciplines: Discipline[],
+  topics: Topic[],
+  mastery: TopicMastery[],
+  configuredIds: number[] | undefined,
+): BaseLensSummary {
+  const configured = Array.isArray(configuredIds) && configuredIds.length > 0;
+  const ids = new Set(
+    configured ? configuredIds : disciplines.map((discipline) => discipline.id),
+  );
+  const baseTopics = topics.filter((topic) => ids.has(topic.disciplineId));
+  const baseMastery = mastery.filter((item) => ids.has(item.disciplineId));
+  const studied = baseTopics.filter(
+    (topic) =>
+      (topic.performance?.questionsResolved || 0) > 0 ||
+      (topic.performance?.correctCount || 0) > 0,
+  ).length;
+  return {
+    configured,
+    disciplines: ids.size,
+    topics: baseTopics.length,
+    studied,
+    mastered: baseMastery.filter((item) => item.readiness >= 75).length,
+    coveragePct:
+      baseTopics.length > 0
+        ? Math.round((studied / baseTopics.length) * 100)
+        : 0,
+    readiness:
+      baseMastery.length > 0
+        ? Math.round(
+            baseMastery.reduce((sum, item) => sum + item.readiness, 0) /
+              baseMastery.length,
+          )
+        : 0,
+  };
+}
+
 function computeCoverage(
   disciplines: Discipline[],
   topics: Topic[],
@@ -486,6 +590,7 @@ function computePlan(
   mastery: TopicMastery[],
   revisions: Revision[],
   dailyMinutes: number,
+  baseDisciplineIds: Set<number>,
 ): StudyOverview["plan"] {
   const today = new Date().toISOString().slice(0, 10);
   const dueRevisions = revisions.filter(
@@ -514,6 +619,7 @@ function computePlan(
     blocks.push({
       id: `rev-${revision.id}`,
       kind: "revisao",
+      lens: "revisao",
       title: m?.topicName || "Revisão pendente",
       subtitle: m?.disciplineName || "Revisão",
       reason:
@@ -549,6 +655,7 @@ function computePlan(
     blocks.push({
       id: `weak-${m.topicId}`,
       kind: isQuestionDrill ? "questoes" : "estudo",
+      lens: baseDisciplineIds.has(m.disciplineId) ? "base" : "edital",
       title: m.topicName,
       subtitle: m.disciplineName,
       reason: isQuestionDrill
@@ -573,6 +680,7 @@ function computePlan(
     blocks.push({
       id: `gap-${row.id}`,
       kind: "estudo",
+      lens: "edital",
       title: row.topic,
       subtitle: row.discipline,
       reason: `Lacuna do edital (peso ${Math.round(row.weight * 100)}%)`,
@@ -592,6 +700,7 @@ function computePlan(
     blocks.push({
       id: `map-${row.id}`,
       kind: "mapear",
+      lens: "edital",
       title: row.topic,
       subtitle: row.discipline,
       reason: "Tópico do edital sem correspondência no sistema",
@@ -615,6 +724,7 @@ function computePlan(
       blocks.push({
         id: `maint-${m.topicId}`,
         kind: "revisao_rapida",
+        lens: baseDisciplineIds.has(m.disciplineId) ? "base" : "edital",
         title: m.topicName,
         subtitle: m.disciplineName,
         reason: `Forte, mas ${m.daysSinceStudy}d sem contato`,
@@ -669,6 +779,334 @@ function computePlan(
   };
 }
 
+export interface FsrsPreviewItem {
+  topicId: number;
+  topicName: string;
+  disciplineName: string;
+  readiness: number;
+  accuracy: number;
+  currentNextReview: string | null;
+  suggestedIntervalDays: number;
+  suggestedDate: string;
+  reason: string;
+}
+
+export interface ErrorIntelligence {
+  total: number;
+  recent30: number;
+  byOrigin: Array<{ origin: string; count: number; share: number }>;
+  topTopics: Array<{
+    topicId: number;
+    topicName: string;
+    disciplineName: string;
+    count: number;
+  }>;
+  topBancas: Array<{ banca: string; count: number }>;
+  overconfidence: number;
+}
+
+export async function getErrorIntelligence(
+  userId: number,
+): Promise<ErrorIntelligence> {
+  const [errorsPage, topics, disciplines, settings] = await Promise.all([
+    storage.getQuestionErrorsByUser(userId, { limit: 200 }),
+    storage.getTopicsByUser(userId),
+    storage.getDisciplinesByUser(userId),
+    storage.getUserSettings(userId),
+  ]);
+  const errors = errorsPage.items;
+  const cutoff = Date.now() - 30 * DAY_MS;
+  const topicById = new Map(topics.map((topic) => [topic.id, topic]));
+  const disciplineById = new Map(
+    disciplines.map((discipline) => [discipline.id, discipline]),
+  );
+  const originCounts = new Map<string, number>();
+  const topicCounts = new Map<number, number>();
+  const bancaCounts = new Map<string, number>();
+
+  for (const error of errors) {
+    const origin = error.errorOrigin || "nao_classificado";
+    originCounts.set(origin, (originCounts.get(origin) || 0) + 1);
+    topicCounts.set(error.topicId, (topicCounts.get(error.topicId) || 0) + 1);
+    if (error.banca) {
+      bancaCounts.set(error.banca, (bancaCounts.get(error.banca) || 0) + 1);
+    }
+  }
+
+  const total = errors.length;
+  const calibrated = (settings?.questionAttempts || []).filter(
+    (attempt) =>
+      attempt.answered &&
+      attempt.confidence &&
+      attempt.confidencePhase === "before_result",
+  );
+  const overconfidence = calibrated.filter(
+    (attempt) => attempt.confidence === "certeza" && !attempt.correct,
+  ).length;
+
+  return {
+    total,
+    recent30: errors.filter((error) => {
+      const time = Date.parse(error.createdAt || "");
+      return Number.isFinite(time) && time >= cutoff;
+    }).length,
+    byOrigin: [...originCounts.entries()]
+      .map(([origin, count]) => ({
+        origin,
+        count,
+        share: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count),
+    topTopics: [...topicCounts.entries()]
+      .map(([topicId, count]) => {
+        const topic = topicById.get(topicId);
+        return {
+          topicId,
+          topicName: topic?.name || "Tópico removido",
+          disciplineName:
+            disciplineById.get(topic?.disciplineId ?? -1)?.name || "Disciplina",
+          count,
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8),
+    topBancas: [...bancaCounts.entries()]
+      .map(([banca, count]) => ({ banca, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+    overconfidence,
+  };
+}
+
+export interface DataHealth {
+  duplicateDisciplines: number;
+  duplicateTopics: number;
+  orphanTopics: number;
+  orphanRevisions: number;
+  orphanErrors: number;
+  orphanAttempts: number;
+  examples: string[];
+  healthy: boolean;
+}
+
+export async function getDataHealth(userId: number): Promise<DataHealth> {
+  const [disciplines, topics, revisions, errorsPage, settings] =
+    await Promise.all([
+      storage.getDisciplinesByUser(userId),
+      storage.getTopicsByUser(userId),
+      storage.getRevisionsByUser(userId),
+      storage.getQuestionErrorsByUser(userId, { limit: 200 }),
+      storage.getUserSettings(userId),
+    ]);
+  const disciplineIds = new Set(disciplines.map((d) => d.id));
+  const topicIds = new Set(topics.map((t) => t.id));
+  const discNames = new Map<string, number>();
+  const duplicatesDisc: string[] = [];
+  for (const discipline of disciplines) {
+    const key = normalizeString(discipline.name);
+    if (!key) continue;
+    if (discNames.has(key)) duplicatesDisc.push(discipline.name);
+    else discNames.set(key, discipline.id);
+  }
+  const topicKeys = new Map<string, number>();
+  const duplicateTopics: string[] = [];
+  for (const topic of topics) {
+    const key = `${topic.disciplineId}::${normalizeString(topic.name)}`;
+    if (topicKeys.has(key)) duplicateTopics.push(topic.name);
+    else topicKeys.set(key, topic.id);
+  }
+  const orphanTopics = topics.filter((t) => !disciplineIds.has(t.disciplineId));
+  const orphanRevisions = revisions.filter((r) => !topicIds.has(r.topicId));
+  const orphanErrors = errorsPage.items.filter(
+    (e) => !topicIds.has(e.topicId) || !disciplineIds.has(e.disciplineId),
+  );
+  const orphanAttempts = (settings?.questionAttempts || []).filter(
+    (attempt) => !topicIds.has(attempt.topicId),
+  );
+  const examples = [
+    ...duplicatesDisc
+      .slice(0, 2)
+      .map((name) => `Disciplina duplicada: ${name}`),
+    ...duplicateTopics.slice(0, 2).map((name) => `Tópico duplicado: ${name}`),
+    ...orphanTopics.slice(0, 2).map((t) => `Tópico sem disciplina: ${t.name}`),
+    ...orphanRevisions.slice(0, 2).map((r) => `Revisão sem tópico: #${r.id}`),
+  ];
+  const totalProblems =
+    duplicatesDisc.length +
+    duplicateTopics.length +
+    orphanTopics.length +
+    orphanRevisions.length +
+    orphanErrors.length +
+    orphanAttempts.length;
+  return {
+    duplicateDisciplines: duplicatesDisc.length,
+    duplicateTopics: duplicateTopics.length,
+    orphanTopics: orphanTopics.length,
+    orphanRevisions: orphanRevisions.length,
+    orphanErrors: orphanErrors.length,
+    orphanAttempts: orphanAttempts.length,
+    examples,
+    healthy: totalProblems === 0,
+  };
+}
+
+export interface WeeklyReview {
+  from: string;
+  to: string;
+  answered: number;
+  correct: number;
+  accuracy: number;
+  sessions: number;
+  minutes: number;
+  revisionsCompleted: number;
+  revisionsDueNext7: number;
+  touchedTopics: number;
+  wins: string[];
+  risks: string[];
+}
+
+export async function getWeeklyReview(userId: number): Promise<WeeklyReview> {
+  const [settings, revisions, topics] = await Promise.all([
+    storage.getUserSettings(userId),
+    storage.getRevisionsByUser(userId),
+    storage.getTopicsByUser(userId),
+  ]);
+  const now = Date.now();
+  const from = now - 7 * DAY_MS;
+  const to = now;
+  const attempts = (settings?.questionAttempts || []).filter((attempt) => {
+    const time = Date.parse(attempt.createdAt || "");
+    return Number.isFinite(time) && time >= from && time <= to;
+  });
+  const answered = attempts.filter((attempt) => attempt.answered);
+  const correct = answered.filter((attempt) => attempt.correct).length;
+  const sessions = (settings?.studySessionLog || []).filter((session) => {
+    const time = Date.parse(session.date || "");
+    return Number.isFinite(time) && time >= from;
+  });
+  const minutes = sessions.reduce(
+    (sum, session) => sum + (Number(session.durationMin) || 0),
+    0,
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  const next7 = new Date(now + 7 * DAY_MS).toISOString().slice(0, 10);
+  const revisionsCompleted = revisions.filter(
+    (revision) =>
+      revision.completed &&
+      revision.completedAt &&
+      Date.parse(revision.completedAt) >= from,
+  ).length;
+  const revisionsDueNext7 = revisions.filter(
+    (revision) =>
+      !revision.completed &&
+      !revision.ignored &&
+      revision.scheduledDate >= today &&
+      revision.scheduledDate <= next7,
+  ).length;
+  const touchedTopics = new Set(
+    answered.map((attempt) => attempt.topicId).filter(Boolean),
+  ).size;
+  const accuracy =
+    answered.length > 0 ? Math.round((correct / answered.length) * 100) : 0;
+  const wins: string[] = [];
+  const risks: string[] = [];
+  if (answered.length > 0) wins.push(`${answered.length} questões respondidas`);
+  if (minutes > 0) wins.push(`${Math.round(minutes / 60)}h de estudo`);
+  if (revisionsCompleted > 0)
+    wins.push(`${revisionsCompleted} revisões concluídas`);
+  if (accuracy >= 70) wins.push(`Acurácia de ${accuracy}%`);
+  if (answered.length === 0)
+    risks.push("Nenhuma questão registrada nesta semana");
+  if (accuracy > 0 && accuracy < 50) risks.push(`Acurácia baixa: ${accuracy}%`);
+  if (revisionsDueNext7 > 10)
+    risks.push(`${revisionsDueNext7} revisões nos próximos 7 dias`);
+  if (minutes < 60) risks.push("Tempo de estudo baixo nesta semana");
+  return {
+    from: new Date(from).toISOString().slice(0, 10),
+    to: new Date(to).toISOString().slice(0, 10),
+    answered: answered.length,
+    correct,
+    accuracy,
+    sessions: sessions.length,
+    minutes,
+    revisionsCompleted,
+    revisionsDueNext7,
+    touchedTopics,
+    wins,
+    risks,
+  };
+}
+
+export async function previewFsrsSchedule(
+  userId: number,
+  days = 30,
+): Promise<{
+  scheduler: "classic" | "fsrs";
+  applied: boolean;
+  generatedAt: string;
+  note: string;
+  items: FsrsPreviewItem[];
+}> {
+  const [disciplines, topics, revisions, settings] = await Promise.all([
+    storage.getDisciplinesByUser(userId),
+    storage.getTopicsByUser(userId),
+    storage.getRevisionsByUser(userId),
+    storage.getUserSettings(userId),
+  ]);
+  const mastery = buildMastery(disciplines, topics, revisions);
+  const nextByTopic = new Map<number, string>();
+  for (const revision of revisions) {
+    if (revision.completed || revision.ignored) continue;
+    const current = nextByTopic.get(revision.topicId);
+    if (!current || revision.scheduledDate < current) {
+      nextByTopic.set(revision.topicId, revision.scheduledDate);
+    }
+  }
+  const items = mastery
+    .filter((item) => item.resolved > 0)
+    .sort((a, b) => a.readiness - b.readiness)
+    .slice(0, 12)
+    .map((item) => {
+      // Heurística de estabilidade: quanto maior a acurácia suavizada e o
+      // volume, maior o intervalo; quanto menor a prontidão, mais cedo.
+      const stability =
+        4 +
+        item.smoothedAccuracy * 0.35 * 30 +
+        Math.log10(item.resolved + 1) * 10;
+      const interval = Math.max(
+        3,
+        Math.min(days, Math.round(stability * (0.6 + item.retention * 0.6))),
+      );
+      const date = new Date(Date.now() + interval * DAY_MS)
+        .toISOString()
+        .slice(0, 10);
+      return {
+        topicId: item.topicId,
+        topicName: item.topicName,
+        disciplineName: item.disciplineName,
+        readiness: item.readiness,
+        accuracy: item.accuracy,
+        currentNextReview: nextByTopic.get(item.topicId) || null,
+        suggestedIntervalDays: interval,
+        suggestedDate: date,
+        reason:
+          item.readiness < 50
+            ? "Prontidão baixa: revisão curta"
+            : item.readiness >= 75
+              ? "Bom domínio: espaçar mais"
+              : "Progresso intermediário",
+      };
+    });
+
+  return {
+    scheduler: settings?.scheduler || "classic",
+    applied: false,
+    generatedAt: new Date().toISOString(),
+    note: "Prévia experimental. O 25/50 continua ativo; nada é gravado no calendário.",
+    items,
+  };
+}
+
 export async function getStudyOverview(
   userId: number,
   requestedMinutes?: number,
@@ -689,7 +1127,25 @@ export async function getStudyOverview(
   );
   const mastery = buildMastery(disciplines, topics, revisions);
   const coverage = computeCoverage(disciplines, topics, settings, mastery);
-  const plan = computePlan(coverage, mastery, revisions, dailyMinutes);
+  const baseDisciplineIds = new Set(
+    settings?.baseDisciplineIds?.length
+      ? settings.baseDisciplineIds
+      : disciplines.map((discipline) => discipline.id),
+  );
+  const base = computeBaseLens(
+    disciplines,
+    topics,
+    mastery,
+    settings?.baseDisciplineIds,
+  );
+  const calibration = computeCalibration(settings?.questionAttempts || []);
+  const plan = computePlan(
+    coverage,
+    mastery,
+    revisions,
+    dailyMinutes,
+    baseDisciplineIds,
+  );
   const distribution: Record<MasteryStatus, number> = {
     novo: 0,
     fragil: 0,
@@ -702,6 +1158,8 @@ export async function getStudyOverview(
   return {
     generatedAt: new Date().toISOString(),
     coverage,
+    base,
+    calibration,
     plan,
     mastery: {
       topics: mastery.length,

@@ -5,6 +5,7 @@ import type {
   MockExam,
   StudyNote,
   UserSettings,
+  QuestionAttempt,
   User,
   Flashcard,
   QuestionError,
@@ -23,6 +24,7 @@ export type {
   MockExam,
   StudyNote,
   UserSettings,
+  QuestionAttempt,
   User,
   Flashcard,
   QuestionError,
@@ -138,13 +140,56 @@ export async function updateUserSettings(
   }
 }
 
+export async function recordQuestionAttempt(
+  userId: number,
+  attempt: Omit<QuestionAttempt, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: string;
+  },
+): Promise<QuestionAttempt> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const record: QuestionAttempt = {
+    ...attempt,
+    id:
+      attempt.id ||
+      `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: attempt.createdAt || now(),
+  };
+  user.settings.questionAttempts = [
+    ...(user.settings.questionAttempts || []),
+    record,
+  ].slice(-3000);
+  writeDatabase(db);
+  return record;
+}
+
+export async function getQuestionAttempts(
+  userId: number,
+  limit = 500,
+): Promise<QuestionAttempt[]> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const attempts = user?.settings.questionAttempts || [];
+  return attempts.slice(-Math.max(1, limit));
+}
+
 // ============ DISCIPLINE OPERATIONS ============
 
 export async function getDisciplinesByUser(
   userId: number,
 ): Promise<Discipline[]> {
   const db = readDatabase();
-  const userDisciplines = db.disciplines.filter((d) => d.userId === userId);
+  const user = db.users.find((u) => u.id === userId);
+  const blocked = new Set(
+    (user?.settings.deletedDisciplineNames || []).map((name) =>
+      normalizeString(name),
+    ),
+  );
+  const userDisciplines = db.disciplines.filter(
+    (d) => d.userId === userId && !blocked.has(normalizeString(d.name)),
+  );
   const userTopics = db.topics.filter((t) => t.userId === userId);
 
   return userDisciplines
@@ -196,12 +241,113 @@ export async function getDisciplinesByUser(
     });
 }
 
+export interface DisciplineDuplicateSuggestion {
+  sourceId: number;
+  sourceName: string;
+  sourceWeight: number;
+  sourceQuestions: number;
+  targetId: number;
+  targetName: string;
+  targetWeight: number;
+  targetQuestions: number;
+  score: number;
+  reason: string;
+}
+
+const DISCIPLINE_STOPWORDS = new Set([
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "e",
+  "no",
+  "na",
+  "em",
+  "para",
+  "com",
+  "ti",
+  "cf",
+  "1988",
+  "doutrina",
+]);
+
+function disciplineTokens(name: string): Set<string> {
+  return new Set(
+    normalizeString(name)
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length > 1 && !DISCIPLINE_STOPWORDS.has(token)),
+  );
+}
+
+function disciplineSimilarity(a: string, b: string): number {
+  const an = normalizeString(a);
+  const bn = normalizeString(b);
+  if (!an || !bn) return 0;
+  if (an === bn) return 1;
+  if (an.includes(bn) || bn.includes(an)) return 0.92;
+  const aTokens = disciplineTokens(a);
+  const bTokens = disciplineTokens(b);
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+  let intersection = 0;
+  for (const token of aTokens) if (bTokens.has(token)) intersection++;
+  const union = aTokens.size + bTokens.size - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+export async function getDisciplineDuplicateSuggestions(
+  userId: number,
+): Promise<DisciplineDuplicateSuggestion[]> {
+  const disciplines = await getDisciplinesByUser(userId);
+  const suggestions: DisciplineDuplicateSuggestion[] = [];
+  for (let i = 0; i < disciplines.length; i++) {
+    for (let j = i + 1; j < disciplines.length; j++) {
+      const a = disciplines[i] as any;
+      const b = disciplines[j] as any;
+      const score = disciplineSimilarity(a.name, b.name);
+      if (score < 0.45) continue;
+      const aQ = Number(a.performance?.questionsResolved) || 0;
+      const bQ = Number(b.performance?.questionsResolved) || 0;
+      const aWeight = Number(a.weight) || 1;
+      const bWeight = Number(b.weight) || 1;
+      // A origem é a disciplina menos estabelecida: menor peso e/ou menos questões.
+      const aIsSource = aWeight < bWeight || (aWeight === bWeight && aQ <= bQ);
+      const source = aIsSource ? a : b;
+      const target = aIsSource ? b : a;
+      suggestions.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        sourceWeight: source.weight,
+        sourceQuestions: source.performance?.questionsResolved || 0,
+        targetId: target.id,
+        targetName: target.name,
+        targetWeight: target.weight,
+        targetQuestions: target.performance?.questionsResolved || 0,
+        score: Math.round(score * 100) / 100,
+        reason:
+          score >= 0.9 ? "Nome praticamente igual" : "Nomes muito parecidos",
+      });
+    }
+  }
+  return suggestions.sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
 export async function getDisciplineById(
   id: number,
   userId: number,
 ): Promise<Discipline | null> {
   const db = readDatabase();
   return db.disciplines.find((d) => d.id === id && d.userId === userId) || null;
+}
+
+export function isDisciplineNameBlocked(userId: number, name: string): boolean {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const norm = normalizeString(name);
+  if (!norm) return false;
+  return (user?.settings.deletedDisciplineNames || []).some(
+    (blocked) => normalizeString(blocked) === norm,
+  );
 }
 
 export async function createDiscipline(data: {
@@ -216,6 +362,15 @@ export async function createDiscipline(data: {
     (d) => d.userId === data.userId && normalizeString(d.name) === normName,
   );
   if (existing) {
+    // Recriação manual de uma disciplina bloqueada: remove o bloqueio.
+    const user = db.users.find((u) => u.id === data.userId);
+    if (user?.settings.deletedDisciplineNames?.length) {
+      user.settings.deletedDisciplineNames =
+        user.settings.deletedDisciplineNames.filter(
+          (name) => normalizeString(name) !== normName,
+        );
+      writeDatabase(db);
+    }
     return { id: existing.id };
   }
   db.counters.disciplines++;
@@ -274,6 +429,9 @@ export async function deleteDiscipline(
   userId: number,
 ): Promise<void> {
   const db = readDatabase();
+  const discipline = db.disciplines.find(
+    (d) => d.id === id && d.userId === userId,
+  );
   const topicIds = db.topics
     .filter((t) => t.disciplineId === id && t.userId === userId)
     .map((t) => t.id);
@@ -284,9 +442,38 @@ export async function deleteDiscipline(
   db.notes = db.notes.filter(
     (n) => n.disciplineId !== id || n.userId !== userId,
   );
+  db.questionErrors = (db.questionErrors || []).filter(
+    (e) =>
+      e.userId !== userId ||
+      (e.disciplineId !== id &&
+        (e.topicId == null || !topicIds.includes(e.topicId))),
+  );
+  db.flashcards = (db.flashcards || []).filter(
+    (f) =>
+      f.userId !== userId ||
+      (f.disciplineId !== id &&
+        (f.topicId == null || !topicIds.includes(f.topicId))),
+  );
+  db.essays = (db.essays || []).filter(
+    (e) => e.userId !== userId || e.disciplineId !== id,
+  );
   db.disciplines = db.disciplines.filter(
     (d) => d.id !== id || d.userId !== userId,
   );
+  if (discipline) {
+    const user = db.users.find((u) => u.id === userId);
+    if (user) {
+      const norm = normalizeString(discipline.name);
+      user.settings.deletedDisciplineNames = Array.from(
+        new Set([...(user.settings.deletedDisciplineNames || []), norm]),
+      );
+      if (user.settings.questionAttempts?.length) {
+        user.settings.questionAttempts = user.settings.questionAttempts.filter(
+          (attempt) => !topicIds.includes(attempt.topicId),
+        );
+      }
+    }
+  }
   writeDatabase(db);
 }
 
@@ -439,6 +626,31 @@ export async function mergeDisciplines(
 
   targetDisc.studyTimeSeconds =
     (targetDisc.studyTimeSeconds || 0) + (sourceDisc.studyTimeSeconds || 0);
+
+  // Merge também é uma exclusão: impede que sync/import recrie a origem.
+  const user = db.users.find((u) => u.id === userId);
+  if (user) {
+    const sourceNorm = normalizeString(sourceDisc.name);
+    user.settings.deletedDisciplineNames = Array.from(
+      new Set([...(user.settings.deletedDisciplineNames || []), sourceNorm]),
+    );
+  }
+
+  if (db.flashcards) {
+    for (const f of db.flashcards) {
+      if (f.disciplineId === sourceId && f.userId === userId) {
+        f.disciplineId = targetId;
+      }
+    }
+  }
+  if (db.essays) {
+    for (const e of db.essays) {
+      if (e.disciplineId === sourceId && e.userId === userId) {
+        e.disciplineId = targetId;
+      }
+    }
+  }
+
   db.disciplines = db.disciplines.filter(
     (d) => d.id !== sourceId || d.userId !== userId,
   );

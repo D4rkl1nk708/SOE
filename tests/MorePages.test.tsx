@@ -236,6 +236,7 @@ describe("QuestionSession Component", () => {
   test("runs through a session", async () => {
     console.log("TEST START: runs through a session");
     render(<QuestionSession />);
+    fireEvent.click(screen.getByText(/Treino manual/i));
     const discSelect = screen.getByTestId(
       "discipline-select",
     ) as HTMLSelectElement;

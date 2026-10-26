@@ -112,6 +112,47 @@ export interface StudyNote {
   updatedAt: string;
 }
 
+export interface EditalRow {
+  id: string;
+  discipline: string;
+  topic: string;
+  completed: boolean;
+  notes?: string;
+  // enriched fields from xlsx import
+  incidencia?: number; // 0-1 percentage weight
+  quantidade?: number; // absolute question count
+  acerto?: number; // 0-1 hit rate
+  revisar?: boolean;
+  avancar?: boolean;
+  discursiva?: boolean;
+  isHeader?: boolean; // first row of a discipline group
+}
+
+export interface EditalVersion {
+  id: string;
+  name: string;
+  savedAt: string;
+  rows: EditalRow[];
+}
+
+export type ConfidenceLevel = "chute" | "acho" | "certeza";
+
+export interface QuestionAttempt {
+  id: string;
+  topicId: number;
+  disciplineId?: number;
+  questionId?: string;
+  banca?: string;
+  answered: boolean;
+  correct: boolean;
+  confidence: ConfidenceLevel | null;
+  /** before_result = marcada antes de o SOE registrar o gabarito */
+  confidencePhase: "before_result" | "after_result" | null;
+  seconds?: number;
+  source?: "manual" | "tec" | "simulado";
+  createdAt: string;
+}
+
 export interface UserSettings {
   examDate?: string;
   examName?: string;
@@ -122,21 +163,9 @@ export interface UserSettings {
     durationMinutes: number;
     done: boolean;
   }[];
-  editalRows?: {
-    id: string;
-    discipline: string;
-    topic: string;
-    completed: boolean;
-    notes?: string;
-    // enriched fields from xlsx import
-    incidencia?: number; // 0-1 percentage weight
-    quantidade?: number; // absolute question count
-    acerto?: number; // 0-1 hit rate
-    revisar?: boolean;
-    avancar?: boolean;
-    discursiva?: boolean;
-    isHeader?: boolean; // first row of a discipline group
-  }[];
+  editalRows?: EditalRow[];
+  /** Versionamento do edital para comparar retificações */
+  editalVersions?: EditalVersion[];
   cycleConfig?: {
     type: "numbered" | "weekdays";
     count: number; // number of cycles (for numbered) or days of week selected
@@ -243,6 +272,17 @@ export interface UserSettings {
   minimizeToTray?: boolean;
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
+  /** Nomes normalizados de disciplinas excluídas: impede que importação/sync
+   *  as recriem. Recriar manualmente remove o bloqueio. */
+  deletedDisciplineNames?: string[];
+  /** Disciplinas da rotina base diária (lente independente do edital) */
+  baseDisciplineIds?: number[];
+  /** Tentativas com confiança declarada (máx. ~3000) */
+  questionAttempts?: QuestionAttempt[];
+  /** Agendador de revisão: clássico 25/50 por padrão */
+  scheduler?: "classic" | "fsrs";
+  /** Modo de captura do TEC: manual é o padrão seguro */
+  tecCaptureMode?: "manual" | "assisted" | "import";
   /** F31 - Matriz de Confusão Conceitual (Tópicos que o aluno confunde entre si) */
   conceptConfusions?: Array<{
     id: string;
