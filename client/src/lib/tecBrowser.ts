@@ -23,6 +23,12 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
   if (!eventData) return;
   const { type, payload } = eventData;
   console.log("[SOE TEC Handler] Evento recebido:", type, payload);
+  try {
+    localStorage.setItem(
+      "soe_tec_last_event",
+      JSON.stringify({ at: new Date().toISOString(), type }),
+    );
+  } catch {}
 
   // Modo de captura definido em Configurações > Estudo.
   // assisted = comportamento atual; manual = apenas local, sem push ao PC;
@@ -43,7 +49,16 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
       .trim()
       .replace(/\/$/, "");
   } catch {}
-  if (captureMode === "manual") serverUrl = "";
+  // Fallback: no Electron/web o próprio app já é servido pelo backend local.
+  // Antes, sem `soe_tec_server_url`, o evento ficava só no IndexedDB e o
+  // dashboard/estatísticas não viam a questão.
+  if (!serverUrl && !Capacitor.isNativePlatform()) {
+    try {
+      if (window.location.protocol.startsWith("http")) {
+        serverUrl = window.location.origin;
+      }
+    } catch {}
+  }
 
   if (serverUrl) {
     try {

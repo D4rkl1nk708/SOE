@@ -738,6 +738,19 @@ export default function QuestionSession() {
               >
                 Treino manual (opcional)
               </button>
+              <p className="text-[9px] text-muted-foreground/70">
+                {(() => {
+                  try {
+                    const raw = localStorage.getItem("soe_tec_last_event");
+                    const last = raw ? JSON.parse(raw) : null;
+                    return last?.at
+                      ? `Última captura TEC: ${new Date(last.at).toLocaleString("pt-BR")}`
+                      : "Nenhum evento TEC recebido ainda. Abra o TEC por este botão.";
+                  } catch {
+                    return "Capture TEC pronta para receber eventos.";
+                  }
+                })()}
+              </p>
             </div>
             <MobileTecBrowser pushToken={pushTokenData?.token || ""} />
           </div>
