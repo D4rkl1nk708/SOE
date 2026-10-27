@@ -62,6 +62,7 @@ export default function History() {
 
   const { data: historyData, isLoading } =
     trpc.history.get.useQuery(queryFilters);
+  const { data: ledger } = trpc.study.ledger.useQuery({ limit: 24 });
   const { data: exportData } = trpc.export.getSchedule.useQuery({
     disciplineId: filters.disciplineId,
     startDate: filters.startDate || undefined,
@@ -354,6 +355,49 @@ export default function History() {
       </div>
 
       {/* Tabs */}
+      {ledger?.events?.length ? (
+        <section className="soe-card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+              Linha do tempo unificada
+            </h2>
+            <span className="text-[9px] text-muted-foreground">
+              {ledger.total} eventos
+            </span>
+          </div>
+          <div className="mt-2 divide-y divide-border">
+            {ledger.events.slice(0, 8).map((event) => (
+              <div key={event.id} className="flex items-start gap-3 py-2">
+                <span
+                  className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                  style={{
+                    background:
+                      event.type === "answer"
+                        ? event.correct
+                          ? "var(--accent-green)"
+                          : "var(--accent-red)"
+                        : event.type === "error"
+                          ? "var(--accent-amber)"
+                          : "var(--primary)",
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[10.5px] font-medium">
+                    {event.title}
+                  </p>
+                  <p className="truncate text-[9px] text-muted-foreground">
+                    {event.detail || event.disciplineName || event.type}
+                  </p>
+                </div>
+                <span className="flex-shrink-0 text-[8.5px] text-muted-foreground">
+                  {format(new Date(event.occurredAt), "dd/MM HH:mm")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as typeof activeTab)}
