@@ -48,6 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/PageShell";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 
@@ -1951,32 +1952,53 @@ function CiclosTab({ data }: { data: any }) {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-            <CalendarDays className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">
-              Ciclos de Estudo
-            </h2>
-            <p className="text-[11px] font-medium text-muted-foreground opacity-60 uppercase tracking-wider">
-              Planejamento e Otimização de Carga
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
+    <PageShell
+      eyebrow="Planejamento"
+      title="Ciclos de estudo"
+      description="Distribua disciplinas nos slots e deixe o ciclo se repetir na ordem."
+      metrics={[
+        {
+          label: "Carga por slot",
+          value: data?.settings?.dailyGoalMinutes
+            ? Math.round(
+                data.settings.dailyGoalMinutes / (cycleKeys.length || 1),
+              )
+            : 0,
+          sub: "min/dia",
+          icon: TrendingUp,
+        },
+        {
+          label: "Saúde do ciclo",
+          value: `${Math.round(
+            (assignments.length / (disciplines?.length || 1)) * 100,
+          )}%`,
+          sub: "cobertura",
+          icon: CheckCircle2,
+        },
+        {
+          label: "Alocadas",
+          value: assignments.length,
+          sub: "disciplinas",
+          icon: BookOpen,
+        },
+        {
+          label: "Próximo slot",
+          value: getDisciplinesInCycle(cycleKeys[0])?.[0]?.name || "—",
+          icon: Clock,
+        },
+      ]}
+      actions={
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+            className="h-9 text-[10px]"
             onClick={autoDistribute}
           >
             <Plus size={14} className="mr-2" /> Distribuir auto
           </Button>
           <Button
             variant="outline"
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50 border-primary/20 text-primary"
+            className="h-9 text-[10px]"
             onClick={() => {
               if (!disciplines?.length)
                 return toast.error("Cadastre disciplinas primeiro.");
@@ -1996,19 +2018,19 @@ function CiclosTab({ data }: { data: any }) {
             <Sparkles
               size={14}
               className={cn("mr-2", optimizeCycle.isPending && "animate-pulse")}
-            />{" "}
+            />
             {optimizeCycle.isPending ? "Otimizando..." : "Otimizar via IA"}
           </Button>
           <Button
             variant="outline"
-            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+            className="h-9 text-[10px]"
             onClick={() => setConfigOpen(!configOpen)}
           >
             <Settings2 size={14} className="mr-2" /> Configurar
           </Button>
         </div>
-      </div>
-
+      }
+    >
       {configOpen && (
         <CycleConfigPanel
           config={config}
@@ -2027,57 +2049,6 @@ function CiclosTab({ data }: { data: any }) {
         Se estiver começando, use{" "}
         <b className="text-foreground">Distribuir auto</b> e ajuste depois.
       </div>
-
-      {disciplines && disciplines.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="soe-card p-5 border-l-2 border-primary bg-primary/[0.02]">
-            <div className="flex items-center gap-2 mb-2 opacity-60">
-              <TrendingUp size={14} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">
-                Carga por Slot
-              </span>
-            </div>
-            <p className="text-2xl font-bold tabular-nums">
-              {data?.settings?.dailyGoalMinutes
-                ? Math.round(
-                    data.settings.dailyGoalMinutes / (cycleKeys.length || 1),
-                  )
-                : 0}
-              <span className="text-xs font-bold text-muted-foreground ml-2 opacity-40">
-                MIN / DIA
-              </span>
-            </p>
-          </div>
-          <div className="soe-card p-5 border-l-2 border-emerald-500 bg-emerald-500/[0.02]">
-            <div className="flex items-center gap-2 mb-2 opacity-60">
-              <CheckCircle2 size={14} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">
-                Saúde do Ciclo
-              </span>
-            </div>
-            <p className="text-2xl font-bold tabular-nums">
-              {Math.round(
-                (assignments.length / (disciplines?.length || 1)) * 100,
-              )}
-              %
-              <span className="text-xs font-bold text-muted-foreground ml-2 opacity-40">
-                COBERTURA
-              </span>
-            </p>
-          </div>
-          <div className="soe-card p-5 border-l-2 border-amber-500 bg-amber-500/[0.02]">
-            <div className="flex items-center gap-2 mb-2 opacity-60">
-              <Clock size={14} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">
-                Próximo Slot
-              </span>
-            </div>
-            <p className="text-sm font-bold truncate">
-              {getDisciplinesInCycle(cycleKeys[0])?.[0]?.name || "Não definido"}
-            </p>
-          </div>
-        </div>
-      )}
 
       <div
         className={cn(
@@ -2169,7 +2140,7 @@ function CiclosTab({ data }: { data: any }) {
         onExpand={setExpandedDisc}
         expandedDisc={expandedDisc}
       />
-    </div>
+    </PageShell>
   );
 }
 
