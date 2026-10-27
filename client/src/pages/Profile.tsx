@@ -177,6 +177,7 @@ function SettingsTab() {
     "manual" | "assisted" | "import"
   >("assisted");
   const [fsrsPreviewOpen, setFsrsPreviewOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"v2" | "classic">("v2");
   const { data: disciplines } = trpc.discipline.list.useQuery();
   const fsrsPreview = trpc.study.fsrsPreview.useQuery(
     { days: 30 },
@@ -184,8 +185,12 @@ function SettingsTab() {
   );
 
   const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const utils = trpc.useUtils();
   const updateSettings = trpc.v10.updateV10Settings.useMutation({
-    onSuccess: () => toast.success("Configuração salva."),
+    onSuccess: () => {
+      toast.success("Configuração salva.");
+      utils.dashboard.getStats.invalidate();
+    },
     onError: (e) => toast.error("Falha: " + e.message),
   });
 
@@ -199,6 +204,7 @@ function SettingsTab() {
       setBaseDisciplineIds(
         Array.isArray(s.baseDisciplineIds) ? s.baseDisciplineIds : [],
       );
+      setLayoutMode(s.layoutMode === "classic" ? "classic" : "v2");
       setScheduler(s.scheduler === "fsrs" ? "fsrs" : "classic");
       const captureMode =
         s.tecCaptureMode === "manual" || s.tecCaptureMode === "import"
@@ -281,6 +287,60 @@ function SettingsTab() {
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Layout size={14} className="text-primary" />
+                <p className="text-[10px] font-bold uppercase tracking-wider">
+                  Layout do Início
+                </p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                O layout novo é o padrão. Você pode voltar ao Início antigo
+                quando quiser; seus dados não mudam.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    id: "v2" as const,
+                    title: "Layout novo",
+                    desc: "Missão guiada, roteiro do dia e atalhos.",
+                  },
+                  {
+                    id: "classic" as const,
+                    title: "Layout antigo",
+                    desc: "Dashboard atual, com todos os widgets.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setLayoutMode(option.id);
+                      updateSettings.mutate({ layoutMode: option.id });
+                    }}
+                    className={`rounded-md border p-3 text-left transition-colors ${
+                      layoutMode === option.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          layoutMode === option.id ? "bg-primary" : "bg-border"
+                        }`}
+                      />
+                      <span className="text-xs font-semibold">
+                        {option.title}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {option.desc}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="p-8 rounded-[2rem] bg-secondary/20 border border-border/70 space-y-6">

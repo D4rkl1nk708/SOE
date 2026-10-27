@@ -108,7 +108,9 @@ vi.mock("@/lib/trpc", () => ({
     dashboard: {
       getStats: {
         useQuery: () => ({
-          data: { settings: { onboardingCompleted: true } },
+          data: {
+            settings: { onboardingCompleted: true, layoutMode: "classic" },
+          },
           isLoading: false,
         }),
       },

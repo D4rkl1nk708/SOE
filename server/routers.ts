@@ -146,6 +146,7 @@ export const appRouter = router({
             .optional(),
           profileImage: z.string().optional(),
           minimizeToTray: z.boolean().optional(),
+          layoutMode: z.enum(["v2", "classic"]).optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -1357,6 +1358,7 @@ ${input.text.substring(0, 8000)}`;
           autoBackupDir: z.string().optional(),
           profileImage: z.string().optional(),
           minimizeToTray: z.boolean().optional(),
+          layoutMode: z.enum(["v2", "classic"]).optional(),
           baseDisciplineIds: z.array(z.number()).optional(),
           scheduler: z.enum(["classic", "fsrs"]).optional(),
           tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),

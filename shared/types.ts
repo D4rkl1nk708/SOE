@@ -270,6 +270,8 @@ export interface UserSettings {
   profileImage?: string;
   /** Preferência do Electron: Minimizar para a bandeja ao fechar a janela */
   minimizeToTray?: boolean;
+  /** Layout do Início: v2 (guiado) ou classic (dashboard antigo) */
+  layoutMode?: "v2" | "classic";
   /** F30 - Memória estratégica do Mentor (observações de longo prazo sobre o aluno) */
   mentorObservations?: string[];
   /** Nomes normalizados de disciplinas excluídas: impede que importação/sync
