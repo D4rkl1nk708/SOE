@@ -65,6 +65,7 @@ export function useExams() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [examDateInput, setExamDateInput] = useState("");
   const [examNameInput, setExamNameInput] = useState("");
+  const [examTargetInput, setExamTargetInput] = useState("70");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const save = trpc.exam.upsert.useMutation({
@@ -74,6 +75,7 @@ export function useExams() {
       setDialogOpen(false);
       setExamNameInput("");
       setExamDateInput("");
+      setExamTargetInput("70");
       setEditingId(null);
     },
     onError: (err) => toast.error(err.message),
@@ -90,14 +92,21 @@ export function useExams() {
   const openCreate = useCallback(() => {
     setExamDateInput("");
     setExamNameInput("");
+    setExamTargetInput("70");
     setEditingId(null);
     setDialogOpen(true);
   }, []);
 
   const openEdit = useCallback(
-    (exam: { id: string; name: string; date: string }) => {
+    (exam: {
+      id: string;
+      name: string;
+      date: string;
+      targetScore?: number;
+    }) => {
       setExamNameInput(exam.name);
       setExamDateInput(exam.date);
+      setExamTargetInput(String(exam.targetScore ?? 70));
       setEditingId(exam.id);
       setDialogOpen(true);
     },
@@ -113,8 +122,9 @@ export function useExams() {
       id: editingId ?? undefined,
       name: examNameInput.trim(),
       date: examDateInput,
+      targetScore: Math.max(0, Math.min(100, Number(examTargetInput) || 70)),
     });
-  }, [examNameInput, examDateInput, editingId, save]);
+  }, [examNameInput, examDateInput, examTargetInput, editingId, save]);
 
   return {
     exams,
@@ -124,6 +134,8 @@ export function useExams() {
     setExamDateInput,
     examNameInput,
     setExamNameInput,
+    examTargetInput,
+    setExamTargetInput,
     editingId,
     openCreate,
     openEdit,

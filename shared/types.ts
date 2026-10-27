@@ -156,7 +156,13 @@ export interface QuestionAttempt {
 export interface UserSettings {
   examDate?: string;
   examName?: string;
-  exams?: { id: string; name: string; date: string }[];
+  exams?: {
+    id: string;
+    name: string;
+    date: string;
+    /** Meta de acerto para esta prova (0-100) */
+    targetScore?: number;
+  }[];
   editalCycle?: {
     id: string;
     title: string;

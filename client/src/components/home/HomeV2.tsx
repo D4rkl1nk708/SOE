@@ -203,6 +203,11 @@ export function HomeV2() {
   );
   const overallAccuracy =
     totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+  const targetScore = Math.max(
+    0,
+    Math.min(100, Number(exam?.targetScore) || 70),
+  );
+  const scoreGap = overallAccuracy - targetScore;
 
   return (
     <div className="space-y-4 pb-10">
@@ -774,17 +779,33 @@ export function HomeV2() {
                 placeholder="Ex: TCE/MS — Auditor"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Data
-              </Label>
-              <Input
-                type="date"
-                value={examState.examDateInput}
-                onChange={(event) =>
-                  examState.setExamDateInput(event.target.value)
-                }
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Data
+                </Label>
+                <Input
+                  type="date"
+                  value={examState.examDateInput}
+                  onChange={(event) =>
+                    examState.setExamDateInput(event.target.value)
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Meta (%)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={examState.examTargetInput}
+                  onChange={(event) =>
+                    examState.setExamTargetInput(event.target.value)
+                  }
+                />
+              </div>
             </div>
           </div>
           <DialogFooter className="gap-2">

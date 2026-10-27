@@ -165,6 +165,7 @@ export const appRouter = router({
           id: z.string().optional(),
           name: z.string().min(1).max(255),
           date: z.string().min(1),
+          targetScore: z.number().min(0).max(100).optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -177,10 +178,23 @@ export const appRouter = router({
         const updatedExams = exists
           ? exams.map((e: any) =>
               e.id === nextId
-                ? { ...e, name: input.name, date: input.date }
+                ? {
+                    ...e,
+                    name: input.name,
+                    date: input.date,
+                    targetScore: input.targetScore ?? (e as any).targetScore,
+                  }
                 : e,
             )
-          : [...exams, { id: nextId, name: input.name, date: input.date }];
+          : [
+              ...exams,
+              {
+                id: nextId,
+                name: input.name,
+                date: input.date,
+                targetScore: input.targetScore ?? 70,
+              },
+            ];
         await storage.updateUserSettings(ctx.user.id, { exams: updatedExams });
         return { success: true, id: nextId };
       }),
