@@ -178,6 +178,10 @@ jobs:
           echo "Found Linux AppImage: $APPIMAGE_FILE"
           cp "$APPIMAGE_FILE" "Linux-SOE-v${{ needs.prepare.outputs.version }}.AppImage"
 
+      - name: Generate Linux update metadata
+        run: |
+          node scripts/generate-update-metadata.cjs linux "${{ needs.prepare.outputs.version }}" "Linux-SOE-v${{ needs.prepare.outputs.version }}.AppImage" "release/latest-linux.yml"
+
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -249,6 +253,11 @@ jobs:
           fi
           echo "Found Windows executable: $EXE_FILE"
           cp "$EXE_FILE" "Windows-SOE-v${{ needs.prepare.outputs.version }}.exe"
+
+      - name: Generate Windows update metadata
+        shell: bash
+        run: |
+          node scripts/generate-update-metadata.cjs win "${{ needs.prepare.outputs.version }}" "Windows-SOE-v${{ needs.prepare.outputs.version }}.exe" "release/latest.yml"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
