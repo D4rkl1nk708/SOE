@@ -15,6 +15,7 @@ import type {
   TecSnapshot,
   CadernoTec,
   Database,
+  StudyEventRecord,
 } from "../shared/types";
 
 export type {
@@ -34,6 +35,7 @@ export type {
   TecSnapshot,
   CadernoTec,
   Database,
+  StudyEventRecord,
 };
 import { persistBase64Media } from "./mediaStorage";
 import { smartMergeDatabases, normalizeString } from "../shared/merge";
@@ -66,6 +68,48 @@ export {
   getEmptyDatabase,
   now,
 };
+
+// ============ STUDY EVENT LEDGER ============
+/**
+ * Upsert de um evento no ledger. Mantém no máximo 5.000 eventos por usuário.
+ * A projeção em studyLedger.ts ainda cobre dados antigos que não passaram por aqui.
+ */
+function pushStudyEvent(user: User | undefined, event: StudyEventRecord): void {
+  if (!user) return;
+  if (!Array.isArray(user.settings.studyEvents)) {
+    user.settings.studyEvents = [];
+  }
+  const existing = user.settings.studyEvents.findIndex(
+    (item) => item.id === event.id,
+  );
+  if (existing >= 0) {
+    user.settings.studyEvents[existing] = event;
+  } else {
+    user.settings.studyEvents.push(event);
+  }
+  if (user.settings.studyEvents.length > 5000) {
+    user.settings.studyEvents = user.settings.studyEvents.slice(-5000);
+  }
+}
+
+function eventContext(
+  db: Database,
+  topicId?: number,
+  disciplineId?: number,
+): { topicName?: string; disciplineName?: string; disciplineId?: number } {
+  const topic = topicId
+    ? db.topics.find((item) => item.id === topicId)
+    : undefined;
+  const resolvedDisciplineId = disciplineId ?? topic?.disciplineId;
+  const discipline = resolvedDisciplineId
+    ? db.disciplines.find((item) => item.id === resolvedDisciplineId)
+    : undefined;
+  return {
+    topicName: topic?.name,
+    disciplineName: discipline?.name,
+    disciplineId: resolvedDisciplineId,
+  };
+}
 
 // ============ USER OPERATIONS ============
 
@@ -161,6 +205,30 @@ export async function recordQuestionAttempt(
     ...(user.settings.questionAttempts || []),
     record,
   ].slice(-3000);
+  const context = eventContext(db, record.topicId, record.disciplineId);
+  pushStudyEvent(user, {
+    id: `att-${record.id}`,
+    type: "answer",
+    occurredAt: record.createdAt,
+    title: record.correct
+      ? `Acertou: ${context.topicName || "questão"}`
+      : record.answered
+        ? `Errou: ${context.topicName || "questão"}`
+        : `Não respondeu: ${context.topicName || "questão"}`,
+    detail: [
+      record.banca,
+      record.confidence ? `confiança ${record.confidence}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    topicId: record.topicId,
+    disciplineId: context.disciplineId,
+    topicName: context.topicName,
+    disciplineName: context.disciplineName,
+    correct: record.correct,
+    answered: record.answered,
+    source: record.source,
+  });
   writeDatabase(db);
   return record;
 }
@@ -774,8 +842,9 @@ export async function createRevisions(
   // Batch all inserts before a single write — avoids N disk writes
   for (const data of revisionsData) {
     db.counters.revisions++;
+    const revisionId = db.counters.revisions;
     db.revisions.push({
-      id: db.counters.revisions,
+      id: revisionId,
       userId: data.userId,
       topicId: data.topicId,
       scheduledDate: data.scheduledDate,
@@ -787,6 +856,21 @@ export async function createRevisions(
       createdAt: now(),
       updatedAt: now(),
     });
+    const context = eventContext(db, data.topicId);
+    pushStudyEvent(
+      db.users.find((user) => user.id === data.userId),
+      {
+        id: `rev-${revisionId}`,
+        type: "revision",
+        occurredAt: now(),
+        title: `Revisão agendada: ${context.topicName || "tópico"}`,
+        detail: `Prevista para ${data.scheduledDate}`,
+        topicId: data.topicId,
+        disciplineId: context.disciplineId,
+        topicName: context.topicName,
+        disciplineName: context.disciplineName,
+      },
+    );
   }
   writeDatabase(db); // single write for all revisions
 }
@@ -804,6 +888,24 @@ export async function markRevisionCompleted(
     db.revisions[index].completed = completed;
     db.revisions[index].completedAt = completed ? now() : null;
     db.revisions[index].updatedAt = now();
+    const revision = db.revisions[index];
+    const context = eventContext(db, revision.topicId);
+    pushStudyEvent(
+      db.users.find((user) => user.id === userId),
+      {
+        id: `rev-${revision.id}`,
+        type: "revision",
+        occurredAt: now(),
+        title: completed
+          ? `Revisão concluída: ${context.topicName || "tópico"}`
+          : `Revisão reaberta: ${context.topicName || "tópico"}`,
+        detail: completed ? "Concluída" : "Reaberta",
+        topicId: revision.topicId,
+        disciplineId: context.disciplineId,
+        topicName: context.topicName,
+        disciplineName: context.disciplineName,
+      },
+    );
     writeDatabase(db);
   }
 }
@@ -836,6 +938,22 @@ export async function markRevisionIgnored(
   if (index >= 0) {
     db.revisions[index].ignored = ignored;
     db.revisions[index].updatedAt = now();
+    const revision = db.revisions[index];
+    const context = eventContext(db, revision.topicId);
+    pushStudyEvent(
+      db.users.find((user) => user.id === userId),
+      {
+        id: `rev-${revision.id}`,
+        type: "revision",
+        occurredAt: now(),
+        title: `${ignored ? "Revisão ignorada" : "Revisão reativada"}: ${context.topicName || "tópico"}`,
+        detail: ignored ? "Ignorada" : "Reativada",
+        topicId: revision.topicId,
+        disciplineId: context.disciplineId,
+        topicName: context.topicName,
+        disciplineName: context.disciplineName,
+      },
+    );
     writeDatabase(db);
   }
 }
@@ -2002,6 +2120,25 @@ export async function saveQuestionError(
       createdAt: now(),
     };
     db.questionErrors.push(record);
+    const context = eventContext(db, record.topicId, record.disciplineId);
+    pushStudyEvent(
+      db.users.find((user) => user.id === record.userId),
+      {
+        id: `err-${record.id}`,
+        type: "error",
+        occurredAt: record.createdAt,
+        title: `Erro registrado: ${context.topicName || "questão"}`,
+        detail: [record.banca, record.errorOrigin || "não classificado"]
+          .filter(Boolean)
+          .join(" · "),
+        topicId: record.topicId,
+        disciplineId: context.disciplineId,
+        topicName: context.topicName,
+        disciplineName: context.disciplineName,
+        correct: false,
+        source: "tec",
+      },
+    );
     writeDatabase(db);
     return record;
   });
@@ -2376,8 +2513,9 @@ export async function logStudySession(
   const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.studySessionLog) user.settings.studySessionLog = [];
+  const date = now().split("T")[0];
   user.settings.studySessionLog.push({
-    date: now().split("T")[0],
+    date,
     hourStart,
     durationMin,
     accuracy,
@@ -2385,6 +2523,18 @@ export async function logStudySession(
   });
   if (user.settings.studySessionLog.length > 500)
     user.settings.studySessionLog = user.settings.studySessionLog.slice(-500);
+  const context = eventContext(db, undefined, disciplineId);
+  pushStudyEvent(user, {
+    id: `ses-${date}-${hourStart}-${durationMin}`,
+    type: "session",
+    occurredAt: now(),
+    title: "Sessão de estudo",
+    detail: `${durationMin} min registrados`,
+    disciplineId: context.disciplineId,
+    disciplineName: context.disciplineName,
+    minutes: durationMin,
+    source: "manual",
+  });
   writeDatabase(db);
 }
 

@@ -153,6 +153,22 @@ export interface QuestionAttempt {
   createdAt: string;
 }
 
+export interface StudyEventRecord {
+  id: string;
+  type: "revision" | "answer" | "error" | "session" | "tec";
+  occurredAt: string;
+  title: string;
+  detail: string;
+  topicId?: number;
+  disciplineId?: number;
+  disciplineName?: string;
+  topicName?: string;
+  correct?: boolean;
+  answered?: boolean;
+  minutes?: number;
+  source?: string;
+}
+
 export interface UserSettings {
   examDate?: string;
   examName?: string;
@@ -287,6 +303,8 @@ export interface UserSettings {
   baseDisciplineIds?: number[];
   /** Tentativas com confiança declarada (máx. ~3000) */
   questionAttempts?: QuestionAttempt[];
+  /** Ledger canônico de eventos de estudo (fonte primária a partir de 6.2.22) */
+  studyEvents?: StudyEventRecord[];
   /** Agendador de revisão: clássico 25/50 por padrão */
   scheduler?: "classic" | "fsrs";
   /** Modo de captura do TEC: manual é o padrão seguro */
