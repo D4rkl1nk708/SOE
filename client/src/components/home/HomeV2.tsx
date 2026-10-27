@@ -3,6 +3,17 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useExams } from "@/hooks/useDashboard";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -46,6 +57,7 @@ export function HomeV2() {
   const utils = trpc.useUtils();
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: me } = trpc.auth.me.useQuery();
+  const examState = useExams();
   const { data: overview } = trpc.study.overview.useQuery({
     minutes: Number((stats?.settings as any)?.dailyGoalMinutes) || 240,
   });
@@ -83,13 +95,9 @@ export function HomeV2() {
   }).format(new Date());
 
   const exam = useMemo(() => {
-    const exams = (settings.exams || []) as Array<{
-      name: string;
-      date: string;
-    }>;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return exams
+    return (examState.exams || [])
       .filter((item) => item.date)
       .map((item) => ({
         ...item,
@@ -100,7 +108,7 @@ export function HomeV2() {
       }))
       .filter((item) => item.days >= 0)
       .sort((a, b) => a.days - b.days)[0];
-  }, [settings.exams]);
+  }, [examState.exams]);
 
   const week = useMemo(() => {
     const log = (settings.studySessionLog || []) as Array<{
@@ -180,6 +188,16 @@ export function HomeV2() {
   const todayMinutes = week[6]?.minutes || 0;
   const goalMinutes = Number(settings.dailyGoalMinutes) || 240;
   const pending = stats?.pendingRevisions || 0;
+  const totalQuestions = ((stats?.disciplineStats || []) as any[]).reduce(
+    (sum, discipline) => sum + (discipline.performance?.questionsResolved || 0),
+    0,
+  );
+  const totalCorrect = ((stats?.disciplineStats || []) as any[]).reduce(
+    (sum, discipline) => sum + (discipline.performance?.correctCount || 0),
+    0,
+  );
+  const overallAccuracy =
+    totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
 
   return (
     <div className="space-y-4 pb-10">
@@ -287,12 +305,14 @@ export function HomeV2() {
           </div>
           <div className="mt-2 flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--primary)_30%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))] text-xs font-bold text-primary">
-              {readiness}%
+              {overallAccuracy}%
             </div>
             <div>
-              <p className="text-xs font-semibold">Você está no caminho</p>
+              <p className="text-xs font-semibold">Desempenho geral</p>
               <p className="text-[9.5px] leading-snug text-muted-foreground">
-                Base firme. Faltam específicas do edital.
+                {totalQuestions > 0
+                  ? `${totalCorrect} acertos em ${totalQuestions} questões`
+                  : "Registre questões para medir seu desempenho."}
               </p>
             </div>
           </div>
@@ -310,6 +330,10 @@ export function HomeV2() {
                 <b className="text-foreground">{editalPct}%</b>
               </div>
               <Bar value={editalPct} color="var(--accent-blue, #60a5fa)" />
+            </div>
+            <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+              <span className="truncate">{exam?.name || "Concurso alvo"}</span>
+              <b className="text-foreground">{editalPct}%</b>
             </div>
           </div>
           <div className="mt-3 border-t border-border pt-3">
@@ -349,7 +373,13 @@ export function HomeV2() {
               ))}
             </div>
           </div>
-          <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
+          <button
+            onClick={() =>
+              exam ? examState.openEdit(exam) : examState.openCreate()
+            }
+            className="mt-3 flex w-full items-end justify-between border-t border-border pt-3 text-left"
+            title={exam ? "Editar próxima prova" : "Adicionar prova"}
+          >
             <div>
               <span className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
                 Próxima prova
@@ -373,7 +403,7 @@ export function HomeV2() {
                 dias
               </span>
             </div>
-          </div>
+          </button>
         </aside>
       </div>
 
@@ -621,6 +651,72 @@ export function HomeV2() {
           </div>
         </section>
       </div>
+
+      <Dialog
+        open={examState.dialogOpen}
+        onOpenChange={examState.setDialogOpen}
+      >
+        <DialogContent className="rounded-lg border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">
+              {examState.editingId ? "Editar prova" : "Adicionar prova"}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Nome e data da prova. O Início usa isso para calcular os dias
+              restantes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Nome
+              </Label>
+              <Input
+                value={examState.examNameInput}
+                onChange={(event) =>
+                  examState.setExamNameInput(event.target.value)
+                }
+                placeholder="Ex: TCE/MS — Auditor"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Data
+              </Label>
+              <Input
+                type="date"
+                value={examState.examDateInput}
+                onChange={(event) =>
+                  examState.setExamDateInput(event.target.value)
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            {examState.editingId && (
+              <Button
+                variant="outline"
+                className="text-destructive"
+                onClick={() => examState.handleRemove(examState.editingId!)}
+              >
+                Excluir
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => examState.setDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={examState.handleSave}
+              disabled={examState.isSaving}
+            >
+              {examState.isSaving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
