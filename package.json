@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "6.1.5",
+  "version": "6.1.7",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -72,6 +72,7 @@
     "date-fns": "^4.1.0",
     "dexie": "^4.3.0",
     "dotenv": "^17.2.2",
+    "electron-updater": "^6.8.11",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
     "framer-motion": "^12.38.0",
@@ -112,6 +113,7 @@
     "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/express": "4.17.21",
@@ -199,7 +201,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "SOE Estudos"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "D4rkl1nk708",
+        "repo": "SOE",
+        "releaseType": "release"
+      }
+    ]
   },
   "lint-staged": {
     "*.{ts,tsx}": [

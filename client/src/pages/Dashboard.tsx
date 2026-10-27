@@ -32,9 +32,12 @@ import {
   Globe,
   Play,
   Layers,
+  Star,
+  ClipboardX,
+  Sparkles,
 } from "lucide-react";
 import { differenceInDays, parseISO } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { DailyGoalWidget, TodayRevisions } from "@/components/DashboardWidgets";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
@@ -101,6 +104,30 @@ export default function Dashboard() {
     null,
   );
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [baseDisciplineIds, setBaseDisciplineIds] = useState<number[]>([]);
+  const updateBaseSettings = trpc.v10.updateV10Settings.useMutation({
+    onSuccess: () => utils.dashboard.getStats.invalidate(),
+    onError: (error) => toast.error(error.message),
+  });
+
+  const savedBaseIds = (stats?.settings as any)?.baseDisciplineIds;
+  useEffect(() => {
+    if (!Array.isArray(savedBaseIds)) return;
+    setBaseDisciplineIds((current) =>
+      current.length === savedBaseIds.length &&
+      current.every((id, index) => id === savedBaseIds[index])
+        ? current
+        : savedBaseIds,
+    );
+  }, [JSON.stringify(savedBaseIds)]);
+
+  const toggleBaseDiscipline = (disciplineId: number) => {
+    const next = baseDisciplineIds.includes(disciplineId)
+      ? baseDisciplineIds.filter((id) => id !== disciplineId)
+      : [...baseDisciplineIds, disciplineId];
+    setBaseDisciplineIds(next);
+    updateBaseSettings.mutate({ baseDisciplineIds: next });
+  };
 
   if (isLoading)
     return (
@@ -162,26 +189,12 @@ export default function Dashboard() {
       navigate("/plan");
       return;
     }
-    if (block.kind === "revisao") {
-      navigate("/revisions");
-      return;
-    }
     if (block.kind === "mapear") {
       navigate("/edital");
       return;
     }
-    if (block.topicId) {
-      sessionStorage.setItem(
-        "qs_prefill",
-        JSON.stringify({
-          topicId: block.topicId,
-          topicName: block.topicName,
-          disciplineId: block.disciplineId,
-          autoStart: true,
-        }),
-      );
-    }
-    navigate("/question-session");
+    sessionStorage.setItem("soe_guided_block", JSON.stringify(block));
+    navigate("/guided");
   };
 
   return (
@@ -276,6 +289,31 @@ export default function Dashboard() {
                 onClick={() => void openTecBrowser(pushTokenData?.token || "")}
               >
                 <Globe size={13} className="mr-2" /> Abrir TEC
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                onClick={() => navigate("/simulado")}
+              >
+                <ClipboardX size={13} className="mr-2" /> Simulado
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+                onClick={() => {
+                  const block = focusBlock;
+                  sessionStorage.setItem(
+                    "soe_mentor_prefill",
+                    block
+                      ? `Me explique o foco de hoje: ${block.title}. Motivo: ${block.reason}. O que preciso entender e como praticar?`
+                      : "Me diga o que estudar agora e por quê, olhando meu desempenho atual.",
+                  );
+                  navigate("/mentor");
+                }}
+              >
+                <Sparkles size={13} className="mr-2" /> IA explica
               </Button>
             </div>
           </div>
@@ -478,13 +516,41 @@ export default function Dashboard() {
                   )
                 }
               >
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleBaseDiscipline(d.disciplineId);
+                    }}
+                    title={
+                      baseDisciplineIds.includes(d.disciplineId)
+                        ? "Remover da rotina base"
+                        : "Marcar como matéria base"
+                    }
+                    className={`flex-shrink-0 rounded p-0.5 transition-colors ${
+                      baseDisciplineIds.includes(d.disciplineId)
+                        ? "text-amber-400"
+                        : "text-muted-foreground/30 hover:text-amber-400"
+                    }`}
+                  >
+                    <Star
+                      size={14}
+                      fill={
+                        baseDisciplineIds.includes(d.disciplineId)
+                          ? "currentColor"
+                          : "none"
+                      }
+                    />
+                  </button>
                   <div
-                    className="w-2.5 h-2.5 rounded-full"
+                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
                     style={{ backgroundColor: d.color }}
                   />
-                  <span className="font-bold text-[13px] text-foreground/90">
+                  <span className="truncate text-[13px] font-bold text-foreground/90">
                     {d.name}
+                  </span>
+                  <span className="text-[10px] font-semibold tabular-nums text-muted-foreground/30">
+                    {Math.round(d.performance?.accuracy || 0)}%
                   </span>
                 </div>
                 {expandedDiscipline === d.disciplineId ? (

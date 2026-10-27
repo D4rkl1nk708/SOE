@@ -89,6 +89,17 @@ export default function MentorTab() {
   const messages = activeSession.messages;
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const pendingPrompt = useRef<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const prefill = sessionStorage.getItem("soe_mentor_prefill");
+      if (!prefill) return;
+      sessionStorage.removeItem("soe_mentor_prefill");
+      pendingPrompt.current = prefill;
+      setInput(prefill);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("soe_mentor_sessions", JSON.stringify(sessions));
@@ -171,6 +182,26 @@ export default function MentorTab() {
       setInput(vars.message);
     },
   });
+
+  useEffect(() => {
+    if (!apiKey || !pendingPrompt.current || chatMut.isPending) return;
+    const prompt = pendingPrompt.current;
+    pendingPrompt.current = null;
+    const newHistory = [
+      ...messages,
+      { role: "user" as const, content: prompt },
+    ];
+    setMessages(() => newHistory);
+    setInput("");
+    chatMut.mutate({
+      message: prompt,
+      history: newHistory.filter(
+        (m) => m.role === "user" || m.role === "assistant",
+      ),
+      apiKey,
+      provider,
+    });
+  }, [apiKey]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

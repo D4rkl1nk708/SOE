@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   Sparkles,
@@ -6,14 +7,25 @@ import {
   TrendingDown,
   Clock,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const API_KEY_STORAGE = "soe_mentor_api_key";
 const API_PROVIDER_STORAGE = "soe_mentor_provider";
 
 export function RecommendationCard() {
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState(false);
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const settings = stats?.settings as any;
 
@@ -34,143 +46,173 @@ export function RecommendationCard() {
     {
       enabled: !!apiKey,
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 60 * 24, // 24 hours
+      staleTime: 1000 * 60 * 60 * 24,
     },
   );
 
-  if (!apiKey) return null;
+  useEffect(() => {
+    if (!rec) return;
+    try {
+      const key = `soe_mentor_popup_${new Date().toISOString().slice(0, 10)}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      setOpen(true);
+    } catch {}
+  }, [rec]);
 
+  if (!apiKey) return null;
   if (isLoading) {
     return (
-      <div className="soe-card p-6 border-primary/10 bg-primary/5">
-        <Skeleton className="h-6 w-48 mb-4" />
-        <Skeleton className="h-4 w-full mb-2" />
-        <Skeleton className="h-4 w-2/3" />
+      <div className="soe-card p-4">
+        <Skeleton className="mb-2 h-4 w-40" />
+        <Skeleton className="h-3 w-2/3" />
       </div>
     );
   }
-
   if (error || !rec) return null;
 
   const isHighPriority = rec.priority === "alta";
+  const followRecommendation = () => {
+    setOpen(false);
+    sessionStorage.setItem(
+      "soe_guided_block",
+      JSON.stringify({
+        id: `mentor-${rec.topicId || rec.disciplineId || "focus"}`,
+        kind: "estudo",
+        title: (rec as any).topicName || rec.disciplineName,
+        subtitle: rec.disciplineName,
+        reason: rec.diagnostic,
+        minutes: 25,
+        topicId: rec.topicId,
+        topicName: (rec as any).topicName,
+        disciplineId: rec.disciplineId,
+        disciplineName: rec.disciplineName,
+        lens: "edital",
+      }),
+    );
+    navigate("/guided");
+  };
+
+  const askMentor = () => {
+    sessionStorage.setItem(
+      "soe_mentor_prefill",
+      `Me explique o foco de hoje: ${rec.disciplineName}${(rec as any).topicName ? ` — ${(rec as any).topicName}` : ""}. ` +
+        `Diagnóstico: ${rec.diagnostic}. O que exatamente eu preciso entender e praticar agora?`,
+    );
+    setOpen(false);
+    navigate("/mentor");
+  };
 
   return (
-    <div
-      className={`soe-card p-6 relative overflow-hidden transition-all border group ${
-        isHighPriority
-          ? "border-amber-500/30 bg-amber-500/[0.02]"
-          : "border-border bg-card"
-      }`}
-    >
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none transition-transform duration-500">
-        <Sparkles className="w-32 h-32" />
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-8 relative z-10">
-        <div className="space-y-5 flex-1">
-          <div className="flex items-center gap-4">
-            <div
-              className={`p-2 rounded-lg ${isHighPriority ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}`}
-            >
-              <Target size={18} />
-            </div>
-            <div className="flex flex-col flex-1">
-              <div className="flex items-center justify-between">
-                <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                  Recomendação do Mentor
-                </h2>
-                <button
-                  onClick={() => refetch()}
-                  disabled={isRefetching}
-                  title="Recalcular Rota"
-                  className={`p-1 hover:bg-secondary rounded-md transition-all ${isRefetching ? "animate-spin opacity-50" : "opacity-30 hover:opacity-100"}`}
+    <>
+      <div className="soe-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={`mt-0.5 rounded-md p-1.5 ${isHighPriority ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}`}
+          >
+            <Sparkles size={14} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Mentor de hoje
+              </p>
+              {isHighPriority && (
+                <Badge
+                  variant="outline"
+                  className="h-4 border-amber-500/20 bg-amber-500/10 px-1.5 text-[8px] font-bold uppercase text-amber-500"
                 >
-                  <Sparkles size={14} />
-                </button>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-bold text-primary/70">
-                  {rec.contextTag}
-                </span>
-                {isHighPriority && (
-                  <Badge
-                    variant="outline"
-                    className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] h-4 font-bold uppercase tracking-wider px-1.5"
-                  >
-                    Urgente
-                  </Badge>
-                )}
-              </div>
+                  Urgente
+                </Badge>
+              )}
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xl font-bold tracking-tight text-foreground leading-tight">
-              Foco de Hoje:{" "}
-              <span
-                className={isHighPriority ? "text-amber-500" : "text-primary"}
-              >
-                {rec.disciplineName}
-              </span>
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2">
-                  <AlertCircle size={10} /> Diagnóstico Crítico
-                </p>
-                <div className="p-4 bg-secondary/30 rounded-md border border-border min-h-[4rem] flex items-center">
-                  <p className="text-sm font-bold text-foreground/90 leading-relaxed">
-                    {rec.diagnostic}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground opacity-50 flex items-center gap-2">
-                  <TrendingDown size={10} /> Plano de Ação
-                </p>
-                <div className="bg-primary/5 p-4 rounded-md border border-primary/10 min-h-[4rem] flex items-center">
-                  <p className="text-sm text-foreground/80 leading-relaxed font-semibold">
-                    {rec.actionPlan}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-md bg-destructive/5 border border-destructive/10">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-destructive/50 mb-1">
-                Risco na Prova (Previsão)
-              </p>
-              <p className="text-[11px] font-semibold text-destructive/80 italic leading-relaxed">
-                "{rec.prediction}"
-              </p>
-            </div>
+            <p className="truncate text-sm font-semibold">
+              {rec.disciplineName}
+              {(rec as any).topicName ? ` · ${(rec as any).topicName}` : ""}
+            </p>
+            <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">
+              {rec.diagnostic}
+            </p>
           </div>
         </div>
-
-        <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary/30 border border-border">
-            <Clock size={14} className="text-muted-foreground" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Foco Imediato
-            </span>
-          </div>
-
-          {(rec.bankQuestionCount ?? 0) > 0 && (
-            <button
-              onClick={() => {
-                window.location.href = `/lab?startElite=true&topicId=${rec.topicId}`;
-              }}
-              className="w-full md:w-auto h-10 px-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-primary/90"
-            >
-              <Target size={14} />
-              Treino de Elite ({rec.bankQuestionCount})
-            </button>
-          )}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-[10px]"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            title="Recalcular orientação"
+          >
+            {isRefetching ? "..." : "Recalcular"}
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-[10px]"
+            onClick={() => setOpen(true)}
+          >
+            Abrir orientação
+          </Button>
         </div>
       </div>
-    </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-lg border-border bg-card p-0">
+          <DialogHeader className="border-b border-border p-5">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <DialogTitle className="text-lg font-semibold">
+                Orientação do mentor
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              {rec.contextTag} · Foco em {rec.disciplineName}
+              {(rec as any).topicName ? ` — ${(rec as any).topicName}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 p-5">
+            <div className="rounded-md border border-border bg-secondary/20 p-4">
+              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                <AlertCircle size={11} /> Diagnóstico
+              </p>
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {rec.diagnostic}
+              </p>
+            </div>
+
+            <div className="rounded-md border border-primary/15 bg-primary/5 p-4">
+              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                <TrendingDown size={11} /> Plano de ação
+              </p>
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {rec.actionPlan}
+              </p>
+            </div>
+
+            <div className="rounded-md border border-destructive/15 bg-destructive/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-destructive/70">
+                <Clock size={11} /> Risco se não fizer agora
+              </p>
+              <p className="text-xs italic leading-relaxed text-destructive/80">
+                “{rec.prediction}”
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Fechar
+              </Button>
+              <Button variant="outline" onClick={askMentor}>
+                <Sparkles className="mr-2 h-3.5 w-3.5" /> Me explique com IA
+              </Button>
+              <Button onClick={followRecommendation}>
+                <Target className="mr-2 h-3.5 w-3.5" /> Seguir recomendação
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -114,6 +114,11 @@ vi.mock("@/lib/trpc", () => ({
       },
       getHeatmap: { useQuery: () => ({ data: [] }) },
     },
+    v10: {
+      updateV10Settings: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
+    },
     study: {
       overview: {
         useQuery: () => ({

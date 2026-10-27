@@ -1898,18 +1898,105 @@ function detectDistractorPattern(
   return "similar";
 }
 
+function parseAlternativesFromStatement(statement: string): {
+  statement: string;
+  alternatives: Array<{ letter: string; text: string }>;
+} {
+  const lines = statement
+    .replace(/\u00a0/g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.trim());
+  const parsed: Array<{ letter: string; text: string }> = [];
+  let firstMarker = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^[A-E]$/.test(lines[i])) continue;
+    let next = i + 1;
+    while (next < lines.length && lines[next].trim() === "") next++;
+    const text = lines[next] || "";
+    if (!text || /^[A-E]$/.test(text)) continue;
+    if (firstMarker < 0) firstMarker = i;
+    parsed.push({ letter: lines[i], text: text.slice(0, 2000) });
+    i = next;
+  }
+  if (parsed.length < 2 || parsed.length > 6) {
+    return { statement, alternatives: [] };
+  }
+  const before =
+    firstMarker > 0 ? lines.slice(0, firstMarker).join("\n").trim() : statement;
+  return { statement: before, alternatives: parsed };
+}
+
+function sanitizeQuestionErrorData<T extends Record<string, any>>(data: T): T {
+  const cleanedStatement = String(data.statement || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const providedAlternatives = Array.isArray(data.alternatives)
+    ? data.alternatives
+    : [];
+  let alternatives =
+    providedAlternatives.length > 5
+      ? []
+      : providedAlternatives
+          .filter((a: any) => a && /^[A-E]$/.test(String(a.letter || "")))
+          .map((a: any) => ({
+            letter: String(a.letter),
+            text: String(a.text || "")
+              .replace(/\u00a0/g, " ")
+              .trim(),
+          }))
+          .filter((a: any) => a.text.length > 0);
+
+  let statement = cleanedStatement;
+  if (alternatives.length === 0) {
+    const parsed = parseAlternativesFromStatement(cleanedStatement);
+    statement = parsed.statement;
+    alternatives = parsed.alternatives;
+  }
+
+  if (alternatives.length > 6) alternatives = [];
+  const uniqueTexts = new Set(
+    alternatives.map((a: any) => a.text.toLowerCase()),
+  );
+  if (alternatives.length > 2 && uniqueTexts.size <= 1) alternatives = [];
+
+  const letters = new Set(alternatives.map((a: any) => a.letter));
+  const cleanAnswer = (value: any) => {
+    const letter = String(value || "")
+      .trim()
+      .toUpperCase();
+    return letter && (letters.size === 0 || letters.has(letter)) ? letter : "";
+  };
+
+  const headerOnly = /^#?\d{5,}\s/.test(statement) && statement.length < 220;
+  const finalStatement = headerOnly
+    ? `[Enunciado não capturado pelo TEC]\n\n${statement}`
+    : statement;
+
+  return {
+    ...data,
+    statement: finalStatement,
+    alternatives,
+    userAnswer: cleanAnswer(data.userAnswer),
+    correctAnswer: cleanAnswer(data.correctAnswer),
+  } as T;
+}
+
 export async function saveQuestionError(
   data: Omit<QuestionError, "id" | "createdAt">,
 ): Promise<QuestionError> {
   // IDEA 1: Detectar automaticamente o padrão do distrator
+  const sanitized = sanitizeQuestionErrorData(data);
   const distractorPattern = detectDistractorPattern(
-    data.userAnswer,
-    data.alternatives,
+    sanitized.userAnswer,
+    sanitized.alternatives,
   );
   return await runInTransaction((db) => {
     db.counters.questionErrors++;
     const record: QuestionError = {
-      ...data,
+      ...sanitized,
       distractorPattern,
       id: db.counters.questionErrors,
       createdAt: now(),
@@ -1946,6 +2033,7 @@ export async function getQuestionErrorsByUser(
   if (opts?.disciplineId)
     errors = errors.filter((e) => e.disciplineId === opts.disciplineId);
   errors.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  errors = errors.map((error) => sanitizeQuestionErrorData(error));
 
   const total = errors.length;
   const limit = Math.min(opts?.limit ?? 50, 200);
