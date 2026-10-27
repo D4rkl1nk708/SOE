@@ -27,6 +27,10 @@ import {
   ShieldCheck,
   Camera,
   Target,
+  Info,
+  Download,
+  RefreshCw,
+  Monitor,
 } from "lucide-react";
 import History from "./History";
 import { useTheme, COLOR_THEMES, ColorTheme } from "@/contexts/ThemeContext";
@@ -44,7 +48,9 @@ import { toast } from "sonner";
 import Revisions from "./Revisions";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Tab = "history" | "settings" | "dou" | "revisions";
+type Tab = "history" | "settings" | "dou" | "revisions" | "about";
+
+declare const __APP_VERSION__: string;
 
 const isElectronApp =
   typeof window !== "undefined" && !!(window as any).electron?.tray;
@@ -1016,6 +1022,12 @@ export default function Profile() {
       desc: "Monitoramento",
       icon: FileText,
     },
+    {
+      id: "about",
+      label: "Sobre",
+      desc: "Versão e atualizações",
+      icon: Info,
+    },
   ];
 
   return (
@@ -1112,6 +1124,80 @@ export default function Profile() {
           {tab === "history" && <History />}
           {tab === "revisions" && <Revisions />}
           {tab === "dou" && <DiarioOficialTab />}
+          {tab === "about" && (
+            <div className="space-y-4">
+              <div className="soe-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Info className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">SOE</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Versão{" "}
+                      {typeof __APP_VERSION__ !== "undefined"
+                        ? __APP_VERSION__
+                        : "dev"}{" "}
+                      ·{" "}
+                      {isAndroid
+                        ? "Android"
+                        : isElectronApp
+                          ? "Desktop"
+                          : "Web"}
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+                  Canal estável
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="soe-card p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Monitor className="h-4 w-4 text-primary" /> Desktop
+                  </div>
+                  <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+                    Atualização interna via electron-updater. O app verifica ao
+                    abrir e a cada 6 horas. Não abre navegador nem baixa
+                    instalador manual.
+                  </p>
+                </div>
+                <div className="soe-card p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Smartphone className="h-4 w-4 text-primary" /> Android
+                  </div>
+                  <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+                    Distribuição por APK, sem Play Store. O Android exige
+                    confirmação de instalação para apps fora da loja; o download
+                    é feito dentro do app.
+                  </p>
+                </div>
+              </div>
+
+              <div className="soe-card p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <Download className="h-4 w-4 text-primary" /> Backup antes de
+                  atualizar
+                </div>
+                <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+                  Antes de qualquer atualização, exporte o banco em Sync &
+                  Backup. O SOE não sobrescreve seus dados durante a troca de
+                  versão.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-3 h-8 text-[10px]"
+                  onClick={() => {
+                    setTab("settings");
+                    window.location.hash = "settings";
+                  }}
+                >
+                  Ir para configurações
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
