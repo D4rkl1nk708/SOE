@@ -834,6 +834,48 @@ export default function Sync() {
         }
       />
 
+      {dataHealth && (
+        <div className="grid grid-cols-2 gap-3 px-2 lg:grid-cols-4">
+          <div className="soe-card flex items-center gap-3 p-3">
+            <ShieldCheck
+              className={`h-5 w-5 flex-shrink-0 ${dataHealth.healthy ? "text-emerald-500" : "text-amber-500"}`}
+            />
+            <div>
+              <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                Estado dos dados
+              </p>
+              <p className="text-[12px] font-semibold">
+                {dataHealth.healthy ? "Consistente" : "Revisar"}
+              </p>
+            </div>
+          </div>
+          <div className="soe-card p-3">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+              Disciplinas duplicadas
+            </p>
+            <p className="text-[16px] font-semibold tabular-nums">
+              {dataHealth.duplicateDisciplines}
+            </p>
+          </div>
+          <div className="soe-card p-3">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+              Tópicos órfãos
+            </p>
+            <p className="text-[16px] font-semibold tabular-nums">
+              {dataHealth.orphanTopics}
+            </p>
+          </div>
+          <div className="soe-card p-3">
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+              Revisões órfãs
+            </p>
+            <p className="text-[16px] font-semibold tabular-nums">
+              {dataHealth.orphanRevisions}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-2">
         {/* Left Column: QR & Sync */}
         <div className="lg:col-span-8 space-y-8">
