@@ -704,12 +704,52 @@ export default function Sync() {
     }
   };
 
+  const confirmBackupImport = (json: string, source: string): boolean => {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      toast.error("O arquivo não é um JSON válido.");
+      return false;
+    }
+    const disciplines = Array.isArray(parsed?.disciplines)
+      ? parsed.disciplines.length
+      : 0;
+    const topics = Array.isArray(parsed?.topics) ? parsed.topics.length : 0;
+    const revisions = Array.isArray(parsed?.revisions)
+      ? parsed.revisions.length
+      : 0;
+    const errors = Array.isArray(parsed?.questionErrors)
+      ? parsed.questionErrors.length
+      : 0;
+    if (!disciplines && !topics && !revisions) {
+      toast.error(
+        "Backup sem disciplinas, tópicos ou revisões. Importação bloqueada.",
+      );
+      return false;
+    }
+    return window.confirm(
+      `Importar ${source}?
+
+` +
+        `Disciplinas: ${disciplines}
+Tópicos: ${topics}
+Revisões: ${revisions}
+Erros: ${errors}
+
+` +
+        `O SOE fará MESCLA com os dados atuais, não substituição total. ` +
+        `Mesmo assim, exporte um backup antes de continuar.`,
+    );
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true);
     try {
       const json = await file.text();
+      if (!confirmBackupImport(json, file.name)) return;
       if (isDesktop) {
         await importBackupMutation.mutateAsync({ json, fileName: file.name });
       } else {
@@ -742,6 +782,7 @@ export default function Sync() {
       );
       if (!res.ok) throw new Error("Acesso negado ao arquivo");
       const json = await res.text();
+      if (!confirmBackupImport(json, "backup do Google Drive")) return;
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
       toast.success("Sincronizado com a nuvem!");
