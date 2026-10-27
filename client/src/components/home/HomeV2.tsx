@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
@@ -58,6 +58,8 @@ export function HomeV2() {
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: me } = trpc.auth.me.useQuery();
   const examState = useExams();
+  const [examsOpen, setExamsOpen] = useState(false);
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const { data: overview } = trpc.study.overview.useQuery({
     minutes: Number((stats?.settings as any)?.dailyGoalMinutes) || 240,
   });
@@ -94,7 +96,7 @@ export function HomeV2() {
     month: "long",
   }).format(new Date());
 
-  const exam = useMemo(() => {
+  const sortedExams = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return (examState.exams || [])
@@ -106,9 +108,12 @@ export function HomeV2() {
             86400000,
         ),
       }))
-      .filter((item) => item.days >= 0)
-      .sort((a, b) => a.days - b.days)[0];
+      .sort((a, b) => a.date.localeCompare(b.date));
   }, [examState.exams]);
+  const exam =
+    sortedExams.find((item) => item.id === selectedExamId) ||
+    sortedExams.find((item) => item.days >= 0) ||
+    sortedExams[0];
 
   const week = useMemo(() => {
     const log = (settings.studySessionLog || []) as Array<{
@@ -373,37 +378,60 @@ export function HomeV2() {
               ))}
             </div>
           </div>
-          <button
-            onClick={() =>
-              exam ? examState.openEdit(exam) : examState.openCreate()
-            }
-            className="mt-3 flex w-full items-end justify-between border-t border-border pt-3 text-left"
-            title={exam ? "Editar próxima prova" : "Adicionar prova"}
-          >
-            <div>
+          <div className="mt-3 border-t border-border pt-3">
+            <div className="flex items-center justify-between">
               <span className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
-                Próxima prova
+                Provas
               </span>
-              <p className="mt-0.5 text-[11px] font-semibold">
-                {exam?.name || "Adicionar prova"}
-              </p>
-              <p className="text-[9px] text-muted-foreground">
+              <button
+                onClick={() => setExamsOpen(true)}
+                className="text-[9px] font-semibold text-primary hover:underline"
+              >
+                Gerenciar ({sortedExams.length})
+              </button>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <select
+                value={exam?.id || ""}
+                onChange={(event) => setSelectedExamId(event.target.value)}
+                className="min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-[11px] font-semibold text-foreground outline-none"
+              >
+                {sortedExams.length === 0 && (
+                  <option value="">Adicionar prova</option>
+                )}
+                {sortedExams.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-right">
+                <span className="block text-xl font-semibold tabular-nums">
+                  {exam?.days ?? "—"}
+                </span>
+                <span className="text-[8px] uppercase tracking-wider text-muted-foreground">
+                  dias
+                </span>
+              </span>
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground">
                 {exam
                   ? new Date(`${exam.date}T00:00:00`).toLocaleDateString(
                       "pt-BR",
                     )
-                  : "defina no Plano"}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="block text-xl font-semibold tabular-nums">
-                {exam?.days ?? "—"}
+                  : "nenhuma prova cadastrada"}
               </span>
-              <span className="text-[8px] uppercase tracking-wider text-muted-foreground">
-                dias
-              </span>
+              <button
+                onClick={() =>
+                  exam ? examState.openEdit(exam) : examState.openCreate()
+                }
+                className="text-[9px] font-semibold text-primary hover:underline"
+              >
+                {exam ? "Editar" : "Adicionar"}
+              </button>
             </div>
-          </button>
+          </div>
         </aside>
       </div>
 
@@ -651,6 +679,73 @@ export function HomeV2() {
           </div>
         </section>
       </div>
+
+      <Dialog open={examsOpen} onOpenChange={setExamsOpen}>
+        <DialogContent className="rounded-lg border-border bg-card sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">
+              Minhas provas
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Você pode manter quantas provas quiser. O Início mostra a que você
+              escolher.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 space-y-1 overflow-y-auto py-2">
+            {sortedExams.length === 0 ? (
+              <p className="py-3 text-[11px] text-muted-foreground">
+                Nenhuma prova cadastrada.
+              </p>
+            ) : (
+              sortedExams.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 rounded border border-border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold">
+                      {item.name}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">
+                      {new Date(`${item.date}T00:00:00`).toLocaleDateString(
+                        "pt-BR",
+                      )}{" "}
+                      · {item.days >= 0 ? `${item.days} dias` : "passada"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => examState.openEdit(item)}
+                      className="text-[9px] font-semibold text-primary hover:underline"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => examState.handleRemove(item.id)}
+                      className="text-[9px] font-semibold text-destructive hover:underline"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExamsOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                setExamsOpen(false);
+                examState.openCreate();
+              }}
+            >
+              Adicionar prova
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={examState.dialogOpen}
