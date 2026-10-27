@@ -253,7 +253,7 @@ export default function Calendar() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[0.7rem] font-black uppercase tracking-widest"
+            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/60 text-[0.7rem] font-black uppercase tracking-widest"
             onClick={() => {
               const settings = stats?.settings as any;
               schedule.setTestIntervalInput(
@@ -272,7 +272,7 @@ export default function Calendar() {
           </Button>
           <Button
             variant="outline"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-white/5 border-white/5 text-[0.7rem] font-black uppercase tracking-widest"
+            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/60 text-[0.7rem] font-black uppercase tracking-widest"
             onClick={() => setIcalDialogOpen(true)}
           >
             <CalendarIcon className="h-4 w-4 mr-2 opacity-40" /> Exportar
@@ -284,7 +284,7 @@ export default function Calendar() {
         {/* Main Calendar View */}
         <div className="space-y-4">
           <div className="soe-card overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.01]">
+            <div className="flex items-center justify-between p-4 border-b border-border/60 bg-secondary/20">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-black uppercase tracking-widest opacity-80">
                   {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
@@ -293,26 +293,26 @@ export default function Calendar() {
               <div className="flex gap-1">
                 <button
                   onClick={prevMonth}
-                  className="p-2 hover:bg-white/5 rounded-xl transition-all"
+                  className="p-2 hover:bg-secondary/40 rounded-xl transition-all"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => setCurrentMonth(new Date())}
-                  className="px-3 py-1 text-[0.7rem] font-black uppercase tracking-widest hover:bg-white/5 rounded-lg"
+                  className="px-3 py-1 text-[0.7rem] font-black uppercase tracking-widest hover:bg-secondary/40 rounded-lg"
                 >
                   Hoje
                 </button>
                 <button
                   onClick={nextMonth}
-                  className="p-2 hover:bg-white/5 rounded-xl transition-all"
+                  className="p-2 hover:bg-secondary/40 rounded-xl transition-all"
                 >
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-7 border-b border-white/5 bg-white/[0.01]">
+            <div className="grid grid-cols-7 border-b border-border/60 bg-secondary/20">
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"].map((d) => (
                 <div
                   key={d}
@@ -338,15 +338,15 @@ export default function Calendar() {
                       setDayFilter("all");
                       setIsDayDetailOpen(true);
                     }}
-                    className={`min-h-[100px] md:min-h-[140px] p-2 border-r border-b border-white/5 transition-all cursor-pointer relative group
-                        ${!isCurrentMonth ? "opacity-[0.15] bg-black/20" : "hover:bg-white/[0.02]"}
+                    className={`min-h-[100px] md:min-h-[140px] p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
+                        ${!isCurrentMonth ? "opacity-[0.15] bg-secondary/30" : "hover:bg-secondary/25"}
                         ${isSelected ? "bg-[var(--primary-bg-subtle)] !opacity-100" : ""}
                         ${isToday ? "ring-2 ring-inset ring-[var(--primary)]/50 bg-[var(--primary-bg-subtle)]/30 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]" : ""}
                       `}
                   >
                     <div className="flex justify-between items-center mb-1">
                       <span
-                        className={`text-[0.75rem] font-black px-1.5 py-0.5 rounded-md ${isToday ? "bg-[var(--primary)] text-white shadow-lg" : isSelected ? "text-[var(--primary)]" : "opacity-40"}`}
+                        className={`text-[0.75rem] font-black px-1.5 py-0.5 rounded-md ${isToday ? "bg-[var(--primary)] text-primary-foreground shadow-lg" : isSelected ? "text-[var(--primary)]" : "opacity-40"}`}
                       >
                         {format(day, "d")}
                       </span>
@@ -362,7 +362,7 @@ export default function Calendar() {
                           <div
                             key={a.id}
                             className={`text-[0.6rem] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border flex items-center gap-1 
-                            ${a.completed ? "opacity-30 line-through border-white/5" : a.type === "test" ? "opacity-50 border-dashed border-white/20" : "border-white/5"}`}
+                            ${a.completed ? "opacity-30 line-through border-border/60" : a.type === "test" ? "opacity-50 border-dashed border-border" : "border-border/60"}`}
                             style={{
                               backgroundColor: `${a.disciplineColor}15`,
                               color: a.disciplineColor,
@@ -406,18 +406,18 @@ export default function Calendar() {
 
       {/* Day Detail Modal — Command Center Redesign */}
       <Dialog open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
-        <DialogContent className="!bg-[#0a0a0a] !border-white/10 !w-[95vw] !max-w-6xl rounded-[2.5rem] p-0 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] border-[0.5px] [&>button]:hidden">
+        <DialogContent className="!bg-card !border-border !w-[95vw] !max-w-6xl rounded-[2.5rem] p-0 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] border-[0.5px] [&>button]:hidden">
           {selectedDay && (
             <div className="flex flex-col h-[85vh] md:h-auto max-h-[90vh]">
               {/* Ultra-Compact Header */}
-              <div className="px-10 py-8 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent flex items-end justify-between">
+              <div className="px-10 py-8 border-b border-border/60 bg-gradient-to-b from-secondary/20 to-transparent flex items-end justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
-                    <DialogTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
+                    <DialogTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">
                       Programação Diária
                     </DialogTitle>
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/10">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40">
                       • {getDayActivities(selectedDay).length} Tarefas
                     </span>
                     <DialogDescription className="sr-only">
@@ -431,7 +431,7 @@ export default function Calendar() {
                     </span>
                   </h3>
                 </div>
-                <div className="px-5 py-2 rounded-2xl bg-white/5 border border-white/5">
+                <div className="px-5 py-2 rounded-2xl bg-secondary/40 border border-border/60">
                   <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
                     {format(selectedDay, "EEEE", { locale: ptBR })}
                   </span>
@@ -451,7 +451,7 @@ export default function Calendar() {
               >
                 {/* Filtros Rápidos */}
                 {getDayActivities(selectedDay).length > 0 && (
-                  <div className="flex flex-wrap gap-2 pb-4 border-b border-white/5">
+                  <div className="flex flex-wrap gap-2 pb-4 border-b border-border/60">
                     {[
                       {
                         id: "all",
@@ -486,15 +486,15 @@ export default function Calendar() {
                         className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 select-none
                           ${
                             dayFilter === f.id
-                              ? "bg-white text-black border-white"
-                              : "bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-white/10"
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-secondary/40 border-border/60 text-muted-foreground hover:text-primary-foreground hover:bg-secondary/60"
                           }
                         `}
                       >
                         {f.label}
                         <span
                           className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold
-                          ${dayFilter === f.id ? "bg-black/10 text-black/60" : "bg-white/5 text-white/40"}
+                          ${dayFilter === f.id ? "bg-black/10 text-black/60" : "bg-secondary/40 text-muted-foreground"}
                         `}
                         >
                           {f.count}
@@ -525,7 +525,7 @@ export default function Calendar() {
                     return (
                       <div className="space-y-3 relative">
                         {/* Vertical Timeline Line */}
-                        <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-white/5 hidden md:block" />
+                        <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-secondary/40 hidden md:block" />
 
                         {visibleActivities.map((activity) => {
                           const isTest = activity.type === "test";
@@ -537,8 +537,8 @@ export default function Calendar() {
                               className={`group relative flex items-start gap-6 p-5 rounded-[2rem] border transition-all duration-300
                                 ${
                                   isCompleted
-                                    ? "bg-white/[0.01] border-white/5 opacity-40"
-                                    : "bg-white/[0.03] border-white/5 hover:border-white/20 hover:bg-white/[0.05] hover:shadow-2xl"
+                                    ? "bg-secondary/20 border-border/60 opacity-40"
+                                    : "bg-secondary/35 border-border/60 hover:border-border hover:bg-secondary/50 hover:shadow-2xl"
                                 }
                               `}
                             >
@@ -554,7 +554,7 @@ export default function Calendar() {
                                 </span>
                                 <div
                                   className={`w-14 h-14 rounded-2xl border flex items-center justify-center transition-all duration-300 shadow-2xl relative
-                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-white/10 text-white/20 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}
+                                      ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black shadow-emerald-500/20" : "bg-black border-border text-muted-foreground/50 group-hover/node:border-[var(--primary)] group-hover/node:text-[var(--primary)] group-hover/node:scale-110 active:scale-95"}
                                       ${pendingToggles.has(activity.id) ? "opacity-75 ring-2 ring-emerald-400 animate-pulse" : ""}`}
                                 >
                                   {isCompleted ? (
@@ -570,7 +570,7 @@ export default function Calendar() {
                                 <div className="space-y-2 flex-1">
                                   <div className="flex items-center gap-3">
                                     <span
-                                      className="px-2.5 py-0.5 rounded-lg text-[0.6rem] font-black uppercase tracking-widest border border-white/5"
+                                      className="px-2.5 py-0.5 rounded-lg text-[0.6rem] font-black uppercase tracking-widest border border-border/60"
                                       style={{
                                         color: activity.disciplineColor,
                                         backgroundColor: `${activity.disciplineColor}10`,
@@ -578,18 +578,18 @@ export default function Calendar() {
                                     >
                                       {activity.disciplineName}
                                     </span>
-                                    <span className="text-[0.6rem] font-bold text-white/20 uppercase tracking-widest">
+                                    <span className="text-[0.6rem] font-bold text-muted-foreground/50 uppercase tracking-widest">
                                       {isTest ? "Simulado" : "Revisão"}
                                     </span>
                                   </div>
                                   <h4
-                                    className={`text-lg font-bold tracking-tight leading-tight ${isCompleted ? "line-through" : "text-white/90"}`}
+                                    className={`text-lg font-bold tracking-tight leading-tight ${isCompleted ? "line-through" : "text-foreground"}`}
                                   >
                                     {activity.topicName}
                                     {(activity as any).questionsResolved > 0 &&
                                       typeof (activity as any).accuracy ===
                                         "number" && (
-                                        <span className="text-white/20 font-medium ml-2 select-none">
+                                        <span className="text-muted-foreground/50 font-medium ml-2 select-none">
                                           - {(activity as any).accuracy}%
                                         </span>
                                       )}
@@ -607,12 +607,12 @@ export default function Calendar() {
                                       )
                                     }
                                     className={`h-11 px-6 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all
-                                        ${isCompleted ? "bg-white/5 text-white/20" : "bg-white text-black hover:scale-[1.05] shadow-lg"}`}
+                                        ${isCompleted ? "bg-secondary/40 text-muted-foreground/50" : "bg-primary text-primary-foreground hover:scale-[1.05] shadow-lg"}`}
                                   >
                                     <PlayCircle size={14} /> Treinar
                                   </button>
 
-                                  <div className="h-11 w-[1px] bg-white/5 mx-1" />
+                                  <div className="h-11 w-[1px] bg-secondary/40 mx-1" />
 
                                   <div className="flex gap-1.5">
                                     {!isTest && (
@@ -620,7 +620,7 @@ export default function Calendar() {
                                         onClick={() =>
                                           handleOpenSubjective(activity)
                                         }
-                                        className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/20 hover:text-white transition-all"
+                                        className="w-11 h-11 rounded-xl bg-secondary/40 border border-border/60 flex items-center justify-center text-muted-foreground/50 hover:text-primary-foreground transition-all"
                                       >
                                         <Camera size={16} />
                                       </button>
@@ -631,7 +631,7 @@ export default function Calendar() {
                                         href={activity.link}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                        className="w-11 h-11 rounded-xl bg-secondary/40 border border-border/60 flex items-center justify-center text-muted-foreground hover:text-primary-foreground hover:bg-secondary/60 transition-all"
                                       >
                                         <LinkIcon size={16} />
                                       </a>
@@ -646,7 +646,7 @@ export default function Calendar() {
                                         )
                                       }
                                       className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-all
-                                          ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-white" : "bg-white/5 border-white/5 text-white/20 hover:text-white"}`}
+                                          ${expandedLinkId === activity.id ? "bg-[var(--primary)] border-[var(--primary)] text-primary-foreground" : "bg-secondary/40 border-border/60 text-muted-foreground/50 hover:text-primary-foreground"}`}
                                     >
                                       <Settings2 size={16} />
                                     </button>
@@ -659,7 +659,7 @@ export default function Calendar() {
                                         )
                                       }
                                       className={`md:hidden w-11 h-11 rounded-xl border flex items-center justify-center transition-all
-                                          ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black" : "bg-white/5 border-white/5 text-white/20"}`}
+                                          ${isCompleted ? "bg-emerald-500 border-emerald-500 text-black" : "bg-secondary/40 border-border/60 text-muted-foreground/50"}`}
                                     >
                                       <Check size={16} />
                                     </button>
@@ -669,7 +669,7 @@ export default function Calendar() {
 
                               {/* Link Editor — Integrated Overlay */}
                               {expandedLinkId === activity.id && (
-                                <div className="absolute left-0 right-0 top-full mt-2 z-20 p-5 rounded-2xl bg-black border border-white/10 shadow-2xl animate-in fade-in zoom-in-95">
+                                <div className="absolute left-0 right-0 top-full mt-2 z-20 p-5 rounded-2xl bg-black border border-border shadow-2xl animate-in fade-in zoom-in-95">
                                   <div className="flex gap-3">
                                     <input
                                       type="text"
@@ -685,7 +685,7 @@ export default function Calendar() {
                                           [activity.id]: e.target.value,
                                         }))
                                       }
-                                      className="flex-1 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-xs outline-none focus:border-white/20"
+                                      className="flex-1 bg-secondary/40 border border-border/60 rounded-xl px-4 py-2 text-xs outline-none focus:border-border"
                                     />
                                     <button
                                       onClick={() => {
@@ -699,7 +699,7 @@ export default function Calendar() {
                                         });
                                         setExpandedLinkId(null);
                                       }}
-                                      className="px-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                      className="px-4 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest"
                                     >
                                       Salvar
                                     </button>
@@ -715,7 +715,7 @@ export default function Calendar() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="bg-white/5 border-white/10 hover:bg-white/10 text-xs rounded-xl"
+                              className="bg-secondary/40 border-border hover:bg-secondary/60 text-xs rounded-xl"
                               onClick={() =>
                                 setModalVisibleCount((prev) =>
                                   Math.min(
@@ -732,7 +732,7 @@ export default function Calendar() {
                           </div>
                         )}
                         {!hasMore && filteredActivities.length > 15 && (
-                          <div className="pt-3 text-center text-[10px] text-white/30 uppercase tracking-widest">
+                          <div className="pt-3 text-center text-[10px] text-muted-foreground/60 uppercase tracking-widest">
                             Todas as {filteredActivities.length} tarefas
                             carregadas
                           </div>
@@ -742,7 +742,7 @@ export default function Calendar() {
                   } else {
                     return (
                       <div className="py-20 text-center space-y-4">
-                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto opacity-20">
+                        <div className="w-16 h-16 rounded-2xl bg-secondary/40 flex items-center justify-center mx-auto opacity-20">
                           <EyeOff size={32} />
                         </div>
                         <p className="text-sm font-bold opacity-30 uppercase tracking-[0.2em]">
@@ -756,7 +756,7 @@ export default function Calendar() {
                 })()}
               </div>
 
-              <div className="px-10 py-6 border-t border-white/5 flex justify-end bg-white/[0.01]">
+              <div className="px-10 py-6 border-t border-border/60 flex justify-end bg-secondary/20">
                 <Button
                   variant="ghost"
                   onClick={() => setIsDayDetailOpen(false)}
@@ -804,7 +804,7 @@ export default function Calendar() {
       )}
 
       <Dialog open={icalDialogOpen} onOpenChange={setIcalDialogOpen}>
-        <DialogContent className="soe-card !bg-[var(--app-bg)] !border-white/10 max-w-sm rounded-[2rem]">
+        <DialogContent className="soe-card !bg-[var(--app-bg)] !border-border max-w-sm rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="text-xl font-black">
               Exportar Calendário
@@ -814,7 +814,7 @@ export default function Calendar() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+            <div className="p-4 rounded-2xl bg-secondary/40 border border-border/60">
               <p className="text-[0.7rem] font-black uppercase tracking-widest opacity-40 mb-2">
                 Seu Link iCal
               </p>
@@ -822,7 +822,7 @@ export default function Calendar() {
                 <input
                   readOnly
                   value="http://localhost:3000/api/calendar/feed"
-                  className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[0.7rem] font-mono"
+                  className="flex-1 bg-black/40 border border-border/60 rounded-xl px-3 py-2 text-[0.7rem] font-mono"
                 />
                 <button
                   onClick={() => {
@@ -839,7 +839,7 @@ export default function Calendar() {
             </div>
             <Button
               onClick={() => setIcalDialogOpen(false)}
-              className="w-full py-6 rounded-2xl bg-white/5 border-white/5 font-black uppercase text-[0.7rem] tracking-widest"
+              className="w-full py-6 rounded-2xl bg-secondary/40 border-border/60 font-black uppercase text-[0.7rem] tracking-widest"
             >
               Fechar
             </Button>

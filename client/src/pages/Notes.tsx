@@ -154,7 +154,7 @@ function RichEditor({
       {/* Premium Toolbar */}
       <div
         id="tour-notes-toolbar"
-        className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-border/70 bg-white/[0.01] relative"
+        className="flex items-center gap-1 px-2 md:px-6 py-2 border-b border-border/70 bg-secondary/20 relative"
       >
         <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth mask-fade-right pr-12">
           {toolbarGroups.map((group, gi) => (
@@ -416,7 +416,7 @@ export default function Notes() {
       {/* Sidebar */}
       <div
         id="tour-notes-sidebar"
-        className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-border/70 bg-white/[0.01] backdrop-blur-3xl transition-all`}
+        className={`${activeNoteId ? "hidden md:flex" : "flex"} flex flex-col w-full md:w-[320px] shrink-0 border-r border-border/70 bg-secondary/20 backdrop-blur-3xl transition-all`}
       >
         <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           <div className="flex items-center justify-between">
@@ -462,7 +462,7 @@ export default function Notes() {
                 <button
                   key={d.id}
                   onClick={() => setFilterDisciplineId(d.id)}
-                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${filterDisciplineId === d.id ? "text-white" : "text-muted-foreground border-border/70"}`}
+                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${filterDisciplineId === d.id ? "text-primary-foreground" : "text-muted-foreground border-border/70"}`}
                   style={{
                     backgroundColor:
                       filterDisciplineId === d.id ? d.color : undefined,
@@ -505,7 +505,7 @@ export default function Notes() {
                   </span>
                 </div>
                 <h3
-                  className={`text-xs font-black truncate ${isActive ? "text-[var(--primary)]" : "text-white/80"}`}
+                  className={`text-xs font-black truncate ${isActive ? "text-[var(--primary)]" : "text-foreground"}`}
                 >
                   {note.title}
                 </h3>
@@ -605,7 +605,7 @@ export default function Notes() {
             <div className="relative mb-10">
               <div className="absolute inset-0 bg-[var(--primary)] blur-3xl opacity-10 animate-pulse" />
               <div className="relative p-10 rounded-[3.5rem] bg-secondary/20 border border-border/70 shadow-2xl">
-                <FileText size={64} className="text-white/10" />
+                <FileText size={64} className="text-muted-foreground/40" />
               </div>
             </div>
             <div className="space-y-4 mb-10 max-w-xs mx-auto">
