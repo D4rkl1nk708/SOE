@@ -170,7 +170,7 @@ function RichEditor({
                     e.preventDefault();
                     exec(btn.cmd, btn.val);
                   }}
-                  className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all active:scale-90"
+                  className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-md flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all active:scale-90"
                 >
                   {btn.icon}
                 </button>
@@ -183,7 +183,7 @@ function RichEditor({
               e.preventDefault();
               imgInputRef.current?.click();
             }}
-            className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-xl flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all"
+            className="w-12 h-12 md:w-9 md:h-9 shrink-0 rounded-md flex items-center justify-center hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all"
           >
             <ImagePlus size={16} />
           </button>
@@ -200,7 +200,7 @@ function RichEditor({
                 e.preventDefault();
                 setShowAiMenu(!showAiMenu);
               }}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:brightness-110 active:scale-95 transition-all"
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[var(--primary-shadow)] hover:brightness-110 active:scale-95 transition-all"
             >
               <Sparkles size={14} />{" "}
               <span className="hidden sm:inline">IA</span>
@@ -212,7 +212,7 @@ function RichEditor({
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  className="absolute top-full right-0 mt-3 p-1.5 rounded-2xl shadow-2xl z-[100] w-52 bg-[var(--card-bg)] border border-border backdrop-blur-3xl overflow-hidden"
+                  className="absolute top-full right-0 mt-3 p-1.5 rounded-lg shadow-2xl z-[100] w-52 bg-[var(--card-bg)] border border-border backdrop-blur-3xl overflow-hidden"
                 >
                   {[
                     { id: "summarize", label: "Resumir Seleção" },
@@ -226,7 +226,7 @@ function RichEditor({
                         e.preventDefault();
                         handleAiAction(a.id as any);
                       }}
-                      className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-secondary/40 transition-all opacity-60 hover:opacity-100"
+                      className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-secondary/40 transition-all opacity-60 hover:opacity-100"
                     >
                       {a.label}
                     </button>
@@ -426,9 +426,12 @@ export default function Notes() {
             >
               Anotações
             </h1>
+            <p className="text-[9px] text-muted-foreground">
+              {notes.length} notas · {filteredNotes.length} no filtro
+            </p>
             <button
               onClick={() => setIsCreating(true)}
-              className="w-10 h-10 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center"
+              className="w-10 h-10 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-95 transition-all flex items-center justify-center"
             >
               <Plus size={20} />
             </button>
@@ -443,14 +446,14 @@ export default function Notes() {
               placeholder="Buscar no acervo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-3 rounded-2xl text-xs outline-none bg-secondary/40 border border-border/70 focus:border-[var(--primary-border)] transition-all"
+              className="w-full pl-9 pr-4 py-3 rounded-lg text-xs outline-none bg-secondary/40 border border-border/70 focus:border-[var(--primary-border)] transition-all"
             />
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <button
               onClick={() => setFilterDisciplineId(null)}
-              className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${!filterDisciplineId ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-secondary/40 text-muted-foreground border-border/70"}`}
+              className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-md border transition-all ${!filterDisciplineId ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "bg-secondary/40 text-muted-foreground border-border/70"}`}
             >
               Todos
             </button>
@@ -462,7 +465,7 @@ export default function Notes() {
                 <button
                   key={d.id}
                   onClick={() => setFilterDisciplineId(d.id)}
-                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all ${filterDisciplineId === d.id ? "text-primary-foreground" : "text-muted-foreground border-border/70"}`}
+                  className={`text-[9px] shrink-0 font-black uppercase tracking-widest px-4 py-2 rounded-md border transition-all ${filterDisciplineId === d.id ? "text-primary-foreground" : "text-muted-foreground border-border/70"}`}
                   style={{
                     backgroundColor:
                       filterDisciplineId === d.id ? d.color : undefined,
@@ -486,7 +489,7 @@ export default function Notes() {
               <div
                 key={note.id}
                 onClick={() => setActiveNoteId(note.id)}
-                className={`group p-4 rounded-2xl cursor-pointer transition-all border ${isActive ? "bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] shadow-inner" : "border-transparent hover:bg-secondary/40"}`}
+                className={`group p-4 rounded-lg cursor-pointer transition-all border ${isActive ? "bg-[var(--primary-bg-subtle)] border-[var(--primary-border)] shadow-inner" : "border-transparent hover:bg-secondary/40"}`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {disc && (
@@ -523,7 +526,7 @@ export default function Notes() {
               setIsCreating(true);
               importFileRef.current?.click();
             }}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-border/70 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-border/70 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all active:scale-[0.98]"
           >
             <Upload size={14} /> Importar Arquivo
           </button>
@@ -538,7 +541,7 @@ export default function Notes() {
               <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
                 <button
                   onClick={() => setActiveNoteId(null)}
-                  className="md:hidden p-3 rounded-xl bg-secondary/40 text-[var(--primary)] shrink-0"
+                  className="md:hidden p-3 rounded-md bg-secondary/40 text-[var(--primary)] shrink-0"
                 >
                   <ChevronLeft size={20} />
                 </button>
@@ -559,7 +562,7 @@ export default function Notes() {
               </div>
 
               <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                <div className="hidden xs:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/40 border border-border/70">
+                <div className="hidden xs:flex items-center gap-1.5 px-3 py-2 rounded-md bg-secondary/40 border border-border/70">
                   {isDirty ? (
                     <Clock size={12} className="text-amber-500 animate-pulse" />
                   ) : (
@@ -573,7 +576,7 @@ export default function Notes() {
                   data-testid="btn-generate-flashcards"
                   onClick={handleGenerateFlashcards}
                   disabled={generateFlashcardsMut.isPending}
-                  className="p-3.5 md:px-4 md:py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-90 transition-all"
+                  className="p-3.5 md:px-4 md:py-2 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-shadow)] active:scale-90 transition-all"
                 >
                   <Sparkles size={18} />
                 </button>
@@ -583,7 +586,7 @@ export default function Notes() {
                     if (confirm("Excluir anotação?"))
                       deleteNote.mutate({ id: (activeNote as any).id });
                   }}
-                  className="p-3.5 rounded-xl hover:bg-rose-500/10 text-muted-foreground/70 hover:text-rose-500 transition-all active:scale-90"
+                  className="p-3.5 rounded-md hover:bg-rose-500/10 text-muted-foreground/70 hover:text-rose-500 transition-all active:scale-90"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -623,7 +626,7 @@ export default function Notes() {
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-[280px] sm:max-w-none justify-center">
               <button
                 onClick={() => setIsCreating(true)}
-                className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:brightness-110 active:scale-95 transition-all"
+                className="px-8 py-4 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-2xl shadow-[var(--primary-shadow)] hover:brightness-110 active:scale-95 transition-all"
               >
                 + Nova Anotação
               </button>
@@ -632,7 +635,7 @@ export default function Notes() {
                   setIsCreating(true);
                   importFileRef.current?.click();
                 }}
-                className="px-8 py-4 rounded-2xl bg-secondary/40 border border-border font-black text-xs uppercase tracking-widest opacity-60 hover:opacity-100 transition-all"
+                className="px-8 py-4 rounded-lg bg-secondary/40 border border-border font-black text-xs uppercase tracking-widest opacity-60 hover:opacity-100 transition-all"
               >
                 <Upload size={14} className="inline mr-2" /> Importar
               </button>
@@ -661,7 +664,7 @@ export default function Notes() {
                   </h2>
                   <button
                     onClick={() => setIsCreating(false)}
-                    className="p-3 rounded-2xl bg-secondary/40 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-all"
+                    className="p-3 rounded-lg bg-secondary/40 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 transition-all"
                   >
                     <X size={20} />
                   </button>
@@ -677,7 +680,7 @@ export default function Notes() {
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       placeholder="Ex: Controle de Constitucionalidade"
-                      className="w-full px-6 py-4 rounded-2xl bg-secondary/40 border border-border text-sm outline-none focus:border-[var(--primary-border)] transition-all"
+                      className="w-full px-6 py-4 rounded-lg bg-secondary/40 border border-border text-sm outline-none focus:border-[var(--primary-border)] transition-all"
                     />
                   </div>
 
@@ -691,7 +694,7 @@ export default function Notes() {
                         onChange={(e) =>
                           setNewDisciplineId(e.target.value as any)
                         }
-                        className="w-full px-5 py-4 rounded-2xl bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none cursor-pointer"
+                        className="w-full px-5 py-4 rounded-lg bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none cursor-pointer"
                       >
                         <option value="">Selecionar...</option>
                         {disciplines.map((d: any) => (
@@ -709,7 +712,7 @@ export default function Notes() {
                         value={newTopicId}
                         onChange={(e) => setNewTopicId(e.target.value as any)}
                         disabled={!newDisciplineId}
-                        className="w-full px-5 py-4 rounded-2xl bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none disabled:opacity-20 cursor-pointer"
+                        className="w-full px-5 py-4 rounded-lg bg-secondary/40 border border-border text-[11px] font-bold outline-none focus:border-[var(--primary-border)] appearance-none disabled:opacity-20 cursor-pointer"
                       >
                         <option value="">Nenhum</option>
                         {allTopics
