@@ -909,9 +909,7 @@ export function smartMergeDatabases(
   const userDiscsA = safeA.disciplines.filter(
     (d) => !targetUserId || d.userId === targetUserId,
   );
-  const userDiscsB = safeB.disciplines.filter(
-    (d) => !targetUserId || d.userId === targetUserId,
-  );
+  const userDiscsB = safeB.disciplines;
   const discNameById = new Map<number, string>();
   for (const discipline of [...userDiscsA, ...userDiscsB]) {
     discNameById.set(discipline.id, normalizeString(discipline.name));
@@ -932,11 +930,7 @@ export function smartMergeDatabases(
       .filter((topic) => !targetUserId || topic.userId === targetUserId)
       .map(topicKey),
   );
-  const topKeysB = new Set(
-    safeB.topics
-      .filter((topic) => !targetUserId || topic.userId === targetUserId)
-      .map(topicKey),
-  );
+  const topKeysB = new Set(safeB.topics.map(topicKey));
   const overlapTopics = [...topKeysA].filter((key) => topKeysB.has(key)).length;
   const errorKey = (error: any) =>
     error.questionId
@@ -947,11 +941,7 @@ export function smartMergeDatabases(
       .filter((error) => !targetUserId || error.userId === targetUserId)
       .map(errorKey),
   );
-  const errorKeysB = new Set(
-    (safeB.questionErrors || [])
-      .filter((error) => !targetUserId || error.userId === targetUserId)
-      .map(errorKey),
-  );
+  const errorKeysB = new Set((safeB.questionErrors || []).map(errorKey));
   const overlapErrors = [...errorKeysA].filter((key) =>
     errorKeysB.has(key),
   ).length;
