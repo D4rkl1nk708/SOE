@@ -590,6 +590,30 @@ export default function Sync() {
         json = await localImportExportBackup();
       }
 
+      // Validação dura: nunca deixa baixar um backup vazio.
+      let parsedBackup: any = null;
+      try {
+        parsedBackup = JSON.parse(json);
+      } catch {
+        throw new Error("O backup gerado não é um JSON válido.");
+      }
+      const users = Array.isArray(parsedBackup?.users)
+        ? parsedBackup.users.length
+        : 0;
+      const disciplines = Array.isArray(parsedBackup?.disciplines)
+        ? parsedBackup.disciplines.length
+        : 0;
+      const topics = Array.isArray(parsedBackup?.topics)
+        ? parsedBackup.topics.length
+        : 0;
+      const errors = Array.isArray(parsedBackup?.questionErrors)
+        ? parsedBackup.questionErrors.length
+        : 0;
+      if (users === 0 && disciplines === 0 && topics === 0 && errors === 0) {
+        throw new Error(
+          "O backup veio vazio. O banco deste dispositivo pode estar sem dados; abra o sistema no desktop e exporte de lá.",
+        );
+      }
       const fileName = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
 
       // No Android/APK nativo: Abre o compartilhador do sistema (WhatsApp, Drive, Email, Arquivos)
@@ -642,7 +666,9 @@ export default function Sync() {
       a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Backup baixado com sucesso!");
+      toast.success(
+        `Backup baixado: ${disciplines} disciplinas, ${topics} temas, ${errors} erros.`,
+      );
     } catch (e: any) {
       const msg = e?.message || String(e);
       if (
