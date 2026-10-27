@@ -59,6 +59,22 @@ export async function configureApp(): Promise<{
   const app = express();
   const server = createServer(app);
   // Limite alto para backups/PDFs, mas não 1 GB por requisição (DoS local).
+  app.get("/api/health", (_req: any, res: any) => {
+    let version = process.env.npm_package_version || "dev";
+    try {
+      const pkg = JSON.parse(
+        fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+      );
+      version = pkg.version || version;
+    } catch {}
+    res.json({
+      status: "ok",
+      version,
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.use(express.json({ limit: "128mb" }));
   app.use(express.urlencoded({ limit: "128mb", extended: true }));
   app.use(express.text({ limit: "128mb" }));
