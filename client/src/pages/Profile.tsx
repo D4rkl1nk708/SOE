@@ -969,6 +969,12 @@ export default function Profile() {
     ["history", "revisions", "dou"].includes(hash) ? (hash as Tab) : "settings",
   );
 
+  const [serverHealth, setServerHealth] = useState<{
+    status: string;
+    version?: string;
+    uptimeSeconds?: number;
+  } | null>(null);
+
   const [updateStatus, setUpdateStatus] = useState<{
     loading: boolean;
     message: string;
@@ -1003,6 +1009,22 @@ export default function Profile() {
     };
     reader.readAsDataURL(file);
   };
+
+  useEffect(() => {
+    if (tab !== "about") return;
+    let cancelled = false;
+    fetch("/api/health")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled) setServerHealth(data);
+      })
+      .catch(() => {
+        if (!cancelled) setServerHealth(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   const TABS: Array<{ id: Tab; label: string; desc: string; icon: any }> = [
     {
@@ -1151,6 +1173,18 @@ export default function Profile() {
                         : isElectronApp
                           ? "Desktop"
                           : "Web"}
+                    </p>
+                    <p className="mt-1 flex items-center gap-1.5 text-[9px] text-muted-foreground">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          serverHealth?.status === "ok"
+                            ? "bg-emerald-500"
+                            : "bg-amber-500"
+                        }`}
+                      />
+                      {serverHealth?.status === "ok"
+                        ? `Servidor local online · ${serverHealth.uptimeSeconds ?? 0}s`
+                        : "Servidor local não verificado"}
                     </p>
                   </div>
                 </div>
