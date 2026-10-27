@@ -220,8 +220,8 @@ function NavItem({
       title={collapsed ? label : undefined}
       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative ${collapsed ? "justify-center mx-1" : "mx-2"} ${
         active
-          ? "bg-secondary text-primary border border-border shadow-sm"
-          : "text-muted-foreground hover:bg-secondary/30 hover:text-foreground border border-transparent"
+          ? "bg-[color-mix(in_srgb,var(--primary)_9%,var(--card))] text-primary border border-[color-mix(in_srgb,var(--primary)_22%,var(--border))]"
+          : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground border border-transparent"
       }`}
     >
       <Icon
@@ -248,18 +248,22 @@ function Sidebar({
   location,
   navMode,
   onToggleNavMode,
+  examName,
+  examDays,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   location: string;
   navMode: "focused" | "complete";
   onToggleNavMode: () => void;
+  examName?: string;
+  examDays?: number;
 }) {
   const [toolsOpen, setToolsOpen] = useState(false);
   const navGroups = navMode === "focused" ? FOCUSED_NAV_GROUPS : NAV_GROUPS;
   return (
     <aside
-      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out relative ${collapsed ? "w-[64px]" : "w-[200px]"} bg-sidebar border-r border-border`}
+      className={`hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out relative ${collapsed ? "w-[64px]" : "w-[216px]"} bg-sidebar border-r border-border`}
     >
       {/* Logo row */}
       <div
@@ -289,6 +293,25 @@ function Sidebar({
         )}
       </div>
 
+      {!collapsed && (
+        <Link
+          href="/plan"
+          className="mx-3 mb-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/30"
+        >
+          <p className="text-[7.5px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Foco atual
+          </p>
+          <p className="mt-1 truncate text-[11px] font-semibold text-foreground">
+            {examName || "Definir prova"}
+          </p>
+          <p className="mt-0.5 text-[9px] text-muted-foreground">
+            {typeof examDays === "number"
+              ? `${examDays} dias restantes`
+              : "sem data definida"}
+          </p>
+        </Link>
+      )}
+
       {collapsed && (
         <div className="flex justify-center pb-4">
           <button
@@ -302,7 +325,7 @@ function Sidebar({
       )}
 
       {/* Grouped nav */}
-      <nav className="flex-1 overflow-y-auto px-1 py-4 space-y-8 custom-scrollbar">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-1 py-4 space-y-6 custom-scrollbar">
         {navGroups.map((group) => (
           <div key={group.label} className="space-y-2">
             {!collapsed ? (
@@ -429,7 +452,22 @@ function Sidebar({
 
 // ── Root Layout ───────────────────────────────────────────────────────────────
 export function Layout({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("soe_sidebar_collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem("soe_sidebar_collapsed", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  };
   const [navMode, setNavMode] = useState<"focused" | "complete">(() => {
     try {
       return localStorage.getItem("soe_nav_mode") === "complete"
@@ -488,15 +526,17 @@ export function Layout({ children }: { children: ReactNode }) {
     >
       <Sidebar
         collapsed={collapsed}
-        onToggle={() => setCollapsed((c) => !c)}
+        onToggle={toggleCollapsed}
         location={location}
         navMode={navMode}
         onToggleNavMode={toggleNavMode}
+        examName={nextExam?.name}
+        examDays={nextExam?.days}
       />
 
       {/* Content area */}
       <div
-        className="flex-1 flex flex-col min-w-0 overflow-hidden pb-16 md:pb-0"
+        className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-16 md:pb-0"
         style={{ background: "var(--app-bg)" }}
       >
         {/* Mobile header */}
@@ -656,7 +696,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </header>
 
         <main
-          className="flex-1 overflow-x-hidden overflow-y-auto w-full"
+          className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain w-full"
           style={{ background: "var(--app-bg)" }}
         >
           <div className="mx-auto w-full max-w-[1600px] p-3 md:p-6">
