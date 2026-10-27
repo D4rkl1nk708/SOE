@@ -49,3 +49,18 @@ jobs:
 
     - name: Build
       run: npm run build
+
+    - name: Smoke test production server
+      run: |
+        DATA_DIR="$(mktemp -d)" PORT=3101 NODE_ENV=production node dist/index.cjs > /tmp/soe-smoke.log 2>&1 &
+        SERVER_PID=$!
+        trap "kill $SERVER_PID 2>/dev/null || true" EXIT
+        for i in $(seq 1 20); do
+          if curl -fsS http://127.0.0.1:3101/ > /dev/null; then
+            echo "Smoke test OK"
+            exit 0
+          fi
+          sleep 1
+        done
+        cat /tmp/soe-smoke.log
+        exit 1
