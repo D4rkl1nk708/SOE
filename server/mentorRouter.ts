@@ -633,6 +633,9 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
           .default([]),
         apiKey: z.string().min(1),
         provider: z.enum(["claude", "gemini", "openai"]).default("claude"),
+        excludeQuestionIds: z.array(z.string()).default([]),
+        excludeStatements: z.array(z.string()).default([]),
+        format: z.enum(["multiple", "cebraspe"]).default("multiple"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -651,16 +654,35 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
       const disc = disciplines.find((d) => d.id === input.disciplineId);
       const topic = topics.find((t) => t.id === input.topicId);
 
-      const alreadyUsedIds = input.sessionHistory.map((h) => h.questionId);
+      const alreadyUsedIds = [
+        ...input.sessionHistory.map((h) => h.questionId),
+        ...input.excludeQuestionIds,
+      ];
+      const excludedStatements = new Set(
+        input.excludeStatements.map((statement) =>
+          String(statement || "")
+            .slice(0, 120)
+            .toLowerCase()
+            .trim(),
+        ),
+      );
       const availableFromBank = errors.filter(
         (e) =>
           e.correctAnswer &&
           e.statement &&
-          !alreadyUsedIds.includes(String(e.id)),
+          Array.isArray(e.alternatives) &&
+          e.alternatives.length >= 4 &&
+          !alreadyUsedIds.includes(String(e.id)) &&
+          !excludedStatements.has(
+            String(e.statement || "")
+              .slice(0, 120)
+              .toLowerCase()
+              .trim(),
+          ),
       );
 
       // Use bank question if available and difficulty matches
-      if (availableFromBank.length > 0) {
+      if (input.format === "multiple" && availableFromBank.length > 0) {
         const pick =
           availableFromBank[
             Math.floor(Math.random() * Math.min(availableFromBank.length, 5))
@@ -692,11 +714,44 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
         .slice(-3)
         .map((h) => `errorOrigin:${h.errorOrigin ?? "desconhecido"}`);
 
-      const prompt = `Você é professor de concursos públicos. Crie UMA questão de múltipla escolha de dificuldade ${diffLabel}.
+      const researchBlock = `
+PESQUISA OPCIONAL: se o seu provedor tiver uma ferramenta de pesquisa web disponível, você PODE consultar fontes públicas atualizadas (legislação, jurisprudência, documentação oficial) para fundamentar o item. Se não tiver essa ferramenta, responda com seu conhecimento. É proibido acessar, citar, copiar ou reproduzir conteúdo do tecconcursos.com.br ou de qualquer área restrita/privada. Não faça scraping.`;
+      const exclusionBlock =
+        input.excludeStatements.length > 0
+          ? `NÃO REPITA nenhuma destas questões já usadas: ${input.excludeStatements
+              .slice(0, 20)
+              .map((statement) => `"${String(statement).slice(0, 100)}"`)
+              .join("; ")}`
+          : "";
+      const prompt =
+        input.format === "cebraspe"
+          ? `Você é professor de concursos públicos e elabora itens no estilo CEBRASPE (Certo/Errado), com dificuldade ${diffLabel}.
 
 Disciplina: ${disc?.name ?? "Direito"}
 Tópico: ${topic?.name ?? "geral"}
+${researchBlock}
 ${recentMistakes.length > 0 ? `Erros recentes do aluno: ${recentMistakes.join(", ")} — explore esse ponto fraco` : ""}
+${exclusionBlock}
+
+Crie UM item assertivo, com comando claro ("Julgue o item a seguir"), sem alternativas A-E.
+Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSON):
+{
+  "statement": "texto completo do item, incluindo o comando",
+  "alternatives": [
+    {"letter": "C", "text": "Certo"},
+    {"letter": "E", "text": "Errado"}
+  ],
+  "correctAnswer": "C ou E",
+  "banca": "CEBRASPE",
+  "hint": "explicação objetiva do gabarito em 1 ou 2 linhas"
+}`
+          : `Você é professor de concursos públicos. Crie UMA questão de múltipla escolha de dificuldade ${diffLabel}.
+
+Disciplina: ${disc?.name ?? "Direito"}
+Tópico: ${topic?.name ?? "geral"}
+${researchBlock}
+${recentMistakes.length > 0 ? `Erros recentes do aluno: ${recentMistakes.join(", ")} — explore esse ponto fraco` : ""}
+${exclusionBlock}
 
 Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSON):
 {

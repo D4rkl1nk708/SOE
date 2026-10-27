@@ -747,6 +747,13 @@ export const appRouter = router({
           wrong: z.number(),
           blank: z.number(),
           totalQuestions: z.number(),
+          questions: z.array(z.any()).optional(),
+          answers: z.record(z.string(), z.string()).optional(),
+          blueprint: z.array(z.any()).optional(),
+          status: z.enum(["in_progress", "completed"]).optional(),
+          mode: z.enum(["cebraspe", "multiple"]).optional(),
+          durationMinutes: z.number().optional(),
+          completedAt: z.string().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -763,6 +770,13 @@ export const appRouter = router({
           wrong: z.number().optional(),
           blank: z.number().optional(),
           totalQuestions: z.number().optional(),
+          questions: z.array(z.any()).optional(),
+          answers: z.record(z.string(), z.string()).optional(),
+          blueprint: z.array(z.any()).optional(),
+          status: z.enum(["in_progress", "completed"]).optional(),
+          mode: z.enum(["cebraspe", "multiple"]).optional(),
+          durationMinutes: z.number().optional(),
+          completedAt: z.string().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {

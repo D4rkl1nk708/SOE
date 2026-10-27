@@ -15,10 +15,13 @@ import {
   Trophy,
   Edit2,
   Trash2,
+  Sparkles,
+  ClipboardCheck,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   LineChart,
   Line,
@@ -40,8 +43,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function MockExams() {
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const { data: exams, isLoading } = trpc.mockExam.list.useQuery();
+  const { data: errorIntel } = trpc.study.errorPatterns.useQuery();
   const createExam = trpc.mockExam.create.useMutation({
     onSuccess: () => {
       utils.mockExam.list.invalidate();
@@ -184,6 +189,72 @@ export default function MockExams() {
         { label: "Melhor líquido", value: bestScore },
       ]}
     >
+      {errorIntel?.topTopics?.[0] && (
+        <div className="soe-card flex flex-col gap-2 border-primary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              <b className="text-foreground">O mentor recomenda um simulado</b>{" "}
+              com foco em{" "}
+              {errorIntel.topTopics
+                .slice(0, 2)
+                .map((topic: any) => topic.topicName)
+                .join(" e ")}
+              .
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="h-8 flex-shrink-0 text-[9px]"
+            onClick={() => navigate("/simulado-inteligente")}
+          >
+            Gerar recomendado
+          </Button>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          onClick={() => {
+            setIsAdding(true);
+            setTimeout(
+              () =>
+                document
+                  .getElementById("mock-form")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+              80,
+            );
+          }}
+          className="soe-card flex items-start gap-3 p-4 text-left transition-colors hover:border-primary/30"
+        >
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-primary">
+            <ClipboardCheck className="h-4 w-4" />
+          </span>
+          <span>
+            <b className="block text-sm">Cadastrar simulado já feito</b>
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+              Registre acertos, erros e brancos de uma prova que você já
+              realizou.
+            </span>
+          </span>
+        </button>
+        <button
+          onClick={() => navigate("/simulado-inteligente")}
+          className="soe-card flex items-start gap-3 p-4 text-left transition-colors hover:border-primary/30"
+        >
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <span>
+            <b className="block text-sm">Gerar novo simulado com IA</b>
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+              Prova completa, sem gabarito até o fim, com PDF e correção
+              comentada.
+            </span>
+          </span>
+        </button>
+      </div>
+
       {(isAdding || editingId !== null) && (
         <div className="soe-card p-5">
           <div className="mb-4">

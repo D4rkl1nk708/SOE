@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld("electron", {
   updates: {
     check: () => ipcRenderer.invoke("soe-check-updates"),
   },
+  examPdf: {
+    save: (html, fileName) =>
+      ipcRenderer.invoke("soe-save-exam-pdf", { html, fileName }),
+  },
   // Preferência de bandeja do sistema
   tray: {
     getPreference: () => ipcRenderer.invoke("get-tray-preference"),
