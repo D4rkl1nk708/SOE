@@ -58,6 +58,7 @@ import {
 } from "@/hooks/useDashboard";
 import { ScheduleDialog } from "@/components/ScheduleDialog";
 import { RecommendationCard } from "@/components/RecommendationCard";
+import { HomeV2 } from "@/components/home/HomeV2";
 
 const EXTRA_WIDGETS = [
   { id: "recommendation", label: "Recomendação (IA)" },
@@ -69,7 +70,7 @@ const EXTRA_WIDGETS = [
   { id: "plateauRadar", label: "Radar de Estagnação" },
 ];
 
-export default function Dashboard() {
+function ClassicDashboard() {
   const utils = trpc.useUtils();
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
   const { data: heatmapData } = trpc.dashboard.getHeatmap.useQuery({
@@ -801,4 +802,11 @@ export default function Dashboard() {
       </Dialog>
     </div>
   );
+}
+
+export default function Dashboard() {
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const layoutMode = (stats?.settings as any)?.layoutMode;
+  if (layoutMode === "classic") return <ClassicDashboard />;
+  return <HomeV2 />;
 }
