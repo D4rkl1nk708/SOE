@@ -37,6 +37,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageShell } from "@/components/layout/PageShell";
 
 const PRESET_COLORS = [
   "#3B82F6",
@@ -136,130 +137,142 @@ export default function Disciplines() {
     updateMutation.mutate(editingDiscipline);
   };
 
-  return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 rounded-md bg-primary/10 border border-primary/20">
-            <GraduationCap className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Minhas Disciplinas
-            </h1>
-            <p className="text-[11px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest">
-              Gestão de Matérias e Prioridades
-            </p>
-          </div>
-        </div>
+  const disciplineList = (disciplines || []) as any[];
+  const totalQuestions = disciplineList.reduce(
+    (sum, discipline) => sum + (discipline.performance?.questionsResolved || 0),
+    0,
+  );
+  const totalCorrect = disciplineList.reduce(
+    (sum, discipline) => sum + (discipline.performance?.correctCount || 0),
+    0,
+  );
+  const avgAccuracy =
+    totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setDuplicatesOpen(true)}
-            className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
-          >
-            <Merge size={14} className="mr-2" /> Duplicatas (
-            {duplicates?.length || 0})
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setCleanupOpen(true)}
-            className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
-          >
-            <AlertTriangle size={14} className="mr-2" /> Limpar vazias (
-            {suspicious.length})
-          </Button>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 px-6 rounded-md font-bold text-[10px] uppercase tracking-widest">
-                <Plus size={14} className="mr-2" /> Nova Disciplina
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-md border-border bg-card max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-bold">
-                  Criar Disciplina
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Defina o nome e a importância estratégica da matéria.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                    Nome da Disciplina
-                  </Label>
-                  <Input
-                    placeholder="Ex: Direito Administrativo"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="h-11 bg-secondary/50 border-border text-sm font-bold"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                    Cor de Identificação
-                  </Label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        className={cn(
-                          "w-6 h-6 rounded-md border-2 transition-all hover:scale-110",
-                          formData.color === color
-                            ? "border-primary"
-                            : "border-transparent",
-                        )}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setFormData({ ...formData, color })}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
-                      Peso Estratégico
-                    </Label>
-                    <span className="text-xs font-bold text-primary">
-                      {formData.weight}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[formData.weight]}
-                    onValueChange={([value]) =>
-                      setFormData({ ...formData, weight: value })
-                    }
-                    min={1}
-                    max={10}
-                    step={1}
-                  />
+  return (
+    <PageShell
+      eyebrow="Conteúdo"
+      title="Disciplinas"
+      description="Gerencie matérias, prioridades e a saúde do seu catálogo."
+      metrics={[
+        {
+          label: "Disciplinas",
+          value: disciplineList.length,
+          icon: GraduationCap,
+        },
+        { label: "Questões", value: totalQuestions, icon: Target },
+        { label: "Acurácia", value: `${avgAccuracy}%`, icon: Weight },
+        {
+          label: "Para revisar",
+          value: suspicious.length,
+          icon: AlertTriangle,
+        },
+      ]}
+    >
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setDuplicatesOpen(true)}
+          className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
+        >
+          <Merge size={14} className="mr-2" /> Duplicatas (
+          {duplicates?.length || 0})
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setCleanupOpen(true)}
+          className="h-10 px-4 rounded-md font-bold text-[10px] uppercase tracking-widest"
+        >
+          <AlertTriangle size={14} className="mr-2" /> Limpar vazias (
+          {suspicious.length})
+        </Button>
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-10 px-6 rounded-md font-bold text-[10px] uppercase tracking-widest">
+              <Plus size={14} className="mr-2" /> Nova Disciplina
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="rounded-md border-border bg-card max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold">
+                Criar Disciplina
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Defina o nome e a importância estratégica da matéria.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                  Nome da Disciplina
+                </Label>
+                <Input
+                  placeholder="Ex: Direito Administrativo"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="h-11 bg-secondary/50 border-border text-sm font-bold"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                  Cor de Identificação
+                </Label>
+                <div className="flex flex-wrap gap-2.5">
+                  {PRESET_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      className={cn(
+                        "w-6 h-6 rounded-md border-2 transition-all hover:scale-110",
+                        formData.color === color
+                          ? "border-primary"
+                          : "border-transparent",
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setFormData({ ...formData, color })}
+                    />
+                  ))}
                 </div>
               </div>
-              <DialogFooter className="gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={createMutation.isPending}
-                  className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
-                >
-                  {createMutation.isPending
-                    ? "Criando..."
-                    : "Confirmar Criação"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">
+                    Peso Estratégico
+                  </Label>
+                  <span className="text-xs font-bold text-primary">
+                    {formData.weight}
+                  </span>
+                </div>
+                <Slider
+                  value={[formData.weight]}
+                  onValueChange={([value]) =>
+                    setFormData({ ...formData, weight: value })
+                  }
+                  min={1}
+                  max={10}
+                  step={1}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateOpen(false)}
+                className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreate}
+                disabled={createMutation.isPending}
+                className="rounded-md h-10 font-bold text-[10px] uppercase tracking-widest"
+              >
+                {createMutation.isPending ? "Criando..." : "Confirmar Criação"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {isLoading ? (
@@ -633,6 +646,6 @@ export default function Disciplines() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
