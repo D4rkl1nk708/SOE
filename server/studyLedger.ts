@@ -141,7 +141,7 @@ export async function getStudyLedger(
   for (const session of settings?.studySessionLog || []) {
     if (!session.date) continue;
     events.push({
-      id: `ses-${session.date}-${session.durationMin || 0}`,
+      id: `ses-${session.date}-${session.hourStart ?? 0}-${session.durationMin || 0}`,
       type: "session",
       occurredAt: safeDate(`${session.date}T12:00:00`),
       title: "Sessão de estudo",
@@ -151,7 +151,25 @@ export async function getStudyLedger(
     });
   }
 
-  const sorted = events
+  // Eventos gravados diretamente têm prioridade sobre a projeção antiga.
+  const byId = new Map(events.map((event) => [event.id, event]));
+  for (const stored of settings?.studyEvents || []) {
+    if (!stored.occurredAt) continue;
+    byId.set(stored.id, {
+      id: stored.id,
+      type: stored.type,
+      occurredAt: stored.occurredAt,
+      title: stored.title,
+      detail: stored.detail,
+      disciplineName: stored.disciplineName,
+      topicName: stored.topicName,
+      correct: stored.correct,
+      minutes: stored.minutes,
+      source: stored.source,
+    });
+  }
+
+  const sorted = [...byId.values()]
     .filter((event) => Boolean(event.occurredAt))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
