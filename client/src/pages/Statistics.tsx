@@ -34,7 +34,7 @@ import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/PageShell";
 
 export default function Statistics() {
   const { data: stats, isLoading } = trpc.dashboard.getStats.useQuery();
@@ -257,7 +257,85 @@ export default function Statistics() {
   };
 
   return (
-    <div className="space-y-6 w-full pb-10 animate-in fade-in duration-500">
+    <PageShell
+      eyebrow="Diagnóstico"
+      title="Estatísticas"
+      description="Métricas reais, lacunas e prioridades — sem inflar amostras pequenas."
+      metrics={[
+        {
+          label: "Estudo Total",
+          value: formatTime(totalStudyTime),
+          sub: "tempo acumulado",
+          icon: Clock,
+        },
+        {
+          label: "Aproveitamento",
+          value: `${overallAccuracy}%`,
+          sub: "acurácia ponderada",
+          icon: Target,
+          color: "var(--accent-green)",
+        },
+        {
+          label: "Questões",
+          value: totalQuestions,
+          sub: `${totalErrors} erros no total`,
+          icon: CheckCircle2,
+        },
+        {
+          label: "Revisões",
+          value: completedCount,
+          sub: `${completionRate}% das vencidas`,
+          icon: Zap,
+          color: "var(--accent-amber)",
+        },
+      ]}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            onClick={() => window.print()}
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest print:hidden"
+            title="Exportar como PDF ou Imprimir Relatório"
+          >
+            <Printer className="w-3.5 h-3.5 mr-2" /> Imprimir / PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowShare(true)}
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
+          </Button>
+          {!resetConfirm ? (
+            <button
+              onClick={() => setResetConfirm(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
+              title="Zerar estatísticas"
+            >
+              <AlertCircle size={16} />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setResetConfirm(false)}
+                className="h-9 px-3 text-[10px] font-bold uppercase"
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => resetAllStats.mutate()}
+                disabled={resetAllStats.isPending}
+                className="h-9 px-4 text-[10px] font-bold uppercase"
+              >
+                Zerar Tudo
+              </Button>
+            </div>
+          )}
+        </>
+      }
+    >
       {/* ── Cabeçalho exclusivo para Impressão / PDF ────────────────────────── */}
       <div className="print-only border-b border-gray-300 pb-4 mb-6">
         <div className="flex justify-between items-center">
@@ -278,57 +356,6 @@ export default function Statistics() {
           </div>
         </div>
       </div>
-      <PageHeader
-        eyebrow="Diagnóstico"
-        title="Analytics & Performance"
-        description="Métricas reais, lacunas e prioridades — sem inflar amostras pequenas."
-        actions={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => window.print()}
-              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest print:hidden"
-              title="Exportar como PDF ou Imprimir Relatório"
-            >
-              <Printer className="w-3.5 h-3.5 mr-2" /> Imprimir / PDF
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowShare(true)}
-              className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-widest"
-            >
-              <Share2 className="w-3.5 h-3.5 mr-2" /> Compartilhar
-            </Button>
-            {!resetConfirm ? (
-              <button
-                onClick={() => setResetConfirm(true)}
-                className="w-9 h-9 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive transition-all"
-                title="Zerar estatísticas"
-              >
-                <AlertCircle size={16} />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => setResetConfirm(false)}
-                  className="h-9 px-3 text-[10px] font-bold uppercase"
-                >
-                  Voltar
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => resetAllStats.mutate()}
-                  disabled={resetAllStats.isPending}
-                  className="h-9 px-4 text-[10px] font-bold uppercase"
-                >
-                  Zerar Tudo
-                </Button>
-              </div>
-            )}
-          </>
-        }
-      />
 
       <AnimatePresence>
         {aiInsight && (
@@ -353,61 +380,6 @@ export default function Statistics() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Estudo Total",
-            val: formatTime(totalStudyTime),
-            sub: "Tempo acumulado",
-            icon: Clock,
-            color: "var(--primary)",
-          },
-          {
-            label: "Aproveitamento",
-            val: `${overallAccuracy}%`,
-            sub: "Acurácia ponderada",
-            icon: Target,
-            color: "var(--accent-green)",
-          },
-          {
-            label: "Questões",
-            val: totalQuestions,
-            sub: `${totalErrors} erros no total`,
-            icon: CheckCircle2,
-            color: "var(--accent-blue)",
-          },
-          {
-            label: "Revisões",
-            val: completedCount,
-            sub: `${completionRate}% das vencidas`,
-            icon: Zap,
-            color: "var(--accent-amber)",
-          },
-        ].map((s, i) => (
-          <div key={i} className="soe-card p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="p-1.5 rounded-md bg-secondary border border-border"
-                style={{ color: s.color }}
-              >
-                <s.icon size={14} />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
-                {s.label}
-              </span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold tabular-nums text-foreground/90">
-                {s.val}
-              </p>
-              <p className="text-[10px] font-bold text-muted-foreground opacity-40 uppercase tracking-tight">
-                {s.sub}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
 
       <div className="soe-card p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -817,7 +789,7 @@ export default function Statistics() {
           disciplineName={aiDiscipline?.name}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
