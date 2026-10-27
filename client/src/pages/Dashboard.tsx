@@ -763,16 +763,31 @@ function ClassicDashboard() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
-                Data da Prova
-              </label>
-              <Input
-                type="date"
-                value={exams.examDateInput}
-                onChange={(e) => exams.setExamDateInput(e.target.value)}
-                className="bg-secondary/50 border-border"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
+                  Data da Prova
+                </label>
+                <Input
+                  type="date"
+                  value={exams.examDateInput}
+                  onChange={(e) => exams.setExamDateInput(e.target.value)}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">
+                  Meta (%)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={exams.examTargetInput}
+                  onChange={(e) => exams.setExamTargetInput(e.target.value)}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
             </div>
           </div>
 
