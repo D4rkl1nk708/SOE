@@ -21,6 +21,7 @@ const MockExams = lazy(() => import("@/pages/MockExams"));
 const Notes = lazy(() => import("@/pages/Notes"));
 const Flashcards = lazy(() => import("@/pages/Flashcards"));
 const Simulado = lazy(() => import("@/pages/Simulado"));
+const SimuladoInteligente = lazy(() => import("@/pages/SimuladoInteligente"));
 const TopicStats = lazy(() => import("@/pages/TopicStats"));
 const Edital = lazy(() => import("@/pages/Edital"));
 const Statistics = lazy(() => import("@/pages/Statistics"));
@@ -79,6 +80,7 @@ function Router() {
         <Route path="/notes" component={Notes} />
         <Route path="/flashcards" component={Flashcards} />
         <Route path="/simulado" component={Simulado} />
+        <Route path="/simulado-inteligente" component={SimuladoInteligente} />
         <Route path="/topic-stats" component={TopicStats} />
         <Route path="/edital" component={Edital} />
         <Route path="/history" component={History} />

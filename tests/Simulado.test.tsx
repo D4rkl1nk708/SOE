@@ -39,6 +39,7 @@ vi.mock("lucide-react", () => ({
   RotateCcw: () => <span data-testid="icon-retry" />,
   Check: () => <span data-testid="icon-check" />,
   X: () => <span data-testid="icon-x" />,
+  Sparkles: () => <span data-testid="icon-sparkles" />,
 }));
 
 describe("Simulado Component", () => {
