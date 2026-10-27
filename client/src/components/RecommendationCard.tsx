@@ -74,20 +74,23 @@ export function RecommendationCard() {
   const isHighPriority = rec.priority === "alta";
   const followRecommendation = () => {
     setOpen(false);
-    if (rec.topicId) {
-      sessionStorage.setItem(
-        "qs_prefill",
-        JSON.stringify({
-          topicId: rec.topicId,
-          topicName: (rec as any).topicName,
-          disciplineId: rec.disciplineId,
-          autoStart: true,
-        }),
-      );
-      navigate("/question-session");
-      return;
-    }
-    navigate("/plan");
+    sessionStorage.setItem(
+      "soe_guided_block",
+      JSON.stringify({
+        id: `mentor-${rec.topicId || rec.disciplineId || "focus"}`,
+        kind: "estudo",
+        title: (rec as any).topicName || rec.disciplineName,
+        subtitle: rec.disciplineName,
+        reason: rec.diagnostic,
+        minutes: 25,
+        topicId: rec.topicId,
+        topicName: (rec as any).topicName,
+        disciplineId: rec.disciplineId,
+        disciplineName: rec.disciplineName,
+        lens: "edital",
+      }),
+    );
+    navigate("/guided");
   };
 
   const askMentor = () => {

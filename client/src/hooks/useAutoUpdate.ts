@@ -75,6 +75,10 @@ async function triggerSafetyBackup() {
 
 export function useAutoUpdate() {
   useEffect(() => {
+    // No desktop empacotado, o processo principal usa electron-updater.
+    // Evita dois fluxos de atualização concorrentes.
+    if ((window as any).electron?.ipcRenderer) return;
+
     const checkUpdate = async () => {
       try {
         const response = await fetch(GITHUB_REPO_API, {

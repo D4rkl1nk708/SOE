@@ -189,26 +189,12 @@ export default function Dashboard() {
       navigate("/plan");
       return;
     }
-    if (block.kind === "revisao" && !block.topicId) {
-      navigate("/revisions");
-      return;
-    }
     if (block.kind === "mapear") {
       navigate("/edital");
       return;
     }
-    if (block.topicId) {
-      sessionStorage.setItem(
-        "qs_prefill",
-        JSON.stringify({
-          topicId: block.topicId,
-          topicName: block.topicName,
-          disciplineId: block.disciplineId,
-          autoStart: true,
-        }),
-      );
-    }
-    navigate("/question-session");
+    sessionStorage.setItem("soe_guided_block", JSON.stringify(block));
+    navigate("/guided");
   };
 
   return (
