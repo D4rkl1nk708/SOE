@@ -7,6 +7,7 @@ import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { Layout } from "./components/Layout";
+import { SimuladoGenerationProvider } from "./contexts/SimuladoGenerationContext";
 
 // ── Lazy-loaded pages (code-split per route) ──────────────────────────────────
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -60,42 +61,44 @@ function Router() {
   }, []);
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/plan" component={StudyPlan} />
-        <Route path="/guided" component={GuidedSession} />
-        <Route path="/disciplines" component={DisciplinesPage} />
-        <Route path="/topics" component={Topics} />
-        <Route path="/revisions" component={Revisions} />
-        <Route path="/statistics" component={StatisticsPage} />
-        <Route path="/calendar" component={Calendar} />
-        <Route path="/mock-exams" component={MockExams} />
-        <Route path="/notes" component={Notes} />
-        <Route path="/flashcards" component={Flashcards} />
-        <Route path="/simulado" component={Simulado} />
-        <Route path="/simulado-inteligente" component={SimuladoInteligente} />
-        <Route path="/topic-stats" component={TopicStats} />
-        <Route path="/edital" component={Edital} />
-        <Route path="/history" component={History} />
-        <Route path="/sync" component={Sync} />
-        <Route path="/question-session" component={QuestionSession} />
-        <Route path="/question-errors" component={QuestionErrors} />
-        <Route path="/lab" component={Lab} />
-        <Route path="/profile" component={Profile} />
-        <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
-        <Route path="/intercalacao" component={IntercalacaoPlanner} />
-        <Route path="/mentor" component={MentorTab} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <SimuladoGenerationProvider>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center h-[60vh]">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        }
+      >
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/plan" component={StudyPlan} />
+          <Route path="/guided" component={GuidedSession} />
+          <Route path="/disciplines" component={DisciplinesPage} />
+          <Route path="/topics" component={Topics} />
+          <Route path="/revisions" component={Revisions} />
+          <Route path="/statistics" component={StatisticsPage} />
+          <Route path="/calendar" component={Calendar} />
+          <Route path="/mock-exams" component={MockExams} />
+          <Route path="/notes" component={Notes} />
+          <Route path="/flashcards" component={Flashcards} />
+          <Route path="/simulado" component={Simulado} />
+          <Route path="/simulado-inteligente" component={SimuladoInteligente} />
+          <Route path="/topic-stats" component={TopicStats} />
+          <Route path="/edital" component={Edital} />
+          <Route path="/history" component={History} />
+          <Route path="/sync" component={Sync} />
+          <Route path="/question-session" component={QuestionSession} />
+          <Route path="/question-errors" component={QuestionErrors} />
+          <Route path="/lab" component={Lab} />
+          <Route path="/profile" component={Profile} />
+          <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
+          <Route path="/intercalacao" component={IntercalacaoPlanner} />
+          <Route path="/mentor" component={MentorTab} />
+          <Route path="/404" component={NotFound} />
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
+    </SimuladoGenerationProvider>
   );
 }
 
