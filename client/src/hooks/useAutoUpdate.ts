@@ -75,6 +75,10 @@ async function triggerSafetyBackup() {
 
 export function useAutoUpdate() {
   useEffect(() => {
+    // No desktop, quem aplica a atualização é o electron-updater no processo
+    // principal. O hook abre o instalador no navegador e não deve rodar lá.
+    if ((window as any).electron?.ipcRenderer) return;
+
     const checkUpdate = async () => {
       try {
         const response = await fetch(GITHUB_REPO_API, {

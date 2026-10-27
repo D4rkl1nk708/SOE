@@ -285,6 +285,11 @@ jobs:
           pattern: release-artifacts-*
           merge-multiple: true
 
+      - name: Setup Node.js (update metadata)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: List Release Assets
         run: |
           ls -la release-assets
@@ -292,6 +297,17 @@ jobs:
             echo "::error::No release artifacts found to publish!"
             exit 1
           fi
+
+      - name: Generate update metadata
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          if [ -f "release-assets/Windows-SOE-v${VERSION}.exe" ]; then
+            node scripts/generate-update-metadata.cjs win "$VERSION" "release-assets/Windows-SOE-v${VERSION}.exe" "release-assets/latest.yml"
+          fi
+          if [ -f "release-assets/Linux-SOE-v${VERSION}.AppImage" ]; then
+            node scripts/generate-update-metadata.cjs linux "$VERSION" "release-assets/Linux-SOE-v${VERSION}.AppImage" "release-assets/latest-linux.yml"
+          fi
+          ls -la release-assets
 
       - name: Create Git Tag
         run: |

@@ -47,6 +47,18 @@ function setupAutoUpdater() {
     const { autoUpdater } = require("electron-updater");
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.logger = console;
+
+    autoUpdater.on("update-available", (info) => {
+      try {
+        if (Notification.isSupported()) {
+          new Notification({
+            title: "SOE — atualização disponível",
+            body: `A versão ${info.version} está sendo baixada em segundo plano.`,
+          }).show();
+        }
+      } catch {}
+    });
 
     autoUpdater.on("update-downloaded", async (info) => {
       try {
