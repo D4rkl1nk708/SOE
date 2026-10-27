@@ -88,6 +88,26 @@ export interface Revision {
   freeRecallText?: string; // O que o usuário escreveu no free recall
 }
 
+export interface SimuladoQuestion {
+  id: string;
+  number: number;
+  disciplineId: number;
+  disciplineName: string;
+  topicName?: string;
+  banca?: string;
+  statement: string;
+  alternatives: { letter: string; text: string }[];
+  correctAnswer: string;
+  explanation?: string;
+  source: "ai" | "bank";
+}
+
+export interface SimuladoBlueprintItem {
+  disciplineId: number;
+  disciplineName: string;
+  count: number;
+}
+
 export interface MockExam {
   id: number;
   userId: number;
@@ -99,6 +119,15 @@ export interface MockExam {
   totalQuestions: number;
   score: number; // For CESPE: correct - wrong
   createdAt: string;
+  /** Prova completa gerada pelo sistema */
+  questions?: SimuladoQuestion[];
+  /** questionId -> alternativa marcada */
+  answers?: Record<string, string>;
+  blueprint?: SimuladoBlueprintItem[];
+  status?: "in_progress" | "completed";
+  mode?: "cebraspe" | "multiple";
+  durationMinutes?: number;
+  completedAt?: string;
 }
 
 export interface StudyNote {

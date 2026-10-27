@@ -101,6 +101,43 @@ function setupAutoUpdater() {
 function initApp() {
   const fs = require("fs");
 
+  ipcMain.handle("soe-save-exam-pdf", async (_event, { html, fileName }) => {
+    let win = null;
+    try {
+      win = new BrowserWindow({
+        show: false,
+        webPreferences: { sandbox: true, contextIsolation: true },
+      });
+      const printCss = `
+        <style>
+          @page { size: A4; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { margin: 0; }
+          .exam-print { display: block !important; position: static !important; }
+        </style>`;
+      await win.loadURL(
+        "data:text/html;charset=utf-8," +
+          encodeURIComponent(`<!doctype html><html><head>${printCss}</head><body>${html}</body></html>`),
+      );
+      const pdf = await win.webContents.printToPDF({
+        printBackground: true,
+        pageSize: "A4",
+      });
+      const result = await dialog.showSaveDialog({
+        title: "Salvar prova em PDF",
+        defaultPath: fileName || "simulado-soe.pdf",
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (result.canceled || !result.filePath) return { canceled: true };
+      fs.writeFileSync(result.filePath, pdf);
+      return { success: true, filePath: result.filePath };
+    } catch (error) {
+      return { success: false, message: error?.message || String(error) };
+    } finally {
+      if (win && !win.isDestroyed()) win.destroy();
+    }
+  });
+
   ipcMain.handle("soe-check-updates", async () => {
     if (!app.isPackaged) {
       return {

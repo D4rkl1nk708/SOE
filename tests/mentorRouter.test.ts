@@ -202,7 +202,12 @@ describe("mentorRouter and extractJSON", () => {
           {
             id: 1,
             statement: "Q1",
-            alternatives: [],
+            alternatives: [
+              { letter: "A", text: "A" },
+              { letter: "B", text: "B" },
+              { letter: "C", text: "C" },
+              { letter: "D", text: "D" },
+            ],
             correctAnswer: "A",
             banca: "B",
           } as any,
