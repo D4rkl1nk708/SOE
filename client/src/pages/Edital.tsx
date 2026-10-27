@@ -635,6 +635,77 @@ function EditalTab({
         }
       />
 
+      {rows.length > 0 &&
+        (() => {
+          const topics = rows.filter((row) => !row.isHeader);
+          const done = topics.filter((row) => row.completed).length;
+          const disciplinesCount = new Set(topics.map((row) => row.discipline))
+            .size;
+          const rated = topics.filter((row) => typeof row.acerto === "number");
+          const avg = rated.length
+            ? Math.round(
+                (rated.reduce((sum, row) => sum + (row.acerto || 0), 0) /
+                  rated.length) *
+                  100,
+              )
+            : 0;
+          const priority = topics
+            .filter((row) => !row.completed)
+            .sort((a, b) => (a.acerto ?? -1) - (b.acerto ?? -1))
+            .slice(0, 3);
+          return (
+            <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { label: "Tópicos", value: topics.length },
+                  { label: "Concluídos", value: `${done}` },
+                  { label: "Disciplinas", value: disciplinesCount },
+                  { label: "Acerto médio", value: `${avg}%` },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-lg border border-border bg-card p-3"
+                  >
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Próximo foco
+                  </p>
+                  <span className="text-[8px] text-muted-foreground">
+                    menor acerto
+                  </span>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {priority.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground">
+                      Tudo concluído.
+                    </p>
+                  ) : (
+                    priority.map((topic) => (
+                      <p
+                        key={topic.id}
+                        className="truncate text-[10px] text-muted-foreground"
+                      >
+                        • {topic.topic}{" "}
+                        <span className="opacity-60">({topic.discipline})</span>
+                      </p>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
       {showGuide && (
         <Dialog open={showGuide} onOpenChange={setShowGuide}>
           <DialogContent className="max-w-2xl rounded-lg border-border bg-card p-0 overflow-hidden">
@@ -804,160 +875,164 @@ function EditalTab({
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <table className="w-full text-left">
-                        <thead className="bg-secondary/20 border-b border-border/20 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                          <tr>
-                            <th className="px-5 py-3 w-10">Status</th>
-                            <th className="px-5 py-3">Tópico</th>
-                            <th className="px-5 py-3 text-right">Acerto</th>
-                            <th className="px-5 py-3 text-center">Foco</th>
-                            <th className="px-5 py-3 w-32">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/20">
-                          {group.topics.map((t) => (
-                            <tr
-                              key={t.id}
-                              className="hover:bg-secondary/10 transition-colors group/row"
-                            >
-                              <td className="px-5 py-4">
-                                <button
-                                  onClick={() => toggleCompleted(t.id)}
-                                  className={cn(
-                                    "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                                    t.completed
-                                      ? "bg-primary border-primary text-white"
-                                      : "bg-background border-border/50 text-transparent hover:border-primary/50",
-                                  )}
-                                >
-                                  <Check size={12} strokeWidth={4} />
-                                </button>
-                              </td>
-                              <td className="px-5 py-4">
-                                {editingId === t.id ? (
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      autoFocus
-                                      value={editingTopicText}
-                                      onChange={(e) =>
-                                        setEditingTopicText(e.target.value)
-                                      }
-                                      onKeyDown={(e) =>
-                                        e.key === "Enter" && saveEditTopic(t.id)
-                                      }
-                                      className="flex-1 h-8 bg-background border border-primary rounded px-2 text-xs font-medium outline-none"
-                                    />
-                                    <button
-                                      onClick={() => saveEditTopic(t.id)}
-                                      className="p-1 rounded bg-primary text-white"
-                                    >
-                                      <Check size={12} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <span
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[760px] text-left">
+                          <thead className="bg-secondary/20 border-b border-border/20 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                            <tr>
+                              <th className="px-5 py-3 w-10">Status</th>
+                              <th className="px-5 py-3">Tópico</th>
+                              <th className="px-5 py-3 text-right">Acerto</th>
+                              <th className="px-5 py-3 text-center">Foco</th>
+                              <th className="px-5 py-3 w-32">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/20">
+                            {group.topics.map((t) => (
+                              <tr
+                                key={t.id}
+                                className="hover:bg-secondary/10 transition-colors group/row"
+                              >
+                                <td className="px-5 py-4">
+                                  <button
+                                    onClick={() => toggleCompleted(t.id)}
                                     className={cn(
-                                      "text-xs font-semibold text-foreground/80",
-                                      t.completed && "opacity-40 line-through",
+                                      "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                                      t.completed
+                                        ? "bg-primary border-primary text-white"
+                                        : "bg-background border-border/50 text-transparent hover:border-primary/50",
                                     )}
                                   >
-                                    {t.topic}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4 text-right">
-                                <div className="flex items-center justify-end gap-3">
-                                  <span
-                                    className="text-[10px] font-bold tabular-nums"
-                                    style={{ color: hitColor(t.acerto) }}
-                                  >
-                                    {t.acerto !== undefined
-                                      ? `${Math.round(t.acerto * 100)}%`
-                                      : "—"}
-                                  </span>
-                                  <input
-                                    type="number"
-                                    className="w-10 h-7 bg-secondary/50 border border-border/30 rounded text-[10px] font-bold text-center outline-none focus:border-primary md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity"
-                                    placeholder="%"
-                                    onChange={(e) =>
-                                      updateAcerto(t.id, e.target.value)
-                                    }
-                                  />
-                                </div>
-                              </td>
-                              <td className="px-5 py-4">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  {[
-                                    {
-                                      id: "revisar",
-                                      label: "R",
-                                      color: "var(--accent-amber)",
-                                    },
-                                    {
-                                      id: "avancar",
-                                      label: "A",
-                                      color: "var(--primary)",
-                                    },
-                                    {
-                                      id: "discursiva",
-                                      label: "D",
-                                      color: "var(--accent-green)",
-                                    },
-                                  ].map((flag) => (
-                                    <button
-                                      key={flag.id}
-                                      onClick={() =>
-                                        toggleFlag(t.id, flag.id as any)
-                                      }
+                                    <Check size={12} strokeWidth={4} />
+                                  </button>
+                                </td>
+                                <td className="px-5 py-4">
+                                  {editingId === t.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        autoFocus
+                                        value={editingTopicText}
+                                        onChange={(e) =>
+                                          setEditingTopicText(e.target.value)
+                                        }
+                                        onKeyDown={(e) =>
+                                          e.key === "Enter" &&
+                                          saveEditTopic(t.id)
+                                        }
+                                        className="flex-1 h-8 bg-background border border-primary rounded px-2 text-xs font-medium outline-none"
+                                      />
+                                      <button
+                                        onClick={() => saveEditTopic(t.id)}
+                                        className="p-1 rounded bg-primary text-white"
+                                      >
+                                        <Check size={12} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span
                                       className={cn(
-                                        "w-6 h-6 rounded-md text-[9px] font-black border transition-all",
-                                        t[flag.id as keyof EditalTopico]
-                                          ? "text-white border-transparent"
-                                          : "bg-background border-border/30 text-muted-foreground opacity-30 hover:opacity-100",
+                                        "text-xs font-semibold text-foreground/80",
+                                        t.completed &&
+                                          "opacity-40 line-through",
                                       )}
-                                      style={{
-                                        background: t[
-                                          flag.id as keyof EditalTopico
-                                        ]
-                                          ? flag.color
-                                          : undefined,
-                                      }}
                                     >
-                                      {flag.label}
+                                      {t.topic}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-5 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-3">
+                                    <span
+                                      className="text-[10px] font-bold tabular-nums"
+                                      style={{ color: hitColor(t.acerto) }}
+                                    >
+                                      {t.acerto !== undefined
+                                        ? `${Math.round(t.acerto * 100)}%`
+                                        : "—"}
+                                    </span>
+                                    <input
+                                      type="number"
+                                      className="w-10 h-7 bg-secondary/50 border border-border/30 rounded text-[10px] font-bold text-center outline-none focus:border-primary md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity"
+                                      placeholder="%"
+                                      onChange={(e) =>
+                                        updateAcerto(t.id, e.target.value)
+                                      }
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {[
+                                      {
+                                        id: "revisar",
+                                        label: "R",
+                                        color: "var(--accent-amber)",
+                                      },
+                                      {
+                                        id: "avancar",
+                                        label: "A",
+                                        color: "var(--primary)",
+                                      },
+                                      {
+                                        id: "discursiva",
+                                        label: "D",
+                                        color: "var(--accent-green)",
+                                      },
+                                    ].map((flag) => (
+                                      <button
+                                        key={flag.id}
+                                        onClick={() =>
+                                          toggleFlag(t.id, flag.id as any)
+                                        }
+                                        className={cn(
+                                          "w-6 h-6 rounded-md text-[9px] font-black border transition-all",
+                                          t[flag.id as keyof EditalTopico]
+                                            ? "text-white border-transparent"
+                                            : "bg-background border-border/30 text-muted-foreground opacity-30 hover:opacity-100",
+                                        )}
+                                        style={{
+                                          background: t[
+                                            flag.id as keyof EditalTopico
+                                          ]
+                                            ? flag.color
+                                            : undefined,
+                                        }}
+                                      >
+                                        {flag.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-2 md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => openRegisterStudy(t)}
+                                      className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-all"
+                                      title="Estudar Agora"
+                                    >
+                                      <Clock size={14} />
                                     </button>
-                                  ))}
-                                </div>
-                              </td>
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-2 md:opacity-0 md:group-hover/row:opacity-100 opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => openRegisterStudy(t)}
-                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-all"
-                                    title="Estudar Agora"
-                                  >
-                                    <Clock size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setEditingId(t.id);
-                                      setEditingTopicText(t.topic);
-                                    }}
-                                    className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground transition-all"
-                                  >
-                                    <Pencil size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() => deleteTopic(t.id)}
-                                    className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-all"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                    <button
+                                      onClick={() => {
+                                        setEditingId(t.id);
+                                        setEditingTopicText(t.topic);
+                                      }}
+                                      className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground transition-all"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteTopic(t.id)}
+                                      className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-all"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1844,6 +1919,33 @@ function CiclosTab({ data }: { data: any }) {
     updateSettings.mutate({ cycleConfig: newConfig });
   };
 
+  const autoDistribute = () => {
+    if (!disciplines?.length) {
+      toast.error("Cadastre disciplinas primeiro.");
+      return;
+    }
+    const current = assignments.filter((a) =>
+      disciplines.some((d) => d.id === a.disciplineId),
+    );
+    const assignedIds = new Set(current.map((a) => a.disciplineId));
+    const pending = disciplines.filter((d) => !assignedIds.has(d.id));
+    if (!pending.length) {
+      toast.info("Todas as disciplinas já estão distribuídas.");
+      return;
+    }
+    const next = [...current];
+    pending.forEach((discipline, index) => {
+      next.push({
+        cycleKey: cycleKeys[index % cycleKeys.length],
+        disciplineId: discipline.id,
+      });
+    });
+    const newConfig = { ...config, assignments: next };
+    setConfig(newConfig);
+    updateSettings.mutate({ cycleConfig: newConfig });
+    toast.success(`${pending.length} disciplinas distribuídas.`);
+  };
+
   const unassignedDisciplines = (disciplines ?? []).filter(
     (d) => !assignments.some((a) => a.disciplineId === d.id),
   );
@@ -1865,6 +1967,13 @@ function CiclosTab({ data }: { data: any }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50"
+            onClick={autoDistribute}
+          >
+            <Plus size={14} className="mr-2" /> Distribuir auto
+          </Button>
           <Button
             variant="outline"
             className="h-9 px-4 rounded-md text-[10px] font-bold uppercase tracking-wider bg-secondary/50 border-primary/20 text-primary"
@@ -1911,6 +2020,13 @@ function CiclosTab({ data }: { data: any }) {
           onClose={() => setConfigOpen(false)}
         />
       )}
+
+      <div className="rounded-lg border border-border bg-card p-3 text-[11px] leading-relaxed text-muted-foreground">
+        <b className="text-foreground">Como funciona:</b> cada coluna é um slot
+        do ciclo. Coloque as disciplinas nos slots e o ciclo se repete na ordem.
+        Se estiver começando, use{" "}
+        <b className="text-foreground">Distribuir auto</b> e ajuste depois.
+      </div>
 
       {disciplines && disciplines.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

@@ -11,11 +11,12 @@ function getStoredZoom(): number {
 }
 
 function applyZoom(level: number) {
-  // We apply the zoom to the root font-size.
-  // Base is 15px (as per current 'md' setting)
-  const baseSize = 15;
-  const newSize = (baseSize * level) / 100;
-  document.documentElement.style.fontSize = `${newSize}px`;
+  // CSS zoom escala texto, espaçamento e layout juntos. Antes era aplicado
+  // apenas no font-size do <html>, o que aumentava o padding mas não o texto
+  // em px — daí a distorção em 140%/200%.
+  const root = document.documentElement;
+  root.style.fontSize = "";
+  root.style.zoom = String(level / 100);
   localStorage.setItem("soe_zoom_level", level.toString());
 }
 
