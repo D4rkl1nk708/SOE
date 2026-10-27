@@ -46,6 +46,7 @@ export interface MergeReport {
   overlapDisciplines: number;
   overlapTopics: number;
   overlapErrors: number;
+  overlapDetails: Array<{ type: string; name: string }>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -946,6 +947,51 @@ export function smartMergeDatabases(
     errorKeysB.has(key),
   ).length;
 
+  const overlapDetails: Array<{ type: string; name: string }> = [];
+  const discNameByKey = new Map(
+    [...userDiscsA, ...userDiscsB].map((discipline) => [
+      normalizeString(discipline.name),
+      discipline.name,
+    ]),
+  );
+  for (const key of discKeysA) {
+    if (!discKeysB.has(key)) continue;
+    overlapDetails.push({
+      type: "disciplina",
+      name: discNameByKey.get(key) || key,
+    });
+  }
+  const topicLabelByKey = new Map(
+    [...safeA.topics, ...safeB.topics].map((topic) => [
+      topicKey(topic),
+      `${discNameById.get(topic.disciplineId) || "?"} › ${topic.name}`,
+    ]),
+  );
+  for (const key of topKeysA) {
+    if (!topKeysB.has(key)) continue;
+    overlapDetails.push({
+      type: "tópico",
+      name: topicLabelByKey.get(key) || key,
+    });
+  }
+  const errorLabelByKey = new Map(
+    [...(safeA.questionErrors || []), ...(safeB.questionErrors || [])].map(
+      (error) => [
+        errorKey(error),
+        error.questionId
+          ? `Questão ${error.questionId}`
+          : String(error.statement || "erro").slice(0, 80),
+      ],
+    ),
+  );
+  for (const key of errorKeysA) {
+    if (!errorKeysB.has(key)) continue;
+    overlapDetails.push({
+      type: "erro",
+      name: errorLabelByKey.get(key) || key,
+    });
+  }
+
   const mergedDb: Database = {
     users: [primaryUser],
     disciplines: finalDisciplines,
@@ -985,6 +1031,7 @@ export function smartMergeDatabases(
       overlapDisciplines,
       overlapTopics,
       overlapErrors,
+      overlapDetails: overlapDetails.slice(0, 20),
     },
   };
 

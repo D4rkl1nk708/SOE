@@ -983,6 +983,32 @@ Erros: ${errors}
         </div>
       )}
 
+      {lastSync?.overlapDetails?.length ? (
+        <details className="soe-card mx-2 p-3">
+          <summary className="cursor-pointer text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            Revisar sobreposições ({lastSync.overlapDetails.length})
+          </summary>
+          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+            {lastSync.overlapDetails.map((item: any, index: number) => (
+              <div
+                key={`${item.type}-${index}`}
+                className="flex items-center gap-2 rounded border border-border bg-secondary/20 px-2 py-1.5 text-[9.5px]"
+              >
+                <span className="rounded bg-secondary px-1.5 py-0.5 text-[8px] font-semibold uppercase text-muted-foreground">
+                  {item.type}
+                </span>
+                <span className="truncate">{item.name}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[8.5px] text-muted-foreground">
+            O merge atual mantém a versão local e complementa com os dados
+            ausentes. Esta lista serve para auditoria antes de novas
+            importações.
+          </p>
+        </details>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-2">
         {/* Left Column: QR & Sync */}
         <div className="lg:col-span-8 space-y-8">
