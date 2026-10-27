@@ -164,7 +164,9 @@ export default function MentorTab() {
 
   const chatMut = trpc.mentor.chat.useMutation({
     onSuccess: (data: any) => {
-      const newMsgs: any[] = [{ role: "assistant", content: data.reply }];
+      const newMsgs: any[] = [
+        { role: "assistant", content: data.reply, sources: data.sources || [] },
+      ];
       if (data.proposals && data.proposals.length > 0) {
         data.proposals.forEach((p: any) => {
           newMsgs.push({
@@ -533,6 +535,25 @@ export default function MentorTab() {
                           {m.content}
                         </p>
                       ) : null}
+
+                      {m.role === "assistant" &&
+                        Array.isArray((m as any).sources) &&
+                        (m as any).sources.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-3">
+                            <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Fontes
+                            </span>
+                            {(m as any).sources.map((source: any) => (
+                              <span
+                                key={source.id}
+                                title={`${source.label} — ${source.detail}`}
+                                className="rounded border border-border bg-secondary/30 px-1.5 py-0.5 text-[8.5px] text-muted-foreground"
+                              >
+                                [{source.id}] {source.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
                       {(m as any).action && (
                         <div className="mt-6 p-5 rounded-md bg-primary/5 border border-primary/20 space-y-4 animate-in fade-in slide-in-from-top-2">

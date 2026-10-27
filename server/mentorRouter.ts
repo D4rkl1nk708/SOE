@@ -1207,6 +1207,51 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
         .map((m) => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`)
         .join("\n\n");
 
+      const sources: Array<{
+        id: string;
+        type: string;
+        label: string;
+        detail: string;
+      }> = [];
+      const addSource = (type: string, label: string, detail: string) => {
+        if (sources.length >= 8) return;
+        sources.push({
+          id: `F${sources.length + 1}`,
+          type,
+          label,
+          detail,
+        });
+      };
+      weak.slice(0, 3).forEach((topic: any) => {
+        addSource(
+          "topico",
+          `${topic.disciplineName} › ${topic.topicName}`,
+          `Acurácia ${topic.accuracy}%`,
+        );
+      });
+      errors.slice(0, 2).forEach((error: any) => {
+        const discipline = disciplines.find(
+          (item) => item.id === error.disciplineId,
+        );
+        addSource(
+          "erro",
+          discipline?.name || "Questão errada",
+          String(error.errorOrigin || "erro registrado"),
+        );
+      });
+      notes.slice(0, 2).forEach((note: any) => {
+        addSource("anotacao", note.title, "Anotação do aluno");
+      });
+      const sourceBlock =
+        sources.length > 0
+          ? sources
+              .map(
+                (source) =>
+                  `[${source.id}] ${source.type}: ${source.label} (${source.detail})`,
+              )
+              .join("\n")
+          : "Nenhuma fonte registrada.";
+
       const prompt = `Você é o Mentor SOE — um professor particular de concursos e mentor de estudos focado em resultado.
 Você tem acesso completo e irrestrito ao sistema (SOE) do aluno, incluindo Calendário, Editais, Anotações, Flashcards, Estatísticas, Disciplinas, Questões, Redações (Subjetivas) e o Laboratório de Provas.
 
@@ -1228,6 +1273,11 @@ ${labStr}
 ${topicsStr || "Nenhum tópico em andamento."}
 - Memória Estratégica (Suas observações passadas sobre este aluno):
 ${observations.length > 0 ? observations.join("\n") : "Sem observações prévias."}
+
+FONTES DISPONÍVEIS PARA CITAÇÃO:
+${sourceBlock}
+
+Sempre que usar uma dessas fontes, cite o identificador entre colchetes, por exemplo [F1]. Não invente fontes que não estejam na lista.
 
 Você deve responder a nova mensagem do aluno com base no histórico da conversa e neste contexto completo. Sinta-se livre para citar as anotações do aluno, alertar sobre revisões do calendário, comentar sobre o desempenho nas redações ou sugerir a integração de provas do laboratório.
 Se o aluno pedir questões, gere-as focadas nos pontos fracos. Seja sempre direto, motivador e extremamente personalizado. Use markdown para negritos.
@@ -1317,7 +1367,7 @@ Mentor:`;
           .replace(/\[CONFUSION\]([\s\S]*?)\[\/CONFUSION\]/g, "")
           .trim();
 
-        return { reply: finalReply, proposals };
+        return { reply: finalReply, proposals, sources };
       } catch (err: any) {
         throw new Error(
           `Falha no chat: ${err instanceof Error ? err.message : String(err)}`,
