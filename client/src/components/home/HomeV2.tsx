@@ -460,7 +460,7 @@ export function HomeV2() {
               {
                 label: "Simulado 10q",
                 icon: ClipboardX,
-                action: () => navigate("/simulado"),
+                action: () => navigate("/simulado-inteligente"),
               },
               { label: "Tirar dúvida", icon: Brain, action: explain },
               {

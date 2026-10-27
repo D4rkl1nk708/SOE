@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Check,
   X,
+  Sparkles,
 } from "lucide-react";
 
 type SimuladoPhase = "config" | "running" | "result";
@@ -80,6 +81,13 @@ function ConfigScreen({
         <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
           Configure e simule condições reais de prova
         </p>
+        <a
+          href="/simulado-inteligente"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+        >
+          <Sparkles className="h-3.5 w-3.5" /> Usar simulado inteligente com
+          questões reais
+        </a>
       </div>
 
       {/* Discipline selection */}
