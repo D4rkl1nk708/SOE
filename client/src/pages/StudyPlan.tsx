@@ -85,6 +85,7 @@ export default function StudyPlan() {
     minutes ? { minutes } : undefined,
   );
   const { data: errorIntel } = trpc.study.errorPatterns.useQuery();
+  const { data: disciplines } = trpc.discipline.list.useQuery();
   const { data: weekly } = trpc.study.weeklyReview.useQuery();
 
   const plan = data?.plan;
@@ -555,12 +556,33 @@ export default function StudyPlan() {
                 </div>
               ))}
               {errorIntel.topTopics.slice(0, 3).map((topic: any) => (
-                <p
+                <button
                   key={topic.topicId}
-                  className="truncate text-[10px] text-muted-foreground"
+                  onClick={() => {
+                    sessionStorage.setItem(
+                      "qs_prefill",
+                      JSON.stringify({
+                        topicId: topic.topicId,
+                        topicName: topic.topicName,
+                        disciplineId: (disciplines as any[])?.find(
+                          (discipline) =>
+                            discipline.name === topic.disciplineName,
+                        )?.id,
+                        autoStart: true,
+                      }),
+                    );
+                    navigate("/question-session");
+                  }}
+                  className="flex w-full items-center justify-between gap-2 rounded border border-border bg-secondary/20 px-2 py-1.5 text-left transition-colors hover:border-primary/30"
+                  title="Treinar este padrão de erro"
                 >
-                  {topic.count}× {topic.topicName} · {topic.disciplineName}
-                </p>
+                  <span className="min-w-0 truncate text-[10px] text-muted-foreground">
+                    {topic.count}× {topic.topicName} · {topic.disciplineName}
+                  </span>
+                  <span className="flex-shrink-0 text-[8px] font-bold uppercase tracking-wider text-primary">
+                    Treinar
+                  </span>
+                </button>
               ))}
             </div>
           )}
