@@ -259,6 +259,47 @@ export default function QuestionSession() {
     { completed: false },
     { enabled: !!selectedTopic },
   );
+  const { data: dashboardStats } = trpc.dashboard.getStats.useQuery();
+  const totalQuestions = (
+    (dashboardStats?.disciplineStats || []) as any[]
+  ).reduce(
+    (sum, discipline) =>
+      sum + (Number(discipline.performance?.questionsResolved) || 0),
+    0,
+  );
+  const totalCorrect = (
+    (dashboardStats?.disciplineStats || []) as any[]
+  ).reduce(
+    (sum, discipline) =>
+      sum + (Number(discipline.performance?.correctCount) || 0),
+    0,
+  );
+  const overallAccuracy =
+    totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+  const totalStudySeconds = (
+    (dashboardStats?.disciplineStats || []) as any[]
+  ).reduce(
+    (sum, discipline) => sum + (Number(discipline.studyTimeSeconds) || 0),
+    0,
+  );
+  const studyTimeLabel = (() => {
+    const hours = Math.floor(totalStudySeconds / 3600);
+    const minutes = Math.floor((totalStudySeconds % 3600) / 60);
+    return hours > 0
+      ? `${hours}h${minutes > 0 ? `${minutes}m` : ""}`
+      : `${minutes}min`;
+  })();
+  const lastTecEventLabel = (() => {
+    try {
+      const raw = localStorage.getItem("soe_tec_last_event");
+      const last = raw ? JSON.parse(raw) : null;
+      return last?.at
+        ? `Última captura: ${new Date(last.at).toLocaleString("pt-BR")}`
+        : "Nenhum evento TEC recebido ainda.";
+    } catch {
+      return "Captura TEC pronta para receber eventos.";
+    }
+  })();
 
   const setPerformance = trpc.topic.setPerformance.useMutation({
     onSuccess: () => {
@@ -498,10 +539,43 @@ export default function QuestionSession() {
       <div className="max-w-7xl mx-auto space-y-8 pb-20">
         <PageHeader
           eyebrow="Execução"
-          title="Treino"
+          title="Treinos"
           description="Abra o TEC, responda e deixe o SOE registrar cada acerto e erro."
           actions={<TabNav />}
         />
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            {
+              label: "Questões resolvidas",
+              value: totalQuestions,
+              icon: Target,
+            },
+            {
+              label: "Acurácia geral",
+              value: `${overallAccuracy}%`,
+              icon: BarChart2,
+            },
+            { label: "Tempo de estudo", value: studyTimeLabel, icon: Clock },
+            {
+              label: "Temas catalogados",
+              value: dashboardStats?.totalTopics || 0,
+              icon: BookOpen,
+            },
+          ].map((item) => (
+            <div key={item.label} className="soe-card p-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <item.icon className="h-3.5 w-3.5" />
+                <span className="text-[8px] font-bold uppercase tracking-wider">
+                  {item.label}
+                </span>
+              </div>
+              <p className="mt-2 text-xl font-semibold tabular-nums">
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
 
         {activeTab === "session" && (
           <>
@@ -709,49 +783,196 @@ export default function QuestionSession() {
         )}
 
         {activeTab === "browser" && (
-          <div className="space-y-6">
-            <div className="soe-card p-12 flex flex-col items-center text-center space-y-6 max-w-2xl mx-auto">
-              <div className="w-20 h-20 rounded-3xl bg-[var(--primary-bg-subtle)] flex items-center justify-center border border-[var(--primary-border)]">
-                <Globe className="w-10 h-10 text-[var(--primary)]" />
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+              <div className="space-y-4">
+                <div className="soe-card p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-md bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))] p-2 text-primary">
+                        <Globe className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="text-base font-semibold">
+                            Treino TEC
+                          </h2>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--accent-green)_30%,var(--border))] bg-[color-mix(in_srgb,var(--accent-green)_8%,var(--card))] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[var(--accent-green)]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" />
+                            captura ativa
+                          </span>
+                        </div>
+                        <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-muted-foreground">
+                          Abra o TEC pelo SOE, responda normalmente e cada
+                          acerto/erro volta automaticamente para seu histórico.
+                          O aluno só estuda; o sistema registra.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => void openTecBrowser(pushTokenRef.current)}
+                      className="h-9 flex-shrink-0 text-[10px]"
+                    >
+                      <ExternalLink className="mr-2 h-3.5 w-3.5" /> Abrir TEC
+                    </Button>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[9px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Wifi className="h-3 w-3" /> {lastTecEventLabel}
+                    </span>
+                    <button
+                      onClick={() => setActiveTab("session")}
+                      className="ml-auto font-semibold text-primary hover:underline"
+                    >
+                      Treino manual (opcional)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="soe-card p-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Como funciona
+                    </h2>
+                    <span className="text-[9px] text-muted-foreground">
+                      3 passos
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      {
+                        n: "1",
+                        title: "Abra o TEC",
+                        text: "Use o botão acima. O SOE mantém sua sessão e o token de captura.",
+                      },
+                      {
+                        n: "2",
+                        title: "Responda",
+                        text: "Acertos, erros e tempo são registrados sem você preencher nada.",
+                      },
+                      {
+                        n: "3",
+                        title: "Veja o recibo",
+                        text: "Ao encerrar, o sistema mostra o que mudou e qual é o próximo passo.",
+                      },
+                    ].map((step) => (
+                      <div
+                        key={step.n}
+                        className="rounded-md border border-border bg-secondary/20 p-3"
+                      >
+                        <span className="flex h-6 w-6 items-center justify-center rounded bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))] text-[9px] font-bold text-primary">
+                          {step.n}
+                        </span>
+                        <p className="mt-2 text-[11px] font-semibold">
+                          {step.title}
+                        </p>
+                        <p className="mt-1 text-[9.5px] leading-relaxed text-muted-foreground">
+                          {step.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="soe-card p-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Atalhos de treino
+                    </h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      {
+                        label: "Simulado",
+                        icon: ClipboardX,
+                        action: () => navigate("/simulado"),
+                      },
+                      {
+                        label: "Erros",
+                        icon: XCircle,
+                        action: () => setActiveTab("errors"),
+                      },
+                      {
+                        label: "Subjetivas",
+                        icon: PenLine,
+                        action: () => setActiveTab("subjetivas"),
+                      },
+                      {
+                        label: "Redações",
+                        icon: FileText,
+                        action: () => setActiveTab("essays"),
+                      },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={item.action}
+                        className="flex items-center gap-2 rounded-md border border-border bg-secondary/20 px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        <item.icon className="h-3.5 w-3.5" /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black">Navegador TEC Integrado</h2>
-                <p className="text-sm opacity-60 leading-relaxed">
-                  Abra o site do TEC Concursos diretamente dentro do SOE.
-                  {(window as any).electron?.ipcRenderer
-                    ? " Seus acertos e erros serão sincronizados automaticamente via motor desktop."
-                    : " No mobile, usamos um túnel seguro para garantir o rastreio automático."}
-                </p>
-              </div>
-              <button
-                onClick={() => void openTecBrowser(pushTokenRef.current)}
-                className="px-8 py-4 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black flex items-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-[var(--primary-shadow)]"
-              >
-                <ExternalLink className="w-5 h-5" />{" "}
-                {(window as any).electron?.ipcRenderer
-                  ? "Acessar TEC Concursos"
-                  : "Abrir Navegador Automático"}
-              </button>
-              <button
-                onClick={() => setActiveTab("session")}
-                className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Treino manual (opcional)
-              </button>
-              <p className="text-[9px] text-muted-foreground/70">
-                {(() => {
-                  try {
-                    const raw = localStorage.getItem("soe_tec_last_event");
-                    const last = raw ? JSON.parse(raw) : null;
-                    return last?.at
-                      ? `Última captura TEC: ${new Date(last.at).toLocaleString("pt-BR")}`
-                      : "Nenhum evento TEC recebido ainda. Abra o TEC por este botão.";
-                  } catch {
-                    return "Capture TEC pronta para receber eventos.";
-                  }
-                })()}
-              </p>
+
+              <aside className="space-y-4">
+                <div className="soe-card p-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Sessão de hoje
+                    </h2>
+                    <span className="text-[9px] text-muted-foreground">
+                      TEC
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {[
+                      { label: "Questões", value: totalQuestions },
+                      { label: "Acurácia", value: `${overallAccuracy}%` },
+                      { label: "Tempo", value: studyTimeLabel },
+                      {
+                        label: "Temas",
+                        value: dashboardStats?.totalTopics || 0,
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="rounded border border-border bg-secondary/20 p-2.5"
+                      >
+                        <span className="block text-[7.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {item.label}
+                        </span>
+                        <b className="text-sm font-semibold">{item.value}</b>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="mt-3 h-8 w-full text-[10px]"
+                    onClick={() => navigate("/statistics")}
+                  >
+                    <BarChart2 className="mr-2 h-3.5 w-3.5" /> Ver estatísticas
+                  </Button>
+                </div>
+
+                <div className="soe-card p-4">
+                  <h2 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Captura TEC
+                  </h2>
+                  <p className="mt-2 text-[9.5px] leading-relaxed text-muted-foreground">
+                    {lastTecEventLabel}
+                  </p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full w-full rounded-full bg-[var(--accent-green)] opacity-40" />
+                  </div>
+                  <p className="mt-2 text-[8.5px] text-muted-foreground">
+                    Se a data não atualizar, abra o TEC por este botão e
+                    verifique a extensão.
+                  </p>
+                </div>
+              </aside>
             </div>
+
             <MobileTecBrowser pushToken={pushTokenData?.token || ""} />
           </div>
         )}

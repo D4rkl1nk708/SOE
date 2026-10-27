@@ -739,7 +739,7 @@ export default function SOEAnalytics() {
             <Sparkles
               className={`w-4 h-4 ${loadingReport ? "animate-spin" : ""}`}
             />
-            {loadingReport ? "Analisando..." : "Relatório de Guerra"}
+            {loadingReport ? "Analisando..." : "Análise estratégica"}
           </button>
         )}
       </div>
@@ -780,7 +780,7 @@ export default function SOEAnalytics() {
                       className="text-lg font-black"
                       style={{ color: "var(--app-fg)" }}
                     >
-                      Relatório de Guerra
+                      Análise estratégica
                     </h2>
                     <p
                       className="text-xs"
