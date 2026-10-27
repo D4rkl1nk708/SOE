@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
+import { useSimuladoGeneration } from "@/contexts/SimuladoGenerationContext";
 import {
   AlertTriangle,
   Brain,
@@ -275,7 +276,6 @@ function ExamPrintView({
 
 export default function SimuladoInteligente() {
   const [, navigate] = useLocation();
-  const utils = trpc.useUtils();
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: disciplines = [] } = trpc.discipline.list.useQuery();
   const { data: overview } = trpc.study.overview.useQuery({
@@ -283,6 +283,18 @@ export default function SimuladoInteligente() {
   });
   const { data: errorIntel } = trpc.study.errorPatterns.useQuery();
   const { data: priorExams = [] } = trpc.mockExam.list.useQuery();
+  const {
+    status,
+    progress,
+    questions,
+    blueprint: generatedBlueprint,
+    examId,
+    meta,
+    error: generationError,
+    start,
+    submit,
+    reset: resetGeneration,
+  } = useSimuladoGeneration();
 
   const apiKey = (stats?.settings as any)?.aiApiKey || "";
   const provider = ((stats?.settings as any)?.aiProvider || "gemini") as
@@ -290,26 +302,29 @@ export default function SimuladoInteligente() {
     | "openai"
     | "claude";
 
-  const generate = trpc.mentor.generateAdaptiveQuestion.useMutation();
-  const createExam = trpc.mockExam.create.useMutation();
-  const updateExam = trpc.mockExam.update.useMutation();
-
-  const [phase, setPhase] = useState<Phase>("config");
   const [title, setTitle] = useState("Simulado SOE");
   const [mode, setMode] = useState<Mode>("multiple");
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [durationMinutes, setDurationMinutes] = useState(20);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [blueprint, setBlueprint] = useState<BlueprintItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const answersRef = useRef<Record<string, string>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
-  const [examId, setExamId] = useState<number | null>(null);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [result, setResult] = useState<any>(null);
   const [printKey, setPrintKey] = useState(false);
   const submittedRef = useRef(false);
+  const timerExamRef = useRef<number | null>(null);
+
+  const selectedSet = useMemo(
+    () =>
+      new Set(
+        selectedIds === null
+          ? (disciplines as any[]).map((discipline) => discipline.id)
+          : selectedIds,
+      ),
+    [selectedIds, disciplines],
+  );
 
   const priorQuestions = useMemo(
     () =>
@@ -321,8 +336,11 @@ export default function SimuladoInteligente() {
 
   const allocations = useMemo(() => {
     const coverage = (overview?.coverage?.disciplines || []) as any[];
+    const available = (disciplines as any[]).filter((discipline) =>
+      selectedSet.has(discipline.id),
+    );
     const byName = new Map(
-      (disciplines as any[]).map((discipline) => [
+      available.map((discipline) => [
         normalizeLabel(discipline.name),
         discipline,
       ]),
@@ -333,7 +351,7 @@ export default function SimuladoInteligente() {
         const exact = byName.get(normalized);
         const fuzzy =
           exact ||
-          (disciplines as any[]).find((discipline) => {
+          available.find((discipline) => {
             const candidate = normalizeLabel(discipline.name);
             return (
               candidate.includes(normalized) || normalized.includes(candidate)
@@ -347,7 +365,7 @@ export default function SimuladoInteligente() {
       .filter((item) => item.discipline);
     const source = coverageSource.length
       ? coverageSource
-      : (disciplines as any[]).map((discipline) => ({
+      : available.map((discipline) => ({
           discipline,
           weight: Math.max(0.1, Number(discipline.weight) || 1),
         }));
@@ -376,7 +394,12 @@ export default function SimuladoInteligente() {
       if (index > raw.length * 4) break;
     }
     return raw.filter((item) => item.count > 0);
-  }, [overview?.coverage?.disciplines, disciplines, totalQuestions]);
+  }, [
+    overview?.coverage?.disciplines,
+    disciplines,
+    selectedSet,
+    totalQuestions,
+  ]);
 
   const sequence = useMemo(
     () =>
@@ -387,6 +410,24 @@ export default function SimuladoInteligente() {
   );
 
   const recommendation = (errorIntel?.topTopics || []).slice(0, 2);
+  const phase: Phase = result
+    ? "result"
+    : status === "generating"
+      ? "generating"
+      : (status === "ready" || status === "submitting") && questions.length > 0
+        ? "running"
+        : "config";
+
+  useEffect(() => {
+    if (status !== "ready" || !examId || !meta) return;
+    if (timerExamRef.current === examId) return;
+    timerExamRef.current = examId;
+    setTitle(meta.title);
+    setMode(meta.mode);
+    setDurationMinutes(meta.durationMinutes);
+    setTimeLeft(meta.durationMinutes * 60);
+    setCurrentIndex(0);
+  }, [status, examId, meta]);
 
   useEffect(() => {
     if (phase !== "running") return;
@@ -412,60 +453,12 @@ export default function SimuladoInteligente() {
       return;
     }
     submittedRef.current = true;
-    let correct = 0;
-    let wrong = 0;
-    const perDiscipline = new Map<string, { total: number; correct: number }>();
-    for (const question of questions) {
-      const selected = currentAnswers[question.id];
-      const isCorrect =
-        String(selected || "").toUpperCase() ===
-        String(question.correctAnswer || "").toUpperCase();
-      if (selected) {
-        if (isCorrect) correct++;
-        else wrong++;
-      }
-      const item = perDiscipline.get(question.disciplineName) || {
-        total: 0,
-        correct: 0,
-      };
-      item.total++;
-      if (isCorrect) item.correct++;
-      perDiscipline.set(question.disciplineName, item);
+    const submitted = await submit(currentAnswers);
+    if (!submitted) {
+      submittedRef.current = false;
+      return;
     }
-    const blank = questions.length - correct - wrong;
-    const perDisciplineArray = [...perDiscipline.entries()].map(
-      ([name, value]) => ({
-        name,
-        ...value,
-        accuracy: Math.round((value.correct / value.total) * 100),
-      }),
-    );
-    setResult({
-      correct,
-      wrong,
-      blank,
-      accuracy: Math.round((correct / questions.length) * 100),
-      perDiscipline: perDisciplineArray,
-      auto,
-    });
-    setPhase("result");
-    if (examId) {
-      try {
-        await updateExam.mutateAsync({
-          id: examId,
-          correct,
-          wrong,
-          blank,
-          totalQuestions: questions.length,
-          answers: currentAnswers,
-          status: "completed",
-          completedAt: new Date().toISOString(),
-        });
-        utils.mockExam.list.invalidate();
-      } catch (error: any) {
-        toast.error(`Prova encerrada, mas falhou ao salvar: ${error.message}`);
-      }
-    }
+    setResult({ ...submitted, auto });
   };
 
   useEffect(() => {
@@ -474,115 +467,45 @@ export default function SimuladoInteligente() {
     }
   }, [timeLeft, phase]);
 
-  const generateExam = async () => {
+  const startExam = async () => {
     if (!apiKey) {
       toast.error("Configure a chave de IA no Perfil para gerar a prova.");
       return;
     }
     if (!sequence.length) {
-      toast.error("Cadastre disciplinas ou importe um edital primeiro.");
+      toast.error("Selecione ao menos uma disciplina para gerar a prova.");
       return;
     }
     submittedRef.current = false;
-    setPhase("generating");
-    setProgress({ current: 0, total: sequence.length });
-    const generated: Question[] = [];
-    const usedStatements = priorQuestions
-      .map((question: any) => String(question.statement || ""))
-      .filter(Boolean);
-    const usedIds = priorQuestions
-      .map((question: any) => String(question.id || question.questionId || ""))
-      .filter(Boolean);
-
-    try {
-      for (let index = 0; index < sequence.length; index++) {
-        const discipline = sequence[index];
-        setProgress({ current: index + 1, total: sequence.length });
-        let question: any = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const candidate = await generate.mutateAsync({
-            disciplineId: discipline.id,
-            difficulty: "medium",
-            sessionHistory: [],
-            apiKey,
-            provider,
-            format: mode,
-            excludeQuestionIds: usedIds.slice(-250),
-            excludeStatements: usedStatements.slice(-80),
-          });
-          const candidateFingerprint = fingerprint(candidate.statement || "");
-          const repeated = usedStatements.some(
-            (statement) => fingerprint(statement) === candidateFingerprint,
-          );
-          if (!repeated && candidate.statement) {
-            question = candidate;
-            break;
-          }
-        }
-        if (!question) {
-          throw new Error(
-            "A IA repetiu questões demais. Tente novamente ou reduza o número de questões.",
-          );
-        }
-        generated.push({
-          id: question.questionId || `q-${Date.now()}-${index}`,
-          number: index + 1,
-          disciplineId: discipline.id,
-          disciplineName: question.disciplineName || discipline.name,
-          topicName: question.topicName,
-          banca: question.banca,
-          statement: question.statement,
-          alternatives: question.alternatives || [],
-          correctAnswer: question.correctAnswer || "",
-          explanation: question.hint || undefined,
-          source: question.source === "bank" ? "bank" : "ai",
-        });
-        usedStatements.push(question.statement);
-        if (question.questionId) usedIds.push(String(question.questionId));
-      }
-
-      const examBlueprint: BlueprintItem[] = allocations.map((allocation) => ({
+    setResult(null);
+    setAnswers({});
+    answersRef.current = {};
+    setCurrentIndex(0);
+    setTimeLeft(durationMinutes * 60);
+    await start({
+      title,
+      mode,
+      durationMinutes,
+      sequence: sequence.map((discipline) => ({
+        id: discipline.id,
+        name: discipline.name,
+      })),
+      blueprint: allocations.map((allocation) => ({
         disciplineId: allocation.discipline.id,
         disciplineName: allocation.discipline.name,
         count: allocation.count,
-      }));
-      const examName = `${title.trim() || "Simulado SOE"} · ${new Date().toLocaleString(
-        "pt-BR",
-        {
-          day: "2-digit",
-          month: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        },
-      )}`;
-      const created = await createExam.mutateAsync({
-        name: examName,
-        date: new Date().toISOString().slice(0, 10),
-        correct: 0,
-        wrong: 0,
-        blank: generated.length,
-        totalQuestions: generated.length,
-        questions: generated,
-        answers: {},
-        blueprint: examBlueprint,
-        status: "in_progress",
-        mode,
-        durationMinutes,
-      });
-      setExamId(created.id);
-      setQuestions(generated);
-      setBlueprint(examBlueprint);
-      setAnswers({});
-      answersRef.current = {};
-      setCurrentIndex(0);
-      setTimeLeft(durationMinutes * 60);
-      submittedRef.current = false;
-      setPhase("running");
-      utils.mockExam.list.invalidate();
-    } catch (error: any) {
-      setPhase("config");
-      toast.error(error.message || "Falha ao gerar o simulado.");
-    }
+      })),
+      apiKey,
+      provider,
+      excludeStatements: priorQuestions
+        .map((question: any) => String(question.statement || ""))
+        .filter(Boolean),
+      excludeQuestionIds: priorQuestions
+        .map((question: any) =>
+          String(question.id || question.questionId || ""),
+        )
+        .filter(Boolean),
+    });
   };
 
   const selectAnswer = (questionId: string, letter: string) => {
@@ -610,13 +533,13 @@ export default function SimuladoInteligente() {
     window.print();
   };
 
-  const reset = () => {
-    setPhase("config");
-    setQuestions([]);
+  const resetAll = () => {
+    resetGeneration();
+    setResult(null);
     setAnswers({});
     answersRef.current = {};
-    setExamId(null);
-    setResult(null);
+    setCurrentIndex(0);
+    timerExamRef.current = null;
     submittedRef.current = false;
   };
 
@@ -634,6 +557,17 @@ export default function SimuladoInteligente() {
             100,
         )
       : 0;
+
+  const toggleDiscipline = (id: number) => {
+    const base =
+      selectedIds === null
+        ? (disciplines as any[]).map((discipline) => discipline.id)
+        : selectedIds;
+    const next = base.includes(id)
+      ? base.filter((item) => item !== id)
+      : [...base, id];
+    setSelectedIds(next);
+  };
 
   return (
     <>
@@ -653,8 +587,8 @@ export default function SimuladoInteligente() {
         mode={mode}
         questions={questions}
         blueprint={
-          blueprint.length
-            ? blueprint
+          generatedBlueprint.length
+            ? generatedBlueprint
             : allocations.map((allocation) => ({
                 disciplineId: allocation.discipline.id,
                 disciplineName: allocation.discipline.name,
@@ -669,7 +603,11 @@ export default function SimuladoInteligente() {
         title="Simulados"
         description="Gere uma prova completa, responda sem ver o gabarito e receba o resultado no final."
         metrics={[
-          { label: "Questões", value: totalQuestions, icon: Target },
+          {
+            label: "Questões",
+            value: questions.length || totalQuestions,
+            icon: Target,
+          },
           { label: "Tempo", value: `${durationMinutes} min`, icon: Clock },
           { label: "Respondidas", value: answeredCount, icon: CheckCircle2 },
           { label: "Acurácia", value: `${accuracy}%`, icon: Trophy },
@@ -722,6 +660,63 @@ export default function SimuladoInteligente() {
               <section className="soe-card p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    <h2 className="text-sm font-semibold">
+                      Disciplinas da prova
+                    </h2>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedIds(null)}
+                      className="text-[8.5px] font-bold uppercase tracking-wider text-primary hover:underline"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={() => setSelectedIds([])}
+                      className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground hover:underline"
+                    >
+                      Nenhuma
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                  {(disciplines as any[]).map((discipline) => {
+                    const selected = selectedSet.has(discipline.id);
+                    return (
+                      <button
+                        key={discipline.id}
+                        onClick={() => toggleDiscipline(discipline.id)}
+                        className={`flex items-center gap-2 rounded border px-2.5 py-2 text-left text-[10px] transition-colors ${
+                          selected
+                            ? "border-primary/40 bg-primary/5 text-foreground"
+                            : "border-border text-muted-foreground hover:bg-secondary/30"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-sm border ${
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border"
+                          }`}
+                        >
+                          {selected && <CheckCircle2 className="h-2.5 w-2.5" />}
+                        </span>
+                        <span className="truncate">{discipline.name}</span>
+                      </button>
+                    );
+                  })}
+                  {disciplines.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Cadastre disciplinas primeiro.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              <section className="soe-card p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <Grid3X3 className="h-4 w-4 text-primary" />
                     <h2 className="text-sm font-semibold">
                       Blueprint da prova
@@ -733,8 +728,8 @@ export default function SimuladoInteligente() {
                   </span>
                 </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Distribuição por peso do edital. Sem edital, usa o peso
-                  estratégico das disciplinas.
+                  Distribuição por peso do edital apenas entre as disciplinas
+                  selecionadas.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {allocations.map((allocation) => (
@@ -752,7 +747,7 @@ export default function SimuladoInteligente() {
                   ))}
                   {allocations.length === 0 && (
                     <p className="text-[11px] text-muted-foreground">
-                      Sem disciplinas. Importe o edital ou cadastre matérias.
+                      Selecione disciplinas para montar o blueprint.
                     </p>
                   )}
                 </div>
@@ -852,10 +847,15 @@ export default function SimuladoInteligente() {
                     </p>
                   </div>
                 )}
+                {generationError && (
+                  <div className="mt-2 rounded border border-destructive/20 bg-destructive/5 p-2.5 text-[9.5px] text-destructive">
+                    {generationError}
+                  </div>
+                )}
                 <Button
-                  onClick={generateExam}
+                  onClick={startExam}
                   className="mt-3 w-full"
-                  disabled={!allocations.length}
+                  disabled={!allocations.length || status === "generating"}
                 >
                   <Play className="mr-2 h-3.5 w-3.5" /> Gerar prova
                 </Button>
@@ -899,6 +899,10 @@ export default function SimuladoInteligente() {
                 }}
               />
             </div>
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              Você pode sair desta aba. A geração continua em segundo plano e
+              avisaremos quando terminar.
+            </p>
           </section>
         )}
 
@@ -1062,7 +1066,7 @@ export default function SimuladoInteligente() {
                 <Button onClick={() => printExam(true)}>
                   <Download className="mr-2 h-3.5 w-3.5" /> Baixar gabarito
                 </Button>
-                <Button variant="outline" onClick={reset}>
+                <Button variant="outline" onClick={resetAll}>
                   <RotateCcw className="mr-2 h-3.5 w-3.5" /> Novo simulado
                 </Button>
                 <Button
