@@ -524,8 +524,8 @@ export default function Calendar() {
                   if (filteredActivities.length > 0) {
                     return (
                       <div className="space-y-3 relative">
-                        {/* Vertical Timeline Line */}
-                        <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-secondary/40 hidden md:block" />
+                        {/* Vertical Timeline Line — centro exato do checkbox (p-5 + 56px/2) */}
+                        <div className="pointer-events-none absolute left-[48px] top-8 bottom-8 hidden w-px bg-border/70 md:block" />
 
                         {visibleActivities.map((activity) => {
                           const isTest = activity.type === "test";
