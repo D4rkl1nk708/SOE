@@ -173,6 +173,26 @@ type BackupEntry = {
 export default function Sync() {
   const trpcUtils = trpc.useUtils();
   const { data: dataHealth } = trpc.study.dataHealth.useQuery();
+  const [lastSync, setLastSync] = useState<any>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("soe_last_sync_stats") || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  const recordSyncStats = (stats: any, direction: "pull" | "push") => {
+    if (!stats) return;
+    const record = {
+      ...stats,
+      direction,
+      at: new Date().toISOString(),
+    };
+    setLastSync(record);
+    try {
+      localStorage.setItem("soe_last_sync_stats", JSON.stringify(record));
+    } catch {}
+  };
   const importBackupMutation = trpc.import.importBackup.useMutation();
   const importLocalMutation = trpc.import.importLocalBackup.useMutation();
   const deleteLocalMutation = trpc.import.deleteLocalBackup.useMutation();
@@ -445,6 +465,7 @@ export default function Sync() {
 
       const { localImportImportBackup, localImportExportBackup } =
         await import("@/lib/localDb");
+      recordSyncStats((res.data as any)?.stats, "pull");
       await localImportImportBackup({ json });
 
       setSyncProgress({
@@ -553,6 +574,7 @@ export default function Sync() {
           respData = JSON.parse(respData);
         } catch {}
       }
+      recordSyncStats(respData?.stats, "push");
       if (respData?.database) {
         await localImportImportBackup({
           json:
@@ -872,6 +894,44 @@ export default function Sync() {
             <p className="text-[16px] font-semibold tabular-nums">
               {dataHealth.orphanRevisions}
             </p>
+          </div>
+        </div>
+      )}
+
+      {lastSync && (
+        <div className="soe-card mx-2 flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+              Última sincronização
+            </p>
+            <p className="mt-0.5 text-[10.5px]">
+              {lastSync.direction === "pull"
+                ? "Recebida do PC"
+                : "Enviada ao PC"}{" "}
+              · {new Date(lastSync.at).toLocaleString("pt-BR")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-[9px] text-muted-foreground">
+            <span>
+              <b className="text-foreground">
+                {lastSync.disciplinesCount ?? 0}
+              </b>{" "}
+              disciplinas
+            </span>
+            <span>
+              <b className="text-foreground">{lastSync.topicsCount ?? 0}</b>{" "}
+              tópicos
+            </span>
+            <span>
+              <b className="text-foreground">
+                {lastSync.questionErrorsCount ?? 0}
+              </b>{" "}
+              erros
+            </span>
+            <span>
+              <b className="text-foreground">{lastSync.revisionsCount ?? 0}</b>{" "}
+              revisões
+            </span>
           </div>
         </div>
       )}
