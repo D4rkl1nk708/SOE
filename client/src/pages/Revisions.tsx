@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/layout/PageShell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -378,8 +378,56 @@ export default function Revisions() {
   };
 
   return (
-    <div className="space-y-5">
-      {/* F01/F04 - Recall rating dialog */}
+    <PageShell
+      eyebrow="Retenção"
+      title="Revisões"
+      description="O que vence hoje, o que atrasou e o que já foi consolidado."
+      metrics={[
+        {
+          label: "Hoje",
+          value: groups.scheduled.filter(
+            (r) => r.scheduledDate === format(new Date(), "yyyy-MM-dd"),
+          ).length,
+          icon: CalendarClock,
+        },
+        {
+          label: "Atrasadas",
+          value: groups.overdue.length,
+          icon: AlertCircle,
+          color: "var(--accent-red)",
+        },
+        {
+          label: "Concluídas",
+          value: groups.completed.length,
+          icon: CheckCircle2,
+          color: "var(--accent-green)",
+        },
+        {
+          label: "Ignoradas",
+          value: groups.ignored.length,
+          icon: EyeOff,
+          color: "var(--muted-foreground)",
+        },
+      ]}
+      actions={
+        <div className="flex items-center gap-2 text-sm">
+          {groups.overdue.length > 0 ? (
+            <span className="flex items-center gap-1.5 rounded-md bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-rose-500">
+              <AlertCircle className="h-3 w-3" />
+              {groups.overdue.length} atrasadas
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+              <CheckCircle2 className="h-3 w-3" />
+              Em dia
+            </span>
+          )}
+          <span className="text-[10px] font-semibold text-muted-foreground">
+            {groups.scheduled.length} atividades
+          </span>
+        </div>
+      }
+    >
       {recallDialog && (
         <RecallRatingDialog
           open={recallDialog.open}
@@ -388,8 +436,6 @@ export default function Revisions() {
           topicName={recallDialog.topicName}
         />
       )}
-
-      {/* F11 - Teach yourself dialog */}
       {teachDialog && (
         <TeachYourselfMode
           open={teachDialog.open}
@@ -398,95 +444,8 @@ export default function Revisions() {
           disciplineName={teachDialog.disciplineName}
         />
       )}
-
-      {/* F16 - Pre-exam banner */}
       <PreExamBanner />
-      {/* F15 - Sleep warning */}
       <SleepWarning />
-
-      <PageHeader
-        eyebrow="Retenção"
-        title="Revisões"
-        description="O que vence hoje, o que atrasou e o que já foi consolidado."
-        actions={
-          <div className="flex items-center gap-2 text-sm">
-            {groups.overdue.length > 0 ? (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-500 font-bold uppercase tracking-widest text-[10px]">
-                <AlertCircle className="w-3 h-3" />
-                {groups.overdue.length} atrasadas
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 font-bold uppercase tracking-widest text-[10px]">
-                <CheckCircle2 className="w-3 h-3" />
-                Em dia
-              </span>
-            )}
-            <span className="text-[10px] font-semibold text-muted-foreground">
-              {groups.scheduled.length} atividades
-            </span>
-          </div>
-        }
-      />
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Hoje",
-            count: groups.scheduled.filter(
-              (r) => r.scheduledDate === format(new Date(), "yyyy-MM-dd"),
-            ).length,
-            color: "var(--primary)",
-            icon: CalendarClock,
-          },
-          {
-            label: "Atrasadas",
-            count: groups.overdue.length,
-            color: "var(--accent-red, #dc2626)",
-            icon: AlertCircle,
-          },
-          {
-            label: "Concluídas",
-            count: groups.completed.length,
-            color: "var(--accent-green)",
-            icon: CheckCircle2,
-          },
-          {
-            label: "Ignoradas",
-            count: groups.ignored.length,
-            color: "var(--muted-text)",
-            icon: EyeOff,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className="soe-stat-card flex items-center gap-3"
-            >
-              <Icon
-                className="w-6 h-6 flex-shrink-0"
-                style={{ color: item.color }}
-              />
-              <div>
-                <div
-                  className="text-xl font-black"
-                  style={{ color: item.color }}
-                >
-                  {item.count}
-                </div>
-                <div
-                  className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--muted-text)" }}
-                >
-                  {item.label}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       <Tabs
         defaultValue="scheduled"
         className="w-full"
@@ -567,6 +526,6 @@ export default function Revisions() {
           />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }
