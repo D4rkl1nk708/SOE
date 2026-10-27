@@ -71,7 +71,7 @@ const NAV_GROUPS = [
   {
     label: "Sistema",
     items: [
-      { path: "/lab", label: "Laboratório", icon: FlaskConical },
+      { path: "/lab", label: "Treino adaptativo", icon: FlaskConical },
       { path: "/sync", label: "Sync & Backup", icon: Wifi },
     ],
   },
@@ -111,7 +111,7 @@ const TOOLS_ITEMS = [
   { path: "/question-errors", label: "Questões erradas", icon: ClipboardX },
   { path: "/flashcards", label: "Flashcards", icon: Brain },
   { path: "/notes", label: "Anotações", icon: StickyNote },
-  { path: "/lab", label: "Laboratório", icon: FlaskConical },
+  { path: "/lab", label: "Treino adaptativo", icon: FlaskConical },
   { path: "/history", label: "Histórico", icon: CheckCircle2 },
 ];
 
