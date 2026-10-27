@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
@@ -60,6 +60,29 @@ export function HomeV2() {
   const examState = useExams();
   const [examsOpen, setExamsOpen] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [lastReceipt, setLastReceipt] = useState<any>(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("soe_last_session_receipt") || "null",
+      );
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        setLastReceipt(
+          JSON.parse(
+            localStorage.getItem("soe_last_session_receipt") || "null",
+          ),
+        );
+      } catch {}
+    };
+    window.addEventListener("soe-guided-finished", refresh);
+    return () => window.removeEventListener("soe-guided-finished", refresh);
+  }, []);
   const { data: overview } = trpc.study.overview.useQuery({
     minutes: Number((stats?.settings as any)?.dailyGoalMinutes) || 240,
   });
@@ -575,6 +598,35 @@ export function HomeV2() {
               <b>{calibration?.overconfidence || 0}</b>
             </div>
           </div>
+          {lastReceipt && (
+            <div className="mt-2 border-t border-border pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[8.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Último recibo
+                </span>
+                <span className="text-[8px] text-muted-foreground">
+                  {new Date(lastReceipt.date).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+              <p className="mt-1 text-[9.5px] text-foreground">
+                {lastReceipt.questions} questões · {lastReceipt.minutes} min ·{" "}
+                <b>{lastReceipt.accuracy}%</b>{" "}
+                <span
+                  className={
+                    lastReceipt.delta >= 0
+                      ? "text-[var(--accent-green)]"
+                      : "text-[var(--accent-amber)]"
+                  }
+                >
+                  ({lastReceipt.delta >= 0 ? "+" : ""}
+                  {lastReceipt.delta}pp)
+                </span>
+              </p>
+              <p className="mt-0.5 truncate text-[8.5px] text-muted-foreground">
+                Próximo: {lastReceipt.nextBlock?.title || "plano recalculado"}
+              </p>
+            </div>
+          )}
         </section>
       </div>
 
