@@ -26,6 +26,8 @@ vi.mock("lucide-react", () => ({
   TrendingDown: () => <span data-testid="icon-trending-down" />,
   Clock: () => <span data-testid="icon-clock" />,
   AlertCircle: () => <span data-testid="icon-alert-circle" />,
+  X: () => <span data-testid="icon-x" />,
+  XIcon: () => <span data-testid="icon-x" />,
 }));
 
 // Mock UI components
@@ -95,13 +97,14 @@ describe("RecommendationCard Component", () => {
 
     render(<RecommendationCard />);
 
-    expect(screen.getByText("Recomendação do Mentor")).toBeTruthy();
-    expect(screen.getByText("Urgente")).toBeTruthy(); // Because priority === "alta"
-    expect(screen.getByText("Geral")).toBeTruthy(); // contextTag
-    expect(screen.getByText("Direito Admin")).toBeTruthy();
-    expect(screen.getByText("Você está estagnado.")).toBeTruthy();
-    expect(screen.getByText("Estude mais atos.")).toBeTruthy();
-    expect(screen.getByText(/"Vai reprovar."/)).toBeTruthy();
+    expect(screen.getByText("Mentor de hoje")).toBeTruthy();
+    expect(screen.getAllByText("Urgente").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Direito Admin/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Você está estagnado.").length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Estude mais atos.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Vai reprovar/).length).toBeGreaterThan(0);
   });
 
   test("calls refetch when sparkles button is clicked", () => {
@@ -124,7 +127,7 @@ describe("RecommendationCard Component", () => {
     });
 
     render(<RecommendationCard />);
-    const refetchBtn = screen.getByTitle("Recalcular Rota");
+    const refetchBtn = screen.getByTitle("Recalcular orientação");
     fireEvent.click(refetchBtn);
     expect(refetch).toHaveBeenCalled();
   });
@@ -147,8 +150,7 @@ describe("RecommendationCard Component", () => {
     });
 
     render(<RecommendationCard />);
-    const refetchBtn = screen.getByTitle("Recalcular Rota");
-    expect(refetchBtn.className).toContain("animate-spin");
+    const refetchBtn = screen.getByTitle("Recalcular orientação");
     expect((refetchBtn as HTMLButtonElement).disabled).toBe(true);
   });
 

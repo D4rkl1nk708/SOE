@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, Tray, Menu, Notification, nativeImage, session } = require("electron");
+const { app, BrowserWindow, shell, ipcMain, Tray, Menu, Notification, nativeImage, session, dialog } = require("electron");
 
 // Fix: Disable setuid sandbox (requires root SUID bit which may not be set on all Linux systems)
 // This flag must be set before app is ready
@@ -39,6 +39,51 @@ if (!gotTheLock) {
 
   // Somente inicializamos o app se tivermos o lock
   initApp();
+}
+
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+  try {
+    const { autoUpdater } = require("electron-updater");
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on("update-downloaded", async (info) => {
+      try {
+        const result = await dialog.showMessageBox({
+          type: "info",
+          title: "Atualização do SOE",
+          message: `A versão ${info.version} foi baixada.`,
+          detail:
+            "Reinicie agora para aplicar a atualização. Seus dados locais serão preservados.",
+          buttons: ["Reiniciar agora", "Depois"],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall(false, true);
+        }
+      } catch (e) {
+        console.warn("[AutoUpdate] Falha ao exibir diálogo:", e?.message);
+      }
+    });
+
+    autoUpdater.on("error", (error) => {
+      console.warn("[AutoUpdate] Erro:", error?.message || error);
+    });
+
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((e) => {
+        console.warn("[AutoUpdate] Check falhou:", e?.message);
+      });
+    }, 8000);
+    setInterval(
+      () => autoUpdater.checkForUpdates().catch(() => {}),
+      6 * 60 * 60 * 1000,
+    );
+  } catch (e) {
+    console.warn("[AutoUpdate] Indisponível:", e?.message);
+  }
 }
 
 function initApp() {
@@ -290,6 +335,7 @@ function initApp() {
     const port = await startBundledServer();
     createWindow("http://localhost:" + port);
     createTray(port);
+    setupAutoUpdater();
   });
 
   app.on("window-all-closed", () => {

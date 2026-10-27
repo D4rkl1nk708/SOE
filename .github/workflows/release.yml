@@ -182,7 +182,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-linux
-          path: Linux-SOE-v*.AppImage
+          path: |
+            Linux-SOE-v*.AppImage
+            release/*.AppImage
+            release/latest-linux.yml
+            release/*.blockmap
           if-no-files-found: error
 
   build-windows:
@@ -250,7 +254,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts-windows
-          path: Windows-SOE-v*.exe
+          path: |
+            Windows-SOE-v*.exe
+            release/*.exe
+            release/latest.yml
+            release/*.blockmap
           if-no-files-found: error
 
   publish-release:
