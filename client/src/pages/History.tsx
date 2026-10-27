@@ -34,6 +34,7 @@ import {
   FileText,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { PageShell } from "@/components/layout/PageShell";
 import { ptBR } from "date-fns/locale";
 
 export default function History() {
@@ -221,44 +222,48 @@ export default function History() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h1
-            className="text-3xl font-black tracking-tight flex items-center gap-2.5"
-            style={{ color: "var(--app-fg)" }}
-          >
-            <HistoryIcon className="h-7 w-7 text-[var(--primary)]" />
-            Histórico
-          </h1>
-          <p className="text-sm opacity-60">
-            Linha do tempo de todas as suas atividades.
-          </p>
-        </div>
+  const historyRevisions = (historyData?.revisions || []) as any[];
+  const completedCount = historyRevisions.filter(
+    (item) => item.completed,
+  ).length;
+  const pendingCount = historyRevisions.length - completedCount;
+  const today = format(new Date(), "yyyy-MM-dd");
+  const overdueCount = historyRevisions.filter(
+    (item) => !item.completed && item.scheduledDate < today,
+  ).length;
 
+  return (
+    <PageShell
+      eyebrow="Linha do tempo"
+      title="Histórico"
+      description="Tudo o que foi agendado, concluído e atrasado."
+      metrics={[
+        { label: "Atividades", value: historyRevisions.length },
+        { label: "Concluídas", value: completedCount },
+        { label: "Pendentes", value: pendingCount },
+        { label: "Atrasadas", value: overdueCount },
+      ]}
+      actions={
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={handleExport}
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/70 text-[10px] font-black uppercase tracking-widest"
+            className="h-9 text-[10px]"
           >
-            <Download className="h-4 w-4 mr-2" />
-            CSV
+            <Download className="mr-2 h-3.5 w-3.5" /> CSV
           </Button>
           <Button
             variant="outline"
             onClick={handleExportPrintable}
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/70 text-[10px] font-black uppercase tracking-widest"
+            className="h-9 text-[10px]"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            PDF
+            <FileText className="mr-2 h-3.5 w-3.5" /> PDF
           </Button>
         </div>
-      </div>
-
+      }
+    >
       {/* Filters */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+      <div className="soe-card grid grid-cols-2 gap-3 p-3 lg:grid-cols-5">
         <div className="col-span-2 lg:col-span-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-30" />
           <Input
@@ -495,6 +500,6 @@ export default function History() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }
