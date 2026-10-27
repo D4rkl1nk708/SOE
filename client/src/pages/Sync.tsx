@@ -932,6 +932,12 @@ export default function Sync() {
               <b className="text-foreground">{lastSync.revisionsCount ?? 0}</b>{" "}
               revisões
             </span>
+            {typeof lastSync.overlapDisciplines === "number" && (
+              <span className="text-[8.5px]">
+                sobreposições: {lastSync.overlapDisciplines} disc ·{" "}
+                {lastSync.overlapTopics} tóp · {lastSync.overlapErrors} err
+              </span>
+            )}
           </div>
         </div>
       )}
