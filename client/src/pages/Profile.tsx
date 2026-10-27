@@ -968,6 +968,13 @@ export default function Profile() {
   const [tab, setTab] = useState<Tab>(
     ["history", "revisions", "dou"].includes(hash) ? (hash as Tab) : "settings",
   );
+
+  const [updateStatus, setUpdateStatus] = useState<{
+    loading: boolean;
+    message: string;
+    tone: "neutral" | "success" | "error";
+  }>({ loading: false, message: "", tone: "neutral" });
+
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { user, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1162,6 +1169,62 @@ export default function Profile() {
                     abrir e a cada 6 horas. Não abre navegador nem baixa
                     instalador manual.
                   </p>
+                  <Button
+                    variant="outline"
+                    className="mt-3 h-8 text-[10px]"
+                    disabled={updateStatus.loading}
+                    onClick={async () => {
+                      const api = (window as any).electron?.updates;
+                      if (!api?.check) {
+                        setUpdateStatus({
+                          loading: false,
+                          message:
+                            "Verificação disponível apenas no app desktop.",
+                          tone: "neutral",
+                        });
+                        return;
+                      }
+                      setUpdateStatus({
+                        loading: true,
+                        message: "Verificando...",
+                        tone: "neutral",
+                      });
+                      const result = await api.check();
+                      setUpdateStatus({
+                        loading: false,
+                        message:
+                          result?.status === "ok"
+                            ? result.updateAvailable
+                              ? `Atualização disponível: ${result.latestVersion}.`
+                              : "Você está na versão mais recente."
+                            : result?.message || "Não foi possível verificar.",
+                        tone:
+                          result?.status === "ok"
+                            ? "success"
+                            : result?.status === "error"
+                              ? "error"
+                              : "neutral",
+                      });
+                    }}
+                  >
+                    <RefreshCw
+                      className={`mr-2 h-3.5 w-3.5 ${updateStatus.loading ? "animate-spin" : ""}`}
+                    />
+                    Verificar atualização
+                  </Button>
+                  {updateStatus.message && (
+                    <p
+                      className={`mt-2 text-[9.5px] ${
+                        updateStatus.tone === "success"
+                          ? "text-emerald-600"
+                          : updateStatus.tone === "error"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {updateStatus.message}
+                    </p>
+                  )}
                 </div>
                 <div className="soe-card p-4">
                   <div className="flex items-center gap-2 text-xs font-semibold">

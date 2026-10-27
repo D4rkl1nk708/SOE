@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld("electron", {
       }
     },
   },
+  // Atualizações: verificação real via electron-updater
+  updates: {
+    check: () => ipcRenderer.invoke("soe-check-updates"),
+  },
   // Preferência de bandeja do sistema
   tray: {
     getPreference: () => ipcRenderer.invoke("get-tray-preference"),

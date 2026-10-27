@@ -101,6 +101,34 @@ function setupAutoUpdater() {
 function initApp() {
   const fs = require("fs");
 
+  ipcMain.handle("soe-check-updates", async () => {
+    if (!app.isPackaged) {
+      return {
+        status: "dev",
+        currentVersion: app.getVersion(),
+        message: "Modo desenvolvimento: o updater só roda no app empacotado.",
+      };
+    }
+    try {
+      const { autoUpdater } = require("electron-updater");
+      const result = await autoUpdater.checkForUpdates();
+      const latestVersion = result?.updateInfo?.version || null;
+      return {
+        status: "ok",
+        currentVersion: app.getVersion(),
+        latestVersion,
+        updateAvailable:
+          latestVersion !== null && latestVersion !== app.getVersion(),
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        currentVersion: app.getVersion(),
+        message: error?.message || "Falha ao verificar atualização.",
+      };
+    }
+  });
+
   ipcMain.handle("get-tray-preference", () => minimizeToTray);
   ipcMain.handle("set-tray-preference", (_, value) => {
     minimizeToTray = Boolean(value);
