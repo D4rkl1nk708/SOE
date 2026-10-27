@@ -10,6 +10,9 @@ vi.mock("wouter", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    discipline: {
+      list: { useQuery: () => ({ data: [] }) },
+    },
     study: {
       overview: {
         useQuery: () => ({
