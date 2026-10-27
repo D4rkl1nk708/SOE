@@ -43,6 +43,9 @@ export interface MergeReport {
   questionErrorsCount: number;
   revisionsCount: number;
   totalQuestionsResolved: number;
+  overlapDisciplines: number;
+  overlapTopics: number;
+  overlapErrors: number;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -902,6 +905,57 @@ export function smartMergeDatabases(
       ? { [effectiveUserId]: Array.from(cadernoMap.values()) }
       : {};
 
+  // Sobreposições entre os dois lados, antes da reconciliação.
+  const userDiscsA = safeA.disciplines.filter(
+    (d) => !targetUserId || d.userId === targetUserId,
+  );
+  const userDiscsB = safeB.disciplines.filter(
+    (d) => !targetUserId || d.userId === targetUserId,
+  );
+  const discNameById = new Map<number, string>();
+  for (const discipline of [...userDiscsA, ...userDiscsB]) {
+    discNameById.set(discipline.id, normalizeString(discipline.name));
+  }
+  const discKeysA = new Set(
+    userDiscsA.map((discipline) => normalizeString(discipline.name)),
+  );
+  const discKeysB = new Set(
+    userDiscsB.map((discipline) => normalizeString(discipline.name)),
+  );
+  const overlapDisciplines = [...discKeysA].filter((key) =>
+    discKeysB.has(key),
+  ).length;
+  const topicKey = (topic: any) =>
+    `${discNameById.get(topic.disciplineId) || ""}::${normalizeString(topic.name)}`;
+  const topKeysA = new Set(
+    safeA.topics
+      .filter((topic) => !targetUserId || topic.userId === targetUserId)
+      .map(topicKey),
+  );
+  const topKeysB = new Set(
+    safeB.topics
+      .filter((topic) => !targetUserId || topic.userId === targetUserId)
+      .map(topicKey),
+  );
+  const overlapTopics = [...topKeysA].filter((key) => topKeysB.has(key)).length;
+  const errorKey = (error: any) =>
+    error.questionId
+      ? `qid:${String(error.questionId).toLowerCase()}`
+      : `stmt:${normalizeString(error.statement).slice(0, 120)}`;
+  const errorKeysA = new Set(
+    (safeA.questionErrors || [])
+      .filter((error) => !targetUserId || error.userId === targetUserId)
+      .map(errorKey),
+  );
+  const errorKeysB = new Set(
+    (safeB.questionErrors || [])
+      .filter((error) => !targetUserId || error.userId === targetUserId)
+      .map(errorKey),
+  );
+  const overlapErrors = [...errorKeysA].filter((key) =>
+    errorKeysB.has(key),
+  ).length;
+
   const mergedDb: Database = {
     users: [primaryUser],
     disciplines: finalDisciplines,
@@ -938,6 +992,9 @@ export function smartMergeDatabases(
         (s, t) => s + (t.performance?.questionsResolved || 0),
         0,
       ),
+      overlapDisciplines,
+      overlapTopics,
+      overlapErrors,
     },
   };
 
