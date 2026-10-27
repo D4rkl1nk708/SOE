@@ -78,13 +78,15 @@ export default function GuidedSession() {
     correct: 0,
     accuracy: 0,
   }));
+  const [receipt, setReceipt] = useState<any>(null);
 
   const { data: stats, refetch: refetchStats } =
     trpc.dashboard.getStats.useQuery();
-  const { data: overview } = trpc.study.overview.useQuery(
-    { minutes: Number((stats?.settings as any)?.dailyGoalMinutes) || 240 },
-    { enabled: !!stats },
-  );
+  const { data: overview, refetch: refetchOverview } =
+    trpc.study.overview.useQuery(
+      { minutes: Number((stats?.settings as any)?.dailyGoalMinutes) || 240 },
+      { enabled: !!stats },
+    );
   const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
 
   const apiKey = (stats?.settings as any)?.aiApiKey || "";
@@ -123,10 +125,41 @@ export default function GuidedSession() {
 
   const finish = async () => {
     await new Promise((resolve) => setTimeout(resolve, 900));
-    const fresh = await refetchStats();
-    setAfter(snapshot(fresh.data));
+    const [fresh, freshOverview] = await Promise.all([
+      refetchStats(),
+      refetchOverview(),
+    ]);
+    const afterSnapshot = snapshot(fresh.data);
+    const newQuestions = Math.max(
+      0,
+      afterSnapshot.questions - before.questions,
+    );
+    const newDelta = afterSnapshot.accuracy - before.accuracy;
+    const nextBlock = freshOverview.data?.plan?.blocks?.[0];
+    const record = {
+      date: new Date().toISOString(),
+      title: activeBlock?.title || "Sessão de estudo",
+      minutes: Math.max(0, Math.round(elapsed / 60)),
+      questions: newQuestions,
+      accuracy: afterSnapshot.accuracy,
+      delta: newDelta,
+      nextBlock: nextBlock
+        ? {
+            id: nextBlock.id,
+            title: nextBlock.title,
+            minutes: nextBlock.minutes,
+            reason: nextBlock.reason,
+            topicId: nextBlock.topicId,
+            topicName: nextBlock.topicName,
+            disciplineId: nextBlock.disciplineId,
+          }
+        : null,
+    };
+    setAfter(afterSnapshot);
+    setReceipt(record);
     setPhase("receipt");
     try {
+      localStorage.setItem("soe_last_session_receipt", JSON.stringify(record));
       localStorage.removeItem("soe_active_mission");
     } catch {}
     try {
@@ -445,6 +478,38 @@ export default function GuidedSession() {
                     superior.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {receipt?.nextBlock && (
+            <div className="soe-card p-5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Plano recalculado
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {receipt.nextBlock.title}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    {receipt.nextBlock.reason ||
+                      "Próximo bloco do plano atualizado."}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    sessionStorage.setItem(
+                      "soe_guided_block",
+                      JSON.stringify(receipt.nextBlock),
+                    );
+                    window.location.reload();
+                  }}
+                >
+                  Iniciar próximo
+                </Button>
               </div>
             </div>
           )}
