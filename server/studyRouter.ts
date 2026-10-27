@@ -1,6 +1,7 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
+import { getStudyLedger } from "./studyLedger";
 import {
   getDataHealth,
   getErrorIntelligence,
@@ -12,6 +13,18 @@ import {
 const confidenceSchema = z.enum(["chute", "acho", "certeza"]).nullable();
 
 export const studyRouter = router({
+  ledger: protectedProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(500).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return getStudyLedger(ctx.user.id, input?.limit);
+    }),
+
   overview: protectedProcedure
     .input(
       z
