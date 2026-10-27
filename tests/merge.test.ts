@@ -124,6 +124,11 @@ describe("smartMergeDatabases", () => {
     expect(report.overlapDisciplines).toBe(1);
     expect(report.overlapTopics).toBe(1);
     expect(report.overlapErrors).toBe(0);
+    expect(report.overlapDetails).toHaveLength(2);
+    expect(report.overlapDetails.map((item: any) => item.type).sort()).toEqual([
+      "disciplina",
+      "tópico",
+    ]);
   });
 
   it("mantém correta+erros = respondidas quando os totais empatam", () => {
