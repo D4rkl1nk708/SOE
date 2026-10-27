@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { trpc } from "@/lib/trpc";
+import { PageShell } from "@/components/layout/PageShell";
 import { toast } from "sonner";
 import MinedResolutionPanel from "./MinedResolutionPanel";
 import ReactMarkdown from "react-markdown";
@@ -383,7 +384,11 @@ export default function Lab() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 pb-20 pt-10 px-4">
+    <PageShell
+      eyebrow="Mineração"
+      title="Treino adaptativo"
+      description="Sua central privada de mineração e estruturação de dados acadêmicos com IA."
+    >
       {showPlayer && (
         <MinedResolutionPanel
           topicId={filterTopicId}
@@ -394,51 +399,33 @@ export default function Lab() {
         />
       )}
 
-      <div className="flex flex-col gap-8">
-        <div className="space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 border border-primary/20">
-            <FlaskConical size={14} className="text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
-              SOE Intelligent Mining
-            </span>
-          </div>
-          <h1 className="text-5xl font-bold tracking-tight leading-none text-foreground">
-            Laboratório de <span className="text-primary">Provas</span>
-          </h1>
-          <p className="text-muted-foreground text-sm max-w-xl leading-relaxed">
-            Sua central privada de mineração e estruturação de dados acadêmicos
-            com Inteligência Artificial integrada.
-          </p>
-        </div>
-
-        {/* Tab Navigation (Linear) */}
-        <div className="flex items-center gap-8 border-b border-border">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as Tab)}
-                className={cn(
-                  "flex items-center gap-2 pb-4 -mb-[1px] text-[11px] font-bold uppercase tracking-wider transition-all relative",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100",
-                )}
-              >
-                <Icon size={14} />
-                {tab.label}
-                {isActive && (
-                  <motion.div
-                    layoutId="lab-tab-active"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* Tab Navigation (Linear) */}
+      <div className="flex items-center gap-8 border-b border-border">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={cn(
+                "flex items-center gap-2 pb-4 -mb-[1px] text-[11px] font-bold uppercase tracking-wider transition-all relative",
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100",
+              )}
+            >
+              <Icon size={14} />
+              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="lab-tab-active"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === "mining" && (
@@ -1629,6 +1616,6 @@ export default function Lab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
