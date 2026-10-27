@@ -1,4 +1,6 @@
 import { trpc } from "@/lib/trpc";
+import { PageShell } from "@/components/layout/PageShell";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import {
@@ -646,80 +648,32 @@ export default function Flashcards() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Immersive Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-xl shadow-[var(--primary-shadow)]">
-            <GraduationCap className="w-6 h-6 text-[var(--primary)]" />
-          </div>
-          <div className="space-y-1">
-            <h1
-              className="text-3xl font-black tracking-tight"
-              style={{ color: "var(--app-fg)" }}
-            >
-              Cards
-            </h1>
-            <p className="text-sm opacity-60">Repetição espaçada.</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setMode("create")}
-          className="w-full sm:w-auto px-6 h-12 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-95 transition-all"
-        >
-          <Plus className="h-4 w-4 mr-2" /> Novo
-        </button>
-      </div>
-
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-        {[
-          {
-            label: "Acervo",
-            value: cards.length,
-            color: "var(--primary)",
-            icon: Layers,
-          },
-          {
-            label: "Pendente",
-            value: dueCards.length,
-            color:
-              dueCards.length > 0
-                ? "var(--accent-amber)"
-                : "var(--accent-green)",
-            icon: History,
-          },
-          {
-            label: "Maestria",
-            value: `${Math.round((cards.filter((c: any) => c.interval >= 21).length / (cards.length || 1)) * 100)}%`,
-            color: "var(--accent-green)",
-            icon: TrendingUp,
-          },
-        ].map((s, idx) => (
-          <div
-            key={s.label}
-            className={`soe-card p-4 md:p-6 flex items-center justify-between group overflow-hidden relative ${idx === 2 ? "col-span-2 md:col-span-1" : ""}`}
-          >
-            <div className="relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">
-                {s.label}
-              </p>
-              <p
-                className="text-2xl md:text-3xl font-black"
-                style={{ color: s.color }}
-              >
-                {s.value}
-              </p>
-            </div>
-            <s.icon
-              size={32}
-              className="absolute -right-2 -bottom-2 opacity-[0.03] group-hover:opacity-[0.08] group-hover:-rotate-12 transition-all"
-              style={{ color: s.color }}
-            />
-          </div>
-        ))}
-      </div>
-
+    <PageShell
+      eyebrow="Memória"
+      title="Cards"
+      description="Repetição espaçada para consolidar o que você já estudou."
+      metrics={[
+        { label: "Acervo", value: cards.length, icon: Layers },
+        {
+          label: "Pendentes",
+          value: dueCards.length,
+          icon: History,
+          color:
+            dueCards.length > 0 ? "var(--accent-amber)" : "var(--accent-green)",
+        },
+        {
+          label: "Maestria",
+          value: `${Math.round((cards.filter((c: any) => c.interval >= 21).length / (cards.length || 1)) * 100)}%`,
+          icon: TrendingUp,
+          color: "var(--accent-green)",
+        },
+      ]}
+      actions={
+        <Button onClick={() => setMode("create")} className="h-9 text-[10px]">
+          <Plus className="h-3.5 w-3.5 mr-2" /> Novo
+        </Button>
+      }
+    >
       {/* Hero CTA */}
       <AnimatePresence>
         {dueCards.length > 0 && (
@@ -898,6 +852,6 @@ export default function Flashcards() {
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
