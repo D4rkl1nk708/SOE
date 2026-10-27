@@ -118,6 +118,14 @@ describe("smartMergeDatabases", () => {
     expect(twice.topics[0].performance.errorCount).toBe(52);
   });
 
+  it("reporta sobreposições entre os lados antes do merge", () => {
+    const merged = smartMergeDatabases(database(), mobileDatabase());
+    const report = (merged as any)._mergeReport;
+    expect(report.overlapDisciplines).toBe(1);
+    expect(report.overlapTopics).toBe(1);
+    expect(report.overlapErrors).toBe(0);
+  });
+
   it("mantém correta+erros = respondidas quando os totais empatam", () => {
     const a = database();
     const b = database({
