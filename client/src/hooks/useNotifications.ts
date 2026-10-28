@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { formatDateForDb } from "@shared/scheduling";
 import { Capacitor } from "@capacitor/core";
 import { trpc } from "@/lib/trpc";
 
@@ -21,9 +22,13 @@ export function useNotifications() {
   }, [stats, revisions]);
 }
 
-async function scheduleRevisionNotifications(revisions: any, disciplineStats: any[]) {
+async function scheduleRevisionNotifications(
+  revisions: any,
+  disciplineStats: any[],
+) {
   try {
-    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    const { LocalNotifications } =
+      await import("@capacitor/local-notifications");
 
     // Request permission
     const permResult = await LocalNotifications.requestPermissions();
@@ -47,10 +52,12 @@ async function scheduleRevisionNotifications(revisions: any, disciplineStats: an
     let id = 1000;
 
     // 1. Pending revisions today notification (at 8am)
-    const pendingRevisions = Array.isArray(revisions) ? revisions.filter((r: any) => {
-      if (r.status === "completed" || r.status === "ignored") return false;
-      return r.scheduledDate <= todayStr;
-    }) : [];
+    const pendingRevisions = Array.isArray(revisions)
+      ? revisions.filter((r: any) => {
+          if (r.status === "completed" || r.status === "ignored") return false;
+          return r.scheduledDate <= todayStr;
+        })
+      : [];
 
     if (pendingRevisions.length > 0) {
       const scheduleAt = new Date(today);
@@ -88,22 +95,44 @@ async function scheduleRevisionNotifications(revisions: any, disciplineStats: an
       const neglected = disciplineStats
         .filter((disc: any) => {
           const topics = disc.topics || [];
-          const latest = topics.map((t: any) => t.studyDate || "").filter(Boolean).sort().reverse()[0];
+          const latest = topics
+            .map((t: any) => t.studyDate || "")
+            .filter(Boolean)
+            .sort()
+            .reverse()[0];
           if (!latest) return false;
-          const days = Math.floor((today.getTime() - new Date(latest).getTime()) / 86400000);
+          const days = Math.floor(
+            (today.getTime() - new Date(latest).getTime()) / 86400000,
+          );
           return days >= 7;
         })
         .sort((a: any, b: any) => {
-          const aLatest = (a.topics||[]).map((t:any)=>t.studyDate||"").filter(Boolean).sort().reverse()[0] || "";
-          const bLatest = (b.topics||[]).map((t:any)=>t.studyDate||"").filter(Boolean).sort().reverse()[0] || "";
+          const aLatest =
+            (a.topics || [])
+              .map((t: any) => t.studyDate || "")
+              .filter(Boolean)
+              .sort()
+              .reverse()[0] || "";
+          const bLatest =
+            (b.topics || [])
+              .map((t: any) => t.studyDate || "")
+              .filter(Boolean)
+              .sort()
+              .reverse()[0] || "";
           return aLatest.localeCompare(bLatest);
         })
         .slice(0, 1)[0];
 
       if (neglected) {
         const topics = neglected.topics || [];
-        const latest = topics.map((t:any) => t.studyDate||"").filter(Boolean).sort().reverse()[0];
-        const days = Math.floor((today.getTime() - new Date(latest).getTime()) / 86400000);
+        const latest = topics
+          .map((t: any) => t.studyDate || "")
+          .filter(Boolean)
+          .sort()
+          .reverse()[0];
+        const days = Math.floor(
+          (today.getTime() - new Date(latest).getTime()) / 86400000,
+        );
         const notifAt = new Date(today);
         notifAt.setHours(10, 30, 0, 0);
         if (notifAt > today) {
@@ -132,7 +161,9 @@ async function scheduleRevisionNotifications(revisions: any, disciplineStats: an
           sound: "default",
           vibration: true,
         });
-      } catch { /* channel may already exist */ }
+      } catch {
+        /* channel may already exist */
+      }
 
       await LocalNotifications.schedule({ notifications });
     }
@@ -148,9 +179,14 @@ async function scheduleRevisionNotifications(revisions: any, disciplineStats: an
       const key = `notif_web_${todayStr}`;
       if (localStorage.getItem(key)) return;
 
-      const pendingCount = Array.isArray(revisions) ? revisions.filter((r: any) =>
-        r.status !== "completed" && r.status !== "ignored" && r.scheduledDate <= todayStr
-      ).length : 0;
+      const pendingCount = Array.isArray(revisions)
+        ? revisions.filter(
+            (r: any) =>
+              r.status !== "completed" &&
+              r.status !== "ignored" &&
+              r.scheduledDate <= todayStr,
+          ).length
+        : 0;
 
       if (pendingCount > 0) {
         new Notification("Revisões pendentes — SOE", {
@@ -160,6 +196,8 @@ async function scheduleRevisionNotifications(revisions: any, disciplineStats: an
         });
         localStorage.setItem(key, "1");
       }
-    } catch { /* silently fail */ }
+    } catch {
+      /* silently fail */
+    }
   }
 }

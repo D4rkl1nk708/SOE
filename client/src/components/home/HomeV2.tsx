@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { formatDateForDb } from "@shared/scheduling";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
@@ -156,7 +157,7 @@ export function HomeV2() {
     return Array.from({ length: 7 }, (_, index) => {
       const date = new Date(today);
       date.setDate(today.getDate() - (6 - index));
-      const iso = date.toISOString().slice(0, 10);
+      const iso = formatDateForDb(date);
       const minutes = byDate.get(iso) || 0;
       return {
         iso,

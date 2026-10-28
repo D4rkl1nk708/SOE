@@ -51,6 +51,7 @@ import { useLocation } from "wouter";
 import SubjectiveEssayModal from "@/components/SubjectiveEssayModal";
 import { useScheduleSettings } from "@/hooks/useDashboard";
 import { ScheduleDialog } from "@/components/ScheduleDialog";
+import { formatDateForDb } from "@shared/scheduling";
 
 const LS_LINKS = "soe_tec_links";
 function getLinks(): Record<number, string> {
@@ -74,11 +75,11 @@ export default function Calendar() {
   const [dayFilter, setDayFilter] = useState<
     "all" | "pending" | "revision" | "test"
   >("all");
-  const [modalVisibleCount, setModalVisibleCount] = useState(15);
+  const [modalVisibleCount, setModalVisibleCount] = useState(60);
   const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    setModalVisibleCount(15);
+    setModalVisibleCount(60);
   }, [selectedDay, dayFilter, isDayDetailOpen]);
 
   // Subjective Modal State
@@ -107,8 +108,8 @@ export default function Calendar() {
 
   const queryParams = useMemo(
     () => ({
-      startDate: calendarStart.toISOString().split("T")[0],
-      endDate: calendarEnd.toISOString().split("T")[0],
+      startDate: formatDateForDb(calendarStart),
+      endDate: formatDateForDb(calendarEnd),
     }),
     [calendarStart, calendarEnd],
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDateForDb } from "@shared/scheduling";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,7 @@ export default function Topics() {
   const [formData, setFormData] = useState({
     name: "",
     disciplineId: 0,
-    studyDate: new Date().toISOString().split("T")[0],
+    studyDate: formatDateForDb(new Date()),
     studyTimeMinutes: 60,
     notes: "",
   });
@@ -91,7 +92,7 @@ export default function Topics() {
       setFormData({
         name: "",
         disciplineId: 0,
-        studyDate: new Date().toISOString().split("T")[0],
+        studyDate: formatDateForDb(new Date()),
         studyTimeMinutes: 60,
         notes: "",
       });

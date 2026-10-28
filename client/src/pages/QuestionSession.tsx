@@ -1,4 +1,5 @@
 import { MobileTecBrowser } from "@/components/question-session/MobileTecBrowser";
+import { formatDateForDb } from "@shared/scheduling";
 import { EssaysTab } from "@/components/question-session/EssaysTab";
 import { AiPostMortem } from "@/components/question-session/AiPostMortem";
 import { MnemonicSos } from "@/components/question-session/MnemonicSos";
@@ -484,7 +485,7 @@ export default function QuestionSession() {
           topicId: selectedTopic,
           seconds: elapsed,
         });
-      const today = new Date().toISOString().split("T")[0];
+      const today = formatDateForDb(new Date());
       const nextTest = (revisionsData ?? [])
         .filter(
           (r: any) =>
