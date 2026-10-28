@@ -5,8 +5,8 @@
 export type AiProvider = "gemini" | "openai" | "claude";
 
 const GEMINI_MODELS = [
-  "gemini-3.5-flash",
   "gemini-2.5-flash",
+  "gemini-3.5-flash",
   "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-flash-latest",
@@ -211,6 +211,42 @@ export function extractJSON(text: string): any {
         : startArr;
   if (first === -1) throw new Error("JSON não encontrado.");
   let jsonStr = cleaned.substring(first).trim();
+
+  // Alguns modelos devolvem texto/close tags depois do JSON. Recorta o
+  // objeto/array balanceado antes de tentar o parse.
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let end = -1;
+  for (let i = 0; i < jsonStr.length; i++) {
+    const ch = jsonStr[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end >= 0) jsonStr = jsonStr.substring(0, end + 1);
+
+  // Repara um erro comum do modelo: propriedade sem aspas ("Cohort").
+  jsonStr = jsonStr.replace(
+    /,\s*(?:Cohort|cohort)\s*:\s*"(?:[^"\\]|\\.)*"/g,
+    "",
+  );
+
   try {
     return JSON.parse(jsonStr);
   } catch (e) {}
