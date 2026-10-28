@@ -410,6 +410,22 @@ export default function SimuladoInteligente() {
   );
 
   const recommendation = (errorIntel?.topTopics || []).slice(0, 2);
+  const aiKeyCount = apiKey
+    .split(/[\s,;]+/)
+    .map((key: string) => key.trim())
+    .filter(Boolean).length;
+  const sections = useMemo(() => {
+    const map = new Map<string, { name: string; questions: Question[] }>();
+    for (const question of questions) {
+      const current = map.get(question.disciplineName) || {
+        name: question.disciplineName,
+        questions: [],
+      };
+      current.questions.push(question);
+      map.set(question.disciplineName, current);
+    }
+    return [...map.values()];
+  }, [questions]);
   const phase: Phase = result
     ? "result"
     : status === "generating"
@@ -543,7 +559,6 @@ export default function SimuladoInteligente() {
     submittedRef.current = false;
   };
 
-  const current = questions[currentIndex];
   const answeredCount = Object.keys(answers).length;
   const accuracy =
     questions.length > 0
@@ -847,6 +862,15 @@ export default function SimuladoInteligente() {
                     </p>
                   </div>
                 )}
+                {aiKeyCount > 1 && (
+                  <div className="mt-2 rounded border border-emerald-500/20 bg-emerald-500/5 p-2.5 text-[9.5px] text-muted-foreground">
+                    <b className="text-foreground">
+                      {aiKeyCount} chaves detectadas.
+                    </b>{" "}
+                    Até 4 trabalham em paralelo; a primeira coordena as
+                    verificações e retries.
+                  </div>
+                )}
                 {generationError && (
                   <div className="mt-2 rounded border border-destructive/20 bg-destructive/5 p-2.5 text-[9.5px] text-destructive">
                     {generationError}
@@ -906,20 +930,21 @@ export default function SimuladoInteligente() {
           </section>
         )}
 
-        {phase === "running" && current && (
-          <div className="grid gap-3 lg:grid-cols-[1fr_250px]">
+        {phase === "running" && (
+          <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
             <section className="soe-card overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-secondary/20 px-4 py-3">
+              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
                 <div>
-                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {title}
+                  <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    CADERNO DE PROVAS ·{" "}
+                    {mode === "cebraspe" ? "CEBRASPE C/E" : "MÚLTIPLA ESCOLHA"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {current.disciplineName}
-                    {current.topicName ? ` · ${current.topicName}` : ""}
-                  </p>
+                  <p className="mt-0.5 text-[13px] font-semibold">{title}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <span className="text-[9px] text-muted-foreground">
+                    {answeredCount}/{questions.length} marcadas
+                  </span>
                   <span
                     className={`font-mono text-sm font-semibold ${timeLeft < 60 ? "text-destructive" : ""}`}
                   >
@@ -934,94 +959,147 @@ export default function SimuladoInteligente() {
                   </Button>
                 </div>
               </div>
-              <div className="p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Questão {current.number} de {questions.length}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground">
-                    {answeredCount}/{questions.length} respondidas
-                  </span>
-                </div>
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">
-                  {current.statement}
-                </p>
-                <div className="mt-4 grid gap-2">
-                  {current.alternatives.map((alternative) => {
-                    const selected = answers[current.id] === alternative.letter;
-                    return (
-                      <button
-                        key={alternative.letter}
-                        onClick={() =>
-                          selectAnswer(current.id, alternative.letter)
-                        }
-                        className={`flex gap-3 rounded border p-3 text-left text-xs transition-colors ${
-                          selected
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:bg-secondary/30"
-                        }`}
-                      >
-                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-secondary text-[9px] font-bold">
-                          {alternative.letter}
-                        </span>
-                        <span>{alternative.text}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <Button
-                    variant="outline"
-                    className="h-8 text-[10px]"
-                    disabled={currentIndex === 0}
-                    onClick={() =>
-                      setCurrentIndex((index) => Math.max(0, index - 1))
-                    }
-                  >
-                    <ChevronLeft className="mr-1 h-3.5 w-3.5" /> Anterior
+
+              <div className="max-h-[calc(100vh-15rem)] overflow-y-auto bg-[var(--app-bg)] p-3 sm:p-5">
+                {sections.map((section) => (
+                  <div key={section.name} className="mb-5">
+                    <div className="mb-2 flex items-center justify-between border-y border-border bg-secondary/30 px-3 py-2">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-foreground">
+                        {section.name}
+                      </span>
+                      <span className="text-[8px] text-muted-foreground">
+                        {section.questions.length} questão(ões)
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {section.questions.map((question) => {
+                        const globalIndex = questions.findIndex(
+                          (item) => item.id === question.id,
+                        );
+                        return (
+                          <article
+                            id={`exam-question-${question.id}`}
+                            key={question.id}
+                            onClick={() => setCurrentIndex(globalIndex)}
+                            className={`scroll-mt-24 cursor-default rounded border bg-card p-4 transition-colors ${
+                              currentIndex === globalIndex
+                                ? "border-primary/40"
+                                : "border-border"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-baseline gap-2">
+                                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-bold text-foreground">
+                                  {question.number}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    {question.disciplineName}
+                                    {question.topicName
+                                      ? ` · ${question.topicName}`
+                                      : ""}
+                                  </p>
+                                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
+                                    {question.statement}
+                                  </p>
+                                </div>
+                              </div>
+                              {answers[question.id] && (
+                                <span className="flex-shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-600">
+                                  marcada {answers[question.id]}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-3 grid gap-1.5">
+                              {question.alternatives.map((alternative) => {
+                                const selected =
+                                  answers[question.id] === alternative.letter;
+                                return (
+                                  <button
+                                    key={alternative.letter}
+                                    onClick={() =>
+                                      selectAnswer(
+                                        question.id,
+                                        alternative.letter,
+                                      )
+                                    }
+                                    className={`flex gap-3 rounded border px-3 py-2.5 text-left text-[11.5px] leading-relaxed transition-colors ${
+                                      selected
+                                        ? "border-primary bg-primary/10 text-foreground"
+                                        : "border-border bg-background/40 text-foreground hover:bg-secondary/40"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border text-[9px] font-bold ${
+                                        selected
+                                          ? "border-primary bg-primary text-primary-foreground"
+                                          : "border-border bg-secondary text-muted-foreground"
+                                      }`}
+                                    >
+                                      {alternative.letter}
+                                    </span>
+                                    <span>{alternative.text}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex flex-col items-center gap-2 border-t border-border py-5">
+                  <p className="text-[9.5px] text-muted-foreground">
+                    Revise as marcações no mapa ao lado antes de entregar.
+                  </p>
+                  <Button onClick={() => finishExam(false)}>
+                    <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Entregar prova
                   </Button>
-                  {currentIndex < questions.length - 1 ? (
-                    <Button
-                      className="h-8 text-[10px]"
-                      onClick={() => setCurrentIndex((index) => index + 1)}
-                    >
-                      Próxima <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                    </Button>
-                  ) : (
-                    <Button
-                      className="h-8 text-[10px]"
-                      onClick={() => finishExam(false)}
-                    >
-                      Entregar prova{" "}
-                      <CheckCircle2 className="ml-1 h-3.5 w-3.5" />
-                    </Button>
-                  )}
                 </div>
               </div>
             </section>
 
-            <aside className="space-y-3">
+            <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
               <section className="soe-card p-3">
-                <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Mapa da prova
-                </p>
-                <div className="mt-2 grid grid-cols-5 gap-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Folha de respostas
+                  </p>
+                  <span className="text-[8px] text-muted-foreground">
+                    {answeredCount}/{questions.length}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
                   {questions.map((question, index) => {
                     const answered = Boolean(answers[question.id]);
                     const active = index === currentIndex;
                     return (
                       <button
                         key={question.id}
-                        onClick={() => setCurrentIndex(index)}
-                        className={`flex h-7 items-center justify-center rounded text-[9px] font-semibold ${
+                        onClick={() => {
+                          setCurrentIndex(index);
+                          document
+                            .getElementById(`exam-question-${question.id}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                        }}
+                        className={`flex flex-col items-center justify-center rounded border py-1 text-[9px] font-semibold ${
                           active
-                            ? "bg-primary text-primary-foreground"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : answered
-                              ? "bg-emerald-500/15 text-emerald-600"
-                              : "bg-secondary/40 text-muted-foreground"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                              : "border-border bg-secondary/30 text-muted-foreground"
                         }`}
                       >
-                        {question.number}
+                        <span>{question.number}</span>
+                        <span className="text-[7px] opacity-70">
+                          {answers[question.id] || "—"}
+                        </span>
                       </button>
                     );
                   })}
@@ -1031,8 +1109,7 @@ export default function SimuladoInteligente() {
                   className="mt-3 w-full text-[10px]"
                   onClick={() => printExam(false)}
                 >
-                  <Printer className="mr-2 h-3.5 w-3.5" /> Baixar para responder
-                  no papel
+                  <Printer className="mr-2 h-3.5 w-3.5" /> Baixar para papel
                 </Button>
                 <Button
                   variant="ghost"
@@ -1043,8 +1120,9 @@ export default function SimuladoInteligente() {
                 </Button>
               </section>
               <div className="soe-card p-3 text-[9.5px] leading-relaxed text-muted-foreground">
-                O gabarito fica oculto até a entrega. Você pode voltar e revisar
-                as respostas.
+                <b className="text-foreground">Prova em modo caderno:</b> várias
+                questões na mesma página, como no papel. O gabarito só aparece
+                após a entrega.
               </div>
             </aside>
           </div>
