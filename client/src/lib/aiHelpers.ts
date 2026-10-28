@@ -49,8 +49,11 @@ async function callGemini(
         if (
           msg.toLowerCase().includes("quota") ||
           msg.toLowerCase().includes("not found") ||
+          msg.toLowerCase().includes("high demand") ||
+          msg.toLowerCase().includes("unavailable") ||
           r.status === 429 ||
-          r.status === 404
+          r.status === 404 ||
+          r.status >= 500
         ) {
           lastError = msg;
           continue;
@@ -59,12 +62,8 @@ async function callGemini(
       }
       return d.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (err: any) {
-      if (
-        !err.message?.toLowerCase().includes("quota") &&
-        !err.message?.toLowerCase().includes("not found")
-      )
-        throw err;
-      lastError = err.message;
+      // Erros de rede/5xx também devem tentar o próximo modelo.
+      lastError = err.message || String(err);
     }
   }
   throw new Error(

@@ -22,7 +22,7 @@ async function callAI(
 ): Promise<string> {
   // Reasoning models (Gemini 2.0/3.0) consume tokens for internal thoughts.
   // We force a minimum of 3000 tokens to prevent premature truncation across all routes.
-  const safeTokens = Math.max(maxTokens, 3000);
+  const safeTokens = Math.max(maxTokens, 8000);
   return callAiProvider(
     provider,
     apiKeyString,
