@@ -55,6 +55,7 @@ import {
   localGetTecRegressions,
   localMentorChat,
   localGenerateAdaptiveQuestion,
+  localTestAiKey,
   localReviewSimulado,
   localStudyOverview,
   localStudyErrorPatterns,
@@ -204,6 +205,7 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.chat": (i) => localMentorChat(i as any),
   "mentor.generateAdaptiveQuestion": (i) =>
     localGenerateAdaptiveQuestion(i as any),
+  "mentor.testKey": (i) => localTestAiKey(i as any),
   "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
   "study.overview": (i) => localStudyOverview(i as any),
   "study.errorPatterns": () => localStudyErrorPatterns(),
