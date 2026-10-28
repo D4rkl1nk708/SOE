@@ -20,8 +20,8 @@ export function resolveLocalAiConfig(
   fallbackEnvValue?: string | null,
 ): { provider: AiProvider; apiKeys: string[]; isLocalOnly: boolean } {
   const normalizedProvider = (
-    (requestedProvider || "gemini").toLowerCase() as AiProvider
-  );
+    requestedProvider || "gemini"
+  ).toLowerCase() as AiProvider;
 
   const userKeys = normalizeApiKeys(userApiKeyString);
   const fallbackKeys = normalizeApiKeys(fallbackEnvValue);
@@ -37,12 +37,11 @@ export function resolveLocalAiConfig(
 }
 
 const GEMINI_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-3.1-flash-lite",
-  "gemini-3-flash-preview",
+  "gemini-3.5-flash",
   "gemini-2.5-flash",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-flash-latest",
 ];
 
 interface GeminiErrorResponse {
