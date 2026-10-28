@@ -37,20 +37,24 @@ export function getScheduleParams(
     testIntervalDays?: number;
     revisionIntervalDays?: number;
     revisionSecondPhaseDays?: number;
-  } | null
+  } | null,
 ): ScheduleParams {
-  const revisionIntervalDays = settings?.revisionIntervalDays ?? DEFAULT_PARAMS.revisionIntervalDays;
+  const revisionIntervalDays =
+    settings?.revisionIntervalDays ?? DEFAULT_PARAMS.revisionIntervalDays;
   return {
-    testIntervalDays: settings?.testIntervalDays ?? DEFAULT_PARAMS.testIntervalDays,
+    testIntervalDays:
+      settings?.testIntervalDays ?? DEFAULT_PARAMS.testIntervalDays,
     revisionIntervalDays,
-    revisionSecondPhaseDays: settings?.revisionSecondPhaseDays ?? DEFAULT_PARAMS.revisionSecondPhaseDays,
+    revisionSecondPhaseDays:
+      settings?.revisionSecondPhaseDays ??
+      DEFAULT_PARAMS.revisionSecondPhaseDays,
     revisionsEnabled: revisionIntervalDays > 0,
   };
 }
 
 export function calculateRevisionDates(
   studyDate: Date,
-  params: ScheduleParams
+  params: ScheduleParams,
 ): ScheduledActivity[] {
   if (!params.revisionsEnabled) return [];
 
@@ -60,13 +64,21 @@ export function calculateRevisionDates(
   // Fase 1: 5 revisões com intervalo de phase1 dias
   for (let i = 1; i <= 5; i++) {
     currentDate = addDays(currentDate, params.revisionIntervalDays);
-    revisions.push({ date: new Date(currentDate), revisionNumber: i, type: "revision" });
+    revisions.push({
+      date: new Date(currentDate),
+      revisionNumber: i,
+      type: "revision",
+    });
   }
 
   // Fase 2: 10 revisões com intervalo de phase2 dias
   for (let i = 6; i <= 15; i++) {
     currentDate = addDays(currentDate, params.revisionSecondPhaseDays);
-    revisions.push({ date: new Date(currentDate), revisionNumber: i, type: "revision" });
+    revisions.push({
+      date: new Date(currentDate),
+      revisionNumber: i,
+      type: "revision",
+    });
   }
 
   return revisions;
@@ -75,7 +87,7 @@ export function calculateRevisionDates(
 export function generateRandomTests(
   studyDate: Date,
   revisions: Pick<ScheduledActivity, "date" | "revisionNumber">[],
-  testIntervalDays: number
+  testIntervalDays: number,
 ): ScheduledActivity[] {
   const tests: ScheduledActivity[] = [];
   let previousDate = new Date(studyDate);
@@ -85,9 +97,18 @@ export function generateRandomTests(
     let currentTestDate = addDays(previousDate, testIntervalDays);
 
     // Gera testes enquanto couber antes da próxima revisão (com margem de 2 dias)
-    while (currentTestDate.getTime() < revision.date.getTime() - 2 * MS_PER_DAY) {
-      tests.push({ date: new Date(currentTestDate), revisionNumber: testNumber++, type: "test" });
-      const daysToNext = testIntervalDays + Math.floor(Math.random() * Math.max(1, testIntervalDays));
+    while (
+      currentTestDate.getTime() <
+      revision.date.getTime() - 2 * MS_PER_DAY
+    ) {
+      tests.push({
+        date: new Date(currentTestDate),
+        revisionNumber: testNumber++,
+        type: "test",
+      });
+      const daysToNext =
+        testIntervalDays +
+        Math.floor(Math.random() * Math.max(1, testIntervalDays));
       currentTestDate = addDays(currentTestDate, daysToNext);
     }
 
@@ -101,13 +122,27 @@ export function generateRandomTests(
  * Gera todas as atividades (revisões + testes) para um tópico estudado em `studyDate`,
  * já ordenadas por data crescente.
  */
-export function buildSchedule(studyDate: Date, params: ScheduleParams): ScheduledActivity[] {
+export function buildSchedule(
+  studyDate: Date,
+  params: ScheduleParams,
+): ScheduledActivity[] {
   const revisions = calculateRevisionDates(studyDate, params);
-  const tests = generateRandomTests(studyDate, revisions, params.testIntervalDays);
-  return [...revisions, ...tests].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const tests = generateRandomTests(
+    studyDate,
+    revisions,
+    params.testIntervalDays,
+  );
+  return [...revisions, ...tests].sort(
+    (a, b) => a.date.getTime() - b.date.getTime(),
+  );
 }
 
-/** Formata uma Date como string YYYY-MM-DD para armazenamento */
+/** Formata uma Date como string YYYY-MM-DD usando o calendário local.
+ *  Não usar toISOString aqui: à noite no Brasil o UTC já é o dia seguinte,
+ *  o que deslocava revisões e fazia datas "sumirem" do calendário. */
 export function formatDateForDb(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

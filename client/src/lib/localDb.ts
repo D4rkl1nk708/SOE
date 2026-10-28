@@ -99,6 +99,13 @@ interface MockExam {
   totalQuestions: number;
   score: number;
   createdAt: string;
+  questions?: any[];
+  answers?: Record<string, string>;
+  blueprint?: any[];
+  status?: "in_progress" | "completed";
+  mode?: "cebraspe" | "multiple";
+  durationMinutes?: number;
+  completedAt?: string;
 }
 
 interface Note {
@@ -1330,6 +1337,217 @@ export async function localDashboardGetStats(): Promise<
   };
 }
 
+export async function localGenerateAdaptiveQuestion(input: {
+  disciplineId: number;
+  topicId?: number;
+  difficulty?: "easy" | "medium" | "hard";
+  sessionHistory?: {
+    questionId: string;
+    correct: boolean;
+    errorOrigin?: string;
+  }[];
+  apiKey: string;
+  provider: AiProvider;
+  excludeQuestionIds?: string[];
+  excludeStatements?: string[];
+  format?: "multiple" | "cebraspe";
+}): Promise<any> {
+  const [disciplines, topics, errorsPage] = await Promise.all([
+    localDisciplineList(),
+    localTopicList(),
+    localGetQuestionErrors({ disciplineId: input.disciplineId, limit: 200 }),
+  ]);
+  const topicList = topics.topics;
+  const discipline = disciplines.find((item) => item.id === input.disciplineId);
+  const topic = topicList.find((item) => item.id === input.topicId);
+  const alreadyUsed = [
+    ...(input.sessionHistory || []).map((item) => item.questionId),
+    ...(input.excludeQuestionIds || []),
+  ];
+  const excludedStatements = new Set(
+    (input.excludeStatements || []).map((statement) =>
+      normalizeString(statement).slice(0, 120),
+    ),
+  );
+  const availableFromBank =
+    input.format === "multiple"
+      ? errorsPage.items.filter(
+          (item: any) =>
+            item.correctAnswer &&
+            item.statement &&
+            Array.isArray(item.alternatives) &&
+            item.alternatives.length >= 4 &&
+            !alreadyUsed.includes(String(item.id)) &&
+            !excludedStatements.has(
+              normalizeString(item.statement).slice(0, 120),
+            ),
+        )
+      : [];
+
+  if (availableFromBank.length > 0) {
+    const pick =
+      availableFromBank[
+        Math.floor(Math.random() * Math.min(availableFromBank.length, 5))
+      ];
+    return {
+      source: "bank" as const,
+      questionId: String(pick.id),
+      statement: pick.statement,
+      alternatives: pick.alternatives,
+      correctAnswer: pick.correctAnswer ?? "",
+      banca: pick.banca ?? "",
+      year: pick.year,
+      topicName: topic?.name ?? "",
+      disciplineName: discipline?.name ?? "",
+      hint: null,
+    };
+  }
+
+  const diffLabel =
+    input.difficulty === "easy"
+      ? "básica (conceito direto)"
+      : input.difficulty === "hard"
+        ? "difícil (pegadinha ou exceção legal)"
+        : "intermediária (aplicação prática)";
+  const exclusion =
+    input.excludeStatements && input.excludeStatements.length > 0
+      ? `NÃO REPITA: ${input.excludeStatements
+          .slice(0, 20)
+          .map((statement) => `"${String(statement).slice(0, 100)}"`)
+          .join("; ")}`
+      : "";
+  const base = `Você é professor de concursos públicos. Crie UMA questão inédita de dificuldade ${diffLabel}.
+
+Disciplina: ${discipline?.name ?? "Direito"}
+Tópico: ${topic?.name ?? "geral"}
+DIVERSIDADE: varie comando, contexto, tipo de raciocínio e dificuldade. Não use sempre o mesmo cenário.
+PESQUISA OPCIONAL: se houver ferramenta de pesquisa web, consulte apenas fontes públicas. Nunca acesse, cite ou copie tecconcursos.com.br.
+${exclusion}`;
+
+  const prompt =
+    input.format === "cebraspe"
+      ? `${base}
+
+Crie UM item assertivo no estilo CEBRASPE, com comando "Julgue o item a seguir".
+Retorne EXATAMENTE JSON:
+{"statement":"item completo","alternatives":[{"letter":"C","text":"Certo"},{"letter":"E","text":"Errado"}],"correctAnswer":"C ou E","banca":"CEBRASPE","hint":"explicação objetiva"}`
+      : `${base}
+
+Retorne EXATAMENTE JSON:
+{"statement":"enunciado","alternatives":[{"letter":"A","text":"..."},{"letter":"B","text":"..."},{"letter":"C","text":"..."},{"letter":"D","text":"..."},{"letter":"E","text":"..."}],"correctAnswer":"A/B/C/D/E","banca":"CEBRASPE","hint":"dica curta"}`;
+
+  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+  const parsed: any = extractJSON(raw);
+  if (!parsed?.statement || !Array.isArray(parsed?.alternatives)) {
+    throw new Error("A IA retornou uma questão inválida.");
+  }
+  return {
+    source: "ai" as const,
+    questionId: `ai_${Date.now()}`,
+    statement: parsed.statement,
+    alternatives: parsed.alternatives,
+    correctAnswer: parsed.correctAnswer,
+    banca: parsed.banca ?? "IA",
+    year: new Date().getFullYear(),
+    topicName: topic?.name ?? "",
+    disciplineName: discipline?.name ?? "",
+    hint: parsed.hint ?? null,
+  };
+}
+
+export async function localReviewSimulado(input: {
+  questions: Array<{
+    number: number;
+    disciplineName?: string;
+    topicName?: string;
+    statement: string;
+    correctAnswer?: string;
+  }>;
+  apiKey: string;
+  provider: AiProvider;
+}): Promise<any> {
+  const prompt = `Você é a chave coordenadora de um simulado. Analise a prova e encontre questões quase idênticas, repetição excessiva de tópico e questões genéricas.
+
+${input.questions
+  .map(
+    (question) =>
+      `[${question.number}] ${question.disciplineName || ""} · ${question.topicName || "geral"}: ${question.statement.slice(0, 700)}`,
+  )
+  .join("\n\n")}
+
+Retorne EXATAMENTE JSON:
+{"duplicateIndices":[números a substituir],"quality":0,"verdict":"frase curta","recommendations":["até 3"]}`;
+  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+  const parsed: any = extractJSON(raw);
+  return {
+    duplicateIndices: Array.isArray(parsed?.duplicateIndices)
+      ? parsed.duplicateIndices
+          .map((value: any) => Number(value))
+          .filter(
+            (value: number) =>
+              Number.isInteger(value) &&
+              value >= 1 &&
+              value <= input.questions.length,
+          )
+      : [],
+    quality: Math.max(0, Math.min(100, Number(parsed?.quality) || 0)),
+    verdict: String(parsed?.verdict || ""),
+    recommendations: Array.isArray(parsed?.recommendations)
+      ? parsed.recommendations.slice(0, 3).map(String)
+      : [],
+  };
+}
+
+export async function localStudyOverview(_input?: { minutes?: number }) {
+  const [disciplines, topicsResult] = await Promise.all([
+    localDisciplineList(),
+    localTopicList(),
+  ]);
+  const topics = topicsResult.topics;
+  return {
+    coverage: {
+      disciplines: disciplines.map((discipline) => ({
+        name: discipline.name,
+        weight: Number(discipline.weight) || 1,
+        topics: topics.filter((topic) => topic.disciplineId === discipline.id)
+          .length,
+      })),
+    },
+    plan: { blocks: [], plannedMinutes: 0 },
+    base: null,
+    calibration: null,
+  };
+}
+
+export async function localStudyErrorPatterns() {
+  const [errors, topicsResult, disciplines] = await Promise.all([
+    db.questionErrors.where("userId").equals(LOCAL_USER_ID).toArray(),
+    localTopicList(),
+    localDisciplineList(),
+  ]);
+  const topics = topicsResult.topics;
+  const counts = new Map<number, number>();
+  for (const error of errors) {
+    counts.set(error.topicId, (counts.get(error.topicId) || 0) + 1);
+  }
+  const topTopics = [...counts.entries()]
+    .map(([topicId, count]) => {
+      const topic = topics.find((item) => item.id === topicId);
+      const discipline = disciplines.find(
+        (item) => item.id === topic?.disciplineId,
+      );
+      return {
+        topicId,
+        topicName: topic?.name || "Tópico",
+        disciplineName: discipline?.name || "Disciplina",
+        count,
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  return { total: errors.length, topTopics };
+}
+
 export async function localMockExamList(): Promise<MockExam[]> {
   return db.mockExams
     .where("userId")
@@ -1345,6 +1563,13 @@ export async function localMockExamCreate(input: {
   wrong: number;
   blank: number;
   totalQuestions: number;
+  questions?: any[];
+  answers?: Record<string, string>;
+  blueprint?: any[];
+  status?: "in_progress" | "completed";
+  mode?: "cebraspe" | "multiple";
+  durationMinutes?: number;
+  completedAt?: string;
 }): Promise<MockExam> {
   const id = await incCounter("mockExams");
   const score = input.correct - input.wrong;
@@ -1406,6 +1631,13 @@ export async function localMockExamUpdate(input: {
   wrong?: number;
   blank?: number;
   totalQuestions?: number;
+  questions?: any[];
+  answers?: Record<string, string>;
+  blueprint?: any[];
+  status?: "in_progress" | "completed";
+  mode?: "cebraspe" | "multiple";
+  durationMinutes?: number;
+  completedAt?: string;
 }): Promise<{ success: boolean }> {
   const exam = await db.mockExams.get(input.id);
   if (!exam || exam.userId !== LOCAL_USER_ID) return { success: false };
