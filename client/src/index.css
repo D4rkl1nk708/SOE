@@ -185,6 +185,29 @@
   .soe-stat-card {
     @apply bg-card border border-border rounded-lg p-6 flex flex-col justify-between;
   }
+  /* Papel de prova: claro e escuro, sem perder a leitura */
+  .exam-paper {
+    background: #f6f2e8;
+    color: #1c1917;
+    border: 1px solid #d8d0c1;
+    box-shadow: 0 18px 50px rgba(20, 16, 10, 0.16);
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .dark .exam-paper {
+    background: #16181b;
+    color: #e8e3d8;
+    border-color: #34383d;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  }
+  .exam-paper .paper-sans {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  .exam-paper .paper-rule {
+    border-color: rgba(28, 25, 23, 0.18);
+  }
+  .dark .exam-paper .paper-rule {
+    border-color: rgba(232, 227, 216, 0.16);
+  }
 }
 
 /* Scrollbars: finas e visíveis. Esconder totalmente fazia a rolagem

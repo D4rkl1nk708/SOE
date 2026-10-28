@@ -616,6 +616,77 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
   /**
    * Gera questão adaptativa — do banco próprio OU via IA se não houver
    */
+  reviewSimulado: protectedProcedure
+    .input(
+      z.object({
+        questions: z.array(
+          z.object({
+            number: z.number(),
+            disciplineName: z.string().optional(),
+            topicName: z.string().optional(),
+            statement: z.string(),
+            correctAnswer: z.string().optional(),
+          }),
+        ),
+        apiKey: z.string().min(1),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const prompt = `Você é a chave coordenadora de um simulado de concurso. Analise a prova abaixo como um revisor editorial rigoroso.
+
+Seu trabalho NÃO é responder à prova. Procure:
+1. questões quase idênticas, que cobram o mesmo conceito com a mesma situação ou o mesmo comando;
+2. repetição excessiva de um único tópico;
+3. questões genéricas demais, sem contexto ou com alternativas óbvias.
+
+QUESTÕES:
+${input.questions
+  .map(
+    (question) =>
+      `[${question.number}] ${question.disciplineName || ""} · ${question.topicName || "geral"}: ${question.statement.slice(0, 700)}`,
+  )
+  .join("\n\n")}
+
+Retorne EXATAMENTE JSON, sem markdown:
+{
+  "duplicateIndices": [números das questões que devem ser substituídas],
+  "quality": 0,
+  "verdict": "frase curta",
+  "recommendations": ["até 3 recomendações curtas"]
+}
+Considere "duplicateIndices" vazio se não houver quase duplicatas.`;
+      try {
+        const raw = await callAI(input.provider, input.apiKey, prompt, 1200);
+        const parsed: any = extractJSON(raw);
+        return {
+          duplicateIndices: Array.isArray(parsed.duplicateIndices)
+            ? parsed.duplicateIndices
+                .map((value: any) => Number(value))
+                .filter(
+                  (value: number) =>
+                    Number.isInteger(value) &&
+                    value >= 1 &&
+                    value <= input.questions.length,
+                )
+            : [],
+          quality: Math.max(0, Math.min(100, Number(parsed.quality) || 0)),
+          verdict: String(parsed.verdict || ""),
+          recommendations: Array.isArray(parsed.recommendations)
+            ? parsed.recommendations.slice(0, 3).map(String)
+            : [],
+        };
+      } catch (error: any) {
+        return {
+          duplicateIndices: [],
+          quality: 0,
+          verdict: "Revisão indisponível",
+          recommendations: [],
+          error: error?.message || String(error),
+        };
+      }
+    }),
+
   generateAdaptiveQuestion: protectedProcedure
     .input(
       z.object({
@@ -716,6 +787,8 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
 
       const researchBlock = `
 PESQUISA OPCIONAL: se o seu provedor tiver uma ferramenta de pesquisa web disponível, você PODE consultar fontes públicas atualizadas (legislação, jurisprudência, documentação oficial) para fundamentar o item. Se não tiver essa ferramenta, responda com seu conhecimento. É proibido acessar, citar, copiar ou reproduzir conteúdo do tecconcursos.com.br ou de qualquer área restrita/privada. Não faça scraping.`;
+      const diversityBlock = `
+DIVERSIDADE: varie o comando (julgue, assinale, considere, analise), o contexto fático, o tipo de raciocínio e a dificuldade. Não use sempre o mesmo cenário de prova.`;
       const exclusionBlock =
         input.excludeStatements.length > 0
           ? `NÃO REPITA nenhuma destas questões já usadas: ${input.excludeStatements
@@ -730,6 +803,7 @@ PESQUISA OPCIONAL: se o seu provedor tiver uma ferramenta de pesquisa web dispon
 Disciplina: ${disc?.name ?? "Direito"}
 Tópico: ${topic?.name ?? "geral"}
 ${researchBlock}
+${diversityBlock}
 ${recentMistakes.length > 0 ? `Erros recentes do aluno: ${recentMistakes.join(", ")} — explore esse ponto fraco` : ""}
 ${exclusionBlock}
 
@@ -750,6 +824,7 @@ Retorne EXATAMENTE neste formato JSON (sem markdown, sem explicação, só o JSO
 Disciplina: ${disc?.name ?? "Direito"}
 Tópico: ${topic?.name ?? "geral"}
 ${researchBlock}
+${diversityBlock}
 ${recentMistakes.length > 0 ? `Erros recentes do aluno: ${recentMistakes.join(", ")} — explore esse ponto fraco` : ""}
 ${exclusionBlock}
 
