@@ -283,6 +283,7 @@ export default function SimuladoInteligente() {
   });
   const { data: errorIntel } = trpc.study.errorPatterns.useQuery();
   const { data: priorExams = [] } = trpc.mockExam.list.useQuery();
+  const { data: topicsData } = trpc.topic.list.useQuery();
   const {
     status,
     progress,
@@ -291,6 +292,7 @@ export default function SimuladoInteligente() {
     examId,
     meta,
     error: generationError,
+    reviewSummary,
     start,
     submit,
     reset: resetGeneration,
@@ -401,13 +403,26 @@ export default function SimuladoInteligente() {
     totalQuestions,
   ]);
 
-  const sequence = useMemo(
-    () =>
-      allocations.flatMap((allocation) =>
-        Array.from({ length: allocation.count }, () => allocation.discipline),
-      ),
-    [allocations],
-  );
+  const sequence = useMemo(() => {
+    const allTopics = (topicsData?.topics || []) as any[];
+    return allocations.flatMap((allocation) => {
+      const disciplineTopics = allTopics.filter(
+        (topic) => topic.disciplineId === allocation.discipline.id,
+      );
+      return Array.from({ length: allocation.count }, (_, index) => {
+        const topic =
+          disciplineTopics.length > 0
+            ? disciplineTopics[index % disciplineTopics.length]
+            : null;
+        return {
+          id: allocation.discipline.id,
+          name: allocation.discipline.name,
+          topicId: topic?.id,
+          topicName: topic?.name,
+        };
+      });
+    });
+  }, [allocations, topicsData?.topics]);
 
   const recommendation = (errorIntel?.topTopics || []).slice(0, 2);
   const aiKeyCount = apiKey
@@ -428,7 +443,7 @@ export default function SimuladoInteligente() {
   }, [questions]);
   const phase: Phase = result
     ? "result"
-    : status === "generating"
+    : status === "generating" || status === "reviewing"
       ? "generating"
       : (status === "ready" || status === "submitting") && questions.length > 0
         ? "running"
@@ -505,6 +520,8 @@ export default function SimuladoInteligente() {
       sequence: sequence.map((discipline) => ({
         id: discipline.id,
         name: discipline.name,
+        topicId: discipline.topicId,
+        topicName: discipline.topicName,
       })),
       blueprint: allocations.map((allocation) => ({
         disciplineId: allocation.discipline.id,
@@ -617,16 +634,28 @@ export default function SimuladoInteligente() {
         eyebrow="Prova"
         title="Simulados"
         description="Gere uma prova completa, responda sem ver o gabarito e receba o resultado no final."
-        metrics={[
-          {
-            label: "Questões",
-            value: questions.length || totalQuestions,
-            icon: Target,
-          },
-          { label: "Tempo", value: `${durationMinutes} min`, icon: Clock },
-          { label: "Respondidas", value: answeredCount, icon: CheckCircle2 },
-          { label: "Acurácia", value: `${accuracy}%`, icon: Trophy },
-        ]}
+        metrics={
+          phase === "config"
+            ? [
+                {
+                  label: "Questões",
+                  value: questions.length || totalQuestions,
+                  icon: Target,
+                },
+                {
+                  label: "Tempo",
+                  value: `${durationMinutes} min`,
+                  icon: Clock,
+                },
+                {
+                  label: "Respondidas",
+                  value: answeredCount,
+                  icon: CheckCircle2,
+                },
+                { label: "Acurácia", value: `${accuracy}%`, icon: Trophy },
+              ]
+            : undefined
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             {questions.length > 0 && (
@@ -932,14 +961,41 @@ export default function SimuladoInteligente() {
 
         {phase === "running" && (
           <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
-            <section className="soe-card overflow-hidden">
-              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
+            <section className="exam-paper mx-auto w-full max-w-[980px] overflow-hidden">
+              <div className="paper-sans border-b-2 paper-rule px-5 pb-4 pt-5 sm:px-8">
+                <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-[0.18em] text-foreground/60">
+                  <span>SOE · Caderno de provas</span>
+                  <span>
+                    {mode === "cebraspe"
+                      ? "CEBRASPE · C/E"
+                      : "Múltipla escolha"}
+                  </span>
+                </div>
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
+                  {title}
+                </h2>
+                <p className="mt-1 text-[10px] text-foreground/70">
+                  Prova objetiva · {questions.length} questões ·{" "}
+                  {durationMinutes} minutos
+                </p>
+                <p className="mt-2 border-t paper-rule pt-2 text-[9px] leading-relaxed text-foreground/60">
+                  Leia cada questão com atenção. Marque apenas uma alternativa
+                  por questão. O gabarito só será exibido após a entrega.
+                </p>
+              </div>
+              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b paper-rule bg-[#f6f2e8]/95 px-4 py-2 backdrop-blur dark:bg-[#16181b]/95">
                 <div>
                   <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                     CADERNO DE PROVAS ·{" "}
                     {mode === "cebraspe" ? "CEBRASPE C/E" : "MÚLTIPLA ESCOLHA"}
                   </p>
                   <p className="mt-0.5 text-[13px] font-semibold">{title}</p>
+                  {reviewSummary?.reviewed && (
+                    <p className="mt-0.5 text-[8px] text-muted-foreground">
+                      revisado pela chave cérebro · qualidade{" "}
+                      {reviewSummary.quality}/100
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-[9px] text-muted-foreground">
@@ -960,10 +1016,10 @@ export default function SimuladoInteligente() {
                 </div>
               </div>
 
-              <div className="max-h-[calc(100vh-15rem)] overflow-y-auto bg-[var(--app-bg)] p-3 sm:p-5">
+              <div className="max-h-[calc(100vh-15rem)] overflow-y-auto px-4 py-3 sm:px-8">
                 {sections.map((section) => (
                   <div key={section.name} className="mb-5">
-                    <div className="mb-2 flex items-center justify-between border-y border-border bg-secondary/30 px-3 py-2">
+                    <div className="paper-sans mb-2 flex items-center justify-between border-y paper-rule bg-black/[0.04] px-2 py-2 dark:bg-white/[0.04]">
                       <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-foreground">
                         {section.name}
                       </span>
@@ -981,25 +1037,23 @@ export default function SimuladoInteligente() {
                             id={`exam-question-${question.id}`}
                             key={question.id}
                             onClick={() => setCurrentIndex(globalIndex)}
-                            className={`scroll-mt-24 cursor-default rounded border bg-card p-4 transition-colors ${
-                              currentIndex === globalIndex
-                                ? "border-primary/40"
-                                : "border-border"
+                            className={`scroll-mt-24 cursor-default border-b paper-rule py-4 transition-colors ${
+                              currentIndex === globalIndex ? "bg-primary/5" : ""
                             }`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex min-w-0 items-baseline gap-2">
-                                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-bold text-foreground">
-                                  {question.number}
+                                <span className="paper-sans flex h-6 w-6 flex-shrink-0 items-center justify-center text-[11px] font-bold text-foreground">
+                                  {question.number}.
                                 </span>
                                 <div className="min-w-0">
-                                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                                  <p className="paper-sans text-[8px] font-bold uppercase tracking-wider text-foreground/55">
                                     {question.disciplineName}
                                     {question.topicName
                                       ? ` · ${question.topicName}`
                                       : ""}
                                   </p>
-                                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
+                                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-[1.55] text-foreground">
                                     {question.statement}
                                   </p>
                                 </div>
@@ -1024,17 +1078,17 @@ export default function SimuladoInteligente() {
                                         alternative.letter,
                                       )
                                     }
-                                    className={`flex gap-3 rounded border px-3 py-2.5 text-left text-[11.5px] leading-relaxed transition-colors ${
+                                    className={`flex gap-3 rounded-sm px-1 py-1.5 text-left text-[11.5px] leading-relaxed transition-colors ${
                                       selected
-                                        ? "border-primary bg-primary/10 text-foreground"
-                                        : "border-border bg-background/40 text-foreground hover:bg-secondary/40"
+                                        ? "bg-primary/15 text-foreground"
+                                        : "text-foreground/90 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
                                     }`}
                                   >
                                     <span
-                                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border text-[9px] font-bold ${
+                                      className={`paper-sans flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[9px] font-bold ${
                                         selected
                                           ? "border-primary bg-primary text-primary-foreground"
-                                          : "border-border bg-secondary text-muted-foreground"
+                                          : "border-foreground/30 text-foreground/70"
                                       }`}
                                     >
                                       {alternative.letter}
@@ -1051,7 +1105,7 @@ export default function SimuladoInteligente() {
                   </div>
                 ))}
 
-                <div className="flex flex-col items-center gap-2 border-t border-border py-5">
+                <div className="paper-sans flex flex-col items-center gap-2 border-t paper-rule py-5">
                   <p className="text-[9.5px] text-muted-foreground">
                     Revise as marcações no mapa ao lado antes de entregar.
                   </p>

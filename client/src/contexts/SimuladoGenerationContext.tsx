@@ -30,7 +30,12 @@ type StartPayload = {
   title: string;
   mode: SimuladoMode;
   durationMinutes: number;
-  sequence: { id: number; name: string }[];
+  sequence: {
+    id: number;
+    name: string;
+    topicId?: number;
+    topicName?: string;
+  }[];
   blueprint: {
     disciplineId: number;
     disciplineName: string;
@@ -45,6 +50,7 @@ type StartPayload = {
 export type SimuladoGenerationStatus =
   | "idle"
   | "generating"
+  | "reviewing"
   | "ready"
   | "submitting"
   | "completed"
@@ -62,6 +68,12 @@ type SimuladoGenerationContextValue = {
     durationMinutes: number;
   } | null;
   error: string;
+  reviewSummary: {
+    quality: number;
+    verdict: string;
+    replaced: number;
+    reviewed: boolean;
+  } | null;
   start: (payload: StartPayload) => Promise<void>;
   submit: (answers: Record<string, string>) => Promise<any | null>;
   reset: () => void;
@@ -91,6 +103,7 @@ export function SimuladoGenerationProvider({
   const generate = trpc.mentor.generateAdaptiveQuestion.useMutation();
   const createExam = trpc.mockExam.create.useMutation();
   const updateExam = trpc.mockExam.update.useMutation();
+  const reviewSimulado = trpc.mentor.reviewSimulado.useMutation();
 
   const [status, setStatus] = useState<SimuladoGenerationStatus>("idle");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -103,6 +116,12 @@ export function SimuladoGenerationProvider({
     durationMinutes: number;
   } | null>(null);
   const [error, setError] = useState("");
+  const [reviewSummary, setReviewSummary] = useState<{
+    quality: number;
+    verdict: string;
+    replaced: number;
+    reviewed: boolean;
+  } | null>(null);
   const runningRef = useRef(false);
 
   const start = useCallback(
@@ -117,6 +136,7 @@ export function SimuladoGenerationProvider({
       setQuestions([]);
       setBlueprint(payload.blueprint);
       setExamId(null);
+      setReviewSummary(null);
       setMeta({
         title: payload.title,
         mode: payload.mode,
@@ -264,6 +284,57 @@ export function SimuladoGenerationProvider({
           usedStatements.push(candidate.statement);
         }
 
+        setStatus("reviewing");
+        setProgress({
+          current: payload.sequence.length,
+          total: payload.sequence.length,
+        });
+        let replaced = 0;
+        let reviewSummaryValue = {
+          quality: 0,
+          verdict: "Revisão não executada",
+          replaced: 0,
+          reviewed: false,
+        };
+        try {
+          const review = await reviewSimulado.mutateAsync({
+            questions: generated.filter(Boolean).map((question) => ({
+              number: question.number,
+              disciplineName: question.disciplineName,
+              topicName: question.topicName,
+              statement: question.statement,
+              correctAnswer: question.correctAnswer,
+            })),
+            apiKey: brainKey,
+            provider: payload.provider,
+          });
+          for (const number of review.duplicateIndices) {
+            const index = Number(number) - 1;
+            if (index < 0 || index >= generated.length) continue;
+            const discipline = payload.sequence[index];
+            const candidate = await tryGenerate(brainKey, index, discipline);
+            if (candidate) {
+              generated[index] = buildQuestion(candidate, index, discipline);
+              usedStatements.push(candidate.statement);
+              replaced++;
+            }
+          }
+          reviewSummaryValue = {
+            quality: review.quality,
+            verdict: review.verdict,
+            replaced,
+            reviewed: true,
+          };
+        } catch (reviewError: any) {
+          reviewSummaryValue = {
+            quality: 0,
+            verdict: "Revisão indisponível; a prova foi mantida.",
+            replaced: 0,
+            reviewed: false,
+          };
+        }
+        setReviewSummary(reviewSummaryValue);
+
         const finalQuestions = generated.filter(
           (question): question is GeneratedQuestion => Boolean(question),
         );
@@ -297,7 +368,7 @@ export function SimuladoGenerationProvider({
         setStatus("ready");
         utils.mockExam.list.invalidate();
         toast.success("Simulado pronto!", {
-          description: `${finalQuestions.length} questões geradas${workerKeys.length > 1 ? ` com ${workerKeys.length} chaves em paralelo` : ""}. Você pode continuar de onde estiver.`,
+          description: `${finalQuestions.length} questões geradas${workerKeys.length > 1 ? ` com ${workerKeys.length} chaves em paralelo` : ""}${reviewSummaryValue.reviewed ? ` · revisão ${reviewSummaryValue.quality}/100` : ""}. Você pode continuar de onde estiver.`,
           duration: Infinity,
           action: {
             label: "Abrir prova",
@@ -388,6 +459,7 @@ export function SimuladoGenerationProvider({
     setExamId(null);
     setMeta(null);
     setError("");
+    setReviewSummary(null);
     runningRef.current = false;
   }, []);
 
@@ -401,6 +473,7 @@ export function SimuladoGenerationProvider({
         examId,
         meta,
         error,
+        reviewSummary,
         start,
         submit,
         reset,
