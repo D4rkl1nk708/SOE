@@ -124,24 +124,32 @@ export function SimuladoGenerationProvider({
       });
       setProgress({ current: 0, total: payload.sequence.length });
 
-      const generated: GeneratedQuestion[] = [];
-      const usedStatements = [...payload.excludeStatements];
-      const usedIds = [...payload.excludeQuestionIds];
-
       try {
-        for (let index = 0; index < payload.sequence.length; index++) {
-          const discipline = payload.sequence[index];
-          setProgress({
-            current: index + 1,
-            total: payload.sequence.length,
-          });
-          let question: any = null;
+        const keys = payload.apiKey
+          .split(/[\s,;]+/)
+          .map((key) => key.trim())
+          .filter(Boolean);
+        if (!keys.length) throw new Error("Nenhuma chave de IA configurada.");
+        const workerKeys = keys.slice(0, 4);
+        const brainKey = keys[0] || workerKeys[0];
+        const generated: GeneratedQuestion[] = new Array(
+          payload.sequence.length,
+        );
+        const usedStatements = [...payload.excludeStatements];
+        const usedIds = [...payload.excludeQuestionIds];
+        let completed = 0;
+
+        const tryGenerate = async (
+          key: string,
+          index: number,
+          discipline: { id: number; name: string },
+        ) => {
           for (let attempt = 0; attempt < 3; attempt++) {
             const candidate = await generate.mutateAsync({
               disciplineId: discipline.id,
               difficulty: "medium",
               sessionHistory: [],
-              apiKey: payload.apiKey,
+              apiKey: key,
               provider: payload.provider,
               format: payload.mode,
               excludeQuestionIds: usedIds.slice(-250),
@@ -161,31 +169,104 @@ export function SimuladoGenerationProvider({
               hasValidAlternatives &&
               candidate.correctAnswer
             ) {
-              question = candidate;
-              break;
+              return candidate;
             }
           }
-          if (!question) {
+          return null;
+        };
+
+        const buildQuestion = (
+          candidate: any,
+          index: number,
+          discipline: { id: number; name: string },
+        ): GeneratedQuestion => ({
+          id: candidate.questionId || `q-${Date.now()}-${index}`,
+          number: index + 1,
+          disciplineId: discipline.id,
+          disciplineName: candidate.disciplineName || discipline.name,
+          topicName: candidate.topicName,
+          banca: candidate.banca,
+          statement: candidate.statement,
+          alternatives: candidate.alternatives || [],
+          correctAnswer: candidate.correctAnswer || "",
+          explanation: candidate.hint || undefined,
+          source: candidate.source === "bank" ? "bank" : "ai",
+        });
+
+        const chunks: number[][] = Array.from(
+          { length: workerKeys.length },
+          () => [],
+        );
+        payload.sequence.forEach((_, index) => {
+          chunks[index % workerKeys.length].push(index);
+        });
+
+        await Promise.all(
+          chunks.map(async (indexes, workerIndex) => {
+            const key = workerKeys[workerIndex];
+            for (const index of indexes) {
+              const discipline = payload.sequence[index];
+              let candidate = null;
+              let lastError: any = null;
+              for (const candidateKey of [key, brainKey, ...workerKeys].filter(
+                (value, position, list) => list.indexOf(value) === position,
+              )) {
+                try {
+                  candidate = await tryGenerate(
+                    candidateKey,
+                    index,
+                    discipline,
+                  );
+                  if (candidate) break;
+                } catch (caught) {
+                  lastError = caught;
+                }
+              }
+              if (!candidate) {
+                throw new Error(
+                  lastError?.message ||
+                    "A IA repetiu questões demais. Tente novamente ou reduza o número de questões.",
+                );
+              }
+              generated[index] = buildQuestion(candidate, index, discipline);
+              usedStatements.push(candidate.statement);
+              if (candidate.questionId)
+                usedIds.push(String(candidate.questionId));
+              completed++;
+              setProgress({
+                current: completed,
+                total: payload.sequence.length,
+              });
+            }
+          }),
+        );
+
+        // O cérebro confere duplicatas entre workers e regenera com a chave
+        // principal quando dois subagentes produzem o mesmo enunciado.
+        const seen = new Set<string>();
+        for (let index = 0; index < generated.length; index++) {
+          const question = generated[index];
+          if (!question) continue;
+          const key = fingerprint(question.statement);
+          if (!seen.has(key)) {
+            seen.add(key);
+            continue;
+          }
+          const discipline = payload.sequence[index];
+          const candidate = await tryGenerate(brainKey, index, discipline);
+          if (!candidate || seen.has(fingerprint(candidate.statement))) {
             throw new Error(
-              "A IA repetiu questões demais. Tente novamente ou reduza o número de questões.",
+              "Foi encontrada uma questão repetida entre as chaves. Tente novamente.",
             );
           }
-          generated.push({
-            id: question.questionId || `q-${Date.now()}-${index}`,
-            number: index + 1,
-            disciplineId: discipline.id,
-            disciplineName: question.disciplineName || discipline.name,
-            topicName: question.topicName,
-            banca: question.banca,
-            statement: question.statement,
-            alternatives: question.alternatives || [],
-            correctAnswer: question.correctAnswer || "",
-            explanation: question.hint || undefined,
-            source: question.source === "bank" ? "bank" : "ai",
-          });
-          usedStatements.push(question.statement);
-          if (question.questionId) usedIds.push(String(question.questionId));
+          generated[index] = buildQuestion(candidate, index, discipline);
+          seen.add(fingerprint(candidate.statement));
+          usedStatements.push(candidate.statement);
         }
+
+        const finalQuestions = generated.filter(
+          (question): question is GeneratedQuestion => Boolean(question),
+        );
 
         const examName = `${payload.title.trim() || "Simulado SOE"} · ${new Date().toLocaleString(
           "pt-BR",
@@ -201,9 +282,9 @@ export function SimuladoGenerationProvider({
           date: new Date().toISOString().slice(0, 10),
           correct: 0,
           wrong: 0,
-          blank: generated.length,
-          totalQuestions: generated.length,
-          questions: generated,
+          blank: finalQuestions.length,
+          totalQuestions: finalQuestions.length,
+          questions: finalQuestions,
           answers: {},
           blueprint: payload.blueprint,
           status: "in_progress",
@@ -211,13 +292,13 @@ export function SimuladoGenerationProvider({
           durationMinutes: payload.durationMinutes,
         });
 
-        setQuestions(generated);
+        setQuestions(finalQuestions);
         setExamId(created.id);
         setStatus("ready");
         utils.mockExam.list.invalidate();
         toast.success("Simulado pronto!", {
-          description: `${generated.length} questões geradas. Você pode continuar de onde estiver.`,
-          duration: 12000,
+          description: `${finalQuestions.length} questões geradas${workerKeys.length > 1 ? ` com ${workerKeys.length} chaves em paralelo` : ""}. Você pode continuar de onde estiver.`,
+          duration: Infinity,
           action: {
             label: "Abrir prova",
             onClick: () => navigate("/simulado-inteligente"),
