@@ -54,6 +54,10 @@ import {
   localFlashcardReview,
   localGetTecRegressions,
   localMentorChat,
+  localGenerateAdaptiveQuestion,
+  localReviewSimulado,
+  localStudyOverview,
+  localStudyErrorPatterns,
   localEssayList,
   localEssaySave,
   localEssayUpdate,
@@ -198,6 +202,11 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "questionError.delete": (i) => localDeleteQuestionError(i as { id: number }),
   // Mentor / Flashcards (v10 Standalone)
   "mentor.chat": (i) => localMentorChat(i as any),
+  "mentor.generateAdaptiveQuestion": (i) =>
+    localGenerateAdaptiveQuestion(i as any),
+  "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
+  "study.overview": (i) => localStudyOverview(i as any),
+  "study.errorPatterns": () => localStudyErrorPatterns(),
   "mentor.getTecRegressions": (i) => localGetTecRegressions(i as any),
   "flashcard.list": () => localFlashcardList(),
   "flashcard.create": (i) => localFlashcardCreate(i as any),

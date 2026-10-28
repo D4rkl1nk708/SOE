@@ -7,6 +7,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { useSimuladoGeneration } from "@/contexts/SimuladoGenerationContext";
 import {
   AlertTriangle,
+  ArrowLeft,
   Brain,
   CheckCircle2,
   ChevronLeft,
@@ -960,225 +961,250 @@ export default function SimuladoInteligente() {
         )}
 
         {phase === "running" && (
-          <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
-            <section className="exam-paper mx-auto w-full max-w-[980px] overflow-hidden">
-              <div className="paper-sans border-b-2 paper-rule px-5 pb-4 pt-5 sm:px-8">
-                <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-[0.18em] text-foreground/60">
-                  <span>SOE · Caderno de provas</span>
-                  <span>
-                    {mode === "cebraspe"
-                      ? "CEBRASPE · C/E"
-                      : "Múltipla escolha"}
-                  </span>
-                </div>
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
-                  {title}
-                </h2>
-                <p className="mt-1 text-[10px] text-foreground/70">
-                  Prova objetiva · {questions.length} questões ·{" "}
-                  {durationMinutes} minutos
-                </p>
-                <p className="mt-2 border-t paper-rule pt-2 text-[9px] leading-relaxed text-foreground/60">
-                  Leia cada questão com atenção. Marque apenas uma alternativa
-                  por questão. O gabarito só será exibido após a entrega.
+          <div className="fixed inset-0 z-[90] overflow-y-auto bg-[var(--app-bg)] p-2 sm:p-5">
+            <div className="mx-auto max-w-[1500px]">
+              <div className="mb-2 flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  className="h-8 text-[10px]"
+                  onClick={() => navigate("/mock-exams")}
+                >
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Sair da prova
+                </Button>
+                <p className="paper-sans text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Modo prova · tela cheia
                 </p>
               </div>
-              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b paper-rule bg-[#f6f2e8]/95 px-4 py-2 backdrop-blur dark:bg-[#16181b]/95">
-                <div>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                    CADERNO DE PROVAS ·{" "}
-                    {mode === "cebraspe" ? "CEBRASPE C/E" : "MÚLTIPLA ESCOLHA"}
-                  </p>
-                  <p className="mt-0.5 text-[13px] font-semibold">{title}</p>
-                  {reviewSummary?.reviewed && (
-                    <p className="mt-0.5 text-[8px] text-muted-foreground">
-                      revisado pela chave cérebro · qualidade{" "}
-                      {reviewSummary.quality}/100
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[9px] text-muted-foreground">
-                    {answeredCount}/{questions.length} marcadas
-                  </span>
-                  <span
-                    className={`font-mono text-sm font-semibold ${timeLeft < 60 ? "text-destructive" : ""}`}
-                  >
-                    {formatTime(timeLeft)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    className="h-8 text-[9px]"
-                    onClick={() => printExam(false)}
-                  >
-                    <Download className="mr-1.5 h-3 w-3" /> PDF
-                  </Button>
-                </div>
-              </div>
-
-              <div className="max-h-[calc(100vh-15rem)] overflow-y-auto px-4 py-3 sm:px-8">
-                {sections.map((section) => (
-                  <div key={section.name} className="mb-5">
-                    <div className="paper-sans mb-2 flex items-center justify-between border-y paper-rule bg-black/[0.04] px-2 py-2 dark:bg-white/[0.04]">
-                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-foreground">
-                        {section.name}
-                      </span>
-                      <span className="text-[8px] text-muted-foreground">
-                        {section.questions.length} questão(ões)
+              <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+                <section className="exam-paper mx-auto w-full max-w-[980px] overflow-hidden">
+                  <div className="paper-sans border-b-2 paper-rule px-5 pb-4 pt-5 sm:px-8">
+                    <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-[0.18em] text-foreground/60">
+                      <span>SOE · Caderno de provas</span>
+                      <span>
+                        {mode === "cebraspe"
+                          ? "CEBRASPE · C/E"
+                          : "Múltipla escolha"}
                       </span>
                     </div>
-                    <div className="space-y-3">
-                      {section.questions.map((question) => {
-                        const globalIndex = questions.findIndex(
-                          (item) => item.id === question.id,
-                        );
+                    <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
+                      {title}
+                    </h2>
+                    <p className="mt-1 text-[10px] text-foreground/70">
+                      Prova objetiva · {questions.length} questões ·{" "}
+                      {durationMinutes} minutos
+                    </p>
+                    <p className="mt-2 border-t paper-rule pt-2 text-[9px] leading-relaxed text-foreground/60">
+                      Leia cada questão com atenção. Marque apenas uma
+                      alternativa por questão. O gabarito só será exibido após a
+                      entrega.
+                    </p>
+                  </div>
+                  <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b paper-rule bg-[#f6f2e8]/95 px-4 py-2 backdrop-blur dark:bg-[#16181b]/95">
+                    <div>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                        CADERNO DE PROVAS ·{" "}
+                        {mode === "cebraspe"
+                          ? "CEBRASPE C/E"
+                          : "MÚLTIPLA ESCOLHA"}
+                      </p>
+                      <p className="mt-0.5 text-[13px] font-semibold">
+                        {title}
+                      </p>
+                      {reviewSummary?.reviewed && (
+                        <p className="mt-0.5 text-[8px] text-muted-foreground">
+                          revisado pela chave cérebro · qualidade{" "}
+                          {reviewSummary.quality}/100
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] text-muted-foreground">
+                        {answeredCount}/{questions.length} marcadas
+                      </span>
+                      <span
+                        className={`font-mono text-sm font-semibold ${timeLeft < 60 ? "text-destructive" : ""}`}
+                      >
+                        {formatTime(timeLeft)}
+                      </span>
+                      <Button
+                        variant="outline"
+                        className="h-8 text-[9px]"
+                        onClick={() => printExam(false)}
+                      >
+                        <Download className="mr-1.5 h-3 w-3" /> PDF
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[calc(100vh-15rem)] overflow-y-auto px-4 py-3 sm:px-8">
+                    {sections.map((section) => (
+                      <div key={section.name} className="mb-5">
+                        <div className="paper-sans mb-2 flex items-center justify-between border-y paper-rule bg-black/[0.04] px-2 py-2 dark:bg-white/[0.04]">
+                          <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-foreground">
+                            {section.name}
+                          </span>
+                          <span className="text-[8px] text-muted-foreground">
+                            {section.questions.length} questão(ões)
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {section.questions.map((question) => {
+                            const globalIndex = questions.findIndex(
+                              (item) => item.id === question.id,
+                            );
+                            return (
+                              <article
+                                id={`exam-question-${question.id}`}
+                                key={question.id}
+                                onClick={() => setCurrentIndex(globalIndex)}
+                                className={`scroll-mt-24 cursor-default border-b paper-rule py-4 transition-colors ${
+                                  currentIndex === globalIndex
+                                    ? "bg-primary/5"
+                                    : ""
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-baseline gap-2">
+                                    <span className="paper-sans flex h-6 w-6 flex-shrink-0 items-center justify-center text-[11px] font-bold text-foreground">
+                                      {question.number}.
+                                    </span>
+                                    <div className="min-w-0">
+                                      <p className="paper-sans text-[8px] font-bold uppercase tracking-wider text-foreground/55">
+                                        {question.disciplineName}
+                                        {question.topicName
+                                          ? ` · ${question.topicName}`
+                                          : ""}
+                                      </p>
+                                      <p className="mt-1 whitespace-pre-wrap text-[13px] leading-[1.55] text-foreground">
+                                        {question.statement}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {answers[question.id] && (
+                                    <span className="flex-shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-600">
+                                      marcada {answers[question.id]}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-3 grid gap-1.5">
+                                  {question.alternatives.map((alternative) => {
+                                    const selected =
+                                      answers[question.id] ===
+                                      alternative.letter;
+                                    return (
+                                      <button
+                                        key={alternative.letter}
+                                        onClick={() =>
+                                          selectAnswer(
+                                            question.id,
+                                            alternative.letter,
+                                          )
+                                        }
+                                        className={`flex gap-3 rounded-sm px-1 py-1.5 text-left text-[11.5px] leading-relaxed transition-colors ${
+                                          selected
+                                            ? "bg-primary/15 text-foreground"
+                                            : "text-foreground/90 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`paper-sans flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[9px] font-bold ${
+                                            selected
+                                              ? "border-primary bg-primary text-primary-foreground"
+                                              : "border-foreground/30 text-foreground/70"
+                                          }`}
+                                        >
+                                          {alternative.letter}
+                                        </span>
+                                        <span>{alternative.text}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="paper-sans flex flex-col items-center gap-2 border-t paper-rule py-5">
+                      <p className="text-[9.5px] text-muted-foreground">
+                        Revise as marcações no mapa ao lado antes de entregar.
+                      </p>
+                      <Button onClick={() => finishExam(false)}>
+                        <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Entregar
+                        prova
+                      </Button>
+                    </div>
+                  </div>
+                </section>
+
+                <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+                  <section className="soe-card p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Folha de respostas
+                      </p>
+                      <span className="text-[8px] text-muted-foreground">
+                        {answeredCount}/{questions.length}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-5 gap-1.5">
+                      {questions.map((question, index) => {
+                        const answered = Boolean(answers[question.id]);
+                        const active = index === currentIndex;
                         return (
-                          <article
-                            id={`exam-question-${question.id}`}
+                          <button
                             key={question.id}
-                            onClick={() => setCurrentIndex(globalIndex)}
-                            className={`scroll-mt-24 cursor-default border-b paper-rule py-4 transition-colors ${
-                              currentIndex === globalIndex ? "bg-primary/5" : ""
+                            onClick={() => {
+                              setCurrentIndex(index);
+                              document
+                                .getElementById(`exam-question-${question.id}`)
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                            }}
+                            className={`flex flex-col items-center justify-center rounded border py-1 text-[9px] font-semibold ${
+                              active
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : answered
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                                  : "border-border bg-secondary/30 text-muted-foreground"
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex min-w-0 items-baseline gap-2">
-                                <span className="paper-sans flex h-6 w-6 flex-shrink-0 items-center justify-center text-[11px] font-bold text-foreground">
-                                  {question.number}.
-                                </span>
-                                <div className="min-w-0">
-                                  <p className="paper-sans text-[8px] font-bold uppercase tracking-wider text-foreground/55">
-                                    {question.disciplineName}
-                                    {question.topicName
-                                      ? ` · ${question.topicName}`
-                                      : ""}
-                                  </p>
-                                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-[1.55] text-foreground">
-                                    {question.statement}
-                                  </p>
-                                </div>
-                              </div>
-                              {answers[question.id] && (
-                                <span className="flex-shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-600">
-                                  marcada {answers[question.id]}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-3 grid gap-1.5">
-                              {question.alternatives.map((alternative) => {
-                                const selected =
-                                  answers[question.id] === alternative.letter;
-                                return (
-                                  <button
-                                    key={alternative.letter}
-                                    onClick={() =>
-                                      selectAnswer(
-                                        question.id,
-                                        alternative.letter,
-                                      )
-                                    }
-                                    className={`flex gap-3 rounded-sm px-1 py-1.5 text-left text-[11.5px] leading-relaxed transition-colors ${
-                                      selected
-                                        ? "bg-primary/15 text-foreground"
-                                        : "text-foreground/90 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`paper-sans flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[9px] font-bold ${
-                                        selected
-                                          ? "border-primary bg-primary text-primary-foreground"
-                                          : "border-foreground/30 text-foreground/70"
-                                      }`}
-                                    >
-                                      {alternative.letter}
-                                    </span>
-                                    <span>{alternative.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </article>
+                            <span>{question.number}</span>
+                            <span className="text-[7px] opacity-70">
+                              {answers[question.id] || "—"}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
+                    <Button
+                      variant="outline"
+                      className="mt-3 w-full text-[10px]"
+                      onClick={() => printExam(false)}
+                    >
+                      <Printer className="mr-2 h-3.5 w-3.5" /> Baixar para papel
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="mt-1 w-full text-[9px] text-destructive"
+                      onClick={() => finishExam(false)}
+                    >
+                      Encerrar e ver resultado
+                    </Button>
+                  </section>
+                  <div className="soe-card p-3 text-[9.5px] leading-relaxed text-muted-foreground">
+                    <b className="text-foreground">Prova em modo caderno:</b>{" "}
+                    várias questões na mesma página, como no papel. O gabarito
+                    só aparece após a entrega.
                   </div>
-                ))}
-
-                <div className="paper-sans flex flex-col items-center gap-2 border-t paper-rule py-5">
-                  <p className="text-[9.5px] text-muted-foreground">
-                    Revise as marcações no mapa ao lado antes de entregar.
-                  </p>
-                  <Button onClick={() => finishExam(false)}>
-                    <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Entregar prova
-                  </Button>
-                </div>
+                </aside>
               </div>
-            </section>
-
-            <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-              <section className="soe-card p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Folha de respostas
-                  </p>
-                  <span className="text-[8px] text-muted-foreground">
-                    {answeredCount}/{questions.length}
-                  </span>
-                </div>
-                <div className="mt-2 grid grid-cols-5 gap-1.5">
-                  {questions.map((question, index) => {
-                    const answered = Boolean(answers[question.id]);
-                    const active = index === currentIndex;
-                    return (
-                      <button
-                        key={question.id}
-                        onClick={() => {
-                          setCurrentIndex(index);
-                          document
-                            .getElementById(`exam-question-${question.id}`)
-                            ?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
-                        }}
-                        className={`flex flex-col items-center justify-center rounded border py-1 text-[9px] font-semibold ${
-                          active
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : answered
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-                              : "border-border bg-secondary/30 text-muted-foreground"
-                        }`}
-                      >
-                        <span>{question.number}</span>
-                        <span className="text-[7px] opacity-70">
-                          {answers[question.id] || "—"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="outline"
-                  className="mt-3 w-full text-[10px]"
-                  onClick={() => printExam(false)}
-                >
-                  <Printer className="mr-2 h-3.5 w-3.5" /> Baixar para papel
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="mt-1 w-full text-[9px] text-destructive"
-                  onClick={() => finishExam(false)}
-                >
-                  Encerrar e ver resultado
-                </Button>
-              </section>
-              <div className="soe-card p-3 text-[9.5px] leading-relaxed text-muted-foreground">
-                <b className="text-foreground">Prova em modo caderno:</b> várias
-                questões na mesma página, como no papel. O gabarito só aparece
-                após a entrega.
-              </div>
-            </aside>
+            </div>
           </div>
         )}
 
