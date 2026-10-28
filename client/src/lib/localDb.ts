@@ -1436,7 +1436,7 @@ Retorne EXATAMENTE JSON:
 Retorne EXATAMENTE JSON:
 {"statement":"enunciado","alternatives":[{"letter":"A","text":"..."},{"letter":"B","text":"..."},{"letter":"C","text":"..."},{"letter":"D","text":"..."},{"letter":"E","text":"..."}],"correctAnswer":"A/B/C/D/E","banca":"CEBRASPE","hint":"dica curta"}`;
 
-  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 8000);
   const parsed: any = extractJSON(raw);
   if (!parsed?.statement || !Array.isArray(parsed?.alternatives)) {
     throw new Error("A IA retornou uma questão inválida.");
@@ -1477,7 +1477,7 @@ ${input.questions
 
 Retorne EXATAMENTE JSON:
 {"duplicateIndices":[números a substituir],"quality":0,"verdict":"frase curta","recommendations":["até 3"]}`;
-  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 3000);
+  const raw = await callAiProvider(input.provider, input.apiKey, prompt, 8000);
   const parsed: any = extractJSON(raw);
   return {
     duplicateIndices: Array.isArray(parsed?.duplicateIndices)
