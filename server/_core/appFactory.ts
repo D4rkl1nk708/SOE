@@ -17,6 +17,7 @@ import {
 } from "../tecDisciplineMatcher";
 import tecProxy from "../tecProxy";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
+import { formatDateForDb } from "../../shared/scheduling";
 
 export function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -1568,7 +1569,7 @@ ${questionText}`;
       const disciplineMap = new Map(disciplines.map((d) => [d.id, d]));
 
       // Only export pending (not completed, not ignored) future revisions
-      const today = new Date().toISOString().split("T")[0];
+      const today = formatDateForDb(new Date());
       const toExport = revisions.filter(
         (r) => !r.completed && !r.ignored && r.scheduledDate >= today,
       );
@@ -1819,7 +1820,7 @@ ${questionText}`;
       const backupDir = path.join(dataDir, "backups");
       if (!fs.existsSync(backupDir))
         fs.mkdirSync(backupDir, { recursive: true });
-      const date = new Date().toISOString().split("T")[0];
+      const date = formatDateForDb(new Date());
       const dest = path.join(backupDir, `backup_${date}.json`);
       if (!fs.existsSync(dest)) {
         fs.copyFileSync(dbFile, dest);

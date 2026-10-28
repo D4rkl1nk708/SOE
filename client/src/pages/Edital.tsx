@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/layout/PageShell";
+import { formatDateForDb } from "@shared/scheduling";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 
@@ -281,7 +282,7 @@ function EditalTab({
 
   const [studyForm, setStudyForm] = useState({
     disciplineId: 0,
-    studyDate: new Date().toISOString().split("T")[0],
+    studyDate: formatDateForDb(new Date()),
     studyTimeMinutes: 60,
   });
 
@@ -301,7 +302,7 @@ function EditalTab({
     );
     setStudyForm({
       disciplineId: disc?.id || 0,
-      studyDate: new Date().toISOString().split("T")[0],
+      studyDate: formatDateForDb(new Date()),
       studyTimeMinutes: 60,
     });
     setStudyModal({ open: true, topic: t });

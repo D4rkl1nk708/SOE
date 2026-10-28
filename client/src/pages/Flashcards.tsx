@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { PageShell } from "@/components/layout/PageShell";
+import { formatDateForDb } from "@shared/scheduling";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -543,7 +544,7 @@ export default function Flashcards() {
   const [reviewFilter, setReviewFilter] = useState<"due" | "all">("due");
   const [hardMode, setHardMode] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = formatDateForDb(new Date());
   const dueCards = useMemo(
     () => (cards as any[]).filter((c: any) => c.nextReviewDate <= today),
     [cards, today],
