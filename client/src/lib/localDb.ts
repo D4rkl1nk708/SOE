@@ -1455,6 +1455,45 @@ Retorne EXATAMENTE JSON:
   };
 }
 
+export async function localTestAiKey(input: {
+  apiKey: string;
+  provider: "gemini" | "openai" | "claude";
+}): Promise<{
+  success: boolean;
+  details: {
+    keyPrefix: string;
+    status: "ok" | "error";
+    models: string[];
+    error?: string;
+  }[];
+}> {
+  const keys = String(input.apiKey || "")
+    .split(/[\s,;]+/)
+    .map((key) => key.trim())
+    .filter(Boolean);
+  const details: any[] = [];
+  let success = false;
+  for (const key of keys) {
+    try {
+      await callAiProvider(input.provider, key, "health check", 8);
+      details.push({
+        keyPrefix: `${key.substring(0, 6)}...`,
+        status: "ok",
+        models: ["gemini"],
+      });
+      success = true;
+    } catch (error: any) {
+      details.push({
+        keyPrefix: `${key.substring(0, 6)}...`,
+        status: "error",
+        models: [],
+        error: error?.message || String(error),
+      });
+    }
+  }
+  return { success, details };
+}
+
 export async function localReviewSimulado(input: {
   questions: Array<{
     number: number;
