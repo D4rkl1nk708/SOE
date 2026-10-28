@@ -482,6 +482,17 @@ export default function MockExams() {
               </div>
 
               <div className="flex gap-2 flex-wrap">
+                {Array.isArray(exam.questions) && exam.questions.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      navigate(`/simulado-inteligente?exam=${exam.id}`)
+                    }
+                    className="gap-2 flex-1 sm:flex-none text-xs sm:text-sm"
+                  >
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4" /> Abrir prova
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

@@ -77,6 +77,7 @@ type SimuladoGenerationContextValue = {
   start: (payload: StartPayload) => Promise<void>;
   submit: (answers: Record<string, string>) => Promise<any | null>;
   reset: () => void;
+  loadExam: (exam: any) => boolean;
 };
 
 const SimuladoGenerationContext =
@@ -158,6 +159,7 @@ export function SimuladoGenerationProvider({
         const usedStatements = [...payload.excludeStatements];
         const usedIds = [...payload.excludeQuestionIds];
         let completed = 0;
+        let failed = 0;
 
         const tryGenerate = async (
           key: string,
@@ -243,10 +245,20 @@ export function SimuladoGenerationProvider({
                 }
               }
               if (!candidate) {
-                throw new Error(
-                  lastError?.message ||
-                    "A IA repetiu questões demais. Tente novamente ou reduza o número de questões.",
-                );
+                // Uma questão problemática não deve descartar a prova inteira.
+                // Marca a falha, segue para as demais e entrega o que foi gerado.
+                failed++;
+                completed++;
+                setProgress({
+                  current: completed,
+                  total: payload.sequence.length,
+                });
+                if (lastError)
+                  console.warn(
+                    `[Simulado] Questão ${index + 1} ignorada:`,
+                    lastError?.message || lastError,
+                  );
+                continue;
               }
               generated[index] = buildQuestion(candidate, index, discipline);
               usedStatements.push(candidate.statement);
@@ -275,9 +287,8 @@ export function SimuladoGenerationProvider({
           const discipline = payload.sequence[index];
           const candidate = await tryGenerate(brainKey, index, discipline);
           if (!candidate || seen.has(fingerprint(candidate.statement))) {
-            throw new Error(
-              "Foi encontrada uma questão repetida entre as chaves. Tente novamente.",
-            );
+            failed++;
+            continue;
           }
           generated[index] = buildQuestion(candidate, index, discipline);
           seen.add(fingerprint(candidate.statement));
@@ -338,6 +349,10 @@ export function SimuladoGenerationProvider({
         const finalQuestions = generated.filter(
           (question): question is GeneratedQuestion => Boolean(question),
         );
+        if (finalQuestions.length === 0)
+          throw new Error(
+            "Nenhuma questão válida foi gerada. Verifique a chave/cota da IA e tente novamente.",
+          );
 
         const examName = `${payload.title.trim() || "Simulado SOE"} · ${new Date().toLocaleString(
           "pt-BR",
@@ -368,7 +383,7 @@ export function SimuladoGenerationProvider({
         setStatus("ready");
         utils.mockExam.list.invalidate();
         toast.success("Simulado pronto!", {
-          description: `${finalQuestions.length} questões geradas${workerKeys.length > 1 ? ` com ${workerKeys.length} chaves em paralelo` : ""}${reviewSummaryValue.reviewed ? ` · revisão ${reviewSummaryValue.quality}/100` : ""}. Você pode continuar de onde estiver.`,
+          description: `${finalQuestions.length} questões geradas${failed ? ` (${failed} ignorada(s) por erro/formato)` : ""}${workerKeys.length > 1 ? ` com ${workerKeys.length} chaves em paralelo` : ""}${reviewSummaryValue.reviewed ? ` · revisão ${reviewSummaryValue.quality}/100` : ""}. Você pode continuar de onde estiver.`,
           duration: Infinity,
           action: {
             label: "Abrir prova",
@@ -451,6 +466,22 @@ export function SimuladoGenerationProvider({
     [examId, questions, updateExam, utils.mockExam.list],
   );
 
+  const loadExam = useCallback((exam: any) => {
+    if (!exam || !Array.isArray(exam.questions) || exam.questions.length === 0)
+      return false;
+    setQuestions(exam.questions);
+    setBlueprint(exam.blueprint || []);
+    setExamId(Number(exam.id));
+    setMeta({
+      title: exam.name || "Simulado",
+      mode: exam.mode === "cebraspe" ? "cebraspe" : "multiple",
+      durationMinutes: Number(exam.durationMinutes) || 20,
+    });
+    setStatus("ready");
+    setError("");
+    return true;
+  }, []);
+
   const reset = useCallback(() => {
     setStatus("idle");
     setProgress({ current: 0, total: 0 });
@@ -477,6 +508,7 @@ export function SimuladoGenerationProvider({
         start,
         submit,
         reset,
+        loadExam,
       }}
     >
       {children}

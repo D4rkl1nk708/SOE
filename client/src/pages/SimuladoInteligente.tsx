@@ -297,6 +297,7 @@ export default function SimuladoInteligente() {
     start,
     submit,
     reset: resetGeneration,
+    loadExam,
   } = useSimuladoGeneration();
 
   const apiKey = (stats?.settings as any)?.aiApiKey || "";
@@ -336,6 +337,32 @@ export default function SimuladoInteligente() {
       ),
     [priorExams],
   );
+
+  const loadedExamRef = useRef(false);
+  useEffect(() => {
+    if (loadedExamRef.current) return;
+    const rawId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("exam")
+        : null;
+    const examIdFromUrl = Number(rawId);
+    if (!examIdFromUrl) return;
+    const exam = (priorExams as any[]).find(
+      (item) => Number(item.id) === examIdFromUrl,
+    );
+    if (!exam || !Array.isArray(exam.questions) || exam.questions.length === 0)
+      return;
+    if (!loadExam(exam)) return;
+    loadedExamRef.current = true;
+    const storedAnswers = exam.answers || {};
+    answersRef.current = storedAnswers;
+    setAnswers(storedAnswers);
+    setTitle(exam.name || "Simulado");
+    setMode(exam.mode === "cebraspe" ? "cebraspe" : "multiple");
+    setDurationMinutes(Number(exam.durationMinutes) || 20);
+    setTimeLeft((Number(exam.durationMinutes) || 20) * 60);
+    setCurrentIndex(0);
+  }, [loadExam, priorExams]);
 
   const allocations = useMemo(() => {
     const coverage = (overview?.coverage?.disciplines || []) as any[];
@@ -564,6 +591,23 @@ export default function SimuladoInteligente() {
         toast.error(result?.message || "Falha ao salvar PDF.");
       return;
     }
+
+    // Android/Capacitor: o WebView nao implementa window.print().
+    // O plugin nativo abre o dialogo de impressao, onde o usuario escolhe
+    // "Salvar como PDF". O CSS @media print isola o caderno.
+    const nativePrint = (window as any).Capacitor?.Plugins?.ExamPdf;
+    if (nativePrint?.print) {
+      try {
+        await nativePrint.print({
+          jobName: `${(title || "simulado-soe").replace(/[^a-zA-Z0-9-_ ]/g, "").trim()}`,
+        });
+        toast.info('Escolha "Salvar como PDF" na impressão do Android.');
+      } catch (error: any) {
+        toast.error(error?.message || "Falha ao abrir a impressão.");
+      }
+      return;
+    }
+
     window.print();
   };
 
