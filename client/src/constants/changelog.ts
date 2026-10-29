@@ -11,7 +11,7 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
-    version: "6.5.0",
+    version: "6.5.1",
     date: "29/10/2026",
     title: "Layout focado, calendário com trilho do dia e TEC principal",
     categories: [
@@ -21,6 +21,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         items: [
           "Sidebar curta com Hoje, Aprender e Sistema; ferramentas agrupadas no hub Estudar.",
           "TEC em destaque como ferramenta principal do estudo.",
+          "Grid do hub Estudar ajustado para desktop e mobile.",
           "Modo clássico preservado em Configurações → Aparência → Layout da interface.",
         ],
       },
@@ -46,7 +47,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         type: "fix",
         items: [
           "Remoção do onboarding modal inicial e do componente legado.",
-          "Ajustes de build, testes e versão 6.5.0.",
+          "Ajustes de build, testes e versão 6.5.1.",
         ],
       },
     ],
