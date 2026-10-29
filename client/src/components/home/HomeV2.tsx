@@ -249,13 +249,13 @@ export function HomeV2() {
               ? "Hoje"
               : `${greeting}, ${me?.name?.split(" ")[0] || "Estudante"}`}
           </h1>
-          <p className="mt-1 text-[11px] capitalize text-muted-foreground md:text-xs">
+          <p className="mt-1 text-[11px] first-letter:uppercase text-muted-foreground md:text-xs">
             {isFocus
               ? `${greeting}, ${me?.name?.split(" ")[0] || "Estudante"} · ${dateLabel}`
               : dateLabel}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="hidden flex-wrap items-center gap-1.5 md:flex">
           <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[9px] font-semibold text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" />
             Base <b className="text-foreground">{basePct}%</b>
@@ -272,7 +272,7 @@ export function HomeV2() {
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
+      <div className="grid items-start gap-3 lg:grid-cols-[1fr_280px]">
         <section className="rounded-lg border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--primary)_7%,var(--card)),var(--card))] p-5">
           <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
             <Sparkles size={13} /> Próxima missão
@@ -341,7 +341,7 @@ export function HomeV2() {
           </div>
         </section>
 
-        <aside className="rounded-lg border border-border bg-card p-4">
+        <aside className="hidden rounded-lg border border-border bg-card p-4 md:block">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
               Seu estado

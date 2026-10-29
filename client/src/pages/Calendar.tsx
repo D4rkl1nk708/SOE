@@ -402,7 +402,7 @@ export default function Calendar() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className={isFocus ? "hidden gap-2 md:flex" : "flex gap-2"}>
           <Button
             variant="outline"
             className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/60 text-[0.7rem] font-black uppercase tracking-widest"
@@ -496,7 +496,7 @@ export default function Calendar() {
                       setDayFilter("all");
                       if (!isFocus) setIsDayDetailOpen(true);
                     }}
-                    className={`${isFocus ? "min-h-[58px] md:min-h-[64px] lg:min-h-[72px]" : "min-h-[100px] md:min-h-[140px]"} p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
+                    className={`${isFocus ? "h-[58px] md:h-[64px] lg:h-[72px]" : "min-h-[100px] md:min-h-[140px]"} p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
                         ${!isCurrentMonth ? "opacity-[0.15] bg-secondary/30" : "hover:bg-secondary/25"}
                         ${isSelected ? "bg-[var(--primary-bg-subtle)] !opacity-100" : ""}
                         ${isToday ? "ring-2 ring-inset ring-[var(--primary)]/50 bg-[var(--primary-bg-subtle)]/30 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]" : ""}
@@ -544,8 +544,8 @@ export default function Calendar() {
                         )}
                       </div>
                       {/* Mobile dots */}
-                      <div className="md:hidden flex flex-wrap gap-0.5">
-                        {dayActivities.map((a) => (
+                      <div className="md:hidden flex items-center gap-1">
+                        {dayActivities.slice(0, 1).map((a) => (
                           <div
                             key={a.id}
                             className={`w-1.5 h-1.5 rounded-full ${a.completed ? "opacity-20" : ""}`}
