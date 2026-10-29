@@ -333,7 +333,7 @@ describe("Topics Component", () => {
 
     // Find inputs by type or placeholder
     const dateInput = screen.getByDisplayValue(
-      new Date().toISOString().split("T")[0],
+      new Date().toLocaleDateString("en-CA"),
     );
     fireEvent.change(dateInput, { target: { value: "2024-01-01" } });
     expect(dateInput.getAttribute("value")).toBe("2024-01-01");

@@ -40,7 +40,6 @@ import { differenceInDays, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { DailyGoalWidget, TodayRevisions } from "@/components/DashboardWidgets";
-import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { PreExamBanner } from "@/components/PreExamBanner";
 import { MassStudyAlert } from "@/components/MassStudyAlert";
 import { SleepWarning } from "@/components/SleepWarning";
@@ -178,13 +177,6 @@ function ClassicDashboard() {
         ? "var(--accent-amber)"
         : "var(--accent-red)";
 
-  const onboardingCompleted = (
-    stats?.settings as Record<string, unknown> | undefined
-  )?.onboardingCompleted as boolean | undefined;
-  const hasAnyDisciplines = (stats?.disciplineStats ?? []).length > 0;
-  const showOnboarding =
-    !isLoading && !onboardingCompleted && !hasAnyDisciplines;
-
   const startFocus = (block: any) => {
     if (!block) {
       navigate("/plan");
@@ -200,12 +192,6 @@ function ClassicDashboard() {
 
   return (
     <div className="space-y-6 w-full pb-10">
-      {showOnboarding && (
-        <OnboardingWizard
-          onComplete={() => utils.dashboard.getStats.invalidate()}
-        />
-      )}
-
       <PreExamBanner />
       <SleepWarning />
       <MassStudyAlert />

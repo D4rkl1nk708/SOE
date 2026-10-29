@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   BarChart3,
@@ -27,8 +27,8 @@ import {
   FlaskConical,
   Target,
   Clock,
-  Wrench,
   LayoutGrid,
+  BookOpen,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GlobalSearch, SearchButton } from "./GlobalSearch";
@@ -77,7 +77,7 @@ const NAV_GROUPS = [
   },
 ];
 
-// Visão focada: 3 áreas. O resto fica em Ferramentas ou na visão completa.
+// Visão focada: três destinos principais. Ferramentas ficam no hub Estudar.
 const FOCUSED_NAV_GROUPS = [
   {
     label: "Hoje",
@@ -88,11 +88,9 @@ const FOCUSED_NAV_GROUPS = [
     ],
   },
   {
-    label: "Estudar",
+    label: "Aprender",
     items: [
-      { path: "/question-session", label: "Treinos", icon: ListChecks },
-      { path: "/edital", label: "Editais", icon: Sheet },
-      { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
+      { path: "/study", label: "Estudar", icon: BookOpen },
       { path: "/mentor", label: "Mentor IA", icon: Sparkles },
     ],
   },
@@ -103,16 +101,6 @@ const FOCUSED_NAV_GROUPS = [
       { path: "/sync", label: "Sync & Backup", icon: Wifi },
     ],
   },
-];
-
-const TOOLS_ITEMS = [
-  { path: "/revisions", label: "Revisões", icon: Clock },
-  { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
-  { path: "/question-errors", label: "Questões erradas", icon: ClipboardX },
-  { path: "/flashcards", label: "Flashcards", icon: Brain },
-  { path: "/notes", label: "Anotações", icon: StickyNote },
-  { path: "/lab", label: "Treino adaptativo", icon: FlaskConical },
-  { path: "/history", label: "Histórico", icon: CheckCircle2 },
 ];
 
 // Flat list for mobile bottom bar — only the most-used 4 items + "More"
@@ -156,6 +144,26 @@ const MOBILE_SECONDARY = [
     label: "Simulados",
     icon: ListChecks,
     color: "#6366f1",
+  },
+  { path: "/sync", label: "Sincronizar", icon: Wifi, color: "#06b6d4" },
+  { path: "/profile", label: "Perfil", icon: UserCircle2, color: "#64748b" },
+];
+
+// Mobile no layout focado: hub Estudar no lugar de Treinos.
+const FOCUSED_MOBILE_PRIMARY = [
+  { path: "/", label: "Início", icon: LayoutDashboard },
+  { path: "/study", label: "Estudar", icon: BookOpen },
+  { path: "/mentor", label: "Mentor IA", icon: Sparkles },
+  { path: "/calendar", label: "Calendário", icon: CalendarDays },
+];
+
+const FOCUSED_MOBILE_SECONDARY = [
+  { path: "/plan", label: "Plano", icon: Target, color: "#f97316" },
+  {
+    path: "/statistics",
+    label: "Estatísticas",
+    icon: TrendingUp,
+    color: "#10b981",
   },
   { path: "/sync", label: "Sincronizar", icon: Wifi, color: "#06b6d4" },
   { path: "/profile", label: "Perfil", icon: UserCircle2, color: "#64748b" },
@@ -259,7 +267,6 @@ function Sidebar({
   examName?: string;
   examDays?: number;
 }) {
-  const [toolsOpen, setToolsOpen] = useState(false);
   const navGroups = navMode === "focused" ? FOCUSED_NAV_GROUPS : NAV_GROUPS;
   return (
     <aside
@@ -352,40 +359,6 @@ function Sidebar({
             </div>
           </div>
         ))}
-
-        {navMode === "focused" && (
-          <div className="space-y-1">
-            <button
-              onClick={() => setToolsOpen((value) => !value)}
-              className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-[11px] font-semibold transition-colors ${
-                collapsed ? "justify-center" : ""
-              } text-muted-foreground hover:bg-secondary/50 hover:text-foreground`}
-              title="Ferramentas"
-            >
-              <Wrench className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && (
-                <>
-                  <span className="flex-1 text-left">Ferramentas</span>
-                  <ChevronRight
-                    className={`h-3.5 w-3.5 transition-transform ${toolsOpen ? "rotate-90" : ""}`}
-                  />
-                </>
-              )}
-            </button>
-            {toolsOpen &&
-              !collapsed &&
-              TOOLS_ITEMS.map((item) => (
-                <NavItem
-                  key={item.path}
-                  path={item.path}
-                  label={item.label}
-                  icon={item.icon}
-                  collapsed={collapsed}
-                  active={isActivePath(location, item.path)}
-                />
-              ))}
-          </div>
-        )}
       </nav>
 
       {/* Bottom: Configurações + version */}
@@ -468,14 +441,9 @@ export function Layout({ children }: { children: ReactNode }) {
       return next;
     });
   };
-  const [navMode, setNavMode] = useState<"focused" | "complete">(() => {
-    try {
-      return localStorage.getItem("soe_nav_mode") === "complete"
-        ? "complete"
-        : "focused";
-    } catch {
-      return "focused";
-    }
+  const [navMode, setNavMode] = useState<"focused" | "complete">("focused");
+  const updateUiMode = trpc.v10.updateV10Settings.useMutation({
+    onError: () => {},
   });
   const toggleNavMode = () => {
     setNavMode((current) => {
@@ -483,6 +451,7 @@ export function Layout({ children }: { children: ReactNode }) {
       try {
         localStorage.setItem("soe_nav_mode", next);
       } catch {}
+      updateUiMode.mutate({ uiMode: next });
       return next;
     });
   };
@@ -491,6 +460,12 @@ export function Layout({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { data: user } = trpc.auth.me.useQuery();
   const { data: contextStats } = trpc.dashboard.getStats.useQuery();
+  useEffect(() => {
+    const serverMode = (contextStats?.settings as any)?.uiMode;
+    if (serverMode === "focused" || serverMode === "complete") {
+      setNavMode(serverMode);
+    }
+  }, [contextStats?.settings]);
   const { data: contextOverview } = trpc.study.overview.useQuery({
     minutes: Number((contextStats?.settings as any)?.dailyGoalMinutes) || 240,
   });
@@ -514,7 +489,13 @@ export function Layout({ children }: { children: ReactNode }) {
       .sort((a, b) => a.days - b.days)[0];
   })();
 
-  const allItems = NAV_GROUPS.flatMap((g) => g.items);
+  const allItems = [...NAV_GROUPS, ...FOCUSED_NAV_GROUPS].flatMap(
+    (g) => g.items,
+  );
+  const mobilePrimary =
+    navMode === "focused" ? FOCUSED_MOBILE_PRIMARY : MOBILE_PRIMARY;
+  const mobileSecondary =
+    navMode === "focused" ? FOCUSED_MOBILE_SECONDARY : MOBILE_SECONDARY;
   const currentLabel =
     allItems.find((n) => isActivePath(location, n.path))?.label ||
     (isActivePath(location, "/profile") ? "Configurações" : "SOE");
@@ -717,7 +698,7 @@ export function Layout({ children }: { children: ReactNode }) {
         }}
       >
         <div className="flex justify-around items-center px-1 py-1">
-          {MOBILE_PRIMARY.map((item) => {
+          {mobilePrimary.map((item) => {
             const Icon = item.icon;
             const active = isActivePath(location, item.path);
             return (
@@ -788,7 +769,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 }}
               >
                 <div className="grid grid-cols-4 gap-4">
-                  {MOBILE_SECONDARY.map((item) => {
+                  {mobileSecondary.map((item) => {
                     const Icon = item.icon;
                     const active = isActivePath(location, item.path);
                     return (
