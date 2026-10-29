@@ -243,10 +243,10 @@ function SettingsTab() {
             Preferências
           </p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
-            Ajustes
+            Mais
           </h1>
           <p className="text-sm text-muted-foreground">
-            Aparência, inteligência artificial, estudo e dados.
+            Sua conta, aparência e dados em um só lugar.
           </p>
         </div>
       )}

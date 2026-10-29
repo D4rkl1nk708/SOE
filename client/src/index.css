@@ -357,3 +357,10 @@ p {
 .ui-focus select {
   font-family: inherit;
 }
+
+@media (min-width: 768px) {
+  .ui-focus h1 {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+}

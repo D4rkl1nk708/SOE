@@ -258,13 +258,19 @@ export default function Calendar() {
     }
     const visible = getVisibleDayActivities(selectedDay);
     const groups = [
+      { label: "Dia inteiro", items: [] as any[] },
       { label: "Manhã", items: [] as any[] },
       { label: "Tarde", items: [] as any[] },
       { label: "Noite", items: [] as any[] },
     ];
     for (const activity of visible) {
+      const time = format(parseISO(activity.date), "HH:mm");
+      if (time === "00:00") {
+        groups[0].items.push(activity);
+        continue;
+      }
       const hour = Number(format(parseISO(activity.date), "H"));
-      const group = hour < 12 ? groups[0] : hour < 18 ? groups[1] : groups[2];
+      const group = hour < 12 ? groups[1] : hour < 18 ? groups[2] : groups[3];
       group.items.push(activity);
     }
     const nonEmpty = groups.filter((group) => group.items.length > 0);
@@ -294,7 +300,7 @@ export default function Calendar() {
                   }`}
                 >
                   <span className="w-[38px] pt-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                    {time}
+                    {time === "00:00" ? "—" : time}
                   </span>
                   <button
                     type="button"
