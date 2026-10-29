@@ -11,7 +11,7 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
-    version: "6.5.2",
+    version: "6.6.0",
     date: "29/10/2026",
     title: "Layout focado, calendário com trilho do dia e TEC principal",
     categories: [
@@ -23,6 +23,8 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
           "TEC em destaque como ferramenta principal do estudo.",
           "Grid do hub Estudar ajustado para desktop e mobile.",
           "Ajustes ganhou cabeçalho e navegação em grid no layout focado.",
+          "Home focado reorganizado em missão, Para hoje e matérias, sem o vazio do layout antigo.",
+          "Calendário mobile com um ponto por dia e lista do dia logo abaixo.",
           "Mentor IA com cabeçalho mais legível no layout focado.",
           "Modo clássico preservado em Configurações → Aparência → Layout da interface.",
         ],
@@ -49,7 +51,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         type: "fix",
         items: [
           "Remoção do onboarding modal inicial e do componente legado.",
-          "Ajustes de build, testes e versão 6.5.2.",
+          "Ajustes de build, testes e versão 6.6.0.",
         ],
       },
     ],

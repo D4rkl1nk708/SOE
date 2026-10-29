@@ -234,6 +234,330 @@ export function HomeV2() {
   );
   const scoreGap = overallAccuracy - targetScore;
 
+  if (isFocus) {
+    const todayBlocks = (overview?.plan?.blocks || []).slice(0, 3);
+    return (
+      <div
+        className="space-y-5 overflow-x-hidden pb-10"
+        style={{ maxWidth: "calc(100vw - 24px)" }}
+      >
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground md:text-4xl">
+              Hoje
+            </h1>
+            <p className="text-sm text-muted-foreground first-letter:uppercase">
+              {dateLabel}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-9 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+              onClick={() => navigate("/plan")}
+            >
+              Ver plano
+            </Button>
+            <Button
+              className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+              onClick={startGuided}
+            >
+              <Play size={13} /> Começar sessão
+            </Button>
+          </div>
+        </header>
+
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="space-y-4">
+            <section className="soe-card overflow-hidden border-primary/20 bg-[var(--primary-bg-subtle)] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
+                    <Sparkles size={13} /> Próxima missão
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+                    {title}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                    {subtitle}
+                  </p>
+                </div>
+                <div className="hidden flex-shrink-0 text-right sm:block">
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Prontidão
+                  </p>
+                  <p className="text-3xl font-semibold tabular-nums text-primary">
+                    {readiness}%
+                  </p>
+                  <p className="text-[8px] uppercase tracking-wider text-muted-foreground">
+                    no edital
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
+                  {focusBlock?.minutes || 25} min
+                </span>
+                <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
+                  10 questões
+                </span>
+                {focusBlock?.disciplineName && (
+                  <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
+                    {focusBlock.disciplineName}
+                  </span>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                  onClick={startGuided}
+                >
+                  <Play size={13} /> Continuar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
+                  onClick={explain}
+                >
+                  <Sparkles size={13} /> Me explicar
+                </Button>
+                <button
+                  onClick={() => navigate("/plan")}
+                  className="text-[10px] font-semibold text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  Ver contexto
+                </button>
+              </div>
+            </section>
+
+            <section className="soe-card overflow-hidden">
+              <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Para hoje
+                  </p>
+                  <h2 className="text-sm font-semibold tracking-tight">
+                    O que importa agora.
+                  </h2>
+                </div>
+                <button
+                  onClick={() => navigate("/calendar")}
+                  className="hidden shrink-0 text-[10px] font-semibold text-primary hover:underline sm:inline"
+                >
+                  Calendário
+                </button>
+              </div>
+              {todayBlocks.length > 0 ? (
+                <div className="divide-y divide-border/50">
+                  {todayBlocks.map((block: any, index: number) => (
+                    <button
+                      key={block.id}
+                      onClick={() => {
+                        sessionStorage.setItem(
+                          "soe_guided_block",
+                          JSON.stringify(block),
+                        );
+                        navigate("/guided");
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/30"
+                    >
+                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md bg-secondary text-[10px] font-semibold text-muted-foreground">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] font-semibold text-foreground">
+                          {block.title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                          {block.subtitle || block.reason}
+                        </span>
+                      </span>
+                      {index === 0 && (
+                        <span className="rounded border border-primary/25 px-1.5 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-primary">
+                          agora
+                        </span>
+                      )}
+                      <span className="hidden text-[10px] tabular-nums text-muted-foreground sm:block">
+                        {block.minutes} min
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-4 py-6 text-xs text-muted-foreground">
+                  Nenhuma tarefa para hoje. Abra o plano para montar.
+                </p>
+              )}
+            </section>
+
+            <section className="soe-card overflow-hidden">
+              <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Matérias
+                  </p>
+                  <h2 className="text-sm font-semibold tracking-tight">
+                    Seu mapa de estudo.
+                  </h2>
+                </div>
+                <button
+                  onClick={() => navigate("/disciplines")}
+                  className="hidden text-[10px] font-semibold text-primary hover:underline sm:inline"
+                >
+                  Ver todas
+                </button>
+              </div>
+              <div className="space-y-3 px-4 py-3">
+                {baseSubjects.slice(0, 3).map((discipline: any) => {
+                  const pct = Math.round(discipline.performance?.accuracy || 0);
+                  return (
+                    <div
+                      key={discipline.disciplineId}
+                      className="flex items-center gap-3"
+                    >
+                      <span className="w-28 truncate text-[11px] font-medium text-foreground">
+                        {discipline.name}
+                      </span>
+                      <span className="flex-1">
+                        <Bar value={pct} />
+                      </span>
+                      <span className="w-8 text-right text-[10px] tabular-nums text-muted-foreground">
+                        {pct}%
+                      </span>
+                    </div>
+                  );
+                })}
+                {baseSubjects.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhuma matéria cadastrada.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="soe-card p-4 lg:hidden">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Resumo
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-xl font-semibold tabular-nums">
+                    {totalQuestions}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">questões</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold tabular-nums">
+                    {overallAccuracy}%
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">acerto</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold tabular-nums">
+                    {week.filter((day) => day.minutes > 0).length}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    dias ativos
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside className="hidden space-y-4 lg:block">
+            <section className="soe-card p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Seu estado
+                </p>
+                <span className="text-[9px] text-muted-foreground">hoje</span>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-sm font-semibold text-primary">
+                  {overallAccuracy}%
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">Desempenho geral</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {totalQuestions > 0
+                      ? `${totalCorrect} acertos em ${totalQuestions}`
+                      : "Sem questões registradas"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
+                    <span>Rotina base</span>
+                    <b className="text-foreground">{basePct}%</b>
+                  </div>
+                  <Bar value={basePct} />
+                </div>
+                <div>
+                  <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
+                    <span>Edital</span>
+                    <b className="text-foreground">{editalPct}%</b>
+                  </div>
+                  <Bar value={editalPct} />
+                </div>
+              </div>
+            </section>
+
+            <section className="soe-card p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Semana
+                </p>
+                <span className="text-[9px] text-muted-foreground">
+                  {week.filter((day) => day.minutes > 0).length} de 7 dias
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-7 gap-1">
+                {week.map((day) => (
+                  <div
+                    key={day.iso}
+                    className={`rounded border py-1 text-center ${
+                      day.today
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border bg-secondary/30"
+                    }`}
+                  >
+                    <span className="block text-[7px] uppercase text-muted-foreground">
+                      {day.label}
+                    </span>
+                    <span className="block text-[10px] font-semibold">
+                      {day.day}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded border border-border bg-secondary/20 p-2">
+                  <p className="text-[8px] uppercase text-muted-foreground">
+                    Questões
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {weekly?.answered ?? 0}
+                  </p>
+                </div>
+                <div className="rounded border border-border bg-secondary/20 p-2">
+                  <p className="text-[8px] uppercase text-muted-foreground">
+                    Acurácia
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {weekly?.accuracy ?? 0}%
+                  </p>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-10">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
