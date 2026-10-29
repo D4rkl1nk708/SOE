@@ -11,6 +11,21 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.2",
+    date: "29/10/2026",
+    title: "Calendário legível no celular",
+    categories: [
+      {
+        title: "📱 Mobile",
+        type: "improvement",
+        items: [
+          "A grade do mês no celular passa a mostrar pontos por dia em vez de rótulos cortados.",
+          "Células mais compactas no mobile e o dia selecionado continua destacado.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.1",
     date: "29/10/2026",
     title: "Correções do calendário, marcação de revisões e ajustes de layout",

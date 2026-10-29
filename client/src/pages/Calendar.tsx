@@ -493,7 +493,7 @@ export default function Calendar() {
                       setDayFilter("all");
                       if (!isFocus) setIsDayDetailOpen(true);
                     }}
-                    className={`flex min-h-[92px] cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border p-1.5 transition-colors last:border-r-0
+                    className={`flex min-h-[58px] cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border p-1 transition-colors last:border-r-0 md:min-h-[92px] md:p-1.5
                       ${!isCurrentMonth ? "bg-secondary/20 text-muted-foreground/40" : "hover:bg-secondary/30"}
                       ${isSelected && isCurrentMonth ? "bg-[var(--primary-bg-subtle)]" : ""}
                     `}
@@ -519,33 +519,54 @@ export default function Calendar() {
                     </div>
 
                     <div className="flex min-h-0 flex-1 flex-col gap-[3px] overflow-hidden">
-                      {dayActivities.slice(0, 2).map((a) => (
-                        <div
-                          key={a.id}
-                          className={`flex items-center gap-1 truncate rounded-[5px] px-1 py-[2px] text-[10.5px] leading-4 ${
-                            a.completed ? "opacity-45" : ""
-                          }`}
-                          style={{
-                            backgroundColor: `color-mix(in srgb, ${a.disciplineColor} 12%, transparent)`,
-                            color: a.disciplineColor,
-                          }}
-                        >
+                      {/* Mobile: pontos compactos */}
+                      <div className="flex items-center gap-1 md:hidden">
+                        {dayActivities.slice(0, 3).map((a) => (
                           <span
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: a.disciplineColor }}
+                            key={`dot-${a.id}`}
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{
+                              backgroundColor: a.disciplineColor,
+                              opacity: a.completed ? 0.35 : 1,
+                            }}
                           />
-                          <span
-                            className={`truncate ${a.completed ? "line-through" : ""}`}
-                          >
-                            {a.topicName}
+                        ))}
+                        {dayActivities.length > 3 && (
+                          <span className="text-[9px] font-medium text-muted-foreground">
+                            +{dayActivities.length - 3}
                           </span>
-                        </div>
-                      ))}
-                      {dayActivities.length > 2 && (
-                        <span className="px-1 text-[9.5px] text-muted-foreground/70">
-                          +{dayActivities.length - 2}
-                        </span>
-                      )}
+                        )}
+                      </div>
+                      {/* Desktop: chips */}
+                      <div className="hidden md:flex md:min-h-0 md:flex-col md:gap-[3px] md:overflow-hidden">
+                        {dayActivities.slice(0, 2).map((a) => (
+                          <div
+                            key={a.id}
+                            className={`flex items-center gap-1 truncate rounded-[5px] px-1 py-[2px] text-[10.5px] leading-4 ${
+                              a.completed ? "opacity-45" : ""
+                            }`}
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${a.disciplineColor} 12%, transparent)`,
+                              color: a.disciplineColor,
+                            }}
+                          >
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: a.disciplineColor }}
+                            />
+                            <span
+                              className={`truncate ${a.completed ? "line-through" : ""}`}
+                            >
+                              {a.topicName}
+                            </span>
+                          </div>
+                        ))}
+                        {dayActivities.length > 2 && (
+                          <span className="px-1 text-[9.5px] text-muted-foreground/70">
+                            +{dayActivities.length - 2}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
