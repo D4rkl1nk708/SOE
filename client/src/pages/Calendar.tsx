@@ -228,12 +228,12 @@ export default function Calendar() {
     ];
     return (
       <div className="border-b border-border px-4 py-2.5">
-        <div className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-secondary/70 p-0.5">
+        <div className="flex max-w-full flex-wrap items-center gap-0.5 rounded-[10px] border border-border bg-secondary/70 p-0.5">
           {filters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setDayFilter(filter.id)}
-              className={`rounded-[8px] px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-[8px] px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
                 dayFilter === filter.id
                   ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
                   : "text-muted-foreground hover:text-foreground"
@@ -682,11 +682,11 @@ export default function Calendar() {
 
         {/* Modal do dia — a trilha vem para o centro */}
         <Dialog open={dayPeekOpen} onOpenChange={setDayPeekOpen}>
-          <DialogContent className="!max-w-[520px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-200">
+          <DialogContent className="!w-[calc(100vw-1.5rem)] !max-w-[520px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-200">
             {selectedDay && (
               <>
                 <div className="border-b border-border px-5 pb-3 pt-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                         {format(selectedDay, "EEEE, d 'de' MMMM", {
@@ -707,7 +707,7 @@ export default function Calendar() {
                     <button
                       type="button"
                       onClick={() => setIsDayDetailOpen(true)}
-                      className="rounded-[9px] border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+                      className="shrink-0 whitespace-nowrap rounded-[9px] border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
                     >
                       Abrir dia
                     </button>
