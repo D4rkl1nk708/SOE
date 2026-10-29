@@ -37,7 +37,7 @@ function HubCard({
   return (
     <Link
       href={to}
-      className={`soe-card group flex min-h-[132px] flex-col p-4 transition-colors hover:border-primary/30 ${
+      className={`soe-card group relative flex min-h-[132px] flex-col p-4 transition-colors hover:border-primary/30 ${
         accent ? "border-primary/25 bg-[var(--primary-bg-subtle)]" : ""
       }`}
     >
@@ -168,7 +168,7 @@ export default function StudyHub() {
             4 ferramentas
           </span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
           <HubCard
             to="/revisions"
             icon={Clock}
@@ -213,7 +213,7 @@ export default function StudyHub() {
           </div>
           <span className="text-[10px] text-muted-foreground">3 áreas</span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
           <HubCard
             to="/disciplines"
             icon={Layers}
