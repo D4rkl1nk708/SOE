@@ -11,6 +11,36 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.8.1",
+    date: "29/10/2026",
+    title: "Nome do tópico inteiro no calendário e treino direto no dia",
+    categories: [
+      {
+        title: "📅 Calendário",
+        type: "fix",
+        items: [
+          "Tocar no nome da tarefa não abre mais o modal antigo do calendário.",
+          "O nome do tópico aparece em até duas linhas e, quando ainda não cabe, tocar expande o texto inteiro.",
+        ],
+      },
+      {
+        title: "🎯 Treinar",
+        type: "feature",
+        items: [
+          "Cada tarefa do dia tem um botão Treinar que leva direto às questões do tópico.",
+        ],
+      },
+      {
+        title: "📱 Celular",
+        type: "improvement",
+        items: [
+          "O modal do dia cabe na largura da tela — os botões de ação não ficam mais cortados.",
+          "Os filtros do dia rolam na horizontal em vez de quebrar em duas linhas.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.8.0",
     date: "29/10/2026",
     title:

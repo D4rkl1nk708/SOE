@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Select,
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CalendarDays,
   EyeOff,
   ExternalLink,
@@ -62,6 +63,90 @@ function getLinks(): Record<number, string> {
   }
 }
 
+/**
+ * Nome do tópico no dia: mostra duas linhas e, quando o texto não cabe,
+ * ganha um indicador discreto — tocar expande o nome inteiro.
+ */
+function DayActivityTitle({
+  text,
+  meta,
+  completed,
+  expanded,
+  onToggle,
+}: {
+  text: string;
+  meta: ReactNode;
+  completed: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+
+    // Com -webkit-line-clamp o scrollHeight já vem cortado, então medimos
+    // soltando o clamp por um instante (síncrono, antes da pintura) e
+    // contando quantas linhas o texto realmente ocuparia.
+    const measure = () => {
+      const previousClamp = el.style.webkitLineClamp;
+      const previousDisplay = el.style.display;
+      el.style.webkitLineClamp = "unset";
+      el.style.display = "block";
+      const lineHeight =
+        Number.parseFloat(getComputedStyle(el).lineHeight) || 18;
+      const lines = Math.round(el.scrollHeight / lineHeight);
+      el.style.webkitLineClamp = previousClamp;
+      el.style.display = previousDisplay;
+      setOverflowing(lines > 2);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text]);
+
+  const canExpand = overflowing || expanded;
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      title={text}
+      className={`group min-w-0 flex-1 text-left ${canExpand ? "cursor-pointer" : "cursor-default"}`}
+    >
+      <span
+        ref={textRef}
+        className={`block text-[12px] font-semibold leading-[1.15rem] transition-colors ${
+          expanded ? "" : "line-clamp-2"
+        } ${completed ? "line-through" : ""} ${
+          canExpand ? "group-hover:text-foreground" : ""
+        }`}
+      >
+        {text}
+      </span>
+      <span className="mt-0.5 flex items-center gap-1 text-[10.5px] text-muted-foreground">
+        <span className="min-w-0 truncate">{meta}</span>
+        {canExpand && (
+          <ChevronDown
+            size={11}
+            aria-hidden="true"
+            className={`shrink-0 transition-transform duration-200 ${
+              expanded
+                ? "rotate-180 opacity-70"
+                : "opacity-40 group-hover:opacity-70"
+            }`}
+          />
+        )}
+      </span>
+    </button>
+  );
+}
+
 export default function Calendar() {
   const [location, navigate] = useLocation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -78,6 +163,16 @@ export default function Calendar() {
   const [modalVisibleCount, setModalVisibleCount] = useState(60);
   const [dayPeekOpen, setDayPeekOpen] = useState(false);
   const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
+  // Nomes de tópico que o aluno expandiu no dia (o texto inteiro fica visível).
+  const [expandedNames, setExpandedNames] = useState<Set<string>>(new Set());
+  const toggleExpandedName = (id: string | number) =>
+    setExpandedNames((prev) => {
+      const next = new Set(prev);
+      const key = String(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   useEffect(() => {
     setModalVisibleCount(60);
@@ -227,8 +322,8 @@ export default function Calendar() {
       },
     ];
     return (
-      <div className="border-b border-border px-4 py-2.5">
-        <div className="flex max-w-full flex-wrap items-center gap-0.5 rounded-[10px] border border-border bg-secondary/70 p-0.5">
+      <div className="min-w-0 border-b border-border px-4 py-2.5">
+        <div className="scrollbar-hide flex w-full min-w-0 items-center gap-0.5 overflow-x-auto rounded-[10px] border border-border bg-secondary/70 p-0.5">
           {filters.map((filter) => (
             <button
               key={filter.id}
@@ -297,7 +392,7 @@ export default function Calendar() {
               return (
                 <div
                   key={activity.id}
-                  className={`flex items-start gap-2.5 px-4 ${compact ? "py-2" : "py-2.5"} ${
+                  className={`group/row flex items-start gap-2.5 px-4 ${compact ? "py-2" : "py-2.5"} ${
                     completed ? "opacity-50" : ""
                   }`}
                 >
@@ -319,37 +414,50 @@ export default function Calendar() {
                   >
                     {completed && <Check size={11} strokeWidth={3} />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsDayDetailOpen(true)}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <span
-                      className={`block truncate text-[12px] font-semibold leading-4 ${
-                        completed ? "line-through" : ""
-                      }`}
+                  <DayActivityTitle
+                    text={activity.topicName}
+                    completed={completed}
+                    expanded={expandedNames.has(String(activity.id))}
+                    onToggle={() => toggleExpandedName(activity.id)}
+                    meta={
+                      <>
+                        {activity.disciplineName}
+                        {activity.type === "test"
+                          ? " · Simulado"
+                          : activity.revisionNumber
+                            ? ` · Revisão ${activity.revisionNumber}`
+                            : " · Revisão"}
+                      </>
+                    }
+                  />
+                  {isFocus ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStudyNow(
+                          activity.topicId,
+                          activity.topicName,
+                          activity.disciplineId,
+                        )
+                      }
+                      aria-label="Treinar este tópico"
+                      className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-primary transition-all hover:border-primary/40 hover:bg-[color-mix(in_srgb,var(--primary)_9%,var(--card))] sm:h-auto sm:w-auto sm:px-2.5 sm:py-1 sm:text-[10.5px] sm:font-medium md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100"
                     >
-                      {activity.topicName}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-                      {activity.disciplineName}
-                      {activity.type === "test"
-                        ? " · Simulado"
-                        : activity.revisionNumber
-                          ? ` · Revisão ${activity.revisionNumber}`
-                          : " · Revisão"}
-                    </span>
-                  </button>
-                  {activity.type === "test" && (
-                    <span
-                      className="mt-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium"
-                      style={{
-                        color: activity.disciplineColor,
-                        backgroundColor: `${activity.disciplineColor}12`,
-                      }}
-                    >
-                      Simulado
-                    </span>
+                      <PlayCircle size={13} className="sm:hidden" />
+                      <span className="hidden sm:inline">Treinar</span>
+                    </button>
+                  ) : (
+                    activity.type === "test" && (
+                      <span
+                        className="mt-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium"
+                        style={{
+                          color: activity.disciplineColor,
+                          backgroundColor: `${activity.disciplineColor}12`,
+                        }}
+                      >
+                        Simulado
+                      </span>
+                    )
                   )}
                 </div>
               );
@@ -567,6 +675,7 @@ export default function Calendar() {
                               style={{ backgroundColor: a.disciplineColor }}
                             />
                             <span
+                              title={a.topicName}
                               className={`truncate ${a.completed ? "line-through" : ""}`}
                             >
                               {a.topicName}
@@ -604,13 +713,6 @@ export default function Calendar() {
                         : "Agenda do dia"}
                     </h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsDayDetailOpen(true)}
-                    className="rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground"
-                  >
-                    Abrir dia
-                  </button>
                 </div>
                 {renderDayFilters()}
                 <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
@@ -672,13 +774,9 @@ export default function Calendar() {
                     ? `${getDayActivities(selectedDay).length} tarefas · todas visíveis`
                     : ""}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsDayDetailOpen(true)}
-                  className="text-[10px] font-semibold text-primary hover:opacity-70"
-                >
-                  Abrir dia ›
-                </button>
+                <span className="text-[10px] text-muted-foreground/70">
+                  toque no nome para ver inteiro
+                </span>
               </div>
             </div>
           </aside>
@@ -689,7 +787,7 @@ export default function Calendar() {
           <DialogContent className="!w-[calc(100vw-1.5rem)] !max-w-[560px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:slide-in-from-bottom-3 data-[state=open]:duration-300 data-[state=open]:ease-out data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:duration-150">
             {selectedDay && (
               <>
-                <div className="border-b border-border py-4 pl-5 pr-12">
+                <div className="min-w-0 border-b border-border py-4 pl-5 pr-12">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -708,13 +806,6 @@ export default function Calendar() {
                         })()}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsDayDetailOpen(true)}
-                      className="shrink-0 whitespace-nowrap rounded-[9px] border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
-                    >
-                      Abrir dia
-                    </button>
                   </div>
                   <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
                     <div
@@ -732,7 +823,7 @@ export default function Calendar() {
                   </div>
                 </div>
                 {renderDayFilters()}
-                <div className="max-h-[58vh] overflow-y-auto custom-scrollbar">
+                <div className="max-h-[58vh] min-w-0 overflow-y-auto custom-scrollbar">
                   {renderDayList(true)}
                 </div>
               </>
