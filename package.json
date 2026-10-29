@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "6.7.2",
+  "version": "6.7.3",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -182,7 +182,8 @@
       "category": "Education",
       "executableArgs": [
         "--no-sandbox"
-      ]
+      ],
+      "icon": "assets/icons/icon.png"
     },
     "win": {
       "target": [
@@ -193,7 +194,8 @@
           ]
         }
       ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "icon": "assets/icons/icon.ico"
     },
     "nsis": {
       "oneClick": false,

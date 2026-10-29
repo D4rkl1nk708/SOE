@@ -206,6 +206,7 @@ function initApp() {
       height: 900,
       minWidth: 1000,
       minHeight: 700,
+      icon: path.join(__dirname, "..", "assets", "icons", "icon.png"),
       webPreferences: {
         contextIsolation: true,
         preload: path.join(__dirname, "preload.cjs"),

@@ -18,10 +18,28 @@ const plugins = [
       name: "SOE Estudos",
       short_name: "SOE",
       description: "Sistema de organização de estudos para concursos.",
-      theme_color: "#0f172a",
-      background_color: "#ffffff",
+      theme_color: "#0066CC",
+      background_color: "#f5f5f7",
       display: "standalone",
       start_url: "/",
+      icons: [
+        {
+          src: "/icons/icon-192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          src: "/icons/icon-512.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+        {
+          src: "/icons/maskable-512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
+      ],
     },
     workbox: {
       globPatterns: ["**/*.{js,css,html,png,svg,ico,json}"],

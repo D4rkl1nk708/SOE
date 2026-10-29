@@ -11,6 +11,23 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.3",
+    date: "29/10/2026",
+    title: "Novo ícone do app para desktop e Android",
+    categories: [
+      {
+        title: "🎨 Identidade",
+        type: "feature",
+        items: [
+          "Ícone novo com o livro aberto em azul, alinhado ao layout focado.",
+          "Windows e Linux recebem o ícone no instalador, no atalho e na janela.",
+          "Android com ícone adaptativo (fundo azul) e versão redonda para launchers antigos.",
+          "Favicon e ícones do PWA atualizados, com versão maskable.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.2",
     date: "29/10/2026",
     title: "Calendário legível no celular",
