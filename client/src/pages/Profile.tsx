@@ -184,6 +184,7 @@ function SettingsTab() {
   >("assisted");
   const [fsrsPreviewOpen, setFsrsPreviewOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<"v2" | "classic">("v2");
+  const [uiMode, setUiMode] = useState<"focused" | "complete">("focused");
   const { data: disciplines } = trpc.discipline.list.useQuery();
   const fsrsPreview = trpc.study.fsrsPreview.useQuery(
     { days: 30 },
@@ -211,6 +212,7 @@ function SettingsTab() {
         Array.isArray(s.baseDisciplineIds) ? s.baseDisciplineIds : [],
       );
       setLayoutMode(s.layoutMode === "classic" ? "classic" : "v2");
+      setUiMode(s.uiMode === "complete" ? "complete" : "focused");
       setScheduler(s.scheduler === "fsrs" ? "fsrs" : "classic");
       const captureMode =
         s.tecCaptureMode === "manual" || s.tecCaptureMode === "import"
@@ -293,6 +295,61 @@ function SettingsTab() {
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Layout size={14} className="text-primary" />
+                <p className="text-[10px] font-bold uppercase tracking-wider">
+                  Layout da interface
+                </p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                O layout focado é o padrão: sidebar curta e ferramentas dentro
+                de Estudar. O clássico mantém o menu completo e o Início atual.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    id: "focused" as const,
+                    title: "Novo · focado",
+                    desc: "Sidebar curta e hub Estudar.",
+                  },
+                  {
+                    id: "complete" as const,
+                    title: "Clássico · completo",
+                    desc: "Menu completo, como antes.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setUiMode(option.id);
+                      localStorage.setItem("soe_nav_mode", option.id);
+                      updateSettings.mutate({ uiMode: option.id });
+                    }}
+                    className={`rounded-md border p-3 text-left transition-colors ${
+                      uiMode === option.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          uiMode === option.id ? "bg-primary" : "bg-border"
+                        }`}
+                      />
+                      <span className="text-xs font-semibold">
+                        {option.title}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {option.desc}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-lg border border-border bg-card p-4 space-y-3">
