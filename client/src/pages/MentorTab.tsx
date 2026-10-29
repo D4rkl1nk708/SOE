@@ -49,6 +49,8 @@ export default function MentorTab() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const apiKey = (stats?.settings as any)?.aiApiKey ?? "";
+  const isFocus =
+    ((stats?.settings as any)?.uiMode ?? "focused") !== "complete";
   const provider = (stats?.settings as any)?.aiProvider ?? "gemini";
 
   const { data: regressionData } = trpc.mentor.getTecRegressions.useQuery({
@@ -374,10 +376,16 @@ export default function MentorTab() {
             </div>
 
             <div className="hidden xs:block">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
-                Mentor Estratégico
+              <h2
+                className={
+                  isFocus
+                    ? "text-base font-semibold tracking-tight text-foreground"
+                    : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60"
+                }
+              >
+                {isFocus ? "Mentor IA" : "Mentor Estratégico"}
               </h2>
-              <p className="text-[11px] font-bold text-foreground truncate max-w-[200px]">
+              <p className="max-w-[220px] truncate text-[11px] font-medium text-muted-foreground">
                 {activeSession.title}
               </p>
             </div>

@@ -233,9 +233,30 @@ function SettingsTab() {
   const handleSaveSync = () =>
     updateSettings.mutate({ autoBackupEnabled, autoBackupDir });
 
+  const isFocus = uiMode === "focused";
+
   return (
     <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex w-fit flex-wrap gap-1 rounded-lg border border-border bg-secondary/40 p-1">
+      {isFocus && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/70">
+            Preferências
+          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
+            Ajustes
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Aparência, inteligência artificial, estudo e dados.
+          </p>
+        </div>
+      )}
+      <div
+        className={
+          isFocus
+            ? "grid grid-cols-2 gap-2 lg:grid-cols-4"
+            : "flex w-fit flex-wrap gap-1 rounded-lg border border-border bg-secondary/40 p-1"
+        }
+      >
         {[
           { id: "appearance", label: "Aparência", icon: Palette },
           { id: "ai", label: "Inteligência Artificial", icon: Cpu },
@@ -248,10 +269,10 @@ function SettingsTab() {
             <button
               key={item.id}
               onClick={() => setSection(item.id as typeof section)}
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-[10px] font-bold uppercase tracking-wider transition-colors ${
                 active
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "border-primary/25 bg-card text-foreground shadow-sm"
+                  : "border-border bg-card/40 text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icon size={13} />
