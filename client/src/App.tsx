@@ -151,30 +151,35 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         <div className="relative">
           <div
             style={{
-              width: 80,
-              height: 80,
-              border: "1px solid var(--border)",
-              borderRadius: "12px",
+              width: 92,
+              height: 92,
+              borderRadius: 22,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "var(--card)",
+              background:
+                "linear-gradient(140deg, #0A84FF 0%, #0071E3 55%, #0053B8 100%)",
+              boxShadow: "0 14px 34px rgba(0, 102, 204, 0.28)",
             }}
           >
-            <div className="w-10 h-10 border-2 border-primary/20 rounded-md flex items-center justify-center">
-              <div className="w-4 h-4 bg-primary rounded-sm animate-pulse" />
-            </div>
+            <svg
+              width="54"
+              height="54"
+              viewBox="0 0 100 100"
+              aria-hidden="true"
+            >
+              <g fill="#FFFFFF">
+                <path d="M9 27 Q9 22.6 13.4 22 L45 18.6 Q48 18.2 48 22.4 L48 77.4 L13.4 81.4 Q9 81.8 9 77.4 Z" />
+                <path d="M91 27 Q91 22.6 86.6 22 L55 18.6 Q52 18.2 52 22.4 L52 77.4 L86.6 81.4 Q91 81.8 91 77.4 Z" />
+              </g>
+            </svg>
           </div>
-          <div className="absolute -inset-4 border border-primary/5 rounded-[20px] animate-pulse" />
         </div>
 
-        <div className="text-center space-y-1">
-          <h1 className="text-4xl font-bold tracking-tighter text-foreground">
+        <div className="text-center">
+          <h1 className="text-4xl font-semibold tracking-[-0.03em] text-foreground">
             SOE
           </h1>
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.3em] ml-1">
-            Sistema de Organização de Estudo
-          </p>
         </div>
 
         <div className="w-48 h-[1px] bg-border overflow-hidden relative">

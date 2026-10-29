@@ -11,6 +11,20 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.9",
+    date: "29/10/2026",
+    title: "Splash com a marca nova",
+    categories: [
+      {
+        title: "🎨 Identidade",
+        type: "improvement",
+        items: [
+          "Tela de abertura com o ícone azul do app e apenas o nome SOE.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.8",
     date: "29/10/2026",
     title: "Dia em modal com fundo desfocado e fim das revisões duplicadas",
