@@ -14,6 +14,15 @@ vi.mock("@/lib/openTecBrowser", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    useUtils: () => ({
+      dashboard: { getStats: { invalidate: () => {} } },
+      study: { overview: { invalidate: () => {} } },
+    }),
+    study: {
+      importCaderno: {
+        useMutation: () => ({ mutate: () => {}, isPending: false }),
+      },
+    },
     dashboard: {
       getStats: {
         useQuery: () => ({ data: { disciplineStats: [] }, isLoading: false }),

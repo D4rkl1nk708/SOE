@@ -60,6 +60,7 @@ import {
   localStudyWeeklyReview,
   localRecordQuestionAttempt,
   localRecordTecAnswer,
+  localImportCaderno,
   localStudyOverview,
   localStudyErrorPatterns,
   localEssayList,
@@ -218,6 +219,8 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
     ),
   "study.recordTecAnswer": (i) =>
     localRecordTecAnswer(i as Parameters<typeof localRecordTecAnswer>[0]),
+  "study.importCaderno": (i) =>
+    localImportCaderno(i as Parameters<typeof localImportCaderno>[0]),
   "study.errorPatterns": () => localStudyErrorPatterns(),
   "mentor.getTecRegressions": (i) => localGetTecRegressions(i as any),
   "flashcard.list": () => localFlashcardList(),

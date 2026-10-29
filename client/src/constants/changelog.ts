@@ -11,6 +11,24 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.7",
+    date: "29/10/2026",
+    title: "Importação opcional de caderno do TEC",
+    categories: [
+      {
+        title: "📥 TEC",
+        type: "feature",
+        items: [
+          "Nova opção em Estudar → Mais ferramentas: importar caderno colando as linhas que você já vê no TEC.",
+          "Nada é lido do site automaticamente — é uma importação manual, sem risco para a conta.",
+          "Os totais são absolutos e só aumentam: o SOE nunca reduz o seu histórico.",
+          "Tópicos com nome diferente do cadastro aparecem como ignorados.",
+          "Funciona também no APK, no banco local.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.6",
     date: "29/10/2026",
     title: "Nome do app é SOE; plano e confiança funcionando no APK",

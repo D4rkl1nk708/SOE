@@ -130,6 +130,117 @@ export const studyRouter = router({
       };
     }),
 
+  /**
+   * Importação explícita de um caderno do TEC (opcional, iniciada pelo usuário).
+   * Só grava totais absolutos por tópico — nunca sobrescreve para baixo.
+   */
+  importCaderno: protectedProcedure
+    .input(
+      z.object({
+        rows: z
+          .array(
+            z.object({
+              disciplina: z.string().min(1),
+              assunto: z.string().min(1),
+              acertos: z.number().min(0).max(100000),
+              erros: z.number().min(0).max(100000),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [disciplines, topics, settings] = await Promise.all([
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getUserSettings(ctx.user.id),
+      ]);
+
+      let imported = 0;
+      let skipped = 0;
+      const details: Array<{
+        assunto: string;
+        disciplina: string;
+        before?: number;
+        after?: number;
+        reason?: string;
+      }> = [];
+
+      for (const row of input.rows) {
+        const discMatch = findBestDisciplineMatch(
+          disciplines,
+          row.disciplina,
+          row.assunto,
+          settings?.tecDisciplineAliases,
+          topics,
+        );
+        const discipline = discMatch.discipline;
+        if (!discipline) {
+          skipped += 1;
+          details.push({
+            assunto: row.assunto,
+            disciplina: row.disciplina,
+            reason: "discipline_not_found",
+          });
+          continue;
+        }
+
+        const topicMatch = findBestTopicMatch(
+          topics,
+          row.assunto,
+          discipline.id,
+        );
+        const topic = topicMatch.topic;
+        if (!topic) {
+          skipped += 1;
+          details.push({
+            assunto: row.assunto,
+            disciplina: row.disciplina,
+            reason: "topic_not_found",
+          });
+          continue;
+        }
+
+        const prevCorrect = Number(topic.performance?.correctCount) || 0;
+        const prevErrors = Number(topic.performance?.errorCount) || 0;
+        const nextCorrect = Math.max(prevCorrect, row.acertos);
+        const nextErrors = Math.max(prevErrors, row.erros);
+
+        if (nextCorrect === prevCorrect && nextErrors === prevErrors) {
+          skipped += 1;
+          details.push({
+            assunto: topic.name,
+            disciplina: discipline.name,
+            before: prevCorrect + prevErrors,
+            after: prevCorrect + prevErrors,
+            reason: "already_up_to_date",
+          });
+          continue;
+        }
+
+        await storage.setTopicPerformance(topic.id, ctx.user.id, {
+          correctCount: nextCorrect,
+          errorCount: nextErrors,
+        });
+        imported += 1;
+        details.push({
+          assunto: topic.name,
+          disciplina: discipline.name,
+          before: prevCorrect + prevErrors,
+          after: nextCorrect + nextErrors,
+        });
+      }
+
+      return {
+        ok: true,
+        imported,
+        skipped,
+        total: input.rows.length,
+        details: details.slice(0, 50),
+      };
+    }),
+
   calibration: protectedProcedure.query(async ({ ctx }) => {
     const overview = await getStudyOverview(ctx.user.id);
     return overview.calibration;

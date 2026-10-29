@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import type { LucideIcon } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   Target,
 } from "lucide-react";
 import { PageTitle, Card, SectionLabel } from "@/components/apple";
+import { TecCadernoImport } from "@/components/TecCadernoImport";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
 
@@ -82,6 +84,7 @@ function HubTile({
 }
 
 export default function StudyHub() {
+  const [importOpen, setImportOpen] = useState(false);
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { data: revisions } = trpc.revision.list.useQuery({ completed: false });
   const { data: errorsPage } = trpc.questionError.list.useQuery({ limit: 200 });
@@ -263,6 +266,13 @@ export default function StudyHub() {
           </span>
         </summary>
         <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="rounded-[9px] border border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          >
+            Importar caderno do TEC
+          </button>
           {[
             { href: "/history", label: "Histórico" },
             { href: "/statistics", label: "Estatísticas" },
@@ -279,6 +289,8 @@ export default function StudyHub() {
           ))}
         </div>
       </details>
+
+      <TecCadernoImport open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

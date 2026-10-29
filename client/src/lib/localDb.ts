@@ -2033,6 +2033,56 @@ export async function localStudyErrorPatterns() {
   return { total: errors.length, topTopics };
 }
 
+/** Importação explícita de caderno (modo offline): só aumenta os totais. */
+export async function localImportCaderno(input: {
+  rows: Array<{
+    disciplina: string;
+    assunto: string;
+    acertos: number;
+    erros: number;
+  }>;
+}): Promise<{ ok: boolean; imported: number; skipped: number; total: number }> {
+  let imported = 0;
+  let skipped = 0;
+
+  for (const row of input.rows) {
+    // resolve tópico para aplicar os totais absolutos
+    const disciplines = await localDisciplineList();
+    const discipline = disciplines.find(
+      (item) => normalizeString(item.name) === normalizeString(row.disciplina),
+    );
+    if (!discipline) {
+      skipped += 1;
+      continue;
+    }
+    const { topics } = await localTopicList({ disciplineId: discipline.id });
+    const topic = topics.find(
+      (item) => normalizeString(item.name) === normalizeString(row.assunto),
+    );
+    if (!topic) {
+      skipped += 1;
+      continue;
+    }
+
+    const prevCorrect = Number(topic.performance?.correctCount) || 0;
+    const prevErrors = Number(topic.performance?.errorCount) || 0;
+    const nextCorrect = Math.max(prevCorrect, row.acertos);
+    const nextErrors = Math.max(prevErrors, row.erros);
+    if (nextCorrect === prevCorrect && nextErrors === prevErrors) {
+      skipped += 1;
+      continue;
+    }
+    await localTopicSetPerformance({
+      topicId: topic.id,
+      correctCount: nextCorrect,
+      errorCount: nextErrors,
+    });
+    imported += 1;
+  }
+
+  return { ok: true, imported, skipped, total: input.rows.length };
+}
+
 export async function localMockExamList(): Promise<MockExam[]> {
   return db.mockExams
     .where("userId")

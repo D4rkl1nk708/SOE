@@ -84,6 +84,63 @@ describe("modo offline (APK)", () => {
     expect(last.correct).toBe(true);
   });
 
+  it("importação de caderno só aumenta os totais e ignora nome desconhecido", async () => {
+    const discipline = await localDb.localDisciplineCreate({
+      name: "Disciplina Caderno",
+      color: "#0066CC",
+      weight: 1,
+    });
+    const topic = await localDb.localTopicCreate({
+      name: "Tema Caderno",
+      disciplineId: discipline.id,
+    });
+    await localDb.localTopicSetPerformance({
+      topicId: topic.id,
+      correctCount: 2,
+      errorCount: 1,
+    });
+
+    const first = await localDb.localImportCaderno({
+      rows: [
+        {
+          disciplina: "Disciplina Caderno",
+          assunto: "Tema Caderno",
+          acertos: 10,
+          erros: 3,
+        },
+        { disciplina: "Fantasma", assunto: "Nada", acertos: 5, erros: 0 },
+      ],
+    });
+
+    expect(first.imported).toBe(1);
+    expect(first.skipped).toBe(1);
+
+    const after = await localDb.localTopicList({
+      disciplineId: discipline.id,
+    });
+    const updated = after.topics.find((item) => item.id === topic.id)!;
+    expect(updated.performance?.correctCount).toBe(10);
+    expect(updated.performance?.errorCount).toBe(3);
+
+    // valores menores não reduzem o histórico
+    const second = await localDb.localImportCaderno({
+      rows: [
+        {
+          disciplina: "Disciplina Caderno",
+          assunto: "Tema Caderno",
+          acertos: 1,
+          erros: 1,
+        },
+      ],
+    });
+    expect(second.imported).toBe(0);
+    const stable = await localDb.localTopicList({
+      disciplineId: discipline.id,
+    });
+    const kept = stable.topics.find((item) => item.id === topic.id)!;
+    expect(kept.performance?.correctCount).toBe(10);
+  });
+
   it("devolve motivo claro quando o tópico não existe", async () => {
     const result = await localDb.localRecordTecAnswer({
       disciplina: "Não Existe",
