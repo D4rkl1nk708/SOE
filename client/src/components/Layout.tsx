@@ -679,7 +679,11 @@ export function Layout({ children }: { children: ReactNode }) {
     navMode === "focused" ? FOCUSED_MOBILE_SECONDARY : MOBILE_SECONDARY;
   const currentLabel =
     allItems.find((n) => isActivePath(location, n.path))?.label ||
-    (isActivePath(location, "/profile") ? "Configurações" : "SOE");
+    (isActivePath(location, "/profile")
+      ? navMode === "focused"
+        ? "Mais"
+        : "Configurações"
+      : "SOE");
 
   return (
     <div
