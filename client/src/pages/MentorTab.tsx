@@ -659,6 +659,94 @@ export default function MentorTab() {
           </div>
         )}
       </div>
+
+      {isFocus && (
+        <aside className="hidden w-72 shrink-0 flex-col gap-4 border-l border-border/60 bg-card/30 p-4 xl:flex">
+          <div className="space-y-1">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Contexto da conversa
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              Conectado ao seu plano
+            </p>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/60 bg-card p-3">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">Concurso</span>
+              <b className="truncate pl-2 text-right text-foreground">
+                {(stats?.settings as any)?.exams?.[0]?.name || "Transpetro"}
+              </b>
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">Sessão</span>
+              <b className="truncate pl-2 text-right text-foreground">
+                {activeSession.title}
+              </b>
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">Criada</span>
+              <b className="text-foreground">
+                {new Date(activeSession.createdAt).toLocaleDateString("pt-BR")}
+              </b>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Sessões recentes
+              </p>
+              <button
+                onClick={() => {
+                  const id = `session-${Date.now()}`;
+                  setSessions((prev) => [
+                    {
+                      id,
+                      title: "Nova Conversa",
+                      messages: [],
+                      createdAt: Date.now(),
+                    },
+                    ...prev,
+                  ]);
+                  setActiveSessionId(id);
+                }}
+                className="text-[10px] font-semibold text-primary"
+              >
+                + Nova
+              </button>
+            </div>
+            <div className="space-y-1">
+              {sessions.slice(0, 5).map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => setActiveSessionId(session.id)}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                    session.id === activeSessionId
+                      ? "border-primary/25 bg-primary/5"
+                      : "border-border/60 bg-card hover:bg-secondary/30"
+                  }`}
+                >
+                  <Brain size={13} className="shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11px] font-semibold">
+                      {session.title}
+                    </span>
+                    <span className="block text-[9px] text-muted-foreground">
+                      {new Date(session.createdAt).toLocaleDateString("pt-BR")}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto rounded-lg border border-border/60 bg-card p-3 text-[10px] leading-relaxed text-muted-foreground">
+            O Mentor usa seu plano, revisões, erros e estatísticas como
+            contexto.
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
