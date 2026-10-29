@@ -65,7 +65,7 @@ function getLinks(): Record<number, string> {
 export default function Calendar() {
   const [location, navigate] = useLocation();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
   const [icalDialogOpen, setIcalDialogOpen] = useState(false);
   const [expandedLinkId, setExpandedLinkId] = useState<number | null>(null);
   const [savedLinks, setSavedLinks] =
@@ -73,7 +73,7 @@ export default function Calendar() {
   const [linkDraft, setLinkDraft] = useState<Record<number, string>>({});
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [dayFilter, setDayFilter] = useState<
-    "all" | "pending" | "revision" | "test"
+    "all" | "pending" | "completed" | "revision" | "test"
   >("all");
   const [modalVisibleCount, setModalVisibleCount] = useState(60);
   const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
@@ -88,6 +88,8 @@ export default function Calendar() {
 
   const utils = trpc.useUtils();
   const { data: stats } = trpc.dashboard.getStats.useQuery();
+  const isFocus =
+    ((stats?.settings as any)?.uiMode ?? "focused") !== "complete";
   const schedule = useScheduleSettings(() =>
     utils.dashboard.getStats.invalidate(),
   );
@@ -201,6 +203,149 @@ export default function Calendar() {
   const getDayActivities = (day: Date) =>
     activities.filter((a) => isSameDay(parseISO(a.date), day));
 
+  const getVisibleDayActivities = (day: Date) =>
+    getDayActivities(day).filter((activity) => {
+      if (dayFilter === "pending") return !activity.completed;
+      if (dayFilter === "completed") return activity.completed;
+      if (dayFilter === "revision") return activity.type === "revision";
+      if (dayFilter === "test") return activity.type === "test";
+      return true;
+    });
+
+  const renderDayFilters = () => {
+    if (!selectedDay) return null;
+    const all = getDayActivities(selectedDay);
+    const filters = [
+      { id: "all" as const, label: "Todas", count: all.length },
+      {
+        id: "pending" as const,
+        label: "Pendentes",
+        count: all.filter((a) => !a.completed).length,
+      },
+      {
+        id: "completed" as const,
+        label: "Feitas",
+        count: all.filter((a) => a.completed).length,
+      },
+    ];
+    return (
+      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border/50">
+        {filters.map((filter) => (
+          <button
+            key={filter.id}
+            onClick={() => setDayFilter(filter.id)}
+            className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+              dayFilter === filter.id
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {filter.label}
+            <span className="ml-1 opacity-50">{filter.count}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderDayList = (compact = false) => {
+    if (!selectedDay) {
+      return (
+        <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+          Selecione um dia no calendário.
+        </div>
+      );
+    }
+    const visible = getVisibleDayActivities(selectedDay);
+    const groups = [
+      { label: "Manhã", items: [] as any[] },
+      { label: "Tarde", items: [] as any[] },
+      { label: "Noite", items: [] as any[] },
+    ];
+    for (const activity of visible) {
+      const hour = Number(format(parseISO(activity.date), "H"));
+      const group = hour < 12 ? groups[0] : hour < 18 ? groups[1] : groups[2];
+      group.items.push(activity);
+    }
+    const nonEmpty = groups.filter((group) => group.items.length > 0);
+    if (nonEmpty.length === 0) {
+      return (
+        <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+          Nenhuma tarefa para este filtro.
+        </div>
+      );
+    }
+    return (
+      <div className="divide-y divide-border/50">
+        {nonEmpty.map((group) => (
+          <div key={group.label} className="py-1">
+            <p className="px-4 pt-3 pb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {group.label}
+            </p>
+            {group.items.map((activity) => {
+              const completed = activity.completed;
+              const pending = pendingToggles.has(activity.id);
+              const time = format(parseISO(activity.date), "HH:mm");
+              return (
+                <div
+                  key={activity.id}
+                  className={`flex items-start gap-2.5 px-4 ${compact ? "py-2.5" : "py-3"} ${
+                    completed ? "opacity-50" : ""
+                  }`}
+                >
+                  <span className="w-[38px] pt-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                    {time}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={
+                      completed ? "Marcar como pendente" : "Marcar como feita"
+                    }
+                    onClick={() => toggleCompleted(activity.id, completed)}
+                    disabled={pending}
+                    className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      completed
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:border-primary"
+                    } ${pending ? "animate-pulse" : ""}`}
+                  >
+                    {completed && <Check size={11} strokeWidth={3} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDayDetailOpen(true)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <span
+                      className={`block truncate text-[12px] font-semibold leading-4 ${
+                        completed ? "line-through" : ""
+                      }`}
+                    >
+                      {activity.topicName}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                      {activity.disciplineName} ·{" "}
+                      {activity.type === "test" ? "Simulado" : "Revisão"}
+                    </span>
+                  </button>
+                  <span
+                    className="mt-0.5 rounded px-1.5 py-0.5 text-[8px] font-semibold"
+                    style={{
+                      color: activity.disciplineColor,
+                      backgroundColor: `${activity.disciplineColor}12`,
+                    }}
+                  >
+                    {activity.type === "test" ? "Simulado" : "Revisão"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
@@ -246,9 +391,15 @@ export default function Calendar() {
               className="text-3xl font-black tracking-tight"
               style={{ color: "var(--app-fg)" }}
             >
-              Agenda
+              {isFocus ? "Calendário" : "Agenda"}
             </h1>
-            <p className="text-sm opacity-60">Sua jornada organizada.</p>
+            <p className="text-sm opacity-60">
+              {isFocus
+                ? format(currentMonth, "MMMM 'de' yyyy", {
+                    locale: ptBR,
+                  }).replace(/^./, (c) => c.toUpperCase())
+                : "Sua jornada organizada."}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -281,7 +432,13 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 items-start">
+      <div
+        className={
+          isFocus
+            ? "grid grid-cols-1 gap-5 items-start lg:grid-cols-[minmax(0,1fr)_390px]"
+            : "grid grid-cols-1 gap-6 items-start"
+        }
+      >
         {/* Main Calendar View */}
         <div className="space-y-4">
           <div className="soe-card overflow-hidden">
@@ -337,9 +494,9 @@ export default function Calendar() {
                     onClick={() => {
                       setSelectedDay(day);
                       setDayFilter("all");
-                      setIsDayDetailOpen(true);
+                      if (!isFocus) setIsDayDetailOpen(true);
                     }}
-                    className={`min-h-[100px] md:min-h-[140px] p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
+                    className={`${isFocus ? "min-h-[58px] md:min-h-[64px] lg:min-h-[72px]" : "min-h-[100px] md:min-h-[140px]"} p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
                         ${!isCurrentMonth ? "opacity-[0.15] bg-secondary/30" : "hover:bg-secondary/25"}
                         ${isSelected ? "bg-[var(--primary-bg-subtle)] !opacity-100" : ""}
                         ${isToday ? "ring-2 ring-inset ring-[var(--primary)]/50 bg-[var(--primary-bg-subtle)]/30 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]" : ""}
@@ -359,7 +516,7 @@ export default function Calendar() {
                     <div className="mt-1 space-y-1">
                       {/* Desktop list */}
                       <div className="hidden md:block space-y-1">
-                        {dayActivities.slice(0, 3).map((a) => (
+                        {dayActivities.slice(0, isFocus ? 2 : 3).map((a) => (
                           <div
                             key={a.id}
                             className={`text-[0.6rem] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border flex items-center gap-1 
@@ -380,9 +537,9 @@ export default function Calendar() {
                             {a.topicName}
                           </div>
                         ))}
-                        {dayActivities.length > 3 && (
+                        {dayActivities.length > (isFocus ? 2 : 3) && (
                           <div className="text-[0.6rem] font-black opacity-20 px-1">
-                            + {dayActivities.length - 3} itens
+                            + {dayActivities.length - (isFocus ? 2 : 3)} itens
                           </div>
                         )}
                       </div>
@@ -402,7 +559,100 @@ export default function Calendar() {
               })}
             </div>
           </div>
+
+          {isFocus && (
+            <div className="lg:hidden">
+              <div className="soe-card overflow-hidden">
+                <div className="flex items-start justify-between gap-3 border-b border-border/50 px-4 py-4">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {selectedDay
+                        ? format(selectedDay, "EEEE, d 'de' MMMM", {
+                            locale: ptBR,
+                          })
+                        : "Selecione um dia"}
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold tracking-tight">
+                      {selectedDay
+                        ? `${getDayActivities(selectedDay).filter((a) => !a.completed).length} tarefas pendentes`
+                        : "Agenda do dia"}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDayDetailOpen(true)}
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground"
+                  >
+                    Abrir dia
+                  </button>
+                </div>
+                {renderDayFilters()}
+                <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
+                  {renderDayList(true)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {isFocus && (
+          <aside className="sticky top-4 hidden lg:block">
+            <div className="soe-card overflow-hidden">
+              <div className="border-b border-border/50 p-4">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {selectedDay
+                    ? format(selectedDay, "EEEE, d 'de' MMMM", { locale: ptBR })
+                    : "Selecione um dia"}
+                </p>
+                <h2 className="mt-1 text-[22px] font-semibold leading-7 tracking-[-0.4px]">
+                  Seu dia, em ordem.
+                </h2>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {selectedDay
+                    ? `${getDayActivities(selectedDay).filter((a) => a.completed).length} de ${getDayActivities(selectedDay).length} concluídas`
+                    : "Nenhum dia selecionado"}
+                </p>
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: selectedDay
+                        ? `${Math.round(
+                            (getDayActivities(selectedDay).filter(
+                              (a) => a.completed,
+                            ).length /
+                              Math.max(
+                                getDayActivities(selectedDay).length,
+                                1,
+                              )) *
+                              100,
+                          )}%`
+                        : "0%",
+                    }}
+                  />
+                </div>
+              </div>
+              {renderDayFilters()}
+              <div className="max-h-[calc(100vh-360px)] overflow-y-auto custom-scrollbar">
+                {renderDayList()}
+              </div>
+              <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+                <span className="text-[10px] text-muted-foreground">
+                  {selectedDay
+                    ? `${getDayActivities(selectedDay).length} tarefas · todas visíveis`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsDayDetailOpen(true)}
+                  className="text-[10px] font-semibold text-primary hover:opacity-70"
+                >
+                  Abrir dia ›
+                </button>
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Day Detail Modal — Command Center Redesign */}
@@ -510,6 +760,7 @@ export default function Calendar() {
                     selectedDay,
                   ).filter((activity) => {
                     if (dayFilter === "pending") return !activity.completed;
+                    if (dayFilter === "completed") return activity.completed;
                     if (dayFilter === "revision")
                       return activity.type === "revision";
                     if (dayFilter === "test") return activity.type === "test";

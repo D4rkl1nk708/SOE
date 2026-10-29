@@ -113,7 +113,11 @@ vi.mock("@/lib/trpc", () => ({
       getStats: {
         useQuery: () => ({
           data: {
-            settings: { aiApiKey: "test", aiProvider: "gemini" },
+            settings: {
+              aiApiKey: "test",
+              aiProvider: "gemini",
+              uiMode: "complete",
+            },
             disciplineStats: [
               {
                 disciplineId: 1,
