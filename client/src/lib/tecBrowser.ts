@@ -66,8 +66,11 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
       if (type === "SOE_TEC_INCREMENT_STATS") endpoint = "/api/tec/increment";
       else if (type === "SOE_TEC_WRONG_QUESTION")
         endpoint = "/api/tec/wrong-question";
-      else if (type === "SOE_TEC_DATA") endpoint = "/api/tec/caderno-push";
-      else if (type === "SOE_TEC_BANCA_INCREMENT")
+      else if (type === "SOE_TEC_DATA") {
+        // Só a importação explícita manda totais por tópico.
+        if (payload?.mode !== "import") endpoint = "";
+        else endpoint = "/api/tec/caderno-push";
+      } else if (type === "SOE_TEC_BANCA_INCREMENT")
         endpoint = "/api/tec/banca-increment";
       else if (type === "SOE_TEC_CADERNOS_LIST")
         endpoint = "/api/tec/cadernos-list";
@@ -101,6 +104,20 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
     } = await import("./localDb");
 
     if (type === "SOE_TEC_INCREMENT_STATS" && payload?.assunto) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("soe-tec-answer", {
+            detail: {
+              disciplina: payload.disciplina || "TEC Concursos",
+              assunto: payload.assunto,
+              correct: (payload.correctAdd || 0) > 0,
+              seconds: payload.timeSpentSeconds,
+              questionId: payload.questionId,
+              banca: payload.banca,
+            },
+          }),
+        );
+      } catch {}
       const discName = payload.disciplina || "TEC Concursos";
       const discList = await localDisciplineList();
       const foundDisc = discList.find(
@@ -209,7 +226,11 @@ export async function handleTecEvent(eventData: any, pushToken?: string) {
       toast.success("✗ Erro salvo no Caderno de Erros!", {
         position: "bottom-center",
       });
-    } else if (type === "SOE_TEC_DATA" && payload?.rows) {
+    } else if (
+      type === "SOE_TEC_DATA" &&
+      payload?.rows &&
+      payload?.mode === "import"
+    ) {
       for (const row of payload.rows) {
         if (!row.assunto) continue;
         const discName = row.disciplina || "TEC Concursos";

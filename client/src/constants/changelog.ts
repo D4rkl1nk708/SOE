@@ -11,6 +11,45 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.5",
+    date: "29/10/2026",
+    title: "Dia em modal, confiança no TEC e fim da contagem inflada",
+    categories: [
+      {
+        title: "📅 Calendário",
+        type: "feature",
+        items: [
+          "Clicar em um dia abre a agenda daquele dia em um modal central, com animação de entrada.",
+          "Filtros novos na trilha e no modal: Revisões e Testes, além de Todas, Pendentes e Feitas.",
+          "O modal mostra o progresso do dia e o atalho Abrir dia.",
+        ],
+      },
+      {
+        title: "🐞 Contagem do TEC",
+        type: "fix",
+        items: [
+          "Cada resposta agora registra no máximo uma questão por requisição — um payload com +300 é rejeitado.",
+          "Sincronização de caderno só acontece em importação explícita; a captura automática não envia totais por tópico.",
+        ],
+      },
+      {
+        title: "🎯 Calibração",
+        type: "feature",
+        items: [
+          "Depois de cada resposta capturada do TEC, o app pergunta como foi: sabia, ficou na dúvida ou chutou.",
+          "A resposta é gravada no histórico com o grau de confiança, alimentando a calibração e o Mentor.",
+        ],
+      },
+      {
+        title: "🎨 Tema",
+        type: "improvement",
+        items: [
+          "Diálogos e menus agora herdam o tema do layout focado (antes caíam nas cores antigas).",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.4",
     date: "29/10/2026",
     title: "Ícone novo também na extensão do Chrome",

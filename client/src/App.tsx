@@ -12,6 +12,7 @@ import { SimuladoGenerationProvider } from "./contexts/SimuladoGenerationContext
 // ── Lazy-loaded pages (code-split per route) ──────────────────────────────────
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const StudyHub = lazy(() => import("@/pages/StudyHub"));
+import { TecConfidencePrompt } from "@/components/TecConfidencePrompt";
 const StudyPlan = lazy(() => import("@/pages/StudyPlan"));
 const GuidedSession = lazy(() => import("@/pages/GuidedSession"));
 const Disciplines = lazy(() => import("@/pages/Disciplines"));
@@ -99,6 +100,7 @@ function Router() {
           <Route path="/404" component={NotFound} />
           <Route component={NotFound} />
         </Switch>
+        <TecConfidencePrompt />
       </Suspense>
     </SimuladoGenerationProvider>
   );

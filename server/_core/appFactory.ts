@@ -357,6 +357,14 @@ export async function configureApp(): Promise<{
    */
   app.post("/api/tec/caderno-push", async (req: any, res: any) => {
     try {
+      // Só a importação explícita pode escrever totais absolutos por tópico.
+      // A captura automática (assistida) conta uma resposta por incremento.
+      if (req.body?.mode !== "import") {
+        return res.status(409).json({
+          error:
+            "Sincronização automática de caderno desativada. Use a importação de caderno no app.",
+        });
+      }
       const token =
         (req.headers["x-soe-token"] as string) || (req.query.token as string);
       if (!token)
@@ -710,6 +718,17 @@ export async function configureApp(): Promise<{
         } = req.body;
 
         const disciplinaName = rawDisciplina || "TEC Concursos";
+
+        // Cada resposta é registrada uma vez: +1 acerto OU +1 erro.
+        const deltaQuestoes =
+          Math.abs(Number(correctAdd) || 0) + Math.abs(Number(errorAdd) || 0);
+        if (deltaQuestoes > 1) {
+          return res.status(400).json({
+            error:
+              "Incremento inválido: cada resposta registra no máximo uma questão.",
+            received: { correctAdd, errorAdd },
+          });
+        }
 
         // Deduplicação básica: se a mesma questão for enviada em menos de 15s, ignora
         if (dedupKey) {

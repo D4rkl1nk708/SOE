@@ -89,6 +89,16 @@ function DialogOverlay({
 
 DialogOverlay.displayName = "DialogOverlay";
 
+/** Mantém o diálogo dentro do tema do layout focado (portal fora da árvore). */
+function dialogContainer(): HTMLElement | undefined {
+  if (typeof document === "undefined") return undefined;
+  return (
+    (document.querySelector(
+      "[data-soe-surface='focus']",
+    ) as HTMLElement | null) ?? undefined
+  );
+}
+
 function DialogContent({
   className,
   children,
@@ -119,7 +129,7 @@ function DialogContent({
   );
 
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal data-slot="dialog-portal" container={dialogContainer()}>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"

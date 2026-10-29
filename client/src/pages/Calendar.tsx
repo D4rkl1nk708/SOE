@@ -76,6 +76,7 @@ export default function Calendar() {
     "all" | "pending" | "completed" | "revision" | "test"
   >("all");
   const [modalVisibleCount, setModalVisibleCount] = useState(60);
+  const [dayPeekOpen, setDayPeekOpen] = useState(false);
   const [pendingToggles, setPendingToggles] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -213,6 +214,16 @@ export default function Calendar() {
         id: "completed" as const,
         label: "Feitas",
         count: all.filter((a) => a.completed).length,
+      },
+      {
+        id: "revision" as const,
+        label: "Revisões",
+        count: all.filter((a) => a.type === "revision").length,
+      },
+      {
+        id: "test" as const,
+        label: "Testes",
+        count: all.filter((a) => a.type === "test").length,
       },
     ];
     return (
@@ -491,7 +502,8 @@ export default function Calendar() {
                     onClick={() => {
                       setSelectedDay(day);
                       setDayFilter("all");
-                      if (!isFocus) setIsDayDetailOpen(true);
+                      if (isFocus) setDayPeekOpen(true);
+                      else setIsDayDetailOpen(true);
                     }}
                     className={`flex min-h-[58px] cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border p-1 transition-colors last:border-r-0 md:min-h-[92px] md:p-1.5
                       ${!isCurrentMonth ? "bg-secondary/20 text-muted-foreground/40" : "hover:bg-secondary/30"}
@@ -667,6 +679,62 @@ export default function Calendar() {
             </div>
           </aside>
         )}
+
+        {/* Modal do dia — a trilha vem para o centro */}
+        <Dialog open={dayPeekOpen} onOpenChange={setDayPeekOpen}>
+          <DialogContent className="!max-w-[520px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-200">
+            {selectedDay && (
+              <>
+                <div className="border-b border-border px-5 pb-3 pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        {format(selectedDay, "EEEE, d 'de' MMMM", {
+                          locale: ptBR,
+                        })}
+                      </p>
+                      <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-foreground">
+                        Seu dia, em ordem.
+                      </h2>
+                      <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                        {(() => {
+                          const all = getDayActivities(selectedDay);
+                          const done = all.filter((a) => a.completed).length;
+                          return `${done} de ${all.length} concluídas`;
+                        })()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsDayDetailOpen(true)}
+                      className="rounded-[9px] border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+                    >
+                      Abrir dia
+                    </button>
+                  </div>
+                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{
+                        width: `${Math.round(
+                          (getDayActivities(selectedDay).filter(
+                            (a) => a.completed,
+                          ).length /
+                            Math.max(getDayActivities(selectedDay).length, 1)) *
+                            100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+                {renderDayFilters()}
+                <div className="max-h-[52vh] overflow-y-auto custom-scrollbar">
+                  {renderDayList(true)}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Day Detail Modal — Command Center Redesign */}

@@ -3,6 +3,10 @@ import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { getStudyLedger } from "./studyLedger";
 import {
+  findBestDisciplineMatch,
+  findBestTopicMatch,
+} from "./tecDisciplineMatcher";
+import {
   getDataHealth,
   getErrorIntelligence,
   getStudyOverview,
@@ -62,6 +66,68 @@ export const studyRouter = router({
           ? (input.confidencePhase ?? "before_result")
           : null,
       });
+    }),
+
+  /**
+   * Registra a resposta vinda da captura do TEC com o grau de confiança
+   * informado pelo usuário (chute / dúvida / certeza).
+   */
+  recordTecAnswer: protectedProcedure
+    .input(
+      z.object({
+        disciplina: z.string().min(1),
+        assunto: z.string().min(1),
+        correct: z.boolean(),
+        confidence: confidenceSchema,
+        seconds: z.number().min(0).max(86400).optional(),
+        questionId: z.string().optional(),
+        banca: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [disciplines, topics, settings] = await Promise.all([
+        storage.getDisciplinesByUser(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getUserSettings(ctx.user.id),
+      ]);
+
+      const discMatch = findBestDisciplineMatch(
+        disciplines,
+        input.disciplina,
+        input.assunto,
+        settings?.tecDisciplineAliases,
+        topics,
+      );
+      const discipline = discMatch.discipline;
+      if (!discipline) return { ok: false, reason: "discipline_not_found" };
+
+      const topicMatch = findBestTopicMatch(
+        topics,
+        input.assunto,
+        discipline.id,
+      );
+      const topic = topicMatch.topic;
+      if (!topic) return { ok: false, reason: "topic_not_found" };
+
+      const attempt = await storage.recordQuestionAttempt(ctx.user.id, {
+        topicId: topic.id,
+        disciplineId: discipline.id,
+        answered: true,
+        correct: input.correct,
+        confidence: input.confidence ?? null,
+        confidencePhase: input.confidence ? "after_result" : null,
+        seconds: input.seconds,
+        questionId: input.questionId,
+        banca: input.banca,
+        source: "tec",
+      });
+
+      return {
+        ok: true,
+        attemptId: attempt.id,
+        topicId: topic.id,
+        topicName: topic.name,
+      };
     }),
 
   calibration: protectedProcedure.query(async ({ ctx }) => {

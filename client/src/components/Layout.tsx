@@ -639,6 +639,7 @@ export function Layout({ children }: { children: ReactNode }) {
   useFontScale();
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
+
   const { data: user } = trpc.auth.me.useQuery();
   const { data: contextStats } = trpc.dashboard.getStats.useQuery();
   useEffect(() => {
@@ -687,6 +688,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div
+      data-soe-surface={navMode === "focused" ? "focus" : undefined}
       className={`flex h-screen flex-col md:flex-row ${theme === "dark" ? "dark" : ""} ${
         navMode === "focused" ? "ui-focus" : ""
       }`}

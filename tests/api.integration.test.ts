@@ -82,6 +82,43 @@ describe("API Integration Tests", () => {
     expect(errors.items[0].questionId).toBe("#999");
   });
 
+  it("recusa incremento que somaria mais de uma questão", async () => {
+    await storage.upsertUser({ openId: "api-user-bulk", name: "Bulk User" });
+    const user = (await storage.getUserByOpenId("api-user-bulk"))!;
+    await storage.updateUserSettings(user.id, { pushToken: VALID_TOKEN });
+
+    const response = await request(app)
+      .post("/api/tec/increment")
+      .set("x-soe-token", VALID_TOKEN)
+      .send({
+        assunto: "Controle da Administração",
+        disciplina: "Direito Administrativo",
+        correctAdd: 300,
+        errorAdd: 0,
+      });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.error)).toMatch(/no máximo uma questão/i);
+  });
+
+  it("recusa sincronização de caderno sem modo explícito de importação", async () => {
+    await storage.upsertUser({ openId: "api-user-bulk", name: "Bulk User" });
+    const user = (await storage.getUserByOpenId("api-user-bulk"))!;
+    await storage.updateUserSettings(user.id, { pushToken: VALID_TOKEN });
+
+    const response = await request(app)
+      .post("/api/tec/caderno-push")
+      .set("x-soe-token", VALID_TOKEN)
+      .send({
+        rows: [
+          { disciplina: "Direito", assunto: "Tema", acertos: 300, erros: 0 },
+        ],
+      });
+
+    expect(response.status).toBe(409);
+    expect(String(response.body.error)).toMatch(/importação/i);
+  });
+
   it("should return 401 if token is invalid", async () => {
     const response = await request(app)
       .post("/api/tec/wrong-question")
