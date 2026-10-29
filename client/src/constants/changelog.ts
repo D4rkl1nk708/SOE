@@ -11,7 +11,7 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
-    version: "6.6.3",
+    version: "6.6.4",
     date: "29/10/2026",
     title: "Layout focado, calendário com trilho do dia e TEC principal",
     categories: [
@@ -27,6 +27,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
           "Ajustes sem cabeçalho duplicado e Mentor IA com título visível.",
           "Mentor IA ganhou painel de contexto e sessões recentes no desktop.",
           "Ajustes adotou o título Mais e o calendário separa tarefas de dia inteiro.",
+          "Tab bar mobile reorganizada em Hoje, Plano, Estudar, Calendário e Mais.",
           "Calendário mobile com um ponto por dia e lista do dia logo abaixo.",
           "Mentor IA com cabeçalho mais legível no layout focado.",
           "Modo clássico preservado em Configurações → Aparência → Layout da interface.",
@@ -54,7 +55,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         type: "fix",
         items: [
           "Remoção do onboarding modal inicial e do componente legado.",
-          "Ajustes de build, testes e versão 6.6.3.",
+          "Ajustes de build, testes e versão 6.6.4.",
         ],
       },
     ],

@@ -311,14 +311,20 @@ const MOBILE_SECONDARY = [
 
 // Mobile no layout focado: hub Estudar no lugar de Treinos.
 const FOCUSED_MOBILE_PRIMARY = [
-  { path: "/", label: "Início", icon: LayoutDashboard },
+  { path: "/", label: "Hoje", icon: LayoutDashboard },
+  { path: "/plan", label: "Plano", icon: Target },
   { path: "/study", label: "Estudar", icon: BookOpen },
-  { path: "/mentor", label: "Mentor IA", icon: Sparkles },
   { path: "/calendar", label: "Calendário", icon: CalendarDays },
 ];
 
 const FOCUSED_MOBILE_SECONDARY = [
-  { path: "/plan", label: "Plano", icon: Target, color: "#f97316" },
+  { path: "/mentor", label: "Mentor IA", icon: Sparkles, color: "#6366f1" },
+  {
+    path: "/mock-exams",
+    label: "Simulados",
+    icon: ClipboardX,
+    color: "#8b5cf6",
+  },
   {
     path: "/statistics",
     label: "Estatísticas",
