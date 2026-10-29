@@ -78,9 +78,6 @@ vi.mock("@/components/DashboardWidgets", () => ({
   DailyGoalWidget: () => <div data-testid="daily-goal-widget" />,
   TodayRevisions: () => <div data-testid="today-revisions" />,
 }));
-vi.mock("@/components/OnboardingWizard", () => ({
-  OnboardingWizard: () => <div data-testid="onboarding-wizard" />,
-}));
 vi.mock("@/components/PreExamBanner", () => ({
   PreExamBanner: () => <div data-testid="pre-exam-banner" />,
 }));

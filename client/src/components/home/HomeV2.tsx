@@ -95,6 +95,7 @@ export function HomeV2() {
   });
 
   const settings = (stats?.settings || {}) as any;
+  const isFocus = (settings.uiMode ?? "focused") !== "complete";
   const baseIds: number[] = Array.isArray(settings.baseDisciplineIds)
     ? settings.baseDisciplineIds
     : [];
@@ -237,11 +238,21 @@ export function HomeV2() {
     <div className="space-y-4 pb-10">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            {greeting}, {me?.name?.split(" ")[0] || "Estudante"}
+          <h1
+            className={
+              isFocus
+                ? "text-3xl font-semibold tracking-[-0.04em] text-foreground md:text-4xl"
+                : "text-lg font-semibold tracking-tight"
+            }
+          >
+            {isFocus
+              ? "Hoje"
+              : `${greeting}, ${me?.name?.split(" ")[0] || "Estudante"}`}
           </h1>
-          <p className="mt-0.5 text-[11px] capitalize text-muted-foreground">
-            {dateLabel}
+          <p className="mt-1 text-[11px] capitalize text-muted-foreground md:text-xs">
+            {isFocus
+              ? `${greeting}, ${me?.name?.split(" ")[0] || "Estudante"} · ${dateLabel}`
+              : dateLabel}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">

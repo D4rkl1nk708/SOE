@@ -3,7 +3,6 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 import { PlateauRadarWidget } from "@/components/PlateauRadarWidget";
 import { ScheduleDialog } from "@/components/ScheduleDialog";
 import { RecallRatingDialog } from "@/components/RecallRatingDialog";
-import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 // Mock trpc
 const mockGetStats = vi.fn();
@@ -166,40 +165,5 @@ describe("RecallRatingDialog Component", () => {
       expect.objectContaining({ rating: 5, freeRecallText: "Lembrei de tudo" }),
     );
     expect(onDone).toHaveBeenCalled();
-  });
-});
-
-describe("OnboardingWizard Component", () => {
-  test("completes onboarding flow with personalized path", async () => {
-    const onComplete = vi.fn();
-    render(<OnboardingWizard onComplete={onComplete} />);
-
-    fireEvent.click(screen.getByText(/Configurar agora/i));
-
-    // Step: Concurso -> Personalizado
-    fireEvent.click(screen.getByText("Personalizado"));
-    fireEvent.click(screen.getByText(/Continuar/i));
-
-    // Step: Disciplinas
-    expect(screen.getByText(/Quais disciplinas você estuda/i)).toBeTruthy();
-    const input = screen.getByPlaceholderText("Disciplina 1");
-    fireEvent.change(input, { target: { value: "Math" } });
-    fireEvent.click(screen.getByText("+ Adicionar disciplina"));
-    const input2 = screen.getByPlaceholderText("Disciplina 2");
-    fireEvent.change(input2, { target: { value: "Physics" } });
-
-    fireEvent.click(screen.getByText(/Continuar/i));
-
-    // Step: Meta
-    fireEvent.click(screen.getByText("6h"));
-    fireEvent.click(screen.getByText(/Finalizar configuração/i));
-
-    // Done
-    await waitFor(
-      () => expect(screen.getByText(/fluxo está pronto/i)).toBeTruthy(),
-      { timeout: 2000 },
-    );
-    fireEvent.click(screen.getByText(/explorar o Dashboard/i));
-    expect(onComplete).toHaveBeenCalled();
   });
 });

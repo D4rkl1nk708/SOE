@@ -11,6 +11,47 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.5.0",
+    date: "29/10/2026",
+    title: "Layout focado, calendário com trilho do dia e TEC principal",
+    categories: [
+      {
+        title: "🧭 Novo layout focado",
+        type: "feature",
+        items: [
+          "Sidebar curta com Hoje, Aprender e Sistema; ferramentas agrupadas no hub Estudar.",
+          "TEC em destaque como ferramenta principal do estudo.",
+          "Modo clássico preservado em Configurações → Aparência → Layout da interface.",
+        ],
+      },
+      {
+        title: "📅 Calendário",
+        type: "feature",
+        items: [
+          "Mês e trilho do dia lado a lado no desktop, com todas as tarefas visíveis.",
+          "Lista do dia inline no mobile, abaixo da grade mensal.",
+          "Clique no dia não abre mais modal; o modal fica para detalhes e edição.",
+        ],
+      },
+      {
+        title: "🎨 Identidade visual",
+        type: "improvement",
+        items: [
+          "Paleta azul Apple, superfícies neutras e tipografia do sistema no layout focado.",
+          "Dark mode preservado e layout clássico mantendo a identidade anterior.",
+        ],
+      },
+      {
+        title: "🧹 Limpeza",
+        type: "fix",
+        items: [
+          "Remoção do onboarding modal inicial e do componente legado.",
+          "Ajustes de build, testes e versão 6.5.0.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.5.0",
     date: "27/04/2026",
     title: "Ecossistema de Mineração & Command Center",
