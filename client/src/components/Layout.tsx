@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   BarChart3,
@@ -38,6 +38,65 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { trpc } from "@/lib/trpc";
 
 declare const __APP_VERSION__: string;
+
+// A linguagem visual do layout focado: Apple-like, sem alterar o clássico.
+const FOCUSED_LIGHT: Record<string, string> = {
+  "--background": "#f5f5f7",
+  "--foreground": "#1d1d1f",
+  "--card": "#ffffff",
+  "--card-foreground": "#1d1d1f",
+  "--popover": "#ffffff",
+  "--popover-foreground": "#1d1d1f",
+  "--secondary": "#ececef",
+  "--secondary-foreground": "#1d1d1f",
+  "--muted": "#ececef",
+  "--muted-foreground": "#6e6e73",
+  "--accent": "#e8e8ed",
+  "--accent-foreground": "#1d1d1f",
+  "--destructive": "#d70015",
+  "--destructive-foreground": "#ffffff",
+  "--border": "#e0e0e5",
+  "--input": "#e0e0e5",
+  "--ring": "#0066cc",
+  "--primary": "#0066cc",
+  "--primary-foreground": "#ffffff",
+  "--sidebar": "#f5f5f7",
+  "--sidebar-foreground": "#1d1d1f",
+  "--sidebar-primary": "#0066cc",
+  "--sidebar-primary-foreground": "#ffffff",
+  "--sidebar-accent": "#e8e8ed",
+  "--sidebar-accent-foreground": "#1d1d1f",
+  "--sidebar-border": "#e0e0e5",
+  "--sidebar-ring": "#0066cc",
+  "--app-bg": "#f5f5f7",
+  "--app-fg": "#1d1d1f",
+  "--card-bg": "#ffffff",
+  "--card-border": "#e0e0e5",
+  "--muted-text": "#6e6e73",
+  "--stat-bg": "#ececef",
+  "--input-bg": "#f5f5f7",
+  "--header-bg": "rgba(245,245,247,0.94)",
+  "--sidebar-bg": "#f5f5f7",
+  "--sidebar-fg": "#1d1d1f",
+  "--sidebar-border-color": "#e0e0e5",
+  "--primary-bg-subtle": "rgba(0,102,204,0.10)",
+  "--primary-border": "rgba(0,102,204,0.26)",
+  "--primary-shadow": "rgba(0,102,204,0.18)",
+  "--gold": "#0066cc",
+  "--gold-light": "#0071e3",
+  "--gold-dark": "#0055aa",
+  "--sidebar-active-bg": "rgba(0,102,204,0.10)",
+  "--sidebar-active-fg": "#0066cc",
+  "--sidebar-active-border": "rgba(0,102,204,0.20)",
+  "--primary-rgb": "0, 102, 204",
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", sans-serif',
+};
+
+const FOCUSED_DARK: Record<string, string> = {
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", sans-serif',
+};
 
 // ── Navigation groups ────────────────────────────────────────────────────────
 const NAV_GROUPS = [
@@ -502,8 +561,20 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className={`flex h-screen flex-col md:flex-row ${theme === "dark" ? "dark" : ""}`}
-      style={{ background: "var(--app-bg)", color: "var(--app-fg)" }}
+      className={`flex h-screen flex-col md:flex-row ${theme === "dark" ? "dark" : ""} ${
+        navMode === "focused" ? "ui-focus" : ""
+      }`}
+      style={
+        {
+          ...(navMode === "focused"
+            ? theme === "dark"
+              ? FOCUSED_DARK
+              : FOCUSED_LIGHT
+            : {}),
+          background: "var(--app-bg)",
+          color: "var(--app-fg)",
+        } as CSSProperties
+      }
     >
       <Sidebar
         collapsed={collapsed}

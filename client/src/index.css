@@ -304,3 +304,40 @@ p {
 .print-only {
   display: none;
 }
+
+/* ── Layout focado: linguagem Apple-like ─────────────────────────────────── */
+.ui-focus {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text",
+    "Segoe UI", sans-serif;
+  letter-spacing: -0.15px;
+}
+
+.ui-focus .soe-card {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.ui-focus .soe-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+}
+
+.ui-focus .soe-card.border-primary\/20,
+.ui-focus .soe-card.border-primary\/25 {
+  border-color: color-mix(
+    in srgb,
+    var(--primary) 24%,
+    var(--border)
+  ) !important;
+}
+
+.ui-focus input,
+.ui-focus textarea,
+.ui-focus select {
+  border-radius: 8px;
+}
+
+.ui-focus .rounded-md,
+.ui-focus .rounded-lg {
+  border-radius: 8px;
+}
