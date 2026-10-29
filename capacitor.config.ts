@@ -1,16 +1,16 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'com.soe.estudos',
-  appName: 'SOE Estudos',
-  webDir: 'dist/public',
+  appId: "com.soe.estudos",
+  appName: "SOE",
+  webDir: "dist/public",
   plugins: {
     CapacitorHttp: {
       enabled: true,
     },
   },
   server: {
-    androidScheme: 'http',
+    androidScheme: "http",
     cleartext: true,
   },
   android: {
@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
     cleartext: true,
   },
   ios: {
-    contentInset: 'automatic',
+    contentInset: "automatic",
     scrollEnabled: true,
   },
 };

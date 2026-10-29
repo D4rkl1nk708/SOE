@@ -15,7 +15,7 @@ const plugins = [
   VitePWA({
     registerType: "autoUpdate",
     manifest: {
-      name: "SOE Estudos",
+      name: "SOE",
       short_name: "SOE",
       description: "Sistema de organização de estudos para concursos.",
       theme_color: "#0066CC",

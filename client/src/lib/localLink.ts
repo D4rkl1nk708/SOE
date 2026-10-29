@@ -57,6 +57,9 @@ import {
   localGenerateAdaptiveQuestion,
   localTestAiKey,
   localReviewSimulado,
+  localStudyWeeklyReview,
+  localRecordQuestionAttempt,
+  localRecordTecAnswer,
   localStudyOverview,
   localStudyErrorPatterns,
   localEssayList,
@@ -208,6 +211,13 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.testKey": (i) => localTestAiKey(i as any),
   "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
   "study.overview": (i) => localStudyOverview(i as any),
+  "study.weeklyReview": () => localStudyWeeklyReview(),
+  "study.recordAttempt": (i) =>
+    localRecordQuestionAttempt(
+      i as Parameters<typeof localRecordQuestionAttempt>[0],
+    ),
+  "study.recordTecAnswer": (i) =>
+    localRecordTecAnswer(i as Parameters<typeof localRecordTecAnswer>[0]),
   "study.errorPatterns": () => localStudyErrorPatterns(),
   "mentor.getTecRegressions": (i) => localGetTecRegressions(i as any),
   "flashcard.list": () => localFlashcardList(),

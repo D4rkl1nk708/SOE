@@ -880,6 +880,186 @@ export async function localTopicResetAllStats(): Promise<{ success: boolean }> {
   return { success: true };
 }
 
+const DAY_MS = 86_400_000;
+
+/** Revisão semanal no modo offline (equivalente a getWeeklyReview do servidor). */
+export async function localStudyWeeklyReview(): Promise<{
+  from: string;
+  to: string;
+  answered: number;
+  correct: number;
+  accuracy: number;
+  sessions: number;
+  minutes: number;
+  revisionsCompleted: number;
+  revisionsDueNext7: number;
+  touchedTopics: number;
+  wins: string[];
+  risks: string[];
+}> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const nowMs = Date.now();
+  const from = nowMs - 7 * DAY_MS;
+
+  const attempts = (settings.questionAttempts || []).filter((attempt: any) => {
+    const time = Date.parse(attempt?.createdAt || "");
+    return Number.isFinite(time) && time >= from;
+  });
+  const answeredAttempts = attempts.filter((attempt: any) => attempt.answered);
+  const correct = answeredAttempts.filter(
+    (attempt: any) => attempt.correct,
+  ).length;
+  const sessionsLog = (settings.studySessionLog || []).filter(
+    (session: any) => Date.parse(session?.date || "") >= from,
+  );
+  const minutes = sessionsLog.reduce(
+    (sum: number, session: any) => sum + (Number(session.durationMin) || 0),
+    0,
+  );
+
+  const revisions = (await db.revisions.toArray()).filter(
+    (revision) => revision.userId === LOCAL_USER_ID,
+  );
+  const today = formatDateForDb(new Date());
+  const in7 = formatDateForDb(new Date(nowMs + 7 * DAY_MS));
+
+  const revisionsCompleted = revisions.filter(
+    (revision) =>
+      revision.completed &&
+      revision.completedAt &&
+      Date.parse(revision.completedAt) >= from,
+  ).length;
+  const revisionsDueNext7 = revisions.filter(
+    (revision) =>
+      !revision.completed &&
+      !revision.ignored &&
+      revision.scheduledDate >= today &&
+      revision.scheduledDate <= in7,
+  ).length;
+
+  const touchedTopics = new Set(
+    answeredAttempts.map((attempt: any) => attempt.topicId).filter(Boolean),
+  ).size;
+  const accuracy =
+    answeredAttempts.length > 0
+      ? Math.round((correct / answeredAttempts.length) * 100)
+      : 0;
+
+  const wins: string[] = [];
+  const risks: string[] = [];
+  if (answeredAttempts.length > 0) {
+    wins.push(`${answeredAttempts.length} questões respondidas`);
+  }
+  if (revisionsCompleted > 0) {
+    wins.push(`${revisionsCompleted} revisões concluídas`);
+  }
+  if (answeredAttempts.length === 0) {
+    risks.push("Nenhuma questão respondida nos últimos 7 dias");
+  }
+  if (revisionsDueNext7 > 20) {
+    risks.push(`${revisionsDueNext7} revisões vencem nos próximos 7 dias`);
+  }
+
+  return {
+    from: new Date(from).toISOString(),
+    to: new Date(nowMs).toISOString(),
+    answered: answeredAttempts.length,
+    correct,
+    accuracy,
+    sessions: sessionsLog.length,
+    minutes,
+    revisionsCompleted,
+    revisionsDueNext7,
+    touchedTopics,
+    wins,
+    risks,
+  };
+}
+
+/** Grava uma tentativa no histórico local (ledger de respostas). */
+export async function localRecordQuestionAttempt(input: {
+  topicId: number;
+  disciplineId?: number;
+  questionId?: string;
+  banca?: string;
+  answered: boolean;
+  correct: boolean;
+  confidence?: "chute" | "acho" | "certeza" | null;
+  confidencePhase?: "before_result" | "after_result" | null;
+  seconds?: number;
+  source?: "manual" | "tec" | "simulado";
+}): Promise<Record<string, unknown>> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  if (!user) throw new Error("Usuário local não encontrado.");
+  const settings = (user.settings || {}) as Record<string, any>;
+  const attempts = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+
+  const record = {
+    ...input,
+    confidence: input.confidence ?? null,
+    confidencePhase: input.confidence
+      ? (input.confidencePhase ?? "before_result")
+      : null,
+    id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now(),
+  };
+
+  await db.users.update(LOCAL_USER_ID, {
+    settings: {
+      ...settings,
+      questionAttempts: [...attempts, record].slice(-3000),
+    },
+  } as any);
+
+  return record;
+}
+
+/** Resposta vinda do TEC + grau de confiança (modo offline). */
+export async function localRecordTecAnswer(input: {
+  disciplina: string;
+  assunto: string;
+  correct: boolean;
+  confidence?: "chute" | "acho" | "certeza" | null;
+  seconds?: number;
+  questionId?: string;
+  banca?: string;
+}): Promise<{
+  ok: boolean;
+  reason?: string;
+  topicId?: number;
+  topicName?: string;
+}> {
+  const disciplines = await localDisciplineList();
+  const discipline = disciplines.find(
+    (item) => normalizeString(item.name) === normalizeString(input.disciplina),
+  );
+  if (!discipline) return { ok: false, reason: "discipline_not_found" };
+
+  const { topics } = await localTopicList({ disciplineId: discipline.id });
+  const topic = topics.find(
+    (item) => normalizeString(item.name) === normalizeString(input.assunto),
+  );
+  if (!topic) return { ok: false, reason: "topic_not_found" };
+
+  await localRecordQuestionAttempt({
+    topicId: topic.id,
+    disciplineId: discipline.id,
+    answered: true,
+    correct: input.correct,
+    confidence: input.confidence ?? null,
+    confidencePhase: "after_result",
+    seconds: input.seconds,
+    questionId: input.questionId,
+    banca: input.banca,
+    source: "tec",
+  });
+
+  return { ok: true, topicId: topic.id, topicName: topic.name };
+}
+
 export async function localRevisionList(input?: {
   completed?: boolean;
   ignored?: boolean;
@@ -1537,24 +1717,290 @@ Retorne EXATAMENTE JSON:
   };
 }
 
-export async function localStudyOverview(_input?: { minutes?: number }) {
-  const [disciplines, topicsResult] = await Promise.all([
+export async function localStudyOverview(input?: { minutes?: number }) {
+  const [disciplines, topicsResult, revisions, user] = await Promise.all([
     localDisciplineList(),
     localTopicList(),
+    db.revisions.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.users.get(LOCAL_USER_ID),
   ]);
   const topics = topicsResult.topics;
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const today = formatDateForDb(new Date());
+  const dailyMinutes =
+    Number(settings.dailyGoalMinutes) || input?.minutes || 240;
+
+  const accuracyOf = (topic: any) => {
+    const perf = topic.performance;
+    const resolved = Number(perf?.questionsResolved) || 0;
+    const correct = Number(perf?.correctCount) || 0;
+    return resolved > 0 ? Math.round((correct / resolved) * 100) : 0;
+  };
+  const resolvedOf = (topic: any) =>
+    Number(topic.performance?.questionsResolved) || 0;
+
+  // ── cobertura por disciplina ───────────────────────────────────────────
+  const disciplineRows = disciplines.map((discipline) => {
+    const own = topics.filter((topic) => topic.disciplineId === discipline.id);
+    const studied = own.filter((topic) => resolvedOf(topic) > 0);
+    const mastered = own.filter(
+      (topic) => resolvedOf(topic) >= 5 && accuracyOf(topic) >= 80,
+    );
+    const totalResolved = own.reduce(
+      (sum, topic) => sum + resolvedOf(topic),
+      0,
+    );
+    const totalCorrect = own.reduce(
+      (sum, topic) => sum + (Number(topic.performance?.correctCount) || 0),
+      0,
+    );
+    const coverage = own.length
+      ? Math.round((studied.length / own.length) * 100)
+      : 0;
+    const weight = Number(discipline.weight) || 1;
+    return {
+      name: discipline.name,
+      color: discipline.color,
+      disciplineId: discipline.id,
+      rows: own.length,
+      mapped: own.length,
+      studied: studied.length,
+      mastered: mastered.length,
+      weight,
+      coverage,
+      weightedCoverage: coverage,
+      avgReadiness: totalResolved
+        ? Math.round((totalCorrect / totalResolved) * 100)
+        : 0,
+      priority: weight * (100 - coverage),
+    };
+  });
+
+  const totalRows = disciplineRows.reduce((sum, row) => sum + row.rows, 0);
+  const studiedRows = disciplineRows.reduce((sum, row) => sum + row.studied, 0);
+  const masteredRows = disciplineRows.reduce(
+    (sum, row) => sum + row.mastered,
+    0,
+  );
+  const weightSum =
+    disciplineRows.reduce((sum, row) => sum + row.weight, 0) || 1;
+  const weightedCoverage = Math.round(
+    disciplineRows.reduce((sum, row) => sum + row.weight * row.coverage, 0) /
+      weightSum,
+  );
+
+  // ── domínio por tópico ─────────────────────────────────────────────────
+  const masteryTopics = topics.map((topic) => {
+    const discipline = disciplines.find(
+      (item) => item.id === topic.disciplineId,
+    );
+    const resolved = resolvedOf(topic);
+    const accuracy = accuracyOf(topic);
+    const readiness = Math.min(
+      100,
+      Math.round(accuracy * 0.7 + Math.min(100, (resolved / 20) * 100) * 0.3),
+    );
+    return {
+      topicId: topic.id,
+      topicName: topic.name,
+      disciplineId: topic.disciplineId,
+      disciplineName: discipline?.name || "Disciplina",
+      color: discipline?.color || "#0066CC",
+      resolved,
+      correct: Number(topic.performance?.correctCount) || 0,
+      errors: Number(topic.performance?.errorCount) || 0,
+      accuracy,
+      smoothedAccuracy: accuracy,
+      confidence: Math.min(100, resolved * 5),
+      retention: accuracy,
+      revisionCompletion: 0,
+      recallAvg: null,
+      mastery: readiness,
+      readiness,
+      status:
+        resolved === 0
+          ? "not_started"
+          : readiness >= 75
+            ? "strong"
+            : readiness >= 45
+              ? "developing"
+              : "weak",
+      lastStudyAt: topic.studyDate || null,
+      daysSinceStudy: topic.studyDate
+        ? Math.max(
+            0,
+            Math.round((Date.now() - Date.parse(topic.studyDate)) / 86_400_000),
+          )
+        : 0,
+      topicsEditalWeight: 0,
+    };
+  });
+
+  const topWeak = masteryTopics
+    .filter((topic) => topic.resolved > 0)
+    .sort((a, b) => a.readiness - b.readiness)
+    .slice(0, 8);
+
+  // ── plano do dia ───────────────────────────────────────────────────────
+  const overdue = revisions.filter(
+    (revision) =>
+      !revision.completed &&
+      !revision.ignored &&
+      revision.scheduledDate < today,
+  );
+  const dueToday = revisions.filter(
+    (revision) =>
+      !revision.completed &&
+      !revision.ignored &&
+      revision.scheduledDate === today,
+  );
+
+  const blocks: Array<Record<string, unknown>> = [];
+  for (const revision of [...dueToday, ...overdue].slice(0, 3)) {
+    const topic = topics.find((item) => item.id === revision.topicId);
+    if (!topic) continue;
+    const discipline = disciplines.find(
+      (item) => item.id === topic.disciplineId,
+    );
+    const stale = revision.scheduledDate < today;
+    blocks.push({
+      id: `block-${revision.id}`,
+      kind: "revision",
+      lens: "revisao",
+      title: topic.name,
+      subtitle: discipline?.name || "Revisão",
+      reason: stale
+        ? `Revisão vencida em ${revision.scheduledDate}`
+        : "Revisão agendada para hoje",
+      minutes: 25,
+      topicId: topic.id,
+      topicName: topic.name,
+      disciplineId: topic.disciplineId,
+      disciplineName: discipline?.name || "Disciplina",
+      color: discipline?.color || "#0066CC",
+      score: revision.scheduledDate < today ? 100 : 80,
+      route: "/revisions",
+    });
+  }
+
+  const baseIds: number[] = Array.isArray(settings.baseDisciplineIds)
+    ? settings.baseDisciplineIds
+    : [];
+  const baseRows = disciplineRows.filter(
+    (row) => row.disciplineId && baseIds.includes(row.disciplineId),
+  );
+  const baseWeight = baseRows.reduce((sum, row) => sum + row.weight, 0) || 1;
+
+  const attempts = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+  const calibrated = attempts.filter(
+    (attempt: any) => attempt.answered && attempt.confidence,
+  );
+
   return {
+    generatedAt: new Date().toISOString(),
     coverage: {
-      disciplines: disciplines.map((discipline) => ({
-        name: discipline.name,
-        weight: Number(discipline.weight) || 1,
-        topics: topics.filter((topic) => topic.disciplineId === discipline.id)
-          .length,
-      })),
+      totalRows,
+      mappedRows: totalRows,
+      studiedRows,
+      masteredRows,
+      coveragePct: totalRows ? Math.round((studiedRows / totalRows) * 100) : 0,
+      weightedCoveragePct: weightedCoverage,
+      readiness: weightedCoverage,
+      weakTopics: topWeak.length,
+      strongTopics: masteryTopics.filter((topic) => topic.readiness >= 75)
+        .length,
+      disciplines: disciplineRows,
+      priorities: [...disciplineRows]
+        .sort((a, b) => b.priority - a.priority)
+        .slice(0, 10)
+        .map((row) => ({
+          id: `disc-${row.disciplineId}`,
+          discipline: row.name,
+          topic: `${row.studied}/${row.rows} tópicos estudados`,
+          disciplineId: row.disciplineId,
+          topicId: null,
+          weight: row.weight,
+          status: row.coverage >= 70 ? "ok" : "pending",
+          studied: row.studied > 0,
+          mastered: row.mastered > 0,
+          readiness: row.avgReadiness,
+          mastery: row.coverage,
+        })),
+      unmapped: [],
     },
-    plan: { blocks: [], plannedMinutes: 0 },
-    base: null,
-    calibration: null,
+    plan: {
+      date: today,
+      dailyMinutes,
+      plannedMinutes: blocks.reduce(
+        (sum, block) => sum + Number(block.minutes || 0),
+        0,
+      ),
+      overdueRevisions: overdue.length,
+      blocks,
+    },
+    base: {
+      configured: baseIds.length > 0,
+      disciplines: baseRows.length,
+      topics: baseRows.reduce((sum, row) => sum + row.rows, 0),
+      studied: baseRows.reduce((sum, row) => sum + row.studied, 0),
+      mastered: baseRows.reduce((sum, row) => sum + row.mastered, 0),
+      coveragePct: baseRows.length
+        ? Math.round(
+            baseRows.reduce((sum, row) => sum + row.coverage * row.weight, 0) /
+              baseWeight,
+          )
+        : 0,
+      readiness: baseRows.length
+        ? Math.round(
+            baseRows.reduce(
+              (sum, row) => sum + row.avgReadiness * row.weight,
+              0,
+            ) / baseWeight,
+          )
+        : 0,
+    },
+    calibration: {
+      total: attempts.length,
+      calibrated: calibrated.length,
+      answered: attempts.filter((attempt: any) => attempt.answered).length,
+      skipped: attempts.filter((attempt: any) => !attempt.answered).length,
+      accuracy: attempts.length
+        ? Math.round(
+            (attempts.filter((attempt: any) => attempt.correct).length /
+              Math.max(
+                attempts.filter((attempt: any) => attempt.answered).length,
+                1,
+              )) *
+              100,
+          )
+        : 0,
+      brier: 0,
+      overconfidence: 0,
+      underconfidence: 0,
+    },
+    mastery: {
+      topics: masteryTopics.length,
+      avgReadiness: masteryTopics.length
+        ? Math.round(
+            masteryTopics.reduce((sum, topic) => sum + topic.readiness, 0) /
+              masteryTopics.length,
+          )
+        : 0,
+      distribution: {
+        strong: masteryTopics.filter((topic) => topic.status === "strong")
+          .length,
+        developing: masteryTopics.filter(
+          (topic) => topic.status === "developing",
+        ).length,
+        weak: masteryTopics.filter((topic) => topic.status === "weak").length,
+        not_started: masteryTopics.filter(
+          (topic) => topic.status === "not_started",
+        ).length,
+      },
+      topWeak,
+    },
   };
 }
 

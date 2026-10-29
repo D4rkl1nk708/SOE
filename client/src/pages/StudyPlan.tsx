@@ -407,27 +407,29 @@ export default function StudyPlan() {
               </p>
             ) : (
               <div className="space-y-4">
-                {coverage.disciplines.slice(0, 7).map((discipline: any) => (
-                  <div key={discipline.name}>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-[11px] font-bold truncate">
-                        {discipline.name}
-                      </span>
-                      <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
-                        {discipline.studied}/{discipline.rows}
-                      </span>
+                {(coverage.disciplines ?? [])
+                  .slice(0, 7)
+                  .map((discipline: any) => (
+                    <div key={discipline.name}>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[11px] font-bold truncate">
+                          {discipline.name}
+                        </span>
+                        <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                          {discipline.studied}/{discipline.rows}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.min(100, discipline.weightedCoverage)}%`,
+                            background: discipline.color,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(100, discipline.weightedCoverage)}%`,
-                          background: discipline.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -445,7 +447,7 @@ export default function StudyPlan() {
               </p>
             ) : (
               <div className="space-y-3">
-                {mastery.topWeak.slice(0, 5).map((topic: any) => (
+                {(mastery?.topWeak ?? []).slice(0, 5).map((topic: any) => (
                   <div
                     key={topic.topicId}
                     className="flex items-center justify-between gap-3"
@@ -535,7 +537,7 @@ export default function StudyPlan() {
             </p>
           ) : (
             <div className="space-y-3">
-              {errorIntel.byOrigin.slice(0, 4).map((origin: any) => (
+              {(errorIntel?.byOrigin ?? []).slice(0, 4).map((origin: any) => (
                 <div key={origin.origin}>
                   <div className="mb-1 flex items-center justify-between text-[10px]">
                     <span className="font-semibold capitalize">
@@ -555,7 +557,7 @@ export default function StudyPlan() {
                   </div>
                 </div>
               ))}
-              {errorIntel.topTopics.slice(0, 3).map((topic: any) => (
+              {(errorIntel?.topTopics ?? []).slice(0, 3).map((topic: any) => (
                 <button
                   key={topic.topicId}
                   onClick={() => {

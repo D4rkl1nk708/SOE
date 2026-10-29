@@ -11,6 +11,28 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.6",
+    date: "29/10/2026",
+    title: "Nome do app é SOE; plano e confiança funcionando no APK",
+    categories: [
+      {
+        title: "📱 Nome",
+        type: "improvement",
+        items: [
+          "O app aparece como SOE no Android, no Windows, no Linux, na janela e no PWA.",
+        ],
+      },
+      {
+        title: "🐞 APK",
+        type: "fix",
+        items: [
+          "Plano passa a funcionar no modo offline: revisão semanal implementada no banco local.",
+          "Registro de respostas e o prompt de confiança do TEC também ganharam versão offline.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.5",
     date: "29/10/2026",
     title: "Dia em modal, confiança no TEC e fim da contagem inflada",
