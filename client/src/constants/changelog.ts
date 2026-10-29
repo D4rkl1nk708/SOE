@@ -11,6 +11,22 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.4",
+    date: "29/10/2026",
+    title: "Ícone novo também na extensão do Chrome",
+    categories: [
+      {
+        title: "🧩 Extensão",
+        type: "improvement",
+        items: [
+          "Ícones 16/48/128 da extensão agora usam a mesma marca do app (livro azul).",
+          "Pacote client/public/soe-extension.zip regerado com os ícones novos.",
+          "Versão do manifest da extensão para 1.0.1 para o Chrome detectar a atualização.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.3",
     date: "29/10/2026",
     title: "Novo ícone do app para desktop e Android",

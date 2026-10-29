@@ -119,6 +119,15 @@ async function main() {
   await png(master, out("client/public/icons/icon-512.png"), 512);
   await png(master, out("client/public/icons/maskable-512.png"), 512);
 
+  // Extensão do Chrome (mesma marca)
+  for (const [size, file] of [
+    [16, "icon16.png"],
+    [48, "icon48.png"],
+    [128, "icon128.png"],
+  ]) {
+    await png(master, out(`chrome-extension/icons/${file}`), size);
+  }
+
   // Android
   const legacy = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
   const adaptive = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
