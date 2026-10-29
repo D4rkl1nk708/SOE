@@ -1061,6 +1061,8 @@ export default function Profile() {
 
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const { user, logout } = useAuth();
+  const isFocus =
+    ((stats?.settings as any)?.uiMode ?? "focused") !== "complete";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
   const updateSettings = trpc.v10.updateV10Settings.useMutation({
@@ -1139,11 +1141,13 @@ export default function Profile() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 pb-20">
-      <PageHeader
-        eyebrow="Conta"
-        title="Perfil"
-        description="Configurações, histórico e monitoramento em um só lugar."
-      />
+      {!(isFocus && tab === "settings") && (
+        <PageHeader
+          eyebrow="Conta"
+          title="Perfil"
+          description="Configurações, histórico e monitoramento em um só lugar."
+        />
+      )}
 
       <div className="soe-card flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">

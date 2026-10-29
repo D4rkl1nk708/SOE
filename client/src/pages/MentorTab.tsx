@@ -375,7 +375,7 @@ export default function MentorTab() {
               <Brain size={16} />
             </div>
 
-            <div className="hidden xs:block">
+            <div className="block">
               <h2
                 className={
                   isFocus
