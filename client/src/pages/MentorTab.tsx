@@ -340,446 +340,471 @@ export default function MentorTab() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-background">
+    <>
+      {isFocus && (
+        <div className="mx-auto w-full max-w-[1160px] pb-1">
+          <h1 className="apple-title text-foreground">Mentor IA</h1>
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            Uma conversa com o contexto do seu plano, suas revisões e seus
+            erros.
+          </p>
+        </div>
+      )}
       <div
-        className={isFocus ? "hidden" : "hidden md:flex flex-col w-72 shrink-0"}
+        className={
+          isFocus
+            ? "mx-auto flex h-[calc(100vh-12.5rem)] w-full max-w-[1160px] overflow-hidden rounded-[14px] border border-border bg-card"
+            : "flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-background"
+        }
       >
-        {SidebarContent}
-      </div>
-
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden fixed inset-0 z-[100] bg-background/80 backdrop-blur-md"
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            className="md:hidden fixed top-0 left-0 bottom-0 w-[85vw] max-w-[320px] z-[101] border-r border-border shadow-2xl"
-          >
-            <div className="flex flex-col h-full bg-background">
-              <div className="p-4 flex justify-end border-b border-border/30">
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 rounded-md bg-secondary/50 text-muted-foreground"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              {SidebarContent}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex-1 flex flex-col relative overflow-hidden">
-        <div className="relative px-6 h-14 shrink-0 border-b border-border bg-card/50 backdrop-blur-md flex items-center justify-between z-10">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden flex items-center gap-2 p-2 rounded-md bg-secondary/50 text-primary active:scale-95 transition-all"
-            >
-              <Menu size={18} />
-            </button>
-
-            <div
-              className={
-                isFocus
-                  ? "flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-bg-subtle)] text-primary"
-                  : "w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"
-              }
-            >
-              <Brain size={isFocus ? 17 : 16} />
-            </div>
-
-            <div className="block">
-              <h2
-                className={
-                  isFocus
-                    ? "text-[14px] font-semibold tracking-[-0.01em] text-foreground"
-                    : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60"
-                }
-              >
-                {isFocus ? "Inteligência Central do SOE" : "Mentor Estratégico"}
-              </h2>
-              <p className="max-w-[260px] truncate text-[11px] font-medium text-muted-foreground">
-                {isFocus
-                  ? `${provider} · conectada ao seu contexto`
-                  : activeSession.title}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {hasRegressions && (
-              <button
-                onClick={() => setShowRegressions(!showRegressions)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-[10px] font-bold uppercase tracking-wider animate-pulse"
-              >
-                <ShieldAlert size={12} />
-                <span className="hidden sm:inline">
-                  {regressions.length} Alertas de Queda
-                </span>
-              </button>
-            )}
-            <div className="h-4 w-px bg-border mx-1" />
-            <button
-              onClick={() =>
-                setMessages(() => [
-                  { role: "assistant", content: "Como posso ajudar agora?" },
-                ])
-              }
-              className="p-2 rounded-md hover:bg-secondary text-muted-foreground transition-colors"
-              title="Limpar conversa"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
+        <div
+          className={
+            isFocus ? "hidden" : "hidden md:flex flex-col w-72 shrink-0"
+          }
+        >
+          {SidebarContent}
         </div>
 
         <AnimatePresence>
-          {showRegressions && hasRegressions && (
+          {isSidebarOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="relative z-20 border-b border-destructive/20 bg-destructive/5 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden fixed inset-0 z-[100] bg-background/80 backdrop-blur-md"
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              className="md:hidden fixed top-0 left-0 bottom-0 w-[85vw] max-w-[320px] z-[101] border-r border-border shadow-2xl"
             >
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 custom-scrollbar max-h-[40vh] overflow-y-auto">
-                {regressions.map((r: any, i: number) => (
-                  <div
-                    key={i}
-                    className="p-4 rounded-md bg-card border border-border/50 flex items-center justify-between gap-4"
+              <div className="flex flex-col h-full bg-background">
+                <div className="p-4 flex justify-end border-b border-border/30">
+                  <button
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="p-2 rounded-md bg-secondary/50 text-muted-foreground"
                   >
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-widest truncate text-foreground">
-                        {r.topicName}
-                      </p>
-                      <p className="text-[9px] font-bold opacity-30 truncate uppercase">
-                        {r.disciplineName}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <button
-                        onClick={() => {
-                          if (!apiKey) {
-                            toast.error("Configure sua chave.");
-                            return;
-                          }
-                          setMessages((prev) => [
-                            ...prev,
-                            {
-                              role: "user",
-                              content: `Gere um mnemônico para: ${r.topicName}`,
-                            },
-                          ]);
-                          chatMut.mutate({
-                            message: `Gere um mnemônico estratégico para "${r.topicName}" (${r.disciplineName}). Tive uma queda de ${r.delta}pp.`,
-                            history: [],
-                            apiKey,
-                            provider,
-                          });
-                          setShowRegressions(false);
-                        }}
-                        title="Gerar Mnemônico"
-                        className="w-8 h-8 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-foreground transition-all"
-                      >
-                        <Wand2 size={14} />
-                      </button>
-                      <div className="flex items-center gap-1.5 text-destructive">
-                        <TrendingDown size={14} />
-                        <span className="text-[11px] font-bold tabular-nums">
-                          -{r.delta}pp
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    <X size={20} />
+                  </button>
+                </div>
+                {SidebarContent}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 z-10 pb-32">
-          <div className="max-w-4xl mx-auto space-y-12">
-            {!apiKey ? (
-              <div className="h-full flex flex-col items-center justify-center py-20 text-center space-y-8">
-                <div className="w-16 h-16 rounded-lg bg-secondary/50 border border-border flex items-center justify-center text-muted-foreground/30">
-                  <Lock size={32} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold">Mentor Bloqueado</h3>
-                  <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                    Configure sua chave de API nas configurações para ativar a
-                    inteligência estratégica do SOE.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => navigate("/profile#settings")}
-                  className="h-12 px-10 rounded-md font-bold text-[11px] uppercase tracking-widest"
-                >
-                  Ir para Configurações
-                </Button>
-              </div>
-            ) : (
-              <>
-                {messages.map((m, i) => (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    key={i}
-                    className={cn(
-                      "flex gap-4 md:gap-8",
-                      m.role === "user" ? "flex-row-reverse" : "flex-row",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-md flex items-center justify-center border transition-all",
-                        m.role === "user"
-                          ? "bg-primary border-primary text-white"
-                          : "bg-secondary/50 border-border text-primary",
-                      )}
-                    >
-                      {m.role === "user" ? (
-                        <User size={16} />
-                      ) : (
-                        <GraduationCap size={16} />
-                      )}
-                    </div>
-                    <div
-                      className={cn(
-                        "relative p-5 md:p-6 rounded-md max-w-[85%] border",
-                        m.role === "user"
-                          ? "bg-secondary/30 border-border/50"
-                          : "bg-transparent border-transparent",
-                      )}
-                    >
-                      {m.role === "assistant" && m.content ? (
-                        <RenderText text={m.content} />
-                      ) : m.role === "user" ? (
-                        <p className="text-sm font-semibold leading-relaxed text-foreground/90">
-                          {m.content}
-                        </p>
-                      ) : null}
-
-                      {m.role === "assistant" &&
-                        Array.isArray((m as any).sources) &&
-                        (m as any).sources.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-3">
-                            <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
-                              Fontes
-                            </span>
-                            {(m as any).sources.map((source: any) => (
-                              <span
-                                key={source.id}
-                                title={`${source.label} — ${source.detail}`}
-                                className="rounded border border-border bg-secondary/30 px-1.5 py-0.5 text-[8.5px] text-muted-foreground"
-                              >
-                                [{source.id}] {source.label}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                      {(m as any).action && (
-                        <div className="mt-6 p-5 rounded-md bg-primary/5 border border-primary/20 space-y-4 animate-in fade-in slide-in-from-top-2">
-                          <div className="flex items-center gap-2 text-primary opacity-60">
-                            <Sparkles size={14} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">
-                              Ação Proposta
-                            </span>
-                          </div>
-                          <p className="text-xs font-bold leading-relaxed">
-                            {(m as any).action.description}
-                          </p>
-                          <div className="flex gap-3 pt-2">
-                            <Button
-                              onClick={() =>
-                                handleAction(i, (m as any).action, true)
-                              }
-                              className="flex-1 h-10 rounded-md text-[10px] font-bold uppercase tracking-widest"
-                            >
-                              <Check size={14} className="mr-2" /> Aceitar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() =>
-                                handleAction(i, (m as any).action, false)
-                              }
-                              className="h-10 px-6 rounded-md text-[10px] font-bold uppercase tracking-widest"
-                            >
-                              Recusar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-                {chatMut.isPending && (
-                  <div className="flex gap-8 items-center opacity-40">
-                    <div className="shrink-0 w-9 h-9 rounded-md bg-secondary/50 border border-border flex items-center justify-center text-primary">
-                      <Bot size={18} />
-                    </div>
-                    <div className="flex gap-1.5">
-                      <div
-                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
-                        style={{ animationDelay: "0ms" }}
-                      />
-                      <div
-                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
-                        style={{ animationDelay: "150ms" }}
-                      />
-                      <div
-                        className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
-                        style={{ animationDelay: "300ms" }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <div ref={endRef} className="h-24" />
-              </>
-            )}
-          </div>
-        </div>
-
-        {apiKey && (
-          <div className="absolute bottom-8 left-0 right-0 px-6 z-20">
-            <div className="max-w-4xl mx-auto">
-              <div className="relative p-2 rounded-md bg-card border border-border shadow-2xl flex items-center gap-3">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="Como posso otimizar seu estudo hoje?"
-                  disabled={chatMut.isPending}
-                  rows={1}
-                  className="flex-1 bg-transparent border-none outline-none py-3 px-4 text-sm font-bold placeholder:text-muted-foreground/30 resize-none min-h-[48px] max-h-32 custom-scrollbar"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || chatMut.isPending}
-                  className="w-11 h-11 shrink-0 rounded-md bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-20"
-                >
-                  {chatMut.isPending ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Send size={18} />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {isFocus && (
-        <aside className="hidden w-72 shrink-0 flex-col gap-4 border-l border-border/60 bg-card/30 p-4 xl:flex">
-          <div className="space-y-1">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Contexto da conversa
-            </p>
-            <p className="text-sm font-semibold text-foreground">
-              Conectado ao seu plano
-            </p>
-          </div>
-
-          <div className="space-y-3 rounded-lg border border-border/60 bg-card p-3">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-muted-foreground">Concurso</span>
-              <b className="truncate pl-2 text-right text-foreground">
-                {(stats?.settings as any)?.exams?.[0]?.name || "Transpetro"}
-              </b>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-muted-foreground">Dias restantes</span>
-              <b className="text-foreground">{daysToExam ?? "—"}</b>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-muted-foreground">Sessão</span>
-              <b className="truncate pl-2 text-right text-foreground">
-                {activeSession.title}
-              </b>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-muted-foreground">Criada</span>
-              <b className="text-foreground">
-                {new Date(activeSession.createdAt).toLocaleDateString("pt-BR")}
-              </b>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Sessões recentes
-              </p>
+        <div className="flex-1 flex flex-col relative overflow-hidden">
+          <div className="relative px-6 h-14 shrink-0 border-b border-border bg-card/50 backdrop-blur-md flex items-center justify-between z-10">
+            <div className="flex items-center gap-4">
               <button
-                onClick={() => {
-                  const id = `session-${Date.now()}`;
-                  setSessions((prev) => [
-                    {
-                      id,
-                      title: "Nova Conversa",
-                      messages: [],
-                      createdAt: Date.now(),
-                    },
-                    ...prev,
-                  ]);
-                  setActiveSessionId(id);
-                }}
-                className="text-[10px] font-semibold text-primary"
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden flex items-center gap-2 p-2 rounded-md bg-secondary/50 text-primary active:scale-95 transition-all"
               >
-                + Nova
+                <Menu size={18} />
               </button>
-            </div>
-            <div className="space-y-1">
-              {sessions.slice(0, 5).map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => setActiveSessionId(session.id)}
-                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                    session.id === activeSessionId
-                      ? "border-primary/25 bg-primary/5"
-                      : "border-border/60 bg-card hover:bg-secondary/30"
-                  }`}
+
+              <div
+                className={
+                  isFocus
+                    ? "flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-bg-subtle)] text-primary"
+                    : "w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"
+                }
+              >
+                <Brain size={isFocus ? 17 : 16} />
+              </div>
+
+              <div className="block">
+                <h2
+                  className={
+                    isFocus
+                      ? "text-[14px] font-semibold tracking-[-0.01em] text-foreground"
+                      : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60"
+                  }
                 >
-                  <Brain size={13} className="shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[11px] font-semibold">
-                      {session.title}
-                    </span>
-                    <span className="block text-[9px] text-muted-foreground">
-                      {new Date(session.createdAt).toLocaleDateString("pt-BR")}
-                    </span>
+                  {isFocus
+                    ? "Inteligência Central do SOE"
+                    : "Mentor Estratégico"}
+                </h2>
+                <p className="max-w-[260px] truncate text-[11px] font-medium text-muted-foreground">
+                  {isFocus
+                    ? `${provider} · conectada ao seu contexto`
+                    : activeSession.title}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {hasRegressions && (
+                <button
+                  onClick={() => setShowRegressions(!showRegressions)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-[10px] font-bold uppercase tracking-wider animate-pulse"
+                >
+                  <ShieldAlert size={12} />
+                  <span className="hidden sm:inline">
+                    {regressions.length} Alertas de Queda
                   </span>
                 </button>
-              ))}
+              )}
+              <div className="h-4 w-px bg-border mx-1" />
+              <button
+                onClick={() =>
+                  setMessages(() => [
+                    { role: "assistant", content: "Como posso ajudar agora?" },
+                  ])
+                }
+                className="p-2 rounded-md hover:bg-secondary text-muted-foreground transition-colors"
+                title="Limpar conversa"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
 
-          <div className="mt-auto rounded-lg border border-border/60 bg-card p-3 text-[10px] leading-relaxed text-muted-foreground">
-            O Mentor usa seu plano, revisões, erros e estatísticas como
-            contexto.
+          <AnimatePresence>
+            {showRegressions && hasRegressions && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="relative z-20 border-b border-destructive/20 bg-destructive/5 overflow-hidden"
+              >
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 custom-scrollbar max-h-[40vh] overflow-y-auto">
+                  {regressions.map((r: any, i: number) => (
+                    <div
+                      key={i}
+                      className="p-4 rounded-md bg-card border border-border/50 flex items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-widest truncate text-foreground">
+                          {r.topicName}
+                        </p>
+                        <p className="text-[9px] font-bold opacity-30 truncate uppercase">
+                          {r.disciplineName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button
+                          onClick={() => {
+                            if (!apiKey) {
+                              toast.error("Configure sua chave.");
+                              return;
+                            }
+                            setMessages((prev) => [
+                              ...prev,
+                              {
+                                role: "user",
+                                content: `Gere um mnemônico para: ${r.topicName}`,
+                              },
+                            ]);
+                            chatMut.mutate({
+                              message: `Gere um mnemônico estratégico para "${r.topicName}" (${r.disciplineName}). Tive uma queda de ${r.delta}pp.`,
+                              history: [],
+                              apiKey,
+                              provider,
+                            });
+                            setShowRegressions(false);
+                          }}
+                          title="Gerar Mnemônico"
+                          className="w-8 h-8 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-foreground transition-all"
+                        >
+                          <Wand2 size={14} />
+                        </button>
+                        <div className="flex items-center gap-1.5 text-destructive">
+                          <TrendingDown size={14} />
+                          <span className="text-[11px] font-bold tabular-nums">
+                            -{r.delta}pp
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 z-10 pb-32">
+            <div className="max-w-4xl mx-auto space-y-12">
+              {!apiKey ? (
+                <div className="h-full flex flex-col items-center justify-center py-20 text-center space-y-8">
+                  <div className="w-16 h-16 rounded-lg bg-secondary/50 border border-border flex items-center justify-center text-muted-foreground/30">
+                    <Lock size={32} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold">Mentor Bloqueado</h3>
+                    <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                      Configure sua chave de API nas configurações para ativar a
+                      inteligência estratégica do SOE.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => navigate("/profile#settings")}
+                    className="h-12 px-10 rounded-md font-bold text-[11px] uppercase tracking-widest"
+                  >
+                    Ir para Configurações
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {messages.map((m, i) => (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      key={i}
+                      className={cn(
+                        "flex gap-4 md:gap-8",
+                        m.role === "user" ? "flex-row-reverse" : "flex-row",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-md flex items-center justify-center border transition-all",
+                          m.role === "user"
+                            ? "bg-primary border-primary text-white"
+                            : "bg-secondary/50 border-border text-primary",
+                        )}
+                      >
+                        {m.role === "user" ? (
+                          <User size={16} />
+                        ) : (
+                          <GraduationCap size={16} />
+                        )}
+                      </div>
+                      <div
+                        className={cn(
+                          "relative p-5 md:p-6 rounded-md max-w-[85%] border",
+                          m.role === "user"
+                            ? "bg-secondary/30 border-border/50"
+                            : "bg-transparent border-transparent",
+                        )}
+                      >
+                        {m.role === "assistant" && m.content ? (
+                          <RenderText text={m.content} />
+                        ) : m.role === "user" ? (
+                          <p className="text-sm font-semibold leading-relaxed text-foreground/90">
+                            {m.content}
+                          </p>
+                        ) : null}
+
+                        {m.role === "assistant" &&
+                          Array.isArray((m as any).sources) &&
+                          (m as any).sources.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-3">
+                              <span className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                                Fontes
+                              </span>
+                              {(m as any).sources.map((source: any) => (
+                                <span
+                                  key={source.id}
+                                  title={`${source.label} — ${source.detail}`}
+                                  className="rounded border border-border bg-secondary/30 px-1.5 py-0.5 text-[8.5px] text-muted-foreground"
+                                >
+                                  [{source.id}] {source.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                        {(m as any).action && (
+                          <div className="mt-6 p-5 rounded-md bg-primary/5 border border-primary/20 space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center gap-2 text-primary opacity-60">
+                              <Sparkles size={14} />
+                              <span className="text-[10px] font-bold uppercase tracking-widest">
+                                Ação Proposta
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold leading-relaxed">
+                              {(m as any).action.description}
+                            </p>
+                            <div className="flex gap-3 pt-2">
+                              <Button
+                                onClick={() =>
+                                  handleAction(i, (m as any).action, true)
+                                }
+                                className="flex-1 h-10 rounded-md text-[10px] font-bold uppercase tracking-widest"
+                              >
+                                <Check size={14} className="mr-2" /> Aceitar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  handleAction(i, (m as any).action, false)
+                                }
+                                className="h-10 px-6 rounded-md text-[10px] font-bold uppercase tracking-widest"
+                              >
+                                Recusar
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  {chatMut.isPending && (
+                    <div className="flex gap-8 items-center opacity-40">
+                      <div className="shrink-0 w-9 h-9 rounded-md bg-secondary/50 border border-border flex items-center justify-center text-primary">
+                        <Bot size={18} />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <div
+                          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+                          style={{ animationDelay: "0ms" }}
+                        />
+                        <div
+                          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+                          style={{ animationDelay: "150ms" }}
+                        />
+                        <div
+                          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+                          style={{ animationDelay: "300ms" }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={endRef} className="h-24" />
+                </>
+              )}
+            </div>
           </div>
-        </aside>
-      )}
-    </div>
+
+          {apiKey && (
+            <div className="absolute bottom-8 left-0 right-0 px-6 z-20">
+              <div className="max-w-4xl mx-auto">
+                <div className="relative p-2 rounded-md bg-card border border-border shadow-2xl flex items-center gap-3">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Como posso otimizar seu estudo hoje?"
+                    disabled={chatMut.isPending}
+                    rows={1}
+                    className="flex-1 bg-transparent border-none outline-none py-3 px-4 text-sm font-bold placeholder:text-muted-foreground/30 resize-none min-h-[48px] max-h-32 custom-scrollbar"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || chatMut.isPending}
+                    className="w-11 h-11 shrink-0 rounded-md bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-20"
+                  >
+                    {chatMut.isPending ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {isFocus && (
+          <aside className="hidden w-72 shrink-0 flex-col gap-4 border-l border-border/60 bg-card/30 p-4 xl:flex">
+            <div className="space-y-1">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Contexto da conversa
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                Conectado ao seu plano
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border/60 bg-card p-3">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Concurso</span>
+                <b className="truncate pl-2 text-right text-foreground">
+                  {(stats?.settings as any)?.exams?.[0]?.name || "Transpetro"}
+                </b>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Dias restantes</span>
+                <b className="text-foreground">{daysToExam ?? "—"}</b>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Sessão</span>
+                <b className="truncate pl-2 text-right text-foreground">
+                  {activeSession.title}
+                </b>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-muted-foreground">Criada</span>
+                <b className="text-foreground">
+                  {new Date(activeSession.createdAt).toLocaleDateString(
+                    "pt-BR",
+                  )}
+                </b>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Sessões recentes
+                </p>
+                <button
+                  onClick={() => {
+                    const id = `session-${Date.now()}`;
+                    setSessions((prev) => [
+                      {
+                        id,
+                        title: "Nova Conversa",
+                        messages: [],
+                        createdAt: Date.now(),
+                      },
+                      ...prev,
+                    ]);
+                    setActiveSessionId(id);
+                  }}
+                  className="text-[10px] font-semibold text-primary"
+                >
+                  + Nova
+                </button>
+              </div>
+              <div className="space-y-1">
+                {sessions.slice(0, 5).map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => setActiveSessionId(session.id)}
+                    className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                      session.id === activeSessionId
+                        ? "border-primary/25 bg-primary/5"
+                        : "border-border/60 bg-card hover:bg-secondary/30"
+                    }`}
+                  >
+                    <Brain size={13} className="shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[11px] font-semibold">
+                        {session.title}
+                      </span>
+                      <span className="block text-[9px] text-muted-foreground">
+                        {new Date(session.createdAt).toLocaleDateString(
+                          "pt-BR",
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-auto rounded-lg border border-border/60 bg-card p-3 text-[10px] leading-relaxed text-muted-foreground">
+              O Mentor usa seu plano, revisões, erros e estatísticas como
+              contexto.
+            </div>
+          </aside>
+        )}
+      </div>
+    </>
   );
 }

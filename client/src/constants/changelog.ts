@@ -11,6 +11,40 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.1",
+    date: "29/10/2026",
+    title: "Correções do calendário, marcação de revisões e ajustes de layout",
+    categories: [
+      {
+        title: "🐞 Correções",
+        type: "fix",
+        items: [
+          "Marcar revisão como feita voltou a funcionar: o cache otimista usava uma chave de consulta diferente da lista do mês e a alteração não aparecia.",
+          "A trilha do dia mostra o número da revisão e não repete mais o rótulo em cada linha.",
+          "Removidas 12 revisões duplicadas da base (mesmo tópico, data e número), com backup em data/backups.",
+        ],
+      },
+      {
+        title: "📅 Calendário",
+        type: "improvement",
+        items: [
+          "Grade do mês sem sobreposição de linhas e sem corte de conteúdo.",
+          "Cada dia mostra quantas tarefas foram concluídas (ex.: 2/28).",
+          "Cabeçalho do mês e ações em caixa de frase, alinhados ao layout focado.",
+          "Filtros do dia no formato de controle segmentado.",
+        ],
+      },
+      {
+        title: "🎛️ Ajustes e Mentor",
+        type: "improvement",
+        items: [
+          "Ajustes com o perfil e a navegação na coluna esquerda e um único título na página.",
+          "Mentor IA com título de página acima do card de conversa.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.0",
     date: "29/10/2026",
     title: "Telas do layout focado refeitas no padrão dos prints",

@@ -237,19 +237,6 @@ function SettingsTab() {
 
   return (
     <div className="space-y-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {isFocus && (
-        <div className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/70">
-            Preferências
-          </p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
-            Mais
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Sua conta, aparência e dados em um só lugar.
-          </p>
-        </div>
-      )}
       <div
         className={
           isFocus
@@ -1141,7 +1128,14 @@ export default function Profile() {
 
   return (
     <div className="mx-auto w-full max-w-[1160px] space-y-5 pb-12">
-      {!(isFocus && tab === "settings") && (
+      {isFocus ? (
+        <div className="min-w-0">
+          <h1 className="apple-title text-foreground">Mais</h1>
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            Sua conta, aparência e dados em um só lugar.
+          </p>
+        </div>
+      ) : (
         <PageHeader
           eyebrow="Conta"
           title="Perfil"
@@ -1149,86 +1143,90 @@ export default function Profile() {
         />
       )}
 
-      <div className="soe-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-secondary"
-            title="Trocar foto"
-          >
-            {stats?.settings?.profileImage ? (
-              <img
-                src={stats.settings.profileImage}
-                alt="Perfil"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-xl font-bold text-muted-foreground">
-                {user?.name?.[0]?.toUpperCase() ?? <User className="h-7 w-7" />}
-              </span>
-            )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-              <Camera size={18} className="text-white" />
-            </span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold">
-              {user?.name ?? "Estudante"}
-            </h2>
-            <p className="truncate text-xs text-muted-foreground">
-              {user?.email || "Conta local offline"}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          onClick={logout}
-          className="self-start sm:self-auto"
-        >
-          <LogOut size={16} className="mr-2" /> Sair
-        </Button>
-      </div>
-
       <div className="grid items-start gap-5 lg:grid-cols-[252px_1fr]">
-        <nav className="soe-card flex gap-1 overflow-x-auto p-2 lg:flex-col">
-          {TABS.map((item) => {
-            const Icon = item.icon;
-            const active = tab === item.id;
-            return (
+        <div className="min-w-0 space-y-4">
+          <div className="soe-card flex flex-col gap-3 p-4">
+            <div className="flex items-center gap-4">
               <button
-                key={item.id}
-                onClick={() => {
-                  setTab(item.id);
-                  window.location.hash = item.id;
-                }}
-                className={`flex min-w-[150px] items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors lg:min-w-0 ${
-                  active
-                    ? "bg-[var(--primary-bg-subtle)] text-primary"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                }`}
+                onClick={() => fileInputRef.current?.click()}
+                className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-secondary"
+                title="Trocar foto"
               >
-                <Icon size={16} className="flex-shrink-0" />
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-bold uppercase tracking-wider">
-                    {item.label}
+                {stats?.settings?.profileImage ? (
+                  <img
+                    src={stats.settings.profileImage}
+                    alt="Perfil"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-xl font-bold text-muted-foreground">
+                    {user?.name?.[0]?.toUpperCase() ?? (
+                      <User className="h-7 w-7" />
+                    )}
                   </span>
-                  <span
-                    className={`block truncate text-[9px] ${active ? "text-primary-foreground/70" : "opacity-60"}`}
-                  >
-                    {item.desc}
-                  </span>
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Camera size={18} className="text-white" />
                 </span>
               </button>
-            );
-          })}
-        </nav>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold">
+                  {user?.name ?? "Estudante"}
+                </h2>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user?.email || "Conta local offline"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-[10px] border border-border bg-card text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
+            >
+              <LogOut size={14} /> Sair
+            </button>
+          </div>
+
+          <nav className="soe-card flex gap-1 overflow-x-auto p-2 lg:flex-col">
+            {TABS.map((item) => {
+              const Icon = item.icon;
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setTab(item.id);
+                    window.location.hash = item.id;
+                  }}
+                  className={`flex min-w-[150px] items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors lg:min-w-0 ${
+                    active
+                      ? "bg-[var(--primary-bg-subtle)] text-primary"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                  }`}
+                >
+                  <Icon size={16} className="flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[11px] font-bold uppercase tracking-wider">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`block truncate text-[9px] ${active ? "text-primary-foreground/70" : "opacity-60"}`}
+                    >
+                      {item.desc}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
         <div className="min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {tab === "settings" && <SettingsTab />}

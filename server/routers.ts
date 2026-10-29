@@ -876,6 +876,7 @@ export const appRouter = router({
               topicId: topic?.id || 0,
               disciplineId: discipline?.id || 0,
               type: r.type,
+              revisionNumber: r.revisionNumber,
               completed: r.completed,
               link: r.link,
               accuracy: topic?.performance?.accuracy,

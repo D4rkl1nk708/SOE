@@ -135,68 +135,55 @@ export default function Calendar() {
     : activitiesData?.total || 0;
   const loading = activitiesLoading;
 
+  // Chave real da lista do mês — usada no cache otimista.
+  const activitiesQueryKey = { ...queryParams, limit: 10000, offset: 0 };
+
   const markCompletedMut = trpc.calendar.markCompleted.useMutation({
-    onMutate: async ({ revisionId, completed }) => {
+    onMutate: async (vars: { revisionId?: number; completed?: boolean }) => {
+      const revisionId = Number(vars?.revisionId ?? 0);
+      const completed = Boolean(vars?.completed);
       setPendingToggles((prev) => new Set(prev).add(revisionId));
-      await utils.calendar.getActivities.cancel({
-        ...queryParams,
-        limit: 50,
-        offset: 0,
-      });
-      const previousActivities = utils.calendar.getActivities.getData({
-        ...queryParams,
-        limit: 50,
-        offset: 0,
+      await utils.calendar.getActivities.cancel(activitiesQueryKey);
+      const previousActivities =
+        utils.calendar.getActivities.getData(activitiesQueryKey);
+
+      utils.calendar.getActivities.setData(activitiesQueryKey, (old: any) => {
+        const list = Array.isArray(old) ? old : old?.activities;
+        if (!list) return old;
+        const next = list.map((activity: any) =>
+          activity.id === revisionId ? { ...activity, completed } : activity,
+        );
+        return Array.isArray(old) ? next : { ...old, activities: next };
       });
 
-      if (previousActivities) {
-        const oldArray = Array.isArray(previousActivities)
-          ? previousActivities
-          : previousActivities.activities;
-        if (oldArray) {
-          utils.calendar.getActivities.setData(
-            { ...queryParams, limit: 50, offset: 0 },
-            (old) => {
-              const currentArray = Array.isArray(old) ? old : old?.activities;
-              return currentArray
-                ? currentArray.map((a) =>
-                    a.id === revisionId ? { ...a, completed } : a,
-                  )
-                : [];
-            },
-          );
-        }
-      }
       return { previousActivities, revisionId };
     },
-    onError: (err, vars, ctx) => {
+    onError: (_err, _vars, ctx) => {
       if (ctx?.previousActivities) {
         utils.calendar.getActivities.setData(
-          { ...queryParams, limit: 50, offset: 0 },
+          activitiesQueryKey,
           ctx.previousActivities,
         );
       }
-      toast.error("Falha ao atualizar tarefa. Tente novamente.");
+      toast.error("Falha ao atualizar a tarefa. Tente novamente.");
     },
-    onSuccess: (_, vars) => {
+    onSuccess: (_data, vars?: { completed?: boolean }) => {
       toast.success(
-        vars?.completed ? "Marcado como feito!" : "Marcado como pendente!",
+        vars?.completed ? "Revisão marcada como feita." : "Revisão reaberta.",
       );
     },
-    onSettled: (_, __, ___, ctx) => {
-      if (ctx?.revisionId) {
+    onSettled: (_data, _err, _vars, ctx) => {
+      const id = ctx?.revisionId;
+      if (typeof id === "number") {
         setPendingToggles((prev) => {
           const next = new Set(prev);
-          next.delete(ctx.revisionId);
+          next.delete(id);
           return next;
         });
       }
-      utils.calendar.getActivities.invalidate({
-        ...queryParams,
-        limit: 50,
-        offset: 0,
-      });
+      utils.calendar.getActivities.invalidate(activitiesQueryKey);
       utils.dashboard.getStats.invalidate();
+      utils.study.overview.invalidate();
     },
   });
 
@@ -229,21 +216,25 @@ export default function Calendar() {
       },
     ];
     return (
-      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border/50">
-        {filters.map((filter) => (
-          <button
-            key={filter.id}
-            onClick={() => setDayFilter(filter.id)}
-            className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors ${
-              dayFilter === filter.id
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {filter.label}
-            <span className="ml-1 opacity-50">{filter.count}</span>
-          </button>
-        ))}
+      <div className="border-b border-border px-4 py-2.5">
+        <div className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-secondary/70 p-0.5">
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setDayFilter(filter.id)}
+              className={`rounded-[8px] px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+                dayFilter === filter.id
+                  ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {filter.label}
+              <span className="ml-1 tabular-nums opacity-60">
+                {filter.count}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     );
   };
@@ -295,12 +286,12 @@ export default function Calendar() {
               return (
                 <div
                   key={activity.id}
-                  className={`flex items-start gap-2.5 px-4 ${compact ? "py-2.5" : "py-3"} ${
+                  className={`flex items-start gap-2.5 px-4 ${compact ? "py-2" : "py-2.5"} ${
                     completed ? "opacity-50" : ""
                   }`}
                 >
-                  <span className="w-[38px] pt-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                    {time === "00:00" ? "—" : time}
+                  <span className="w-[34px] shrink-0 pt-0.5 text-[10.5px] font-medium tabular-nums text-muted-foreground">
+                    {time === "00:00" ? "" : time}
                   </span>
                   <button
                     type="button"
@@ -329,20 +320,26 @@ export default function Calendar() {
                     >
                       {activity.topicName}
                     </span>
-                    <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-                      {activity.disciplineName} ·{" "}
-                      {activity.type === "test" ? "Simulado" : "Revisão"}
+                    <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
+                      {activity.disciplineName}
+                      {activity.type === "test"
+                        ? " · Simulado"
+                        : activity.revisionNumber
+                          ? ` · Revisão ${activity.revisionNumber}`
+                          : " · Revisão"}
                     </span>
                   </button>
-                  <span
-                    className="mt-0.5 rounded px-1.5 py-0.5 text-[8px] font-semibold"
-                    style={{
-                      color: activity.disciplineColor,
-                      backgroundColor: `${activity.disciplineColor}12`,
-                    }}
-                  >
-                    {activity.type === "test" ? "Simulado" : "Revisão"}
-                  </span>
+                  {activity.type === "test" && (
+                    <span
+                      className="mt-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium"
+                      style={{
+                        color: activity.disciplineColor,
+                        backgroundColor: `${activity.disciplineColor}12`,
+                      }}
+                    >
+                      Simulado
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -387,31 +384,20 @@ export default function Calendar() {
   return (
     <div className="space-y-5" style={{ maxWidth: "100%" }}>
       {/* Header - Adaptive for Mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-[var(--primary-bg-subtle)] rounded-2xl border border-[var(--primary-border)] shadow-lg shadow-[var(--primary-shadow)]">
-            <CalendarDays className="w-6 h-6 text-[var(--primary)]" />
-          </div>
-          <div className="space-y-1">
-            <h1
-              className="text-3xl font-black tracking-tight"
-              style={{ color: "var(--app-fg)" }}
-            >
-              {isFocus ? "Calendário" : "Agenda"}
-            </h1>
-            <p className="text-sm opacity-60">
-              {isFocus
-                ? format(currentMonth, "MMMM 'de' yyyy", {
-                    locale: ptBR,
-                  }).replace(/^./, (c) => c.toUpperCase())
-                : "Sua jornada organizada."}
-            </p>
-          </div>
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <h1 className="apple-title text-foreground">
+            {isFocus ? "Calendário" : "Agenda"}
+          </h1>
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground first-letter:uppercase">
+            {isFocus
+              ? format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })
+              : "Sua jornada organizada."}
+          </p>
         </div>
         <div className={isFocus ? "hidden gap-2 md:flex" : "flex gap-2"}>
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/60 text-[0.7rem] font-black uppercase tracking-widest"
+          <button
+            type="button"
             onClick={() => {
               const settings = stats?.settings as any;
               schedule.setTestIntervalInput(
@@ -425,18 +411,19 @@ export default function Calendar() {
               );
               schedule.setScheduleDialogOpen(true);
             }}
+            className="flex h-9 items-center gap-1.5 rounded-[10px] border border-border bg-card px-4 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
           >
-            <Settings2 className="h-4 w-4 mr-2 opacity-40" /> Config
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none h-11 rounded-2xl bg-secondary/40 border-border/60 text-[0.7rem] font-black uppercase tracking-widest"
+            <Settings2 className="h-3.5 w-3.5 opacity-60" /> Configurar
+          </button>
+          <button
+            type="button"
             onClick={() => setIcalDialogOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-[10px] border border-border bg-card px-4 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
           >
-            <CalendarIcon className="h-4 w-4 mr-2 opacity-40" /> Exportar
-          </Button>
+            <CalendarIcon className="h-3.5 w-3.5 opacity-60" /> Exportar
+          </button>
         </div>
-      </div>
+      </header>
 
       <div
         className={
@@ -448,51 +435,55 @@ export default function Calendar() {
         {/* Main Calendar View */}
         <div className="space-y-4">
           <div className="soe-card overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-border/60 bg-secondary/20">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-black uppercase tracking-widest opacity-80">
-                  {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-                </h2>
-              </div>
-              <div className="flex gap-1">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+              <h2 className="text-[13px] font-semibold text-foreground first-letter:uppercase">
+                {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
+              </h2>
+              <div className="flex items-center gap-0.5">
                 <button
+                  type="button"
                   onClick={prevMonth}
-                  className="p-2 hover:bg-secondary/40 rounded-xl transition-all"
+                  aria-label="Mês anterior"
+                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/60"
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={15} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => setCurrentMonth(new Date())}
-                  className="px-3 py-1 text-[0.7rem] font-black uppercase tracking-widest hover:bg-secondary/40 rounded-lg"
+                  className="h-7 rounded-md px-2.5 text-[11.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
                 >
                   Hoje
                 </button>
                 <button
+                  type="button"
                   onClick={nextMonth}
-                  className="p-2 hover:bg-secondary/40 rounded-xl transition-all"
+                  aria-label="Próximo mês"
+                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/60"
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={15} />
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-7 border-b border-border/60 bg-secondary/20">
-              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"].map((d) => (
+            <div className="grid grid-cols-7 border-b border-border bg-secondary/40">
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
                 <div
                   key={d}
-                  className="py-3 text-center text-[0.65rem] font-black uppercase tracking-widest opacity-20"
+                  className="py-2 text-center text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted-foreground"
                 >
                   {d}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 auto-rows-fr">
-              {days.map((day, idx) => {
+            <div className="grid grid-cols-7">
+              {days.map((day) => {
                 const dayActivities = getDayActivities(day);
                 const isSelected = selectedDay && isSameDay(day, selectedDay);
                 const isToday = isSameDay(day, new Date());
                 const isCurrentMonth = isSameMonth(day, monthStart);
+                const pending = dayActivities.filter((a) => !a.completed);
 
                 return (
                   <div
@@ -502,63 +493,59 @@ export default function Calendar() {
                       setDayFilter("all");
                       if (!isFocus) setIsDayDetailOpen(true);
                     }}
-                    className={`${isFocus ? "h-[58px] md:h-[64px] lg:h-[72px]" : "min-h-[100px] md:min-h-[140px]"} p-2 border-r border-b border-border/60 transition-all cursor-pointer relative group
-                        ${!isCurrentMonth ? "opacity-[0.15] bg-secondary/30" : "hover:bg-secondary/25"}
-                        ${isSelected ? "bg-[var(--primary-bg-subtle)] !opacity-100" : ""}
-                        ${isToday ? "ring-2 ring-inset ring-[var(--primary)]/50 bg-[var(--primary-bg-subtle)]/30 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]" : ""}
-                      `}
+                    className={`flex min-h-[92px] cursor-pointer flex-col gap-1 overflow-hidden border-b border-r border-border p-1.5 transition-colors last:border-r-0
+                      ${!isCurrentMonth ? "bg-secondary/20 text-muted-foreground/40" : "hover:bg-secondary/30"}
+                      ${isSelected && isCurrentMonth ? "bg-[var(--primary-bg-subtle)]" : ""}
+                    `}
                   >
-                    <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center justify-between">
                       <span
-                        className={`text-[0.75rem] font-black px-1.5 py-0.5 rounded-md ${isToday ? "bg-[var(--primary)] text-primary-foreground shadow-lg" : isSelected ? "text-[var(--primary)]" : "opacity-40"}`}
+                        className={`grid h-[20px] min-w-[20px] place-items-center rounded-full px-1 text-[11px] font-semibold tabular-nums ${
+                          isToday
+                            ? "bg-primary text-primary-foreground"
+                            : isSelected
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                        }`}
                       >
                         {format(day, "d")}
                       </span>
-                      {isToday && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] animate-pulse" />
+                      {dayActivities.length > 0 && (
+                        <span className="text-[9.5px] tabular-nums text-muted-foreground/70">
+                          {dayActivities.length - pending.length}/
+                          {dayActivities.length}
+                        </span>
                       )}
                     </div>
 
-                    <div className="mt-1 space-y-1">
-                      {/* Desktop list */}
-                      <div className="hidden md:block space-y-1">
-                        {dayActivities.slice(0, isFocus ? 2 : 3).map((a) => (
-                          <div
-                            key={a.id}
-                            className={`text-[0.6rem] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md truncate border flex items-center gap-1 
-                            ${a.completed ? "opacity-30 line-through border-border/60" : a.type === "test" ? "opacity-50 border-dashed border-border" : "border-border/60"}`}
-                            style={{
-                              backgroundColor: `${a.disciplineColor}15`,
-                              color: a.disciplineColor,
-                            }}
-                          >
-                            {a.completed ? (
-                              <Check size={8} />
-                            ) : (
-                              <div
-                                className="w-1 h-1 rounded-full shrink-0"
-                                style={{ backgroundColor: a.disciplineColor }}
-                              />
-                            )}
-                            {a.topicName}
-                          </div>
-                        ))}
-                        {dayActivities.length > (isFocus ? 2 : 3) && (
-                          <div className="text-[0.6rem] font-black opacity-20 px-1">
-                            + {dayActivities.length - (isFocus ? 2 : 3)} itens
-                          </div>
-                        )}
-                      </div>
-                      {/* Mobile dots */}
-                      <div className="md:hidden flex items-center gap-1">
-                        {dayActivities.slice(0, 1).map((a) => (
-                          <div
-                            key={a.id}
-                            className={`w-1.5 h-1.5 rounded-full ${a.completed ? "opacity-20" : ""}`}
-                            style={{ background: a.disciplineColor }}
+                    <div className="flex min-h-0 flex-1 flex-col gap-[3px] overflow-hidden">
+                      {dayActivities.slice(0, 2).map((a) => (
+                        <div
+                          key={a.id}
+                          className={`flex items-center gap-1 truncate rounded-[5px] px-1 py-[2px] text-[10.5px] leading-4 ${
+                            a.completed ? "opacity-45" : ""
+                          }`}
+                          style={{
+                            backgroundColor: `color-mix(in srgb, ${a.disciplineColor} 12%, transparent)`,
+                            color: a.disciplineColor,
+                          }}
+                        >
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: a.disciplineColor }}
                           />
-                        ))}
-                      </div>
+                          <span
+                            className={`truncate ${a.completed ? "line-through" : ""}`}
+                          >
+                            {a.topicName}
+                          </span>
+                        </div>
+                      ))}
+                      {dayActivities.length > 2 && (
+                        <span className="px-1 text-[9.5px] text-muted-foreground/70">
+                          +{dayActivities.length - 2}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
