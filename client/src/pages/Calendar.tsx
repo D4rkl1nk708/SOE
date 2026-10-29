@@ -622,7 +622,11 @@ export default function Calendar() {
         </div>
 
         {isFocus && (
-          <aside className="sticky top-4 hidden lg:block">
+          <aside
+            className={`sticky top-4 hidden transition-opacity duration-200 lg:block ${
+              dayPeekOpen ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+          >
             <div className="soe-card overflow-hidden">
               <div className="border-b border-border/50 p-4">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -682,10 +686,10 @@ export default function Calendar() {
 
         {/* Modal do dia — a trilha vem para o centro */}
         <Dialog open={dayPeekOpen} onOpenChange={setDayPeekOpen}>
-          <DialogContent className="!w-[calc(100vw-1.5rem)] !max-w-[520px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-200">
+          <DialogContent className="!w-[calc(100vw-1.5rem)] !max-w-[560px] gap-0 overflow-hidden rounded-[18px] border-border !bg-card p-0 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:slide-in-from-bottom-3 data-[state=open]:duration-300 data-[state=open]:ease-out data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98] data-[state=closed]:duration-150">
             {selectedDay && (
               <>
-                <div className="border-b border-border px-5 pb-3 pt-4">
+                <div className="border-b border-border py-4 pl-5 pr-12">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -728,7 +732,7 @@ export default function Calendar() {
                   </div>
                 </div>
                 {renderDayFilters()}
-                <div className="max-h-[52vh] overflow-y-auto custom-scrollbar">
+                <div className="max-h-[58vh] overflow-y-auto custom-scrollbar">
                   {renderDayList(true)}
                 </div>
               </>

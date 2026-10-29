@@ -11,6 +11,30 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.8",
+    date: "29/10/2026",
+    title: "Dia em modal com fundo desfocado e fim das revisões duplicadas",
+    categories: [
+      {
+        title: "📅 Calendário",
+        type: "improvement",
+        items: [
+          "O fundo escurece e desfoca de verdade quando o dia abre em modal.",
+          "A trilha lateral desaparece suavemente enquanto o modal está aberto.",
+          "Modal mais largo, animação de entrada mais suave e o botão de fechar não sobrepõe mais o Abrir dia.",
+        ],
+      },
+      {
+        title: "🐞 Revisões duplicadas",
+        type: "fix",
+        items: [
+          "A criação de revisões agora é idempotente: a mesma revisão (tópico + data + número + tipo) não é mais inserida duas vezes a cada importação.",
+          "Sete revisões duplicadas que já estavam na base foram removidas, com backup em data/backups.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.7",
     date: "29/10/2026",
     title: "Importação opcional de caderno do TEC",

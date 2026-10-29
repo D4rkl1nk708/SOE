@@ -839,8 +839,33 @@ export async function createRevisions(
 ): Promise<void> {
   if (revisionsData.length === 0) return;
   const db = readDatabase();
+
+  // Idempotência: a mesma revisão (tópico + data + número + tipo) não pode
+  // existir duas vezes. Antes, cada importação/geração empilhava uma cópia.
+  const existingKeys = new Set(
+    db.revisions.map((revision) =>
+      [
+        revision.userId,
+        revision.topicId,
+        revision.scheduledDate,
+        revision.revisionNumber,
+        revision.type,
+      ].join("|"),
+    ),
+  );
+
   // Batch all inserts before a single write — avoids N disk writes
   for (const data of revisionsData) {
+    const key = [
+      data.userId,
+      data.topicId,
+      data.scheduledDate,
+      data.revisionNumber,
+      data.type,
+    ].join("|");
+    if (existingKeys.has(key)) continue;
+    existingKeys.add(key);
+
     db.counters.revisions++;
     const revisionId = db.counters.revisions;
     db.revisions.push({
