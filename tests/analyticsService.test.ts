@@ -276,6 +276,43 @@ describe("analyticsService", () => {
     expect(todayEntry!.count).toBeGreaterThan(0);
   });
 
+  it("getStudyHeatmap soma revisões concluídas e questões respondidas", async () => {
+    vi.mocked(storage.getTopicsByUser).mockResolvedValue([] as any);
+    vi.mocked(storage.getRevisionsByUser).mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        topicId: 1,
+        scheduledDate: today,
+        type: "revision",
+        revisionNumber: 1,
+        completed: true,
+        ignored: false,
+        completedAt: `${today}T10:00:00.000Z`,
+      },
+      {
+        id: 2,
+        userId: 1,
+        topicId: 2,
+        scheduledDate: today,
+        type: "revision",
+        revisionNumber: 1,
+        completed: true,
+        ignored: false,
+        completedAt: `${today}T11:00:00.000Z`,
+      },
+    ] as any);
+    vi.mocked(storage.getUserSettings).mockResolvedValue({
+      questionAttempts: [{ createdAt: `${today}T12:00:00.000Z`, seconds: 120 }],
+    } as any);
+
+    const result = await getStudyHeatmap(1, 12);
+    const entry = result.find((e) => e.date === today);
+    expect(entry).toBeDefined();
+    expect(entry!.count).toBe(3);
+    expect(entry!.minutes).toBe(2);
+  });
+
   it("getTodayStudyMinutes sums today's study time", async () => {
     const result = await getTodayStudyMinutes(1);
     expect(typeof result).toBe("number");

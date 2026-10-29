@@ -37,25 +37,43 @@ export function StudyHeatmap({
     const interval = eachDayOfInterval({ start, end });
 
     // Group logs by date
-    const logMap: Record<string, number> = {};
+    const logMap: Record<string, { minutes: number; count: number }> = {};
     logs.forEach((l) => {
-      const mins = (l as any).minutes ?? l.durationMin ?? 0;
-      logMap[l.date] = (logMap[l.date] || 0) + mins;
+      if (!l?.date) return;
+      const mins = Number((l as any).minutes ?? l.durationMin ?? 0) || 0;
+      const cnt = Number((l as any).count ?? 0) || (mins > 0 ? 1 : 0);
+      const entry = logMap[l.date] ?? { minutes: 0, count: 0 };
+      entry.minutes += mins;
+      entry.count += cnt;
+      logMap[l.date] = entry;
     });
 
     return interval.map((date) => {
       const dateStr = format(date, "yyyy-MM-dd");
-      const duration = logMap[dateStr] || 0;
+      const { minutes: duration, count } = logMap[dateStr] ?? {
+        minutes: 0,
+        count: 0,
+      };
       let level = 0;
-      if (duration > 0 && duration < 60) level = 1;
-      else if (duration >= 60 && duration < 180) level = 2;
-      else if (duration >= 180 && duration < 300) level = 3;
-      else if (duration >= 300) level = 4;
+      if (duration > 0) {
+        if (duration < 60) level = 1;
+        else if (duration < 180) level = 2;
+        else if (duration < 300) level = 3;
+        else level = 4;
+      } else if (count > 0) {
+        // Dias sem minutos medidos (ex.: revisões concluídas no TEC):
+        // a intensidade passa a refletir o volume de atividades.
+        if (count === 1) level = 1;
+        else if (count <= 3) level = 2;
+        else if (count <= 7) level = 3;
+        else level = 4;
+      }
 
       return {
         date,
         dateStr,
         duration,
+        count,
         level,
       };
     });
@@ -111,9 +129,11 @@ export function StudyHeatmap({
                   {format(d.date, "dd 'de' MMMM", { locale: ptBR })}
                 </p>
                 <p>
-                  {d.duration === 0
+                  {d.duration === 0 && d.count === 0
                     ? "Nenhum estudo"
-                    : `${d.duration} minutos de estudo`}
+                    : d.duration === 0
+                      ? `${d.count} ${d.count === 1 ? "atividade" : "atividades"}`
+                      : `${d.duration} minutos de estudo`}
                 </p>
               </TooltipContent>
             </Tooltip>

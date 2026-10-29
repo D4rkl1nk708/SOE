@@ -125,6 +125,12 @@ export default function Statistics() {
     0,
   );
   const sessionLogs = (stats?.settings as any)?.studySessionLog || [];
+  // Consistência vem do servidor: soma tópicos estudados, revisões concluídas
+  // e questões respondidas. O studySessionLog sozinho fica vazio para quem
+  // importou histórico do TEC.
+  const { data: heatmapDays } = trpc.dashboard.getHeatmap.useQuery({
+    months: 5,
+  });
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600),
@@ -448,7 +454,7 @@ export default function Statistics() {
               </h2>
             </div>
             <div className="space-y-10">
-              <StudyHeatmap logs={sessionLogs} />
+              <StudyHeatmap logs={(heatmapDays as any) || []} />
               <div className="pt-8 border-t border-border/30">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">

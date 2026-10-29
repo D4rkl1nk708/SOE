@@ -1896,9 +1896,13 @@ ${questionText}`;
           allFiles.push({
             name: f,
             path: "backups",
+            // Sem hora, dois backups do mesmo dia ficavam idênticos na lista.
             date: f.startsWith("backup_")
               ? f.replace("backup_", "").replace(".json", "")
-              : stats.mtime.toISOString().split("T")[0],
+              : `${stats.mtime.toISOString().split("T")[0]} ${stats.mtime
+                  .toISOString()
+                  .split("T")[1]
+                  .substring(0, 5)}`,
             timestamp: stats.mtime.getTime(),
             size: stats.size,
           });

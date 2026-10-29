@@ -110,6 +110,7 @@ vi.mock("@/lib/trpc", () => ({
       },
     }),
     dashboard: {
+      getHeatmap: { useQuery: () => ({ data: [] }) },
       getStats: {
         useQuery: () => ({
           data: {

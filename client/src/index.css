@@ -241,17 +241,21 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Precision Typography */
-h1,
-h2,
-h3,
-h4,
-h5 {
-  @apply font-semibold tracking-tight text-foreground;
-}
+/* Precision Typography
+   Fica em @layer base: regras fora de layer vencem as utilitárias do Tailwind
+   e anulavam classes como text-white/text-primary em 30 títulos do app. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply font-semibold tracking-tight text-foreground;
+  }
 
-p {
-  @apply text-muted-foreground leading-relaxed;
+  p {
+    @apply text-muted-foreground leading-relaxed;
+  }
 }
 
 /* ── Print / PDF Styles ──────────────────────────────────────────────────────── */

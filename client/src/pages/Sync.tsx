@@ -1516,10 +1516,10 @@ Erros: ${errors}
                         <ShieldCheck size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center justify-between">
-                          <span>{b.date}</span>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 flex items-center justify-between gap-2">
+                          <span className="whitespace-nowrap">{b.date}</span>
                           {b.size !== undefined && (
-                            <span className="text-[9px] text-[var(--accent-green)]">
+                            <span className="whitespace-nowrap shrink-0 text-[9px] text-[var(--accent-green)]">
                               {(b.size / 1024).toFixed(1)} KB
                               {b.size > 1024 * 1024 &&
                                 ` (${(b.size / (1024 * 1024)).toFixed(1)} MB)`}
@@ -1534,7 +1534,7 @@ Erros: ${errors}
                           {b.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={async () => {
                             if (

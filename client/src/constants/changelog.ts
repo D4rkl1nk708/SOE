@@ -11,6 +11,45 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.8.0",
+    date: "29/10/2026",
+    title:
+      "Títulos na cor certa, consistência com dados reais e fim das revisões duplicadas",
+    categories: [
+      {
+        title: "🎨 Interface",
+        type: "fix",
+        items: [
+          "Títulos do app voltaram a respeitar a própria cor: rótulos de seção em azul e o cabeçalho do modal de novidades legível no tema claro.",
+          "Página 404 usa as cores do tema e continua legível no modo escuro.",
+        ],
+      },
+      {
+        title: "📊 Estatísticas",
+        type: "improvement",
+        items: [
+          "O mapa de consistência agora conta revisões concluídas e questões respondidas, não só sessões cronometradas.",
+          "Dias sem minutos medidos ganham intensidade pelo volume de atividades.",
+        ],
+      },
+      {
+        title: "🗂️ Dados",
+        type: "fix",
+        items: [
+          "Revisões repetidas no mesmo dia foram consolidadas — oito cópias de uma mesma revisão viraram uma só.",
+        ],
+      },
+      {
+        title: "🔄 Sync & Backup",
+        type: "fix",
+        items: [
+          "Histórico de backups mostra a hora de cada arquivo e não quebra mais a linha de data/tamanho.",
+          "O botão de restaurar backup fica visível no celular, onde não existe hover.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.7.9",
     date: "29/10/2026",
     title: "Splash com a marca nova",

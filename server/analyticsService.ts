@@ -322,20 +322,48 @@ export async function getNeglectedDisciplines(
 // ─── Study Heatmap ───────────────────────────────────────────────────────────
 
 export async function getStudyHeatmap(userId: number, months: number) {
-  const topics = await storage.getTopicsByUser(userId);
+  const [topics, revisions, settings] = await Promise.all([
+    storage.getTopicsByUser(userId),
+    storage.getRevisionsByUser(userId, { completed: true }),
+    storage.getUserSettings(userId),
+  ]);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
   cutoff.setHours(0, 0, 0, 0);
   const cutoffStr = cutoff.toISOString().split("T")[0];
 
   const map = new Map<string, { count: number; seconds: number }>();
-  for (const t of topics) {
-    const d = t.studyDate || (t.createdAt ? t.createdAt.split("T")[0] : null);
-    if (!d || d < cutoffStr) continue;
-    const entry = map.get(d) ?? { count: 0, seconds: 0 };
+  const bump = (date: string | null | undefined, seconds = 0) => {
+    if (!date || date < cutoffStr) return;
+    const entry = map.get(date) ?? { count: 0, seconds: 0 };
     entry.count++;
-    entry.seconds += t.studyTimeSeconds ?? 0;
-    map.set(d, entry);
+    entry.seconds += seconds;
+    map.set(date, entry);
+  };
+
+  // 1. Tópicos com data de estudo (fluxo antigo, baseado no próprio tópico)
+  for (const t of topics) {
+    bump(
+      t.studyDate ?? (t.createdAt ? t.createdAt.split("T")[0] : null),
+      t.studyTimeSeconds ?? 0,
+    );
+  }
+
+  // 2. Revisões concluídas: a fonte real de quem veio do TEC/importação e
+  //    nunca teve studySessionLog — sem isso o mapa de consistência ficava vazio.
+  for (const r of revisions) {
+    bump(r.completedAt ? r.completedAt.split("T")[0] : null);
+  }
+
+  // 3. Questões respondidas (o tempo vem dos segundos gastos na questão)
+  const attempts = (settings as any)?.questionAttempts;
+  if (Array.isArray(attempts)) {
+    for (const a of attempts) {
+      bump(
+        a?.createdAt ? String(a.createdAt).split("T")[0] : null,
+        Number(a?.seconds) || 0, // segundos; o total é convertido em minutos no fim
+      );
+    }
   }
 
   return Array.from(map.entries())
