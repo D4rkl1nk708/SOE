@@ -341,3 +341,19 @@ p {
 .ui-focus .rounded-lg {
   border-radius: 8px;
 }
+
+.ui-focus h1 {
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.ui-focus h2 {
+  letter-spacing: -0.025em;
+}
+
+.ui-focus button,
+.ui-focus input,
+.ui-focus textarea,
+.ui-focus select {
+  font-family: inherit;
+}
