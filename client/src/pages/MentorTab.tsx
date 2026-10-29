@@ -49,6 +49,25 @@ export default function MentorTab() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { data: stats } = trpc.dashboard.getStats.useQuery();
   const apiKey = (stats?.settings as any)?.aiApiKey ?? "";
+  const daysToExam = (() => {
+    const exams = ((stats?.settings as any)?.exams || []) as Array<{
+      date?: string;
+    }>;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const next = exams
+      .filter((exam) => exam.date)
+      .map((exam) =>
+        Math.ceil(
+          (new Date(`${exam.date}T00:00:00`).getTime() - today.getTime()) /
+            86400000,
+        ),
+      )
+      .filter((days) => Number.isFinite(days) && days >= 0)
+      .sort((a, b) => a - b)[0];
+    return typeof next === "number" ? next : null;
+  })();
+
   const isFocus =
     ((stats?.settings as any)?.uiMode ?? "focused") !== "complete";
   const provider = (stats?.settings as any)?.aiProvider ?? "gemini";
@@ -322,7 +341,9 @@ export default function MentorTab() {
 
   return (
     <div className="flex h-[calc(100vh-8.5rem)] md:h-[calc(100vh-4rem)] -mx-4 -mb-4 overflow-hidden bg-background">
-      <div className="hidden md:flex flex-col w-72 shrink-0">
+      <div
+        className={isFocus ? "hidden" : "hidden md:flex flex-col w-72 shrink-0"}
+      >
         {SidebarContent}
       </div>
 
@@ -371,22 +392,30 @@ export default function MentorTab() {
               <Menu size={18} />
             </button>
 
-            <div className="w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Brain size={16} />
+            <div
+              className={
+                isFocus
+                  ? "flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary-bg-subtle)] text-primary"
+                  : "w-8 h-8 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"
+              }
+            >
+              <Brain size={isFocus ? 17 : 16} />
             </div>
 
             <div className="block">
               <h2
                 className={
                   isFocus
-                    ? "text-base font-semibold tracking-tight text-foreground"
+                    ? "text-[14px] font-semibold tracking-[-0.01em] text-foreground"
                     : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60"
                 }
               >
-                {isFocus ? "Mentor IA" : "Mentor Estratégico"}
+                {isFocus ? "Inteligência Central do SOE" : "Mentor Estratégico"}
               </h2>
-              <p className="max-w-[220px] truncate text-[11px] font-medium text-muted-foreground">
-                {activeSession.title}
+              <p className="max-w-[260px] truncate text-[11px] font-medium text-muted-foreground">
+                {isFocus
+                  ? `${provider} · conectada ao seu contexto`
+                  : activeSession.title}
               </p>
             </div>
           </div>
@@ -677,6 +706,10 @@ export default function MentorTab() {
               <b className="truncate pl-2 text-right text-foreground">
                 {(stats?.settings as any)?.exams?.[0]?.name || "Transpetro"}
               </b>
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground">Dias restantes</span>
+              <b className="text-foreground">{daysToExam ?? "—"}</b>
             </div>
             <div className="flex items-center justify-between text-[10px]">
               <span className="text-muted-foreground">Sessão</span>

@@ -1,6 +1,7 @@
 import { type CSSProperties, ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
+  Menu,
   BarChart3,
   CheckCircle2,
   TrendingUp,
@@ -453,6 +454,11 @@ function Sidebar({
               <span className="font-bold text-lg tracking-tighter leading-none text-foreground">
                 SOE
               </span>
+              {navMode === "focused" && (
+                <span className="mt-0.5 text-[10px] leading-3 text-muted-foreground">
+                  Organização de estudo
+                </span>
+              )}
             </div>
           )}
         </Link>
@@ -467,7 +473,7 @@ function Sidebar({
         )}
       </div>
 
-      {!collapsed && (
+      {!collapsed && navMode !== "focused" && (
         <Link
           href="/plan"
           className="mx-3 mb-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/30"
@@ -504,8 +510,16 @@ function Sidebar({
           <div key={group.label} className="space-y-2">
             {!collapsed ? (
               <p
-                className="px-6 mb-2 text-[9px] font-black uppercase tracking-[0.25em]"
-                style={{ color: "var(--primary)", opacity: 0.4 }}
+                className={
+                  navMode === "focused"
+                    ? "px-6 mb-2 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                    : "px-6 mb-2 text-[9px] font-black uppercase tracking-[0.25em]"
+                }
+                style={
+                  navMode === "focused"
+                    ? undefined
+                    : { color: "var(--primary)", opacity: 0.4 }
+                }
               >
                 {group.label}
               </p>
@@ -699,161 +713,263 @@ export function Layout({ children }: { children: ReactNode }) {
         className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-16 md:pb-0"
         style={{ background: "var(--app-bg)" }}
       >
-        {/* Mobile header */}
-        <header
-          className="md:hidden flex items-center justify-between px-4 py-3 flex-shrink-0"
-          style={{
-            background: "var(--header-bg)",
-            borderBottom: "1px solid var(--card-border)",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <SoeLogo size={28} />
-            <div className="flex flex-col leading-tight">
-              <span
-                className="font-bold text-[13px] tracking-[-0.3px]"
-                style={{ color: "var(--primary)" }}
+        {/* Mobile header — layout focado */}
+        {navMode === "focused" && (
+          <header
+            className="md:hidden flex flex-shrink-0 items-center justify-between px-4 py-2"
+            style={{
+              background: "var(--header-bg)",
+              borderBottom: "1px solid var(--card-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <Link
+              href="/profile"
+              className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-border bg-secondary"
+              title="Sua conta"
+            >
+              {user?.settings?.profileImage ? (
+                <img
+                  src={user.settings.profileImage}
+                  alt="Perfil"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  {(user?.name || "U").slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </Link>
+            <span className="text-[14px] font-semibold tracking-[-0.02em] text-foreground">
+              SOE
+            </span>
+            <SearchButton />
+          </header>
+        )}
+
+        {/* Mobile header (clássico) */}
+        {navMode !== "focused" && (
+          <header
+            className="md:hidden flex items-center justify-between px-4 py-3 flex-shrink-0"
+            style={{
+              background: "var(--header-bg)",
+              borderBottom: "1px solid var(--card-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <SoeLogo size={28} />
+              <div className="flex flex-col leading-tight">
+                <span
+                  className="font-bold text-[13px] tracking-[-0.3px]"
+                  style={{ color: "var(--primary)" }}
+                >
+                  SOE
+                </span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {currentLabel}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <SearchButton />
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl hover:bg-secondary/40 active:scale-95 transition-all"
+                style={{ color: "var(--muted-text)" }}
               >
-                SOE
-              </span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {theme === "light" ? (
+                  <Moon className="w-[22px] h-[22px]" />
+                ) : (
+                  <Sun className="w-[22px] h-[22px]" />
+                )}
+              </button>
+              <Link
+                href="/sync"
+                className="p-2 rounded-xl active:scale-95 transition-all"
+                style={{
+                  color: isActivePath(location, "/sync")
+                    ? "var(--primary)"
+                    : "var(--muted-text)",
+                }}
+              >
+                <Wifi className="w-[22px] h-[22px]" />
+              </Link>
+              <Link
+                href="/profile"
+                className="p-[1px] rounded-lg active:scale-95 transition-all overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
+                style={{
+                  width: "32px",
+                  height: "32px",
+                }}
+              >
+                <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
+                  {user?.settings?.profileImage ? (
+                    <img
+                      src={user.settings.profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
+                  )}
+                </div>
+              </Link>
+            </div>
+          </header>
+        )}
+
+        {/* Desktop top bar — layout focado (prints) */}
+        {navMode === "focused" && (
+          <header
+            className="hidden md:flex flex-shrink-0 items-center justify-between gap-4 px-5 py-2.5"
+            style={{
+              background: "var(--header-bg)",
+              borderBottom: "1px solid var(--card-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/60"
+                title={collapsed ? "Expandir menu" : "Recolher menu"}
+              >
+                <Menu size={15} />
+              </button>
+              <span className="shrink-0 text-muted-foreground">SOE</span>
+              <span className="shrink-0 text-muted-foreground/40">/</span>
+              <span className="truncate font-medium text-foreground">
                 {currentLabel}
               </span>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <SearchButton />
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl hover:bg-secondary/40 active:scale-95 transition-all"
-              style={{ color: "var(--muted-text)" }}
-            >
-              {theme === "light" ? (
-                <Moon className="w-[22px] h-[22px]" />
-              ) : (
-                <Sun className="w-[22px] h-[22px]" />
-              )}
-            </button>
-            <Link
-              href="/sync"
-              className="p-2 rounded-xl active:scale-95 transition-all"
-              style={{
-                color: isActivePath(location, "/sync")
-                  ? "var(--primary)"
-                  : "var(--muted-text)",
-              }}
-            >
-              <Wifi className="w-[22px] h-[22px]" />
-            </Link>
-            <Link
-              href="/profile"
-              className="p-[1px] rounded-lg active:scale-95 transition-all overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
-              style={{
-                width: "32px",
-                height: "32px",
-              }}
-            >
-              <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
+            <div className="flex items-center gap-1.5">
+              <SearchButton />
+              <Link
+                href="/statistics"
+                className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/60"
+                title="Estatísticas"
+              >
+                <BarChart3 size={15} />
+              </Link>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/60"
+                title={theme === "light" ? "Modo Escuro" : "Modo Claro"}
+              >
+                {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+              </button>
+              <span className="mx-1 h-4 w-px bg-border" />
+              <Link
+                href="/profile"
+                className="grid h-7 w-7 place-items-center overflow-hidden rounded-full border border-border bg-secondary"
+                title="Sua conta"
+              >
                 {user?.settings?.profileImage ? (
                   <img
                     src={user.settings.profileImage}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
+                    alt="Perfil"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
+                  <span className="text-[10px] font-semibold text-muted-foreground">
+                    {(user?.name || "U").slice(0, 1).toUpperCase()}
+                  </span>
                 )}
-              </div>
-            </Link>
-          </div>
-        </header>
-
-        {/* Desktop top bar */}
-        <header
-          className="hidden md:flex items-center justify-between px-6 py-3 flex-shrink-0"
-          style={{
-            background: "var(--header-bg)",
-            borderBottom: "1px solid var(--card-border)",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <h2
-              className="truncate text-[13px] font-semibold"
-              style={{ color: "var(--foreground)", letterSpacing: "-0.25px" }}
-            >
-              {currentLabel}
-            </h2>
-            <div className="hidden items-center gap-1.5 xl:flex">
-              {contextOverview && (
-                <>
-                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
-                    Base {contextOverview.base?.coveragePct ?? 0}%
-                  </span>
-                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
-                    Edital {contextOverview.coverage.weightedCoveragePct}%
-                  </span>
-                </>
-              )}
-              {nextExam && (
-                <span className="rounded-full border border-primary/25 bg-primary/5 px-2 py-0.5 text-[9px] font-semibold text-primary">
-                  {nextExam.name.slice(0, 22)} · {nextExam.days}d
-                </span>
-              )}
+              </Link>
             </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <FontSizeControl />
-            <SearchButton />
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl hover:opacity-70 transition-opacity"
-              style={{ color: "var(--muted-text)" }}
-              title={theme === "light" ? "Modo Escuro" : "Modo Claro"}
-            >
-              {theme === "light" ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
-            </button>
-            <button
-              id="tour-trigger"
-              onClick={() =>
-                window.dispatchEvent(new CustomEvent("soe-start-tour"))
-              }
-              className="p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-all flex items-center gap-1.5"
-              title="Iniciar Tour Guiado"
-            >
-              <Zap size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-wider hidden lg:inline">
-                Tour
-              </span>
-            </button>
-            <Link
-              href="/profile"
-              className="p-[1px] rounded-lg hover:border-primary transition-all ml-1 overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
-              style={{
-                width: "30px",
-                height: "30px",
-              }}
-              title="Configurações"
-            >
-              <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
-                {user?.settings?.profileImage ? (
-                  <img
-                    src={user.settings.profileImage}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
+          </header>
+        )}
+
+        {/* Desktop top bar (clássico) */}
+        {navMode !== "focused" && (
+          <header
+            className="hidden md:flex items-center justify-between px-6 py-3 flex-shrink-0"
+            style={{
+              background: "var(--header-bg)",
+              borderBottom: "1px solid var(--card-border)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <h2
+                className="truncate text-[13px] font-semibold"
+                style={{ color: "var(--foreground)", letterSpacing: "-0.25px" }}
+              >
+                {currentLabel}
+              </h2>
+              <div className="hidden items-center gap-1.5 xl:flex">
+                {contextOverview && (
+                  <>
+                    <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                      Base {contextOverview.base?.coveragePct ?? 0}%
+                    </span>
+                    <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                      Edital {contextOverview.coverage.weightedCoveragePct}%
+                    </span>
+                  </>
+                )}
+                {nextExam && (
+                  <span className="rounded-full border border-primary/25 bg-primary/5 px-2 py-0.5 text-[9px] font-semibold text-primary">
+                    {nextExam.name.slice(0, 22)} · {nextExam.days}d
+                  </span>
                 )}
               </div>
-            </Link>
-          </div>
-        </header>
+            </div>
+            <div className="flex items-center gap-1">
+              <FontSizeControl />
+              <SearchButton />
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl hover:opacity-70 transition-opacity"
+                style={{ color: "var(--muted-text)" }}
+                title={theme === "light" ? "Modo Escuro" : "Modo Claro"}
+              >
+                {theme === "light" ? (
+                  <Moon className="w-4 h-4" />
+                ) : (
+                  <Sun className="w-4 h-4" />
+                )}
+              </button>
+              <button
+                id="tour-trigger"
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent("soe-start-tour"))
+                }
+                className="p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-all flex items-center gap-1.5"
+                title="Iniciar Tour Guiado"
+              >
+                <Zap size={14} />
+                <span className="text-[10px] font-bold uppercase tracking-wider hidden lg:inline">
+                  Tour
+                </span>
+              </button>
+              <Link
+                href="/profile"
+                className="p-[1px] rounded-lg hover:border-primary transition-all ml-1 overflow-hidden flex items-center justify-center border border-border bg-card shadow-sm"
+                style={{
+                  width: "30px",
+                  height: "30px",
+                }}
+                title="Configurações"
+              >
+                <div className="w-full h-full rounded-[7px] overflow-hidden bg-secondary flex items-center justify-center">
+                  {user?.settings?.profileImage ? (
+                    <img
+                      src={user.settings.profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle2 className="w-[18px] h-[18px] text-muted-foreground" />
+                  )}
+                </div>
+              </Link>
+            </div>
+          </header>
+        )}
 
         <main
           className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain w-full"

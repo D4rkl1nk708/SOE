@@ -1,10 +1,11 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   BookOpen,
   Brain,
-  CheckCircle2,
+  ChevronRight,
   ClipboardX,
   Clock,
   FileText,
@@ -12,64 +13,71 @@ import {
   NotebookPen,
   Play,
   Sheet,
+  SlidersHorizontal,
   Target,
 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
+import { PageTitle, Card, SectionLabel } from "@/components/apple";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
 
-function HubCard({
+function HubTile({
   to,
   icon: Icon,
   title,
   description,
   count,
-  accent,
+  onClick,
 }: {
-  to: string;
-  icon: typeof BookOpen;
+  to?: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   count?: string;
-  accent?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <Link
-      href={to}
-      className={`soe-card group relative flex min-h-[132px] flex-col p-4 transition-colors hover:border-primary/30 ${
-        accent ? "border-primary/25 bg-[var(--primary-bg-subtle)]" : ""
-      }`}
-    >
+  const inner = (
+    <>
       <div className="flex items-start justify-between">
-        <div
-          className={`grid h-8 w-8 place-items-center rounded-lg ${
-            accent
-              ? "bg-primary/15 text-primary"
-              : "bg-secondary/60 text-muted-foreground"
-          }`}
-        >
-          <Icon size={16} />
-        </div>
+        <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-secondary text-muted-foreground">
+          <Icon size={17} />
+        </span>
         {count && (
-          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
+          <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
             {count}
           </span>
         )}
       </div>
-      <div className="mt-auto pt-4">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          {title}
-        </h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+      <div className="mt-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[13.5px] font-semibold tracking-[-0.01em] text-foreground">
+            {title}
+          </h3>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-muted-foreground/60"
+          />
+        </div>
+        <p className="mt-0.5 text-[11.5px] leading-4 text-muted-foreground">
           {description}
         </p>
       </div>
-      <ArrowRight
-        size={14}
-        className="absolute right-4 top-4 opacity-0 transition-opacity group-hover:opacity-50"
-      />
-    </Link>
+    </>
+  );
+
+  const className =
+    "apple-card flex flex-col p-4 text-left transition-colors hover:bg-secondary/30";
+
+  if (to) {
+    return (
+      <Link href={to} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {inner}
+    </button>
   );
 }
 
@@ -94,140 +102,151 @@ export default function StudyHub() {
   };
 
   return (
-    <div className="space-y-7 pb-10">
-      <PageHeader
-        eyebrow="Aprender"
+    <div className="mx-auto w-full max-w-[1160px] space-y-6 pb-12">
+      <PageTitle
         title="Estudar"
-        description="Tudo o que você usa para praticar e consultar, no mesmo lugar."
+        subtitle="Praticar, revisar e consultar o conteúdo do seu edital."
+        actions={
+          <>
+            <Link
+              href="/profile"
+              className="flex h-9 items-center gap-1.5 rounded-[10px] border border-border bg-card px-4 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
+            >
+              <SlidersHorizontal size={14} /> Personalizar
+            </Link>
+            <Link
+              href="/question-session"
+              className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Play size={14} /> Começar treino
+            </Link>
+          </>
+        }
       />
 
-      <section className="soe-card overflow-hidden border-primary/25 bg-[var(--primary-bg-subtle)]">
-        <div className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-center md:p-6">
-          <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Target size={24} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
-                  Ferramenta principal
-                </span>
-                <span className="rounded-full border border-primary/20 bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
-                  captura ativa
-                </span>
-              </div>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+      {/* Ferramenta principal: o TEC continua sendo o centro do fluxo. */}
+      <Card
+        className="overflow-hidden"
+        style={{
+          background: "var(--primary-bg-subtle)",
+          borderColor: "transparent",
+        }}
+      >
+        <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-start gap-3.5">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-card text-primary">
+              <BookOpen size={21} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
                 Treino TEC
               </h2>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                Abra o TEC pelo SOE. Cada acerto e erro entra no seu histórico
+              <p className="mt-0.5 max-w-2xl text-[12.5px] leading-5 text-muted-foreground">
+                Abra o TEC pelo SOE; cada acerto e erro entra no histórico
                 automaticamente, sem preencher nada.
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] font-medium text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-primary" /> captura
-                  automática
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock size={12} /> sessão preservada
-                </span>
-              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            <Button
-              className="h-9 gap-2 rounded-md text-[10px] font-bold uppercase tracking-wider"
+          <div className="flex shrink-0 items-center gap-2 md:justify-end">
+            <button
+              type="button"
               onClick={openTec}
+              className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              <Play size={13} /> Abrir TEC
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="h-9 rounded-md text-[10px] font-bold uppercase tracking-wider"
+              <Play size={14} /> Abrir TEC
+            </button>
+            <Link
+              href="/question-session"
+              className="flex h-9 items-center gap-1 rounded-[10px] px-2 text-[12.5px] font-medium text-primary hover:underline"
             >
-              <Link href="/question-session">
-                Ver sessão <ArrowRight size={13} className="ml-1" />
-              </Link>
-            </Button>
+              Ver sessão <ArrowRight size={13} />
+            </Link>
           </div>
         </div>
-      </section>
+      </Card>
 
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary/70">
-              Praticar
-            </p>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
-              Escolha o próximo passo.
-            </h2>
-          </div>
-          <span className="text-[10px] text-muted-foreground">
-            4 ferramentas
-          </span>
-        </div>
-        <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
-          <HubCard
+      <section className="space-y-2.5">
+        <SectionLabel
+          action={
+            <span className="text-[11px] text-muted-foreground">
+              6 ferramentas
+            </span>
+          }
+        >
+          Praticar
+        </SectionLabel>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <HubTile
+            to="/question-session"
+            icon={BookOpen}
+            title="Treino TEC"
+            description="Captura automática da sessão no TEC."
+            count="ativo"
+          />
+          <HubTile
+            to="/lab"
+            icon={Target}
+            title="Treino adaptativo"
+            description="Uma sessão feita para o seu momento."
+            count="10 questões"
+          />
+          <HubTile
             to="/revisions"
             icon={Clock}
             title="Revisões"
             description="O que está vencido ou vence hoje."
-            count={revisionCount ? `${revisionCount} pendentes` : "em dia"}
+            count={
+              revisionCount
+                ? `${revisionCount.toLocaleString("pt-BR")} vencidas`
+                : "em dia"
+            }
           />
-          <HubCard
+          <HubTile
             to="/question-errors"
             icon={ClipboardX}
             title="Questões erradas"
             description="Erros que ainda precisam de atenção."
             count={errorCount ? `${errorCount} abertas` : "nenhuma"}
           />
-          <HubCard
+          <HubTile
             to="/flashcards"
             icon={Brain}
             title="Flashcards"
             description="Revisão ativa em sessões curtas."
-            count="revisão ativa"
+            count="48 cartões"
           />
-          <HubCard
+          <HubTile
             to="/mock-exams"
             icon={FileText}
             title="Simulados"
             description="Provas completas, em papel ou na tela."
             count={examCount ? `${examCount} feitos` : "novo"}
-            accent
           />
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary/70">
-              Conteúdo
-            </p>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
-              A base do seu edital.
-            </h2>
-          </div>
-          <span className="text-[10px] text-muted-foreground">3 áreas</span>
-        </div>
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-          <HubCard
+      <section className="space-y-2.5">
+        <SectionLabel
+          action={
+            <span className="text-[11px] text-muted-foreground">3 áreas</span>
+          }
+        >
+          Conteúdo
+        </SectionLabel>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <HubTile
             to="/disciplines"
             icon={Layers}
             title="Disciplinas"
             description={`${disciplineCount || "Suas"} matérias e prioridades.`}
-            count={`${disciplineCount || 0} cadastradas`}
           />
-          <HubCard
+          <HubTile
             to="/edital"
             icon={Sheet}
             title="Editais"
             description="Estrutura, cargos e pesos do concurso."
           />
-          <HubCard
+          <HubTile
             to="/notes"
             icon={NotebookPen}
             title="Anotações"
@@ -236,32 +255,28 @@ export default function StudyHub() {
         </div>
       </section>
 
-      <details className="group rounded-lg border border-border/60 bg-card/50 p-3">
-        <summary className="cursor-pointer list-none text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <details className="group rounded-[12px] border border-border bg-card/60 px-4 py-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[12px] font-medium text-muted-foreground">
           Mais ferramentas
-          <span className="ml-1 inline-block transition-transform group-open:rotate-90">
-            ›
+          <span className="transition-transform group-open:rotate-90">
+            <ChevronRight size={14} />
           </span>
         </summary>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link
-            href="/lab"
-            className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-secondary/50"
-          >
-            Treino adaptativo
-          </Link>
-          <Link
-            href="/history"
-            className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-secondary/50"
-          >
-            Histórico
-          </Link>
-          <Link
-            href="/statistics"
-            className="rounded-md border border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-secondary/50"
-          >
-            Estatísticas
-          </Link>
+          {[
+            { href: "/history", label: "Histórico" },
+            { href: "/statistics", label: "Estatísticas" },
+            { href: "/simulado", label: "Simulado rápido" },
+            { href: "/profile", label: "Configurações" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-[9px] border border-border px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
       </details>
     </div>

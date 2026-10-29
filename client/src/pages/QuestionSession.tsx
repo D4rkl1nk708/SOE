@@ -59,6 +59,7 @@ import { initTecBrowserListener } from "@/lib/tecBrowser";
 import { openTecBrowser } from "@/lib/openTecBrowser";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { Card, PageTitle, SegmentedControl } from "@/components/apple";
 import QuestionErrors from "./QuestionErrors";
 import SubjectiveAnswersTab, {
   HighlightedText,
@@ -515,6 +516,15 @@ export default function QuestionSession() {
     results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0;
   const progress = (currentIndex / totalQ) * 100;
 
+  const isFocus =
+    ((dashboardStats as any)?.settings?.uiMode ?? "focused") !== "complete";
+  const segValue =
+    activeTab === "session"
+      ? "session"
+      : activeTab === "errors"
+        ? "errors"
+        : "browser";
+
   const TabNav = () => (
     <div className="flex gap-1 p-1.5 rounded-2xl bg-secondary/40 border border-border w-full overflow-x-auto no-scrollbar">
       {[
@@ -537,13 +547,43 @@ export default function QuestionSession() {
   // ── RENDER SETUP ───────────────────────────────────────────────────
   if (phase === "setup") {
     return (
-      <div className="max-w-7xl mx-auto space-y-8 pb-20">
-        <PageHeader
-          eyebrow="Execução"
-          title="Treinos"
-          description="Abra o TEC, responda e deixe o SOE registrar cada acerto e erro."
-          actions={<TabNav />}
-        />
+      <div className="mx-auto w-full max-w-[1160px] space-y-6 pb-12">
+        {isFocus ? (
+          <PageTitle
+            title="Treinos"
+            subtitle="Abra o TEC, responda e deixe o SOE registrar cada acerto e erro."
+            actions={
+              <>
+                <SegmentedControl
+                  value={segValue}
+                  onChange={(value) => setActiveTab(value as any)}
+                  options={[
+                    { value: "browser", label: "Questões" },
+                    { value: "session", label: "Sessões" },
+                    { value: "errors", label: "Erros" },
+                  ]}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("browser");
+                    void openTecBrowser(pushTokenRef.current);
+                  }}
+                  className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  <Play size={14} /> Abrir TEC
+                </button>
+              </>
+            }
+          />
+        ) : (
+          <PageHeader
+            eyebrow="Execução"
+            title="Treinos"
+            description="Abra o TEC, responda e deixe o SOE registrar cada acerto e erro."
+            actions={<TabNav />}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
@@ -564,17 +604,15 @@ export default function QuestionSession() {
               icon: BookOpen,
             },
           ].map((item) => (
-            <div key={item.label} className="soe-card p-4">
+            <Card key={item.label} className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <item.icon className="h-3.5 w-3.5" />
-                <span className="text-[8px] font-bold uppercase tracking-wider">
-                  {item.label}
-                </span>
+                <item.icon size={13} />
+                <span className="text-[10.5px] font-medium">{item.label}</span>
               </div>
-              <p className="mt-2 text-xl font-semibold tabular-nums">
+              <p className="apple-num mt-2 text-[21px] font-semibold leading-7 text-foreground">
                 {item.value}
               </p>
-            </div>
+            </Card>
           ))}
         </div>
 

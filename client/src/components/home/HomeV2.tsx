@@ -3,6 +3,18 @@ import { formatDateForDb } from "@shared/scheduling";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { openTecBrowser } from "@/lib/openTecBrowser";
+import {
+  Card,
+  EmptyState,
+  GroupedList,
+  ListRow,
+  MetricRow,
+  PageTitle,
+  Pill,
+  ProgressBar,
+  SectionLabel,
+  StatTile,
+} from "@/components/apple";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +33,7 @@ import {
   Brain,
   CalendarDays,
   CheckCircle2,
+  ClipboardList,
   ClipboardX,
   Clock,
   Flame,
@@ -236,124 +249,156 @@ export function HomeV2() {
 
   if (isFocus) {
     const todayBlocks = (overview?.plan?.blocks || []).slice(0, 3);
-    return (
-      <div
-        className="space-y-5 overflow-x-hidden pb-10"
-        style={{ maxWidth: "calc(100vw - 24px)" }}
-      >
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground md:text-4xl">
-              Hoje
-            </h1>
-            <p className="text-sm text-muted-foreground first-letter:uppercase">
-              {dateLabel}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-9 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-              onClick={() => navigate("/plan")}
-            >
-              Ver plano
-            </Button>
-            <Button
-              className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-              onClick={startGuided}
-            >
-              <Play size={13} /> Começar sessão
-            </Button>
-          </div>
-        </header>
+    const blocksDone = (overview?.plan?.blocks || []).filter(
+      (block: any) => block?.completed === true,
+    ).length;
+    const weekMinutes = week.reduce((sum, day) => sum + day.minutes, 0);
+    const w = weekly as any;
+    const revisionsDone = Number(w?.revisionsCompleted ?? 0);
+    const activeDays = week.filter((day) => day.minutes > 0).length;
+    const timeLabel = `${Math.floor(weekMinutes / 60)}h${String(
+      weekMinutes % 60,
+    ).padStart(2, "0")}`;
+    // Agenda sugerida: os blocos do plano não têm hora fixa, então o horário
+    // é derivado do relógio no momento da leitura, encadeando a duração de
+    // cada bloco. É sugestão de sequência, não um agendamento salvo.
+    const suggestedSlots = (() => {
+      const cursor = new Date();
+      cursor.setMinutes(Math.ceil(cursor.getMinutes() / 5) * 5, 0, 0);
+      return todayBlocks.map((block: any) => {
+        const label = cursor.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        cursor.setTime(
+          cursor.getTime() + (Number(block.minutes) || 25) * 60000,
+        );
+        return label;
+      });
+    })();
 
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="space-y-4">
-            <section className="soe-card overflow-hidden border-primary/20 bg-[var(--primary-bg-subtle)] p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    const examLine = exam
+      ? ` · ${exam.name} em ${Math.max(0, exam.days)} ${Math.max(0, exam.days) === 1 ? "dia" : "dias"}`
+      : "";
+
+    return (
+      <div className="mx-auto w-full max-w-[1160px] space-y-5 pb-12">
+        <PageTitle
+          title="Hoje"
+          subtitle={`${dateLabel}${examLine}`}
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => navigate("/plan")}
+                className="h-9 rounded-[10px] border border-border bg-card px-4 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
+              >
+                Ver plano
+              </button>
+              <button
+                type="button"
+                onClick={startGuided}
+                className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                <Play size={14} /> Começar sessão
+              </button>
+            </>
+          }
+        />
+
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_356px]">
+          <div className="min-w-0 space-y-4">
+            <Card className="p-5">
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
-                    <Sparkles size={13} /> Próxima missão
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+                  <SectionLabel>Próxima missão</SectionLabel>
+                  <h2 className="mt-2 text-[19px] font-semibold leading-6 tracking-[-0.02em] text-foreground">
                     {title}
                   </h2>
-                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+                  <p className="mt-1 max-w-xl text-[12.5px] leading-5 text-muted-foreground">
                     {subtitle}
                   </p>
                 </div>
-                <div className="hidden flex-shrink-0 text-right sm:block">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Prontidão
-                  </p>
-                  <p className="text-3xl font-semibold tabular-nums text-primary">
+                <div className="shrink-0 text-right">
+                  <p className="apple-num text-[26px] font-semibold leading-8 text-foreground">
                     {readiness}%
                   </p>
-                  <p className="text-[8px] uppercase tracking-wider text-muted-foreground">
-                    no edital
-                  </p>
+                  <p className="apple-label mt-0.5">Prontidão</p>
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
-                  {focusBlock?.minutes || 25} min
-                </span>
-                <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
-                  10 questões
-                </span>
+
+              <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+                <Pill>{focusBlock?.minutes || 25} min</Pill>
+                <Pill>10 questões</Pill>
                 {focusBlock?.disciplineName && (
-                  <span className="rounded border border-border bg-card/60 px-2 py-1 text-[9px] text-muted-foreground">
-                    {focusBlock.disciplineName}
-                  </span>
+                  <Pill>{focusBlock.disciplineName}</Pill>
                 )}
+                <Pill tone="primary">Revisão</Pill>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-                  onClick={startGuided}
-                >
-                  <Play size={13} /> Continuar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 gap-2 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-                  onClick={explain}
-                >
-                  <Sparkles size={13} /> Me explicar
-                </Button>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => navigate("/plan")}
-                  className="text-[10px] font-semibold text-muted-foreground underline-offset-2 hover:underline"
+                  type="button"
+                  onClick={startGuided}
+                  className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary px-4 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
                 >
-                  Ver contexto
+                  <Play size={14} /> Continuar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/plan")}
+                  className="text-[12.5px] font-medium text-primary hover:underline"
+                >
+                  Ver contexto ›
                 </button>
               </div>
-            </section>
 
-            <section className="soe-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Para hoje
-                  </p>
-                  <h2 className="text-sm font-semibold tracking-tight">
-                    O que importa agora.
-                  </h2>
+              <div className="mt-4 border-t border-border pt-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Ritmo do dia</span>
+                  <span className="tabular-nums">
+                    {Math.min(blocksDone, todayBlocks.length)} de{" "}
+                    {Math.max(todayBlocks.length, 3)} blocos
+                  </span>
                 </div>
+                <ProgressBar
+                  className="mt-2"
+                  value={
+                    (Math.min(blocksDone, todayBlocks.length) /
+                      Math.max(todayBlocks.length, 3)) *
+                    100
+                  }
+                />
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-4 pb-1.5 pt-3.5">
+                <SectionLabel>Para hoje</SectionLabel>
                 <button
+                  type="button"
                   onClick={() => navigate("/calendar")}
-                  className="hidden shrink-0 text-[10px] font-semibold text-primary hover:underline sm:inline"
+                  className="text-[12px] font-medium text-primary hover:underline"
                 >
                   Calendário
                 </button>
               </div>
               {todayBlocks.length > 0 ? (
-                <div className="divide-y divide-border/50">
+                <GroupedList>
                   {todayBlocks.map((block: any, index: number) => (
-                    <button
+                    <ListRow
                       key={block.id}
+                      icon={ClipboardList}
+                      title={block.title}
+                      subtitle={[
+                        suggestedSlots[index],
+                        `${block.minutes || 25} min`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      right={
+                        index === 0 ? <Pill tone="warn">agora</Pill> : undefined
+                      }
                       onClick={() => {
                         sessionStorage.setItem(
                           "soe_guided_block",
@@ -361,50 +406,24 @@ export function HomeV2() {
                         );
                         navigate("/guided");
                       }}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/30"
-                    >
-                      <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md bg-secondary text-[10px] font-semibold text-muted-foreground">
-                        {index + 1}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12px] font-semibold text-foreground">
-                          {block.title}
-                        </span>
-                        <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-                          {block.subtitle || block.reason}
-                        </span>
-                      </span>
-                      {index === 0 && (
-                        <span className="rounded border border-primary/25 px-1.5 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-primary">
-                          agora
-                        </span>
-                      )}
-                      <span className="hidden text-[10px] tabular-nums text-muted-foreground sm:block">
-                        {block.minutes} min
-                      </span>
-                    </button>
+                    />
                   ))}
-                </div>
+                </GroupedList>
               ) : (
-                <p className="px-4 py-6 text-xs text-muted-foreground">
-                  Nenhuma tarefa para hoje. Abra o plano para montar.
-                </p>
+                <EmptyState
+                  title="Nada agendado para hoje"
+                  description="Abra o plano para montar o dia ou comece uma sessão livre."
+                />
               )}
-            </section>
+            </Card>
 
-            <section className="soe-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Matérias
-                  </p>
-                  <h2 className="text-sm font-semibold tracking-tight">
-                    Seu mapa de estudo.
-                  </h2>
-                </div>
+            <Card className="overflow-hidden">
+              <div className="flex items-center justify-between px-4 pb-1 pt-3.5">
+                <SectionLabel>Matérias</SectionLabel>
                 <button
+                  type="button"
                   onClick={() => navigate("/disciplines")}
-                  className="hidden text-[10px] font-semibold text-primary hover:underline sm:inline"
+                  className="text-[12px] font-medium text-primary hover:underline"
                 >
                   Ver todas
                 </button>
@@ -417,141 +436,164 @@ export function HomeV2() {
                       key={discipline.disciplineId}
                       className="flex items-center gap-3"
                     >
-                      <span className="w-28 truncate text-[11px] font-medium text-foreground">
+                      <span className="w-32 truncate text-[12.5px] text-foreground">
                         {discipline.name}
                       </span>
                       <span className="flex-1">
-                        <Bar value={pct} />
+                        <ProgressBar value={pct} />
                       </span>
-                      <span className="w-8 text-right text-[10px] tabular-nums text-muted-foreground">
+                      <span className="w-9 text-right text-[11.5px] tabular-nums text-muted-foreground">
                         {pct}%
                       </span>
                     </div>
                   );
                 })}
                 {baseSubjects.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="py-2 text-[12px] text-muted-foreground">
                     Nenhuma matéria cadastrada.
                   </p>
                 )}
               </div>
-            </section>
+            </Card>
 
-            <section className="soe-card p-4 lg:hidden">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <Card className="p-4 lg:hidden">
+              <SectionLabel
+                action={
+                  <button
+                    type="button"
+                    onClick={() => navigate("/statistics")}
+                    className="text-[12px] font-medium text-primary"
+                  >
+                    Ver tudo
+                  </button>
+                }
+              >
                 Resumo
-              </p>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              </SectionLabel>
+              <div className="mt-3 grid grid-cols-3 text-center">
                 <div>
-                  <p className="text-xl font-semibold tabular-nums">
-                    {totalQuestions}
+                  <p className="apple-num text-[19px] font-semibold leading-6">
+                    {activeDays}
                   </p>
-                  <p className="text-[9px] text-muted-foreground">questões</p>
+                  <p className="text-[10.5px] text-muted-foreground">
+                    dias de ritmo
+                  </p>
                 </div>
-                <div>
-                  <p className="text-xl font-semibold tabular-nums">
+                <div className="border-x border-border">
+                  <p className="apple-num text-[19px] font-semibold leading-6">
                     {overallAccuracy}%
                   </p>
-                  <p className="text-[9px] text-muted-foreground">acerto</p>
+                  <p className="text-[10.5px] text-muted-foreground">acerto</p>
                 </div>
                 <div>
-                  <p className="text-xl font-semibold tabular-nums">
-                    {week.filter((day) => day.minutes > 0).length}
+                  <p className="apple-num text-[19px] font-semibold leading-6">
+                    {revisionsDone}
                   </p>
-                  <p className="text-[9px] text-muted-foreground">
-                    dias ativos
+                  <p className="text-[10.5px] text-muted-foreground">
+                    revisões
                   </p>
                 </div>
               </div>
-            </section>
+            </Card>
           </div>
 
           <aside className="hidden space-y-4 lg:block">
-            <section className="soe-card p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Seu estado
-                </p>
-                <span className="text-[9px] text-muted-foreground">hoje</span>
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-sm font-semibold text-primary">
-                  {overallAccuracy}%
-                </div>
-                <div>
-                  <p className="text-xs font-semibold">Desempenho geral</p>
-                  <p className="text-[10px] text-muted-foreground">
+            <Card className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <SectionLabel>Seu estado</SectionLabel>
+                  <p className="apple-num mt-1 text-[28px] font-semibold leading-8 text-foreground">
+                    {overallAccuracy}%
+                  </p>
+                  <p className="mt-0.5 text-[11.5px] leading-4 text-muted-foreground">
                     {totalQuestions > 0
-                      ? `${totalCorrect} acertos em ${totalQuestions}`
+                      ? `${totalCorrect} acertos em ${totalQuestions} questões`
                       : "Sem questões registradas"}
                   </p>
                 </div>
+                <svg
+                  width="58"
+                  height="58"
+                  viewBox="0 0 58 58"
+                  className="shrink-0"
+                >
+                  <circle
+                    cx="29"
+                    cy="29"
+                    r="24"
+                    fill="none"
+                    stroke="var(--border)"
+                    strokeWidth="5"
+                  />
+                  <circle
+                    cx="29"
+                    cy="29"
+                    r="24"
+                    fill="none"
+                    stroke="var(--primary)"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(Math.min(100, overallAccuracy) / 100) * 150.8} 150.8`}
+                    transform="rotate(-90 29 29)"
+                  />
+                </svg>
               </div>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-                    <span>Rotina base</span>
-                    <b className="text-foreground">{basePct}%</b>
-                  </div>
-                  <Bar value={basePct} />
-                </div>
-                <div>
-                  <div className="mb-1 flex justify-between text-[10px] text-muted-foreground">
-                    <span>Edital</span>
-                    <b className="text-foreground">{editalPct}%</b>
-                  </div>
-                  <Bar value={editalPct} />
-                </div>
-              </div>
-            </section>
 
-            <section className="soe-card p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Semana
-                </p>
-                <span className="text-[9px] text-muted-foreground">
-                  {week.filter((day) => day.minutes > 0).length} de 7 dias
-                </span>
+              <div className="mt-3 divide-y divide-border border-t border-border">
+                <MetricRow label="Rotina base" value={`${basePct}%`} />
+                <MetricRow label="Edital" value={`${editalPct}%`} />
+                <MetricRow label="Acerto geral" value={`${overallAccuracy}%`} />
               </div>
+
               <div className="mt-3 grid grid-cols-7 gap-1">
                 {week.map((day) => (
                   <div
                     key={day.iso}
-                    className={`rounded border py-1 text-center ${
-                      day.today
-                        ? "border-primary/40 bg-primary/10"
-                        : "border-border bg-secondary/30"
-                    }`}
+                    className="rounded-[9px] py-1.5 text-center"
+                    style={{
+                      background: day.today
+                        ? "var(--primary)"
+                        : "var(--secondary)",
+                      color: day.today
+                        ? "var(--primary-foreground)"
+                        : "var(--muted-foreground)",
+                    }}
                   >
-                    <span className="block text-[7px] uppercase text-muted-foreground">
+                    <span className="block text-[8.5px] font-semibold uppercase tracking-wide">
                       {day.label}
                     </span>
-                    <span className="block text-[10px] font-semibold">
+                    <span className="block text-[11.5px] font-semibold tabular-nums">
                       {day.day}
                     </span>
                   </div>
                 ))}
               </div>
+            </Card>
+
+            <Card className="p-4">
+              <SectionLabel
+                action={
+                  <span className="text-[11px] text-muted-foreground">
+                    {activeDays} de 7 dias
+                  </span>
+                }
+              >
+                Semana
+              </SectionLabel>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded border border-border bg-secondary/20 p-2">
-                  <p className="text-[8px] uppercase text-muted-foreground">
-                    Questões
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {weekly?.answered ?? 0}
-                  </p>
-                </div>
-                <div className="rounded border border-border bg-secondary/20 p-2">
-                  <p className="text-[8px] uppercase text-muted-foreground">
-                    Acurácia
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {weekly?.accuracy ?? 0}%
-                  </p>
-                </div>
+                <StatTile label="Questões" value={w?.answered ?? 0} />
+                <StatTile label="Acertos" value={`${w?.accuracy ?? 0}%`} />
+                <StatTile label="Tempo" value={timeLabel} />
+                <StatTile label="Revisões" value={revisionsDone} />
               </div>
-            </section>
+              <button
+                type="button"
+                onClick={() => navigate("/statistics")}
+                className="mt-3 h-9 w-full rounded-[10px] border border-border bg-card text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/60"
+              >
+                Ver estatísticas
+              </button>
+            </Card>
           </aside>
         </div>
       </div>

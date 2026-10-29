@@ -364,3 +364,48 @@ p {
     line-height: 2.25rem;
   }
 }
+
+/* ── Layout focado: primitivas dos prints (Fase 0) ──────────────────────── */
+.ui-focus .apple-title {
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+@media (max-width: 767px) {
+  .ui-focus .apple-title {
+    font-size: 26px;
+    line-height: 32px;
+  }
+}
+
+.ui-focus .apple-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.ui-focus .apple-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.ui-focus .apple-list .apple-row + .apple-row {
+  border-top: 1px solid var(--border);
+}
+
+.ui-focus .apple-tile {
+  background: var(--secondary);
+  border-radius: 10px;
+}
+
+.ui-focus .apple-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Modo clássico não recebe nada disto: as classes só existem sob .ui-focus. */

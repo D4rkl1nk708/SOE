@@ -1140,7 +1140,7 @@ export default function Profile() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-20">
+    <div className="mx-auto w-full max-w-[1160px] space-y-5 pb-12">
       {!(isFocus && tab === "settings") && (
         <PageHeader
           eyebrow="Conta"
@@ -1149,7 +1149,7 @@ export default function Profile() {
         />
       )}
 
-      <div className="soe-card flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="soe-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -1196,7 +1196,7 @@ export default function Profile() {
         </Button>
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[230px_1fr]">
+      <div className="grid items-start gap-5 lg:grid-cols-[252px_1fr]">
         <nav className="soe-card flex gap-1 overflow-x-auto p-2 lg:flex-col">
           {TABS.map((item) => {
             const Icon = item.icon;
@@ -1210,7 +1210,7 @@ export default function Profile() {
                 }}
                 className={`flex min-w-[150px] items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors lg:min-w-0 ${
                   active
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-[var(--primary-bg-subtle)] text-primary"
                     : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >

@@ -11,6 +11,35 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.7.0",
+    date: "29/10/2026",
+    title: "Telas do layout focado refeitas no padrão dos prints",
+    categories: [
+      {
+        title: "🎨 Layout focado",
+        type: "feature",
+        items: [
+          "Primitivas compartilhadas (PageTitle, Card, GroupedList, SegmentedControl, StatTile, ProgressBar) usadas pelas telas focadas.",
+          "Topbar focado com breadcrumb SOE / página, busca, estatísticas e avatar; no mobile, avatar, SOE e busca.",
+          "Sidebar focado sem o cartão de foco, com subtítulo do produto e rótulos discretos.",
+          "Home refeita: missão compacta com prontidão, ritmo do dia, Para hoje com horário sugerido, matérias e coluna direita com anel, rotina base, edital, acerto geral e faixa da semana.",
+          "Estudar refeito: hero do TEC, Praticar em 6 ferramentas e Conteúdo em 3 áreas.",
+          "Treinos com seletor Questões / Sessões / Erros, cartões de métrica e atalhos reorganizados.",
+          "Mentor IA com cabeçalho da conversa no padrão do print, dias restantes no contexto e sessões na coluna da direita.",
+          "Ajustes alinhados à largura do layout focado, com navegação mais discreta.",
+        ],
+      },
+      {
+        title: "🧪 Qualidade",
+        type: "improvement",
+        items: [
+          "Testes do modo focado: hub Estudar e seletor de visões de Treinos.",
+          "Modo clássico preservado em Configurações → Aparência → Layout da interface.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.6.4",
     date: "29/10/2026",
     title: "Layout focado, calendário com trilho do dia e TEC principal",
