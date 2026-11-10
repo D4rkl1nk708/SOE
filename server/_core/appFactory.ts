@@ -84,6 +84,45 @@ export async function configureApp(): Promise<{
   app.use("/api/sync", syncCors);
   app.use("/api/backup", syncCors);
 
+  // ── Guarda de acesso remoto ───────────────────────────────────────────
+  // Loopback (desktop, Electron, userscript no próprio PC) é confiável.
+  // Qualquer acesso vindo da rede precisa apresentar o push token do usuário,
+  // senão /api/sync/export entregava o banco inteiro (com chaves de IA) para
+  // qualquer dispositivo no mesmo Wi-Fi.
+  const LOOPBACK_ADDRESSES = new Set([
+    "127.0.0.1",
+    "::1",
+    "::ffff:127.0.0.1",
+    "localhost",
+  ]);
+
+  const isLoopbackRequest = (req: any): boolean => {
+    const address = req.socket?.remoteAddress || "";
+    return LOOPBACK_ADDRESSES.has(address);
+  };
+
+  const requireTokenIfRemote = async (req: any, res: any, next: any) => {
+    try {
+      if (req.method === "OPTIONS" || isLoopbackRequest(req)) return next();
+      const rawToken =
+        (req.headers["x-soe-token"] as string) || (req.query.token as string);
+      if (rawToken) {
+        const user = await storage.getUserByPushToken(String(rawToken));
+        if (user) return next();
+      }
+      return res.status(401).json({
+        error:
+          "Acesso remoto exige o token de sincronização (header X-SOE-Token).",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  app.use("/api/sync", requireTokenIfRemote);
+  app.use("/api/backup", requireTokenIfRemote);
+  app.use("/api/tec", requireTokenIfRemote);
+
   // CSRF: um <form> de site malicioso consegue POSTar text/plain mesmo sem
   // CORS. Exigimos JSON (ou o header X-SOE-Sync, que dispara preflight).
   app.use("/api/sync", (req: any, res: any, next: any) => {
@@ -99,9 +138,35 @@ export async function configureApp(): Promise<{
     next();
   });
 
-  // CORS for TEC real-time push (userscript Tampermonkey)
+  // CORS for TEC real-time push (userscript Tampermonkey / extensão).
+  // Antes era "*", o que deixava qualquer site disparar /api/tec/ai-mentor
+  // (gasto de créditos de IA) e gravar dados. Agora só origens conhecidas.
+  const TEC_ALLOWED_ORIGINS = new Set([
+    "https://www.tecconcursos.com.br",
+    "https://tecconcursos.com.br",
+  ]);
+
+  const isAllowedTecOrigin = (origin: string): boolean => {
+    if (TEC_ALLOWED_ORIGINS.has(origin)) return true;
+    return (
+      origin.startsWith("chrome-extension://") ||
+      origin.startsWith("moz-extension://") ||
+      origin.startsWith("capacitor://") ||
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1") ||
+      origin.startsWith("https://localhost")
+    );
+  };
+
   app.use("/api/tec", (req: any, res: any, next: any) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const origin = req.headers.origin as string | undefined;
+    if (origin) {
+      if (!isAllowedTecOrigin(origin)) {
+        return res.status(403).json({ error: "Origem não autorizada." });
+      }
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
@@ -1831,18 +1896,19 @@ ${questionText}`;
     }
   });
 
-  app.post("/api/backup/auto", (_req, res) => {
+  app.post("/api/backup/auto", async (_req, res) => {
     try {
       const dataDir = process.env.DATA_DIR || path.join(process.cwd(), "data");
-      const dbFile = path.join(dataDir, "database.json");
-      if (!fs.existsSync(dbFile)) return res.json({ skipped: true });
       const backupDir = path.join(dataDir, "backups");
       if (!fs.existsSync(backupDir))
         fs.mkdirSync(backupDir, { recursive: true });
       const date = formatDateForDb(new Date());
       const dest = path.join(backupDir, `backup_${date}.json`);
       if (!fs.existsSync(dest)) {
-        fs.copyFileSync(dbFile, dest);
+        // Exporta pela API de storage (JSON ou SQLite) em vez de copiar um
+        // arquivo que pode nem existir no motor SQLite.
+        const json = await storage.exportDatabase();
+        fs.writeFileSync(dest, json, "utf-8");
         const files = fs
           .readdirSync(backupDir)
           .filter((f: string) => f.startsWith("backup_"))
@@ -1946,7 +2012,13 @@ ${questionText}`;
         limit: "128mb",
       });
     }
-    next(err);
+    if (res.headersSent) return next(err);
+    // Não vazar stack/caminho absoluto/mensagem interna para o cliente.
+    const requestId = `${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    console.error(`[API] Erro não tratado (${requestId}):`, err);
+    return res.status(500).json({ error: "Erro interno", requestId });
   });
 
   // Serve static uploads

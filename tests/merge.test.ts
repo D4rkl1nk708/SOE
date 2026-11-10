@@ -170,11 +170,9 @@ describe("smartMergeDatabases", () => {
       ],
     });
     const merged = smartMergeDatabases(a, database({ tecSnapshots: [] }), 1);
-    expect(merged.tecSnapshots).toHaveLength(2);
-    expect(merged.tecSnapshots.map((s: any) => s.importedAt)).toEqual([
-      ISO1,
-      ISO2,
-    ]);
+    const snapshots = merged.tecSnapshots ?? [];
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots.map((s: any) => s.importedAt)).toEqual([ISO1, ISO2]);
   });
 
   it("remapeia disciplineId/topicId dos flashcards e mantém o mais avançado", () => {
@@ -208,10 +206,11 @@ describe("smartMergeDatabases", () => {
     });
 
     const merged = smartMergeDatabases(pc, mobile, 1);
-    expect(merged.flashcards).toHaveLength(1);
-    expect(merged.flashcards[0].disciplineId).toBe(1);
-    expect(merged.flashcards[0].topicId).toBe(1);
-    expect(merged.flashcards[0].repetitions).toBe(5);
+    const flashcards = merged.flashcards ?? [];
+    expect(flashcards).toHaveLength(1);
+    expect(flashcards[0].disciplineId).toBe(1);
+    expect(flashcards[0].topicId).toBe(1);
+    expect(flashcards[0].repetitions).toBe(5);
   });
 
   it("não sobrescreve configurações locais com as do celular", () => {

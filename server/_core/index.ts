@@ -18,8 +18,12 @@ export async function createApp() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${port}/`);
+  // 127.0.0.1 por padrão: o app é local e o bind em 0.0.0.0 expunha o banco
+  // inteiro (inclusive chaves de IA) para qualquer dispositivo da rede.
+  // Para sincronizar com o celular na LAN: HOST=0.0.0.0 npm run dev
+  const host = process.env.HOST || "127.0.0.1";
+  server.listen(port, host, () => {
+    console.log(`Server running on http://${host}:${port}/`);
   });
 
   return { app, server };

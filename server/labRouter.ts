@@ -1,4 +1,5 @@
 import { router, protectedProcedure } from "./_core/trpc";
+import { safeJoin } from "./_core/safePath";
 import { z } from "zod";
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
@@ -419,7 +420,7 @@ ${chunkText}`;
       try {
         const db = await import("./db");
         const storagePath = path.join(process.cwd(), "data", "mined_exams");
-        const filePath = path.join(storagePath, input.fileName);
+        const filePath = safeJoin(storagePath, input.fileName);
         const contestId = input.fileName.replace(".json", "");
         await db.deleteQuestionsByContest(contestId, ctx.user.id);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -442,7 +443,7 @@ ${chunkText}`;
       let combinedContent = "";
       for (const f of input.fileNames) {
         const content = JSON.parse(
-          fs.readFileSync(path.join(storagePath, f), "utf-8"),
+          fs.readFileSync(safeJoin(storagePath, f), "utf-8"),
         );
         combinedContent += `\nPROVA: ${f}\nQUESTÕES:\n${JSON.stringify(content.map((q: any) => ({ s: q.statement, t: q.topic, sub: q.subject })))}`;
       }
@@ -468,7 +469,7 @@ ${chunkText}`;
       const db = await import("./db");
       const storagePath = path.join(process.cwd(), "data", "mined_exams");
       const questions = JSON.parse(
-        fs.readFileSync(path.join(storagePath, input.fileName), "utf-8"),
+        fs.readFileSync(safeJoin(storagePath, input.fileName), "utf-8"),
       );
       const topics = await db.getTopicsByUser(ctx.user.id, {});
       const topicList = topics.map((t) => t.name).join(", ");
@@ -488,7 +489,7 @@ ${chunkText}`;
   getJson: protectedProcedure
     .input(z.object({ fileName: z.string() }))
     .query(async ({ input }) => {
-      const filePath = path.join(
+      const filePath = safeJoin(
         process.cwd(),
         "data",
         "mined_exams",

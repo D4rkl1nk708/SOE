@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { safeJoin } from "./_core/safePath";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -676,10 +677,12 @@ export const appRouter = router({
         const path = await import("path");
         const dataDir =
           process.env.DATA_DIR || path.join(process.cwd(), "data");
-        const filePath =
+        const filePath = safeJoin(
+          dataDir,
           input.source === "root"
-            ? path.join(dataDir, input.name)
-            : path.join(dataDir, "backups", input.name);
+            ? input.name
+            : path.join("backups", input.name),
+        );
         if (!fs.existsSync(filePath)) throw new Error("Arquivo não encontrado");
         const json = fs.readFileSync(filePath, "utf-8");
         console.log(
@@ -710,10 +713,12 @@ export const appRouter = router({
         const path = await import("path");
         const dataDir =
           process.env.DATA_DIR || path.join(process.cwd(), "data");
-        const filePath =
+        const filePath = safeJoin(
+          dataDir,
           input.source === "root"
-            ? path.join(dataDir, input.name)
-            : path.join(dataDir, "backups", input.name);
+            ? input.name
+            : path.join("backups", input.name),
+        );
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }

@@ -87,7 +87,6 @@ vi.mock("@/lib/localDb", () => ({
 }));
 
 vi.mock("@/lib/trpc", () => {
-  const { vi } = import.meta.vitest;
   const mockSetPerformance = vi.fn();
   const mockAddStudyTime = vi.fn();
   const mockSaveQuestionError = vi.fn();

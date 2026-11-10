@@ -60,6 +60,14 @@ soe-backup-*.json
 
 # Android Studio
 android/.idea/
+
+# Assinatura de release do Android (credenciais locais, NUNCA commitar).
+# O debug.keystore continua versionado de propósito (build de debug e CI).
+android/keystore.properties
+android/*.keystore
+!android/debug.keystore
+*.jks
+
 # Ignore only the Capacitor-generated assets (not the whole assets dir)
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json

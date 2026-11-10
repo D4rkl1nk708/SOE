@@ -72,7 +72,6 @@ export function useAuth(options?: UseAuthOptions) {
 
     const user = localMode ? defaultUser : (meQuery.data ?? null);
 
-    localStorage.setItem("manus-runtime-user-info", JSON.stringify(user));
     return {
       user: user,
       loading: meQuery.isLoading || logoutMutation.isPending,
@@ -87,6 +86,22 @@ export function useAuth(options?: UseAuthOptions) {
     logoutMutation.error,
     logoutMutation.isPending,
   ]);
+
+  // Persistência fora do render: localStorage pode lançar (QuotaExceededError,
+  // modo privado, SSR) e isso não pode quebrar a renderização.
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "manus-runtime-user-info",
+        JSON.stringify(state.user),
+      );
+    } catch (error) {
+      console.warn(
+        "[Auth] Não foi possível persistir manus-runtime-user-info:",
+        error,
+      );
+    }
+  }, [state.user]);
 
   useEffect(() => {
     // Skip redirect in local mode

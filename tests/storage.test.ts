@@ -92,7 +92,7 @@ describe("storage helper", () => {
       text: async () => {
         throw new Error("No text");
       },
-    } as Response);
+    } as unknown as Response);
 
     await expect(storagePut("err.txt", "d")).rejects.toThrow("CriticalFailure");
   });

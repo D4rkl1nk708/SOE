@@ -16,13 +16,25 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "jsdom",
+    // happy-dom em vez de jsdom: o jsdom 29 traz `html-encoding-sniffer` +
+    // `@exodus/bytes` (ESM puro) e, em Node < 22.12, o require() interno estoura
+    // ERR_REQUIRE_ESM e os arquivos de teste nem iniciam.
+    environment: "happy-dom",
     include: ["tests/**/*.test.{ts,tsx}", "server/**/*.test.{ts,tsx}"],
+    // A suíte histórica assume o motor JSON (arquivos database.json).
+    // O motor SQLite tem spec dedicado: `npm run test:sqlite`.
+    env: {
+      SOE_STORAGE: "json",
+    },
+    server: {
+      deps: {
+        inline: ["html-encoding-sniffer", "@exodus/bytes"],
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
       reportsDirectory: "./coverage",
-      all: true,
       include: ["**/*.ts", "**/*.tsx"],
       exclude: [
         "node_modules",

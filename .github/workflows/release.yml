@@ -1,9 +1,8 @@
 ﻿name: Auto Release Build
 
 on:
-  push:
-    branches:
-      - main
+  # Release manual (Actions > Auto Release Build > Run workflow).
+  # Antes publicava a cada push na main, sem rodar lint/test/typecheck.
   workflow_dispatch:
 
 permissions:

@@ -5,7 +5,7 @@ Uma plataforma adaptativa baseada no método 25/50 dias + testes aleatórios. Fo
 ## 1. Visão Geral
 
 O SOE atua como um companheiro inteligente de aprendizagem. Mais do que um rastreador de editais, atua automatizando picos de revisão e rastreando métricas de retenção (acertos vs. erros).
-Os dados não exigem conectividade de nuvem central; residem de modo **100% offline via Local JSON Storage** em seu aparelho rodando SOE, protegendo a privacidade e removendo dependência de servidores web.
+Os dados residem **localmente** (Local JSON Storage no desktop, IndexedDB no mobile) e não dependem de nuvem; a sincronização PC↔celular é opcional e feita por export/import `.json` ou pela rede local.
 
 ### 1.1 Ecossistema Multi-Plataforma
 
@@ -21,15 +21,36 @@ Este projeto foi arquitetado em Electron/React/Capacitor para rodar de forma per
 
 A compilação e a distribuição cobrem tanto ambientes experimentais com dados fictícios ("Dados de Exemplo") quanto _limpos_ para empacotar o executável do usuário final.
 
+### Requisitos
+
+- **Node.js >= 22.12** (ver `.nvmrc`) e npm >= 10. O Node 22.12+ é necessário para `require()` de ESM; versões anteriores quebram parte dos testes.
+- Um único gerenciador/lockfile: **npm** (`package-lock.json`).
+
 ### Setup de Desenvolvimento
 
 Inicia a plataforma com dados `mocked` para desenvolvimento interativo rápido:
 
 ```bash
-npm install
-npm run dev               # Abre pelo navegador padrão na porta 3000
-npm run desktop:dev       # Abre com a janela nativa Desktop Electron
+npm ci                    # instala exatamente o lockfile
+npm run dev               # servidor em http://127.0.0.1:3000
+npm run desktop:dev       # janela nativa do Electron
 ```
+
+O servidor escuta em `127.0.0.1` por padrão. Para sincronizar com o celular na
+mesma rede, suba com `HOST=0.0.0.0` — o acesso remoto exige o token de sync
+(header `X-SOE-Token`).
+
+### Verificações
+
+```bash
+npm run check    # tsc --noEmit
+npm run lint     # eslint
+npm run test     # vitest (happy-dom)
+npm run build    # build de produção
+```
+
+> Atenção: `npm run build:clean` (usado pelos builds de distribuição) **não apaga mais**
+> o `data/database.json` existente. Para zerar de propósito: `node scripts/seed-clean.cjs --force`.
 
 ### Build Limpa (Produção Final Sem Dados Falsos)
 
@@ -48,7 +69,7 @@ npm run desktop:build:linux
 # Distribuição Windows Installer (.exe baseado em NSIS)
 npm run desktop:build:win
 
-# Build Android (APK assinado não necessita servidor web)
+# Build Android (APK de debug — para release, configure a keystore privada)
 npm run android:apk
 # Retirada do pacote debug: android/app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -57,7 +78,20 @@ npm run android:apk
 
 ## 3. Gestão de Dados & Sync
 
-Por não possuir banco _Cloud_ proprietário por questões de simplicidade técnica e portabilidade, a plataforma atua **exportando** e **importando** faxes da sua vida escolar (Extensão de Save `.json`).
+Por não possuir banco _Cloud_ proprietário por questões de simplicidade técnica e portabilidade, a plataforma atua **exportando** e **importando** faixas da sua vida escolar (Extensão de Save `.json`).
+
+### Onde os dados ficam
+
+O SOE tem dois motores de persistência atrás da mesma API:
+
+| Motor                                              | Quando é usado                                                  | Arquivo                  |
+| -------------------------------------------------- | --------------------------------------------------------------- | ------------------------ |
+| **SQLite** (`node:sqlite`, sem dependência nativa) | padrão no Electron e em Node com `--experimental-sqlite`        | `DATA_DIR/soe.sqlite`    |
+| **JSON** (legado)                                  | fallback quando `node:sqlite` não existe, ou `SOE_STORAGE=json` | `DATA_DIR/database.json` |
+
+Na primeira execução com SQLite, o `database.json` existente é **importado automaticamente** e o original fica guardado como `database.json.migrated-<timestamp>`. Se o arquivo estiver corrompido, ele é preservado como `.corrupt-<timestamp>` e o app falha alto — nunca sobrescreve os dados.
+
+Variáveis: `SOE_STORAGE=sqlite|json` força o motor; `SOE_LOCAL_TOKEN` é o token do processo Electron (gerado em `userData`).
 
 - Exporte via `Dashboard > Exportar Dados` num equipamento.
 - Importe este mesmo arquivo `.json` gerado para atualizar ou recuperar seu progresso vital (Cuidado: A função "Importar" sobrescreve massivamente o banco de dados da máquina instaladora e sua ação de apagar é permanente).
@@ -79,6 +113,7 @@ Na base da evolução pedagógica do App reside o Algoritmo Tutor Adaptativo, in
 
 ## 5. Changelog / Histórico
 
+- **v6.9.0 (10/11/2026)**: persistência em SQLite (`node:sqlite`, escrita incremental, migração automática do `database.json`), correções de segurança (RCE via resposta de LLM, bind em `127.0.0.1` com token para acesso remoto, export sem chaves, `contextIsolation` na janela do TEC, path traversal), Edital sem gravação por tecla, Sync sem “sucesso mentiroso”, testes tipados no `check` (341 casos), assinatura de release do Android por keystore e job E2E na CI.
 - **v5.5.0**: Sistema de Mineração Sequential AI (motor massivo para 200+ questões com chunking e desduplicação), Redesign do Command Center no Calendário (timeline vertical de alta densidade), Integração do Treino de Elite com o Mentor IA, e correções críticas de tipagem e performance.
 - **v5.4.0**: Super Inteligência Preditiva. Implementação de Mapeamento Psicológico de Distratores (detecção automática de viés cognitivo por tipo de alternativa errada), Auditoria de Pico de Performance (Time-of-Day Tracking com médias por horário), Peso Dinâmico por Edital (ROI inteligente), Simulador de Questão Maliciosa (já integrado ao briefing), e Simulação de Monte Carlo (predictive readiness com 1000 simulações).
 - **v5.3.0**: Salto evolutivo na Cognição da Inteligência Artificial. Implementação de Memória Histórica Punitiva (recordação dos últimos 5 diagnósticos), Modulação Psicológica Automática (Tone-Shifting de burnout/general), Detecção de Fuga Cognitiva (Ego-Inflation) e Bypass de Emergência no agendamento (inclusão de revisões críticas no mesmo dia).

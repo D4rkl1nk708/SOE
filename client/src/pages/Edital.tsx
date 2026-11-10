@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { trpc } from "@/lib/trpc";
+import { editalSync, serializeEditalRows } from "@/lib/editalSync";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -419,25 +420,72 @@ function EditalTab({
     });
   };
 
-  const saveAll = (newRows?: EditalTopico[]) => {
-    const toSave = newRows ?? rows;
-    updateSettings.mutate({
-      editalRows: toSave.map((r) => ({
-        id: r.id,
-        discipline: r.discipline,
-        topic: r.topic,
-        completed: !!r.completed,
-        notes: r.notes || "",
-        incidencia: r.incidencia,
-        quantidade: r.quantidade,
-        acerto: r.acerto,
-        revisar: r.revisar,
-        avancar: r.avancar,
-        discursiva: r.discursiva,
-        isHeader: r.isHeader,
-      })),
-    });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rowsRef = useRef<EditalTopico[]>(rows);
+  rowsRef.current = rows;
+
+  const toPayload = (list: EditalTopico[]) =>
+    list.map((r) => ({
+      id: r.id,
+      discipline: r.discipline,
+      topic: r.topic,
+      completed: !!r.completed,
+      notes: r.notes || "",
+      incidencia: r.incidencia,
+      quantidade: r.quantidade,
+      acerto: r.acerto,
+      revisar: r.revisar,
+      avancar: r.avancar,
+      discursiva: r.discursiva,
+      isHeader: r.isHeader,
+    }));
+
+  const persistRows = (list: EditalTopico[]) => {
+    editalSync.lastSavedJson = serializeEditalRows(list);
+    editalSync.pending = true;
+    updateSettings.mutate(
+      { editalRows: toPayload(list) },
+      {
+        onSettled: () => {
+          editalSync.pending = false;
+        },
+      },
+    );
   };
+
+  /**
+   * Grava com debounce: antes cada tecla no campo de acerto serializava o
+   * edital inteiro em uma mutation (digitar "75" = 2 writes completos).
+   */
+  const saveAll = (newRows?: EditalTopico[]) => {
+    const toSave = newRows ?? rowsRef.current;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      persistRows(toSave);
+    }, 500);
+  };
+
+  /** Grava agora (blur do campo / saída da tela). */
+  const flushSave = () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      persistRows(rowsRef.current);
+    }
+  };
+
+  useEffect(() => {
+    // Ao desmontar (trocar de aba ou rota), não perder a última edição pendente.
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        persistRows(rowsRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const versions = ((data?.settings as any)?.editalVersions || []) as Array<{
     id: string;
@@ -958,6 +1006,10 @@ function EditalTab({
                                       onChange={(e) =>
                                         updateAcerto(t.id, e.target.value)
                                       }
+                                      onBlur={flushSave}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") flushSave();
+                                      }}
                                     />
                                   </div>
                                 </td>
@@ -2152,7 +2204,12 @@ export default function Edital() {
 
   useEffect(() => {
     const saved = (data?.settings?.editalRows as EditalTopico[]) || [];
+    const incoming = serializeEditalRows(saved);
+    // Ignora o "eco" da nossa própria gravação e não sobrescreve uma edição
+    // que ainda está sendo enviada (era o que apagava a linha em digitação).
+    if (incoming === editalSync.lastSavedJson || editalSync.pending) return;
     setRows(saved);
+    editalSync.lastSavedJson = incoming;
   }, [data?.settings?.editalRows]);
 
   const tabs = [

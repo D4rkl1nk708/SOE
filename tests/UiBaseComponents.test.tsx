@@ -223,16 +223,20 @@ describe("UI Basic Components Coverage", () => {
     const config = { v1: { label: "V1", color: "red" } };
     render(
       <ChartContainer config={config}>
-        <ChartLegendContent
-          payload={[{ value: "v1", color: "red", type: "line", dataKey: "v1" }]}
-        />
-        <ChartTooltipContent
-          active
-          indicator="line"
-          payload={[
-            { name: "v1", value: 5, dataKey: "v1", payload: { fill: "red" } },
-          ]}
-        />
+        <div>
+          <ChartLegendContent
+            payload={[
+              { value: "v1", color: "red", type: "line", dataKey: "v1" },
+            ]}
+          />
+          <ChartTooltipContent
+            active
+            indicator="line"
+            payload={[
+              { name: "v1", value: 5, dataKey: "v1", payload: { fill: "red" } },
+            ]}
+          />
+        </div>
       </ChartContainer>,
     );
     expect(screen.getAllByText("V1").length).toBeGreaterThan(0);

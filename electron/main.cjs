@@ -1,9 +1,12 @@
 const { app, BrowserWindow, shell, ipcMain, Tray, Menu, Notification, nativeImage, session, dialog } = require("electron");
 
-// Fix: Disable setuid sandbox (requires root SUID bit which may not be set on all Linux systems)
-// This flag must be set before app is ready
-app.commandLine.appendSwitch("disable-setuid-sandbox");
-app.commandLine.appendSwitch("no-sandbox");
+// Em Linux o chrome-sandbox precisa do bit SUID de root, que nem sempre existe
+// na máquina do usuário. Desligar o sandbox em TODAS as plataformas (como era
+// antes) abria mão da principal barreira contra XSS no renderer.
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("disable-setuid-sandbox");
+  app.commandLine.appendSwitch("no-sandbox");
+}
 
 const path = require("path");
 const { fork } = require("child_process");
@@ -100,6 +103,28 @@ function setupAutoUpdater() {
 
 function initApp() {
   const fs = require("fs");
+
+  // Token local do processo: substitui a string pública "ELECTRON_MODE".
+  // Fica em userData (fora do asar) e só o processo do servidor o conhece.
+  function getLocalToken() {
+    const tokenFile = path.join(app.getPath("userData"), "soe-local-token");
+    try {
+      const existing = fs.readFileSync(tokenFile, "utf8").trim();
+      if (existing.length >= 32) return existing;
+    } catch {
+      /* ainda não existe */
+    }
+    const fresh = require("crypto").randomBytes(24).toString("hex");
+    try {
+      fs.mkdirSync(path.dirname(tokenFile), { recursive: true });
+      fs.writeFileSync(tokenFile, fresh, { encoding: "utf8", mode: 0o600 });
+    } catch (error) {
+      console.warn("[SOE] Não foi possível persistir o token local:", error?.message);
+    }
+    return fresh;
+  }
+
+  const localToken = getLocalToken();
 
   ipcMain.handle("soe-save-exam-pdf", async (_event, { html, fileName }) => {
     let win = null;
@@ -200,6 +225,23 @@ function initApp() {
     tray.setContextMenu(menu);
   }
 
+  /**
+   * Só http/https podem sair para o navegador do sistema. Sem isso, um link
+   * `file://` ou de esquema registrado herdava o preload e virava execução local.
+   */
+  function openExternalSafely(target) {
+    try {
+      const parsed = new URL(target);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        shell.openExternal(target);
+      } else {
+        console.warn("[SOE] Bloqueado openExternal para esquema não permitido:", parsed.protocol);
+      }
+    } catch {
+      console.warn("[SOE] URL inválida em openExternal:", String(target).slice(0, 120));
+    }
+  }
+
   function createWindow(url) {
     mainWindow = new BrowserWindow({
       width: 1400,
@@ -209,14 +251,26 @@ function initApp() {
       icon: path.join(__dirname, "..", "assets", "icons", "icon.png"),
       webPreferences: {
         contextIsolation: true,
+        nodeIntegration: false,
+        webviewTag: false,
         preload: path.join(__dirname, "preload.cjs"),
-        webviewTag: true,
       },
     });
 
     mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-      shell.openExternal(target);
+      openExternalSafely(target);
       return { action: "deny" };
+    });
+
+    // A janela principal só deve navegar para o próprio servidor local.
+    mainWindow.webContents.on("will-navigate", (event, target) => {
+      const isLocal =
+        target.startsWith("http://localhost:") ||
+        target.startsWith("http://127.0.0.1:");
+      if (!isLocal) {
+        event.preventDefault();
+        openExternalSafely(target);
+      }
     });
 
     mainWindow.on("closed", () => { mainWindow = null; });
@@ -281,12 +335,36 @@ function initApp() {
       height: 900,
       webPreferences: {
         preload: tecPreloadPath,
-        contextIsolation: false,
+        // contextIsolation impede que o JS da página do TEC (conteúdo remoto)
+        // alcance o preload/ipcRenderer. Antes era false: qualquer XSS no site
+        // conseguia forjar mensagens e disparar POSTs autenticados no SOE.
+        contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
+        webviewTag: false,
       },
     });
     tecWindow.setMenu(null);
+
+    tecWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+      openExternalSafely(target);
+      return { action: "deny" };
+    });
+
+    // Navegação restrita a https (bloqueia file:, javascript:, data:, etc.).
+    tecWindow.webContents.on("will-navigate", (event, target) => {
+      let protocol = "";
+      try {
+        protocol = new URL(target).protocol;
+      } catch {
+        event.preventDefault();
+        return;
+      }
+      if (protocol !== "https:" && protocol !== "http:") {
+        event.preventDefault();
+        console.warn("[SOE] Navegação bloqueada na janela TEC:", protocol);
+      }
+    });
     
     tecWindow.webContents.on('before-input-event', (event, input) => {
       if (input.key === "F12" && input.type === "keyDown") {
@@ -323,7 +401,7 @@ function initApp() {
   });
 
   ipcMain.on("soe-tec-message", async (event, data) => {
-    const token = global.SOE_PUSH_TOKEN || "ELECTRON_MODE";
+    const token = global.SOE_PUSH_TOKEN || localToken;
     const soeUrl = `http://localhost:${serverPort}`;
     let endpoint = "";
     if (data.type === "SOE_TEC_DATA") endpoint = "/api/tec/caderno-push";
@@ -383,7 +461,13 @@ function initApp() {
 
     return new Promise((resolve) => {
       apiProcess = fork(serverEntrypoint, {
-        env: { ...process.env, NODE_ENV: "production", PORT: String(DEFAULT_PORT), DATA_DIR: dataDir },
+        env: {
+          ...process.env,
+          NODE_ENV: "production",
+          PORT: String(DEFAULT_PORT),
+          DATA_DIR: dataDir,
+          SOE_LOCAL_TOKEN: localToken,
+        },
         stdio: ["pipe", "pipe", "pipe", "ipc"],
       });
 
@@ -392,7 +476,9 @@ function initApp() {
 
       apiProcess.stdout && apiProcess.stdout.on("data", (chunk) => {
         const output = String(chunk);
-        const match = output.match(/Server running on http:\/\/(?:localhost|0\.0\.0\.0):(\d+)\//);
+        const match = output.match(
+          /Server running on http:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)\//,
+        );
         if (match) {
           serverPort = Number(match[1]);
           finish(serverPort);

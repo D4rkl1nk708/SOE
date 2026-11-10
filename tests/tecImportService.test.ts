@@ -97,7 +97,10 @@ describe("tecImportService", () => {
       { id: 103, topicId: 20, userId, completed: true },
       { id: 104, topicId: 20, userId, completed: true },
     ] as any);
-    vi.mocked(storage.getUserSettings).mockResolvedValue({});
+    vi.mocked(storage.getUserSettings).mockResolvedValue({
+      theme: "light",
+      studyStreak: { current: 0, best: 0, lastStudyDate: null },
+    });
 
     await processImportRows(userId, [
       { disciplineName: "D1", themeName: "T1", correct: 15, errors: 2 },

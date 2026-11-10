@@ -70,18 +70,23 @@ export function extractJSON(text: string): unknown {
 
   try {
     return JSON.parse(jsonStr);
-  } catch (e) {
+  } catch {
     try {
-      // Fallback 1: Attempt to evaluate as a JS object (handles unquoted keys and some unescaped quotes)
-      return new Function("return " + jsonStr)();
-    } catch (eLoose) {
+      // Fallback SEGURO: repara chaves sem aspas e vírgulas sobrando.
+      // NUNCA usar eval/new Function aqui — o texto vem de um LLM e pode conter
+      // conteúdo controlado pelo usuário (prompt injection = execução de código).
+      const repaired = jsonStr
+        .replace(/,(\s*[}\]])/g, "$1")
+        .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":');
+      return JSON.parse(repaired);
+    } catch {
       const lastBrace = jsonStr.lastIndexOf("}");
       const lastBracket = jsonStr.lastIndexOf("]");
       const end = Math.max(lastBrace, lastBracket);
       if (end !== -1) {
         try {
           return JSON.parse(jsonStr.substring(0, end + 1));
-        } catch (e2) {}
+        } catch {}
       }
     }
   }

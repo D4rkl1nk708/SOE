@@ -82,9 +82,13 @@ describe("AIAnalysis Component", () => {
   });
 
   test("handles copy prompt", async () => {
-    // Mock clipboard
+    // Mock clipboard (defineProperty: navigator.clipboard é getter-only)
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText: mockWriteText } });
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: mockWriteText },
+      configurable: true,
+      writable: true,
+    });
 
     render(<AIAnalysis open={true} onClose={() => {}} />);
     const copyBtn = screen.getByText(/Copiar prompt/i);

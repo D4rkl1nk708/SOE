@@ -1,5 +1,5 @@
 // tests/analytics.test.ts
-/** @vitest-environment jsdom */
+/** @vitest-environment happy-dom */
 import {
   computeRiskScores,
   computeGradeProjection,

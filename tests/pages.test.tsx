@@ -90,9 +90,9 @@ vi.mock("@/lib/trpc", () => {
     topics: [{ id: 10, name: "Algebra", disciplineId: 1 }],
     disciplines: [{ id: 1, name: "Math", color: "#f00" }],
   };
-  const MOCK_FLASHCARDS = [];
+  const MOCK_FLASHCARDS: unknown[] = [];
   const MOCK_DISCIPLINES = MOCK_STATS.disciplineStats;
-  const MOCK_HEATMAP = [];
+  const MOCK_HEATMAP: unknown[] = [];
 
   const proxyCache = new Map<string, any>();
   const queryResultCache = new Map<string, any>();

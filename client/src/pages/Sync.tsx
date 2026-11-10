@@ -294,6 +294,24 @@ export default function Sync() {
     }
   }, []);
 
+  // Após importar/sincronizar dados, invalida as queries afetadas para que as
+  // telas mostrem o estado novo sem recarregar a página inteira.
+  const refreshSyncedQueries = useCallback(async () => {
+    await Promise.all([
+      trpcUtils.dashboard.getStats.invalidate(),
+      trpcUtils.calendar.getActivities.invalidate(),
+      trpcUtils.discipline.list.invalidate(),
+      trpcUtils.topic.list.invalidate(),
+      trpcUtils.revision.list.invalidate(),
+      trpcUtils.questionError.list.invalidate(),
+      trpcUtils.study.overview.invalidate(),
+      trpcUtils.study.dataHealth.invalidate(),
+      trpcUtils.import.checkSync.invalidate(),
+      trpcUtils.import.getSyncHistory.invalidate(),
+    ]);
+    fetchBackups();
+  }, [trpcUtils, fetchBackups]);
+
   useEffect(() => {
     fetchSyncInfo();
     fetchBackups();
@@ -403,13 +421,16 @@ export default function Sync() {
     percent: number;
     title: string;
     description: string;
+    status?: "success" | "partial";
   } | null>(null);
 
   const confirmImport = async (json: string, forceOverwrite = false) => {
-    const { localImportImportBackup, localImportExportBackup } =
-      await import("@/lib/localDb");
+    const { localImportImportBackup } = await import("@/lib/localDb");
     await localImportImportBackup({ json, forceOverwrite });
     toast.success("Dados sincronizados com sucesso!");
+    // Este modal substitui o banco local inteiro (forceOverwrite). Um reload é
+    // necessário para descartar módulos/estado que ainda apontem para o banco
+    // antigo; invalidar queries não alcança esses caches.
     setTimeout(() => window.location.reload(), 2000);
   };
 
@@ -471,41 +492,65 @@ export default function Sync() {
       setSyncProgress({
         active: true,
         percent: 75,
-        title: "Sincronizando de volta ao PC...",
-        description:
-          "Garantindo 100% de paridade bidirecional em ambos os lados",
+        title: "Enviando a mescla de volta ao PC...",
+        description: "Devolvendo ao PC os dados unificados deste celular",
       });
 
-      // Sincroniza de volta para o PC automaticamente para paridade imediata
+      // Sincroniza de volta para o PC. Se essa etapa falhar, o recebimento
+      // continua válido, mas o estado final precisa ser explícito: não houve
+      // paridade, então nada de "100% concluído".
+      let pushBackFailed = false;
       try {
         const mergedJson = await localImportExportBackup();
         const pushUrl = url.replace("/export", "/receive");
-        await nativeFetch(pushUrl, {
+        const pushRes = await nativeFetch(pushUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           data: mergedJson,
           timeoutMs: 120000,
         });
+        if (pushRes.status < 200 || pushRes.status >= 300) {
+          throw new Error(
+            `O PC recusou o envio de volta (HTTP ${pushRes.status})`,
+          );
+        }
       } catch (pushErr) {
-        console.warn("Could not sync back to PC:", pushErr);
+        pushBackFailed = true;
+        console.warn("Falha ao enviar os dados de volta ao PC:", pushErr);
       }
 
-      setSyncProgress({
-        active: true,
-        percent: 100,
-        title: "Sincronização 100% Concluída!",
-        description: "Todos os dados foram unificados no PC e no celular",
-      });
+      if (pushBackFailed) {
+        setSyncProgress({
+          active: true,
+          percent: 100,
+          status: "partial",
+          title: "Sincronização Parcial",
+          description: "Dados recebidos do PC, mas o envio de volta falhou",
+        });
+        toast.error(
+          "Dados recebidos do PC, mas o envio de volta falhou. O PC pode estar desatualizado — verifique a conexão e envie novamente.",
+        );
+      } else {
+        setSyncProgress({
+          active: true,
+          percent: 100,
+          status: "success",
+          title: "Sincronização Concluída!",
+          description: "Dados unificados no celular e enviados ao PC",
+        });
+        toast.success("Sincronização concluída com sucesso!");
+      }
 
-      toast.success("Sincronização concluída com sucesso!");
-      setTimeout(() => window.location.reload(), 2000);
+      await refreshSyncedQueries().catch(() => {});
+      // O modal não tem botão de fechar; antes era o reload que o removia.
+      setTimeout(() => setSyncProgress(null), pushBackFailed ? 6000 : 3500);
     } catch (e: any) {
       setSyncProgress(null);
       toast.error(e.message || "Erro na sincronização");
     } finally {
       setPulling(false);
     }
-  }, [nativeFetch]);
+  }, [nativeFetch, refreshSyncedQueries]);
 
   const handlePush = useCallback(async () => {
     setPushing(true);
@@ -563,11 +608,12 @@ export default function Sync() {
       setSyncProgress({
         active: true,
         percent: 80,
-        title: "Gravando Paridade no Celular...",
+        title: "Gravando a Mescla no Celular...",
         description: "Atualizando este dispositivo com a mescla final do PC",
       });
 
-      // Se o PC devolveu o banco completo mesclado, salva no celular para paridade total!
+      // Se o PC devolveu o banco completo mesclado, salva no celular para
+      // manter os dois lados alinhados.
       let respData = res.data;
       if (typeof respData === "string") {
         try {
@@ -575,6 +621,7 @@ export default function Sync() {
         } catch {}
       }
       recordSyncStats(respData?.stats, "push");
+      let deviceUpdated = false;
       if (respData?.database) {
         await localImportImportBackup({
           json:
@@ -583,24 +630,34 @@ export default function Sync() {
               : JSON.stringify(respData.database),
           forceOverwrite: true,
         });
+        deviceUpdated = true;
       }
 
       setSyncProgress({
         active: true,
         percent: 100,
-        title: "Sincronização 100% Concluída!",
-        description: "Celular e PC estão com dados exatamente iguais",
+        status: "success",
+        title: "Sincronização Concluída!",
+        description: deviceUpdated
+          ? "Dados enviados ao PC e mesclados neste dispositivo"
+          : "Dados enviados ao PC com sucesso",
       });
 
-      toast.success("Dados enviados e sincronizados em ambos!");
-      setTimeout(() => window.location.reload(), 2000);
+      toast.success(
+        deviceUpdated
+          ? "Dados enviados e mesclados no celular e no PC!"
+          : "Dados enviados ao PC com sucesso!",
+      );
+      await refreshSyncedQueries().catch(() => {});
+      // O modal não tem botão de fechar; antes era o reload que o removia.
+      setTimeout(() => setSyncProgress(null), 3500);
     } catch (e: any) {
       setSyncProgress(null);
       toast.error(e.message || "Erro no envio");
     } finally {
       setPushing(false);
     }
-  }, [nativeFetch]);
+  }, [nativeFetch, refreshSyncedQueries]);
 
   const handleExportFile = async () => {
     try {
@@ -757,8 +814,7 @@ Erros: ${errors}
         await localImportImportBackup({ json });
       }
       toast.success("Banco de dados importado com sucesso!");
-      refetchHistory();
-      setTimeout(() => window.location.reload(), 5000);
+      await refreshSyncedQueries().catch(() => {});
     } catch (err: any) {
       toast.error(err.message || "Arquivo inválido ou vazio");
     } finally {
@@ -786,7 +842,7 @@ Erros: ${errors}
       const { localImportImportBackup } = await import("@/lib/localDb");
       await localImportImportBackup({ json });
       toast.success("Sincronizado com a nuvem!");
-      setTimeout(() => window.location.reload(), 5000);
+      await refreshSyncedQueries().catch(() => {});
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -1162,9 +1218,9 @@ Erros: ${errors}
 
                     <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
                       <strong>💡 Dica:</strong> Após escanear e completar a
-                      transferência, ambos os dispositivos terão os dados
-                      sincronizados automaticamente. Não é necessário fazer nos
-                      dois sentidos.
+                      transferência, os dados são unificados automaticamente. Se
+                      alguma etapa falhar, a tela avisa que a sincronização foi
+                      apenas parcial.
                     </div>
                   </>
                 ) : (
@@ -1457,7 +1513,7 @@ Erros: ${errors}
                       try {
                         await pullFromSupabaseMutation.mutateAsync();
                         toast.success("Dados puxados da nuvem!");
-                        setTimeout(() => window.location.reload(), 800);
+                        await refreshSyncedQueries().catch(() => {});
                       } catch (e: any) {
                         toast.error(e.message || "Erro ao puxar dados");
                       } finally {
@@ -1552,6 +1608,10 @@ Erros: ${errors}
                                 source: b.source,
                               });
                               toast.success("Backup restaurado!");
+                              // A restauração substitui o banco inteiro pelo
+                              // conteúdo do arquivo. O reload garante que
+                              // nenhum estado em memória continue apontando
+                              // para os dados antigos.
                               setTimeout(() => window.location.reload(), 800);
                             } catch (e: any) {
                               toast.error(e.message);
@@ -1825,7 +1885,9 @@ Erros: ${errors}
               <div className="p-3 rounded-xl bg-secondary/40 border border-border/70 text-[11px] opacity-60 text-center">
                 {syncProgress.percent < 100
                   ? "Não feche o aplicativo durante a sincronização..."
-                  : "✓ Concluído! Recarregando para aplicar novos dados..."}
+                  : syncProgress.status === "partial"
+                    ? "⚠️ Dados recebidos, mas o envio de volta ao PC falhou."
+                    : "✓ Concluído! As telas já foram atualizadas."}
               </div>
             </motion.div>
           </div>

@@ -28,9 +28,11 @@ describe("mentorRouter and extractJSON", () => {
       vi.mocked(storage.getDisciplinesByUser).mockResolvedValue([
         {
           id: 10,
+          userId: 1,
           name: "Math",
           color: "#000",
           weight: 1,
+          order: 1,
           studyTimeSeconds: 0,
           createdAt: "",
           updatedAt: "",
@@ -84,6 +86,8 @@ describe("mentorRouter and extractJSON", () => {
           userId: 1,
           importedAt: "2024-01-01",
           totalQuestions: 100,
+          totalCorrect: 70,
+          totalErrors: 30,
           overallAccuracy: 70,
           topics: [],
         },
@@ -94,6 +98,7 @@ describe("mentorRouter and extractJSON", () => {
           disciplineName: "Math",
           accuracy: 45,
           questionsResolved: 10,
+          correctCount: 5,
           errorCount: 5,
         },
       ]);

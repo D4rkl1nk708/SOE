@@ -1,11 +1,11 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 // Read the tec-content.js script
 const content = fs.readFileSync('electron/tec-content.js', 'utf8');
 
 // 1. Build electron/tec-preload.cjs
-const preloadBody = `const { ipcRenderer, webFrame } = require("electron");
+const preloadBody = `const { ipcRenderer } = require("electron");
 
 // Prevent third-party web libraries (like jQuery on TEC) from detecting CommonJS module exports
 if (typeof window !== "undefined") {
@@ -17,12 +17,20 @@ if (typeof window !== "undefined") {
 
 window.__SOE_ELECTRON__ = true;
 
+// Só aceita mensagens da própria página do TEC (mesma origem): um iframe ou
+// anúncio injetado não pode acionar o IPC autenticado do app.
+function isTrustedRelayMessage(event) {
+  if (!event.data || !event.data._soe_internal) return false;
+  if (event.source !== window) return false;
+  const origin = event.origin || "";
+  return /^https:\\/\\/([a-z0-9-]+\\.)*tecconcursos\\.com\\.br$/.test(origin);
+}
+
 // Relay from content.js (isolated window) -> React host
 window.addEventListener("message", (e) => {
-  if (e.data && e.data._soe_internal) {
-    if (e.data.type && !e.data.type.endsWith('_RESPONSE')) {
-      ipcRenderer.send("soe-tec-message", e.data);
-    }
+  if (!isTrustedRelayMessage(e)) return;
+  if (e.data.type && !e.data.type.endsWith("_RESPONSE")) {
+    ipcRenderer.send("soe-tec-message", e.data);
   }
 });
 

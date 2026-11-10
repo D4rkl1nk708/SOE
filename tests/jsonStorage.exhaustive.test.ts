@@ -31,9 +31,11 @@ describe("jsonStorage Exhaustive Coverage V2", () => {
       userId,
       name: "Mock 1",
       date: "2024-05-01",
+      correct: 80,
+      wrong: 20,
+      blank: 0,
       score: 80,
       totalQuestions: 100,
-      disciplineStats: {},
     });
     expect(exam.id).toBeDefined();
 
@@ -375,11 +377,10 @@ describe("jsonStorage Exhaustive Coverage V2", () => {
   it("should handle Cadernos and Error Analysis", async () => {
     await storage.saveCadernoTec(userId, {
       cadernoId: "c1",
-      name: "Caderno 1",
-      totalQuestions: 100,
-      solvedCount: 10,
-      accuracy: 90,
-      lastUpdate: "2024-01-01",
+      cadernoUrl: "https://www.tecconcursos.com.br/cadernos/c1",
+      disciplina: "Caderno 1",
+      lastSync: "2024-01-01T00:00:00.000Z",
+      topicsCount: 10,
     });
     // Cadernos are stored in db.cadernosTec[userId]
     const dbStr = await storage.exportDatabase();
@@ -388,6 +389,7 @@ describe("jsonStorage Exhaustive Coverage V2", () => {
     const error = await storage.saveQuestionError({
       userId,
       topicId: 1,
+      disciplineId: 1,
       questionId: "q1",
       banca: "B",
       statement: "S",
@@ -453,6 +455,7 @@ describe("jsonStorage Exhaustive Coverage V2", () => {
     await storage.saveQuestionError({
       userId,
       topicId: 1,
+      disciplineId: 1,
       questionId: "q1",
       banca: "B",
       statement: "S",

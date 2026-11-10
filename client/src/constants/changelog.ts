@@ -11,6 +11,59 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.0",
+    date: "10/11/2026",
+    title: "Persistência em SQLite, correções de segurança e Edital mais leve",
+    categories: [
+      {
+        title: "💾 Dados",
+        type: "improvement",
+        items: [
+          "O banco agora usa SQLite (sem dependência nativa) com escrita incremental: só o que mudou é gravado, dentro de uma transação.",
+          "A migração do database.json é automática na primeira abertura; o arquivo original fica guardado como .migrated-<data>.",
+          "Se o banco estiver corrompido, ele é preservado como .corrupt-<data> em vez de ser sobrescrito.",
+          "O backup automático passou a exportar pela API de storage e funciona nos dois motores.",
+        ],
+      },
+      {
+        title: "🔐 Segurança",
+        type: "fix",
+        items: [
+          "Removida a execução de código (new Function) sobre respostas da IA.",
+          "O servidor local escuta apenas em 127.0.0.1; acesso pela rede exige token.",
+          "Exportação e sync não levam mais chave de IA nem token de sincronização.",
+          "A janela do TEC Concursos roda com contextIsolation e valida a origem das mensagens.",
+          "Rotas de arquivo protegidas contra path traversal.",
+        ],
+      },
+      {
+        title: "⚡ Edital",
+        type: "fix",
+        items: [
+          "Editar o acerto não grava mais o edital inteiro a cada tecla: a gravação é agrupada e confirmada ao sair do campo.",
+          "Uma atualização de dados não apaga mais a linha que você está editando.",
+        ],
+      },
+      {
+        title: "🔁 Sincronização",
+        type: "fix",
+        items: [
+          "Quando o envio de volta falha, o app mostra Sincronização Parcial em vez de afirmar que deu tudo certo.",
+          "Menos recarregamentos de página: as telas atualizam os dados em vez de reiniciar o app.",
+        ],
+      },
+      {
+        title: "🛠️ Qualidade",
+        type: "improvement",
+        items: [
+          "Os testes agora também passam pelo typecheck (341 casos) e a suíte roda de forma reprodutível.",
+          "Pipeline com testes E2E e release manual, evitando publicar a cada push.",
+          "Build de release do Android passa a usar keystore própria quando configurada.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.8.1",
     date: "29/10/2026",
     title: "Nome do tópico inteiro no calendário e treino direto no dia",

@@ -59,7 +59,9 @@ describe("localDb exhaustive mock test", () => {
     const funcs = Object.values(localDb).filter((f) => typeof f === "function");
     for (const f of funcs) {
       try {
-        await f({ id: 1, topicId: 1, disciplineId: 1 });
+        await Reflect.apply(f, undefined, [
+          { id: 1, topicId: 1, disciplineId: 1 },
+        ]);
       } catch (e) {}
     }
     expect(true).toBe(true);

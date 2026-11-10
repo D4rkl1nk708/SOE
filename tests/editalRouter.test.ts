@@ -3,7 +3,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "../server/routers";
 import * as storage from "../server/jsonStorage";
 import { callAiProvider } from "../server/aiProviders";
-import * as pdfParseModule from "pdf-parse/lib/pdf-parse.js";
 
 vi.mock("../server/jsonStorage");
 vi.mock("../server/aiProviders");

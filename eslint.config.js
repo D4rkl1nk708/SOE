@@ -51,8 +51,12 @@ export default [
       "react/prop-types": "off",
       "react/display-name": "off",
       "react/no-unescaped-entities": "off",
-      "react-hooks/rules-of-hooks": "off",
-      "react-hooks/exhaustive-deps": "off",
+      // Regras de hooks religadas: eram as que escondiam bugs reais de React
+      // (hooks condicionais, dependências faltando em useEffect).
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      // Catch vazio escondia falha de I/O (inclusive de escrita no banco).
+      "no-empty": ["warn", { allowEmptyCatch: true }],
     },
     settings: {
       react: {

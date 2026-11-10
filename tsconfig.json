@@ -18,8 +18,7 @@
     "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"],
-      "@assets/*": ["./attached_assets/*"]
+      "@shared/*": ["./shared/*"]
     },
     "types": ["node", "vite/client"]
   },

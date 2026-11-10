@@ -17,7 +17,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'npm'
 
     - name: Install dependencies
@@ -42,7 +42,7 @@ jobs:
       run: npm run check
 
     - name: Lint
-      run: npx eslint . --max-warnings 0
+      run: npx eslint .   # erros falham; warnings de exhaustive-deps são visíveis
 
     - name: Run unit tests
       run: npm run test
@@ -65,3 +65,66 @@ jobs:
         done
         cat /tmp/soe-smoke.log
         exit 1
+
+  # Job independente: não tem "needs" e não bloqueia build-and-test.
+  # Sobe o servidor de produção e roda os testes Playwright contra ele.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+
+    - name: Build
+      run: npm run build
+
+    - name: Start production server
+      run: |
+        DATA_DIR="$(mktemp -d)"
+        export DATA_DIR
+        PORT=3101 NODE_ENV=production node dist/index.cjs > /tmp/soe-e2e.log 2>&1 &
+        echo $! > /tmp/soe-e2e.pid
+        for i in $(seq 1 60); do
+          if curl -fsS http://127.0.0.1:3101/api/health | grep -q '"status":"ok"'; then
+            echo "Servidor pronto em http://127.0.0.1:3101 (DATA_DIR=$DATA_DIR)"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Servidor não respondeu em /api/health. Log:"
+        cat /tmp/soe-e2e.log
+        exit 1
+
+    - name: Run Playwright tests
+      env:
+        PLAYWRIGHT_BASE_URL: http://127.0.0.1:3101
+      run: npx playwright test
+
+    - name: Upload Playwright report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 7
+        if-no-files-found: ignore
+
+    - name: Stop production server
+      if: always()
+      run: |
+        if [ -f /tmp/soe-e2e.pid ]; then
+          kill "$(cat /tmp/soe-e2e.pid)" 2>/dev/null || true
+        fi
+

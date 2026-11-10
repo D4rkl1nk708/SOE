@@ -10,7 +10,21 @@ import { getLoginUrl, isLocalMode } from "./const";
 import { createLocalLink } from "./lib/localLink";
 import "./index.css";
 
-const queryClient = new QueryClient();
+// App local/offline: refetch agressivo só custa CPU e I/O de disco.
+// Antes: retry 3 + staleTime 0 em 145 queries.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (isLocalMode()) return;

@@ -84,10 +84,19 @@ export default function MentorSession() {
   const globalProvider = (stats?.settings as any)?.aiProvider ?? "gemini";
 
   const [apiKey, setApiKey] = useState(
-    () => localStorage.getItem(API_KEY_KEY) ?? "",
+    // Fallback para a chave gravada por telas antigas ("soe_ai_apikey"):
+    // sem isso, quem configurava a chave aqui continuava vendo "chave não
+    // configurada" nos módulos de discursivas/OCR.
+    () =>
+      localStorage.getItem(API_KEY_KEY) ??
+      localStorage.getItem("soe_ai_apikey") ??
+      "",
   );
   const [provider, setProvider] = useState<"claude" | "gemini" | "openai">(
-    () => (localStorage.getItem(API_PROVIDER_KEY) as any) ?? "gemini",
+    () =>
+      (localStorage.getItem(API_PROVIDER_KEY) ??
+        localStorage.getItem("soe_ai_provider") ??
+        "gemini") as "claude" | "gemini" | "openai",
   );
 
   useEffect(() => {
@@ -254,6 +263,10 @@ export default function MentorSession() {
     }
     localStorage.setItem(API_KEY_KEY, apiKey);
     localStorage.setItem(API_PROVIDER_KEY, provider);
+    // Mantém as chaves legadas em sincronia: várias telas (discursivas, OCR,
+    // widgets) leem "soe_ai_apikey"/"soe_ai_provider".
+    localStorage.setItem("soe_ai_apikey", apiKey);
+    localStorage.setItem("soe_ai_provider", provider);
     setPhase("profile");
   };
 

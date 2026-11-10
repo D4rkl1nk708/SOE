@@ -101,7 +101,7 @@ describe("labRouter procedures", () => {
       apiKey: "key",
       provider: "openai",
     });
-    expect(res.mapping).toBeDefined();
+    expect(res).toEqual({ mapping: [] });
   });
 
   it("searchOnlineExams returns results from Google", async () => {

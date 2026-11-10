@@ -12,6 +12,34 @@ def versionNameStr = getSoeVersion()
 def versionParts = versionNameStr.split('\\.')
 def versionCodeNum = versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger()
 
+// Assinatura de release: credenciais ficam em android/keystore.properties,
+// que NÃO é versionado (ver .gitignore e keystore.properties.example).
+// O arquivo é opcional: sem ele o build continua (fallback para a debug key),
+// mas o APK resultante NÃO serve para publicar em produção.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+
+def requiredKeystoreKeys = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+def hasReleaseKeystore = keystorePropertiesFile.exists() &&
+        requiredKeystoreKeys.every { key -> keystoreProperties[key]?.trim() }
+
+def warnMissingReleaseKeystore = {
+    println ""
+    println "######################################################################"
+    println "#  AVISO: assinatura de release NAO configurada.                    #"
+    println "#  android/keystore.properties ausente ou incompleto.               #"
+    println "#  O build de release usara a chave de DEBUG e o APK/AAB gerado     #"
+    println "#  NAO esta assinado para producao. Nao publique na Play Store.     #"
+    println "#  Crie android/keystore.properties (veja o .example no repo).      #"
+    println "######################################################################"
+    println ""
+}
+
 android {
     namespace = "com.soe.estudos"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -36,6 +64,16 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Só declara a signingConfig de release se as credenciais existirem.
+        if (hasReleaseKeystore) {
+            release {
+                // storeFile é relativo a android/app (ou um caminho absoluto).
+                storeFile file(keystoreProperties['storeFile'].trim())
+                storePassword keystoreProperties['storePassword'].trim()
+                keyAlias keystoreProperties['keyAlias'].trim()
+                keyPassword keystoreProperties['keyPassword'].trim()
+            }
+        }
     }
 
     buildTypes {
@@ -43,7 +81,12 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                warnMissingReleaseKeystore()
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

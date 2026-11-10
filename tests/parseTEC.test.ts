@@ -2,7 +2,20 @@
 import { describe, expect, it } from "vitest";
 
 // Copy of the function from QuestionSession.tsx since it's not exported
-function parseTEC(raw: string) {
+interface ParsedQuestion {
+  questionId?: string;
+  banca?: string;
+  year?: number;
+  contest?: string;
+  statement: string;
+  alternatives: { letter: string; text: string }[];
+  userAnswer?: string;
+  correctAnswer?: string;
+}
+
+function parseTEC(
+  raw: string,
+): { ok: true; q: ParsedQuestion } | { ok: false; error: string } {
   const text = raw.trim();
   if (!text) return { ok: false, error: "Cole uma questão primeiro." };
 

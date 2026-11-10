@@ -12,11 +12,20 @@ const path = require("path");
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "database.json");
+const FORCE = process.argv.includes("--force");
 
-// Sempre remover arquivo antigo para garantir build limpa
+// NUNCA apagar o banco existente por padrão: `build:clean` é pré-requisito de
+// desktop:build:* e android:build, então um build de distribuição na máquina de
+// dev destruía o histórico local silenciosamente.
 if (fs.existsSync(DB_FILE)) {
+  if (!FORCE) {
+    console.log(
+      "data/database.json já existe; mantido intacto (use --force para zerar).",
+    );
+    process.exit(0);
+  }
   fs.unlinkSync(DB_FILE);
-  console.log("Arquivo data/database.json antigo removido.");
+  console.log("Arquivo data/database.json antigo removido (--force).");
 }
 
 const now = new Date().toISOString();

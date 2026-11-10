@@ -212,6 +212,7 @@ describe("jsonStorage Integration Tests", () => {
     await storage.saveQuestionError({
       userId: user.id,
       topicId: 1,
+      disciplineId: 1,
       questionId: "#123",
       banca: "FGV",
       statement: "Statement",

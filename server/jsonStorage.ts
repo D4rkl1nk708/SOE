@@ -42,7 +42,7 @@ import { smartMergeDatabases, normalizeString } from "../shared/merge";
 import * as fs from "fs";
 import * as path from "path";
 
-// ── Core Storage Engine delegated to server/storage/engine.ts ─────────────────
+// ── Core Storage Engine delegated to server/storage (SQLite ou JSON) ──────────
 import {
   readDatabase,
   writeDatabase,
@@ -53,8 +53,10 @@ import {
   getDataDir,
   getDbFile,
   getEmptyDatabase,
+  getLastWriteError,
   now,
-} from "./storage/engine";
+  closeDatabase,
+} from "./storage/index";
 
 export {
   readDatabase,
@@ -66,7 +68,9 @@ export {
   getDataDir,
   getDbFile,
   getEmptyDatabase,
+  getLastWriteError,
   now,
+  closeDatabase,
 };
 
 // ============ STUDY EVENT LEDGER ============
@@ -1141,6 +1145,20 @@ export async function deleteNote(id: number, userId: number): Promise<void> {
 
 // ============ BACKUP OPERATIONS ============
 
+/**
+ * Remove credenciais do payload exportado. Chaves de IA e push token nunca
+ * devem sair do aparelho, nem em backup/sync.
+ */
+function withoutSecrets<T extends { settings?: object }>(user: T): T {
+  if (!user || !user.settings) return user;
+  const {
+    aiApiKey: _ai,
+    pushToken: _token,
+    ...safeSettings
+  } = user.settings as Record<string, unknown>;
+  return { ...user, settings: safeSettings as T["settings"] };
+}
+
 export async function exportDatabaseForUser(userId: number): Promise<string> {
   const db = readDatabase();
   const user = db.users.find((u) => u.id === userId);
@@ -1149,7 +1167,7 @@ export async function exportDatabaseForUser(userId: number): Promise<string> {
   // Filter all tables for this user
   const userDb = {
     ...db,
-    users: [user],
+    users: [withoutSecrets(user)],
     disciplines: db.disciplines.filter((d) => d.userId === userId),
     topics: db.topics.filter((t) => t.userId === userId),
     revisions: db.revisions.filter((r) => r.userId === userId),
@@ -1178,7 +1196,13 @@ export async function exportDatabaseForUser(userId: number): Promise<string> {
 
 export async function exportDatabase(): Promise<string> {
   const db = readDatabase();
-  return JSON.stringify(db, null, 2);
+  // Nunca exportar `aiApiKey`/`pushToken`: o endpoint /api/sync/export era
+  // acessível sem autenticação e entregava as chaves de IA em texto claro.
+  return JSON.stringify(
+    { ...db, users: db.users.map(withoutSecrets) },
+    null,
+    2,
+  );
 }
 
 export async function importDatabaseForUser(
@@ -1266,6 +1290,9 @@ export async function addSyncHistory(
 
     // Keep only last 20 entries (10 of each type roughly, but let's just keep 20 total)
     user.settings.syncHistory = user.settings.syncHistory.slice(0, 20);
+    // Faltava persistir: o histórico de sync era mutado só na memória e
+    // reaparecia vazio após reiniciar o app.
+    writeDatabase(db);
   });
 }
 
@@ -2922,9 +2949,11 @@ export async function getUserByPushToken(
   if (!token || token.length < 8) return undefined;
   const db = readDatabase();
 
-  // Modo Electron: quando não há push token configurado, o Electron envia "ELECTRON_MODE".
-  // Nesse caso, retornamos o primeiro usuário disponível (desktop é single-user).
-  if (token === "ELECTRON_MODE") {
+  // Token local do processo (gerado pelo Electron em userData e injetado via
+  // env). Antes existia a string pública "ELECTRON_MODE", que qualquer um
+  // podia enviar para virar o users[0].
+  const localToken = process.env.SOE_LOCAL_TOKEN;
+  if (localToken && localToken.length >= 16 && token === localToken) {
     return db.users[0];
   }
 
