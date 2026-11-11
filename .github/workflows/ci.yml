@@ -85,7 +85,24 @@ jobs:
       run: npm ci
 
     - name: Install Playwright browsers
-      run: npx playwright install --with-deps chromium
+      # O `install --with-deps` (que roda apt) foi o passo que falhou na
+      # primeira execução. Agora: baixa o Chromium com retry e tenta as libs
+      # do sistema em separado, sem derrubar o job se o apt falhar.
+      run: |
+        npx playwright --version
+        installed=0
+        for attempt in 1 2 3; do
+          if npx playwright install chromium; then installed=1; break; fi
+          echo "::warning::tentativa $attempt de baixar o Chromium falhou; aguardando 5s"
+          sleep 5
+        done
+        if [ "$installed" -ne 1 ]; then
+          echo "::error::Não foi possível baixar o Chromium após 3 tentativas"
+          exit 1
+        fi
+        if ! npx playwright install-deps chromium; then
+          echo "::warning::install-deps falhou; seguindo com as libs já presentes na imagem do runner"
+        fi
 
     - name: Build
       run: npm run build

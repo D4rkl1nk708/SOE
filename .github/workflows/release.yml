@@ -1,14 +1,43 @@
-﻿name: Auto Release Build
+name: Auto Release Build
 
 on:
-  # Release manual (Actions > Auto Release Build > Run workflow).
-  # Antes publicava a cada push na main, sem rodar lint/test/typecheck.
+  # Build + publish automático a cada push na main, mas SÓ depois que o job
+  # `quality` (typecheck + lint + testes) passar. Se a versão já tiver tag
+  # publicada, os builds são pulados (evita release duplicada).
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Portão de qualidade: nada é empacotado/publicado se isto falhar.
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Unit tests
+        run: npm run test
+
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -43,7 +72,7 @@ jobs:
           fi
 
   build-android:
-    needs: prepare
+    needs: [prepare, quality]
     if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: Production
@@ -123,7 +152,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    needs: prepare
+    needs: [prepare, quality]
     if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: Production
@@ -193,7 +222,7 @@ jobs:
           if-no-files-found: error
 
   build-windows:
-    needs: prepare
+    needs: [prepare, quality]
     if: needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     environment: Production
@@ -270,8 +299,8 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    needs: [prepare, build-android, build-linux, build-windows]
-    if: always() && (needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch') && (needs.build-android.result == 'success' || needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
+    needs: [prepare, quality, build-android, build-linux, build-windows]
+    if: always() && needs.quality.result == 'success' && (needs.prepare.outputs.tag_exists == 'false' || github.event_name == 'workflow_dispatch') && (needs.build-android.result == 'success' || needs.build-linux.result == 'success' || needs.build-windows.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
