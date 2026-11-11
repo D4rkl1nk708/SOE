@@ -69,7 +69,10 @@ jobs:
   # Job independente: não tem "needs" e não bloqueia build-and-test.
   # Sobe o servidor de produção e roda os testes Playwright contra ele.
   e2e:
-    runs-on: ubuntu-latest
+    # ubuntu-latest virou 26.04 e o Playwright 1.59 ainda não publica build para
+    # essa distro ("does not support chromium on ubuntu26.04-x64"). Fixamos a
+    # imagem suportada até subir o Playwright para uma versão com suporte.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
