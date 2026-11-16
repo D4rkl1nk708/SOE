@@ -42,7 +42,9 @@ export function ChangelogModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-2xl bg-[#0b0f1a] border-border/70 p-0 overflow-hidden rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.7)]">
+      {/* O X nativo do DialogContent fica fora do cartão e duplicava o botão
+          de fechar do cabeçalho — escondemos ele ([&>button]:hidden). */}
+      <DialogContent className="max-w-2xl bg-[#0b0f1a] border-border/70 p-0 overflow-hidden rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.7)] [&>button]:hidden">
         <div className="relative">
           {/* Header Visual */}
           <div className="h-40 bg-gradient-to-br from-[var(--primary)]/20 to-blue-600/10 flex items-center justify-center relative overflow-hidden">
