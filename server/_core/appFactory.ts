@@ -757,6 +757,10 @@ export async function configureApp(): Promise<{
 
   // Cache de deduplicação em memória (Key -> Timestamp)
   const tecDedupCache = new Map<string, number>();
+  // Assinatura da questão -> timestamp: a MESMA questão nunca conta duas vezes,
+  // mesmo que o cliente mude a URL entre a resposta e o comentário.
+  const tecSignatureCache = new Map<string, number>();
+  const TEC_SIGNATURE_TTL_MS = 10 * 60 * 1000;
 
   app.post(
     "/api/tec/increment",
@@ -780,6 +784,7 @@ export async function configureApp(): Promise<{
           errorAdd,
           timeSpentSeconds,
           dedupKey,
+          questionSignature,
         } = req.body;
 
         const disciplinaName = rawDisciplina || "TEC Concursos";
@@ -793,6 +798,28 @@ export async function configureApp(): Promise<{
               "Incremento inválido: cada resposta registra no máximo uma questão.",
             received: { correctAdd, errorAdd },
           });
+        }
+
+        // Deduplicação por identidade da questão: vale 10 minutos e é o que
+        // impede a mesma resposta de contar duas vezes.
+        if (questionSignature) {
+          const signatureKey = `${user.id}:${String(questionSignature).slice(0, 120)}`;
+          const now = Date.now();
+          const seenAt = tecSignatureCache.get(signatureKey);
+          if (seenAt && now - seenAt < TEC_SIGNATURE_TTL_MS) {
+            console.log(
+              `[TEC SERVER] Questão já contabilizada (${signatureKey}) — ignorando`,
+            );
+            return res.json({ ok: true, duplicated: true });
+          }
+          tecSignatureCache.set(signatureKey, now);
+          if (tecSignatureCache.size > 2000) {
+            for (const [key, stamp] of tecSignatureCache) {
+              if (now - stamp > TEC_SIGNATURE_TTL_MS) {
+                tecSignatureCache.delete(key);
+              }
+            }
+          }
         }
 
         // Deduplicação básica: se a mesma questão for enviada em menos de 15s, ignora

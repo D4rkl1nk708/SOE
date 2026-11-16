@@ -11,6 +11,22 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.3",
+    date: "16/11/2026",
+    title: "Contagem exata no TEC",
+    categories: [
+      {
+        title: "🎯 Captura do TEC",
+        type: "fix",
+        items: [
+          "Cada resposta conta uma vez só: a identificação da questão passou a usar o número da questão ou o início do enunciado, em vez da URL — que muda depois de responder e fazia a mesma resposta contar duas vezes.",
+          "O servidor descarta, por 10 minutos, resposta repetida da mesma questão — segunda barreira contra contagem dupla.",
+          "Nenhuma requisição extra ao TEC: a captura continua sendo só leitura da página que você já abriu.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.2",
     date: "16/11/2026",
     title: "Sessão que analisa de verdade, Feynman e o TEC do tema",

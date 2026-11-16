@@ -245,6 +245,68 @@
     }
   }, 500);
 
+
+  /**
+   * Identidade estável da questão.
+   *
+   * O id (#12345) é o ideal. Quando ele não é raspável, usamos o início do
+   * enunciado — NUNCA a URL: na SPA do TEC a URL muda depois de responder e a
+   * mesma resposta era contabilizada duas vezes (2 questões viravam 4).
+   */
+  function stableHash(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i += 1) {
+      h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  function normalizeSnippet(value) {
+    return String(value || '')
+      .replace(/Voc[eê] (acertou|errou)!?/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function extractStatementSnippet() {
+    const selectors = [
+      '[class*="enunciado"]',
+      '[class*="statement"]',
+      '[id*="enunciado"]',
+      '[class*="question-text"]',
+      '[class*="questao"]',
+      'article',
+    ];
+    for (const selector of selectors) {
+      try {
+        const element = document.querySelector(selector);
+        const clean = normalizeSnippet(element && element.innerText);
+        if (clean.length >= 60) return clean.slice(0, 400);
+      } catch (_) {}
+    }
+    try {
+      const text = document.body ? document.body.innerText : '';
+      const match = text.match(/#\s*\d{2,8}[^\n]*\n([\s\S]{60,1200})/);
+      const clean = normalizeSnippet(match ? match[1] : '');
+      return clean ? clean.slice(0, 400) : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function buildQuestionSignature(questionId, disciplina, assunto) {
+    if (questionId) return 'qid:' + String(questionId);
+    const snippet = extractStatementSnippet();
+    if (snippet.length >= 60) {
+      return 'stmt:' + stableHash((disciplina || '') + '|' + (assunto || '') + '|' + snippet);
+    }
+    // Último recurso: caminho sem query/hash (o que menos muda).
+    return 'url:' + location.pathname;
+  }
+
   function tryScrapeDOM() {
     const rows = scrapeQuestionHeader();
     const bodyText = document.body.innerText;
@@ -279,11 +341,19 @@
     const erroMatch   = bodyText.match(/Você errou!|Resposta errada|Alternativa incorreta|Errou|Gabarito Incorreto|Gabarito: Errado/i) ||
                         document.querySelector('.errada, .q-errada, .wrong, .danger, .text-danger, [class*="errou"], [class*="wrong"], [class*="error-answer"], [class*="incorrect"], [class*="bg-danger"], .feedback-error, .is-wrong, i.fa-times, svg.text-danger, .resposta-errada');
 
-    // If we can't find questionId at all, use URL as dedup key
+    // Identidade da questão para decidir "já contei esta?" — id quando existe,
+    // senão o começo do enunciado. A URL muda depois de responder e fazia a
+    // mesma questão contar duas vezes.
+    const questionSignature = buildQuestionSignature(
+      questionId,
+      rows[0]?.disciplina,
+      rows[0]?.assunto,
+    );
+    // dedupKey continua sendo o identificador enviado ao servidor.
     const dedupKey = questionId || location.href;
 
-    if (dedupKey && (acertoMatch || erroMatch)) {
-      const storageKey = 'soe_scored_' + dedupKey.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+    if (questionSignature && (acertoMatch || erroMatch)) {
+      const storageKey = 'soe_scored_' + questionSignature.replace(/[^a-z0-9]/gi, '_').slice(0, 80);
       if (!sessionStorage.getItem(storageKey)) {
         const timeSpentSeconds = Math.max(1, Math.floor((Date.now() - questionStartTime) / 1000));
         if (timeSpentSeconds < 1) {
@@ -316,6 +386,7 @@
               errorAdd: isError ? 1 : 0,
               timeSpentSeconds,
               dedupKey: dedupKey,
+              questionSignature: questionSignature,
             },
             _soe_internal: true,
           }, '*');
