@@ -1814,7 +1814,17 @@ ${questionText}`;
       typeof addr === "object" && addr !== null
         ? addr.port
         : parseInt(process.env.PORT || "3000");
-    res.json({ ips, details, port: currentPort });
+    // Onde o servidor realmente escuta. Em 127.0.0.1 o celular nunca
+    // conecta, por mais que PC e celular estejam no mesmo Wi-Fi.
+    const bindHost = process.env.HOST || "127.0.0.1";
+    const lanExposed = !/^(127\.|localhost$|::1$)/.test(bindHost);
+    res.json({
+      ips,
+      details,
+      port: currentPort,
+      host: bindHost,
+      lanExposed,
+    });
   });
 
   const handleSyncExport = async (_req: any, res: any) => {

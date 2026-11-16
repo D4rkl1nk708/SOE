@@ -466,6 +466,9 @@ function initApp() {
           NODE_ENV: "production",
           PORT: String(DEFAULT_PORT),
           DATA_DIR: dataDir,
+          // Sync por QR: sem HOST=0.0.0.0 o servidor fica preso em 127.0.0.1
+          // e nenhum celular da rede alcanca o PC (regressao da v6.9.0).
+          HOST: "0.0.0.0",
           SOE_LOCAL_TOKEN: localToken,
         },
         stdio: ["pipe", "pipe", "pipe", "ipc"],

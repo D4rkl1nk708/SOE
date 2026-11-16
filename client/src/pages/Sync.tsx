@@ -156,6 +156,8 @@ async function scanQRNative(): Promise<string | null> {
 type SyncInfo = {
   ips: string[];
   port: number;
+  host?: string;
+  lanExposed?: boolean;
   details?: Array<{
     address: string;
     name: string;
@@ -232,6 +234,12 @@ export default function Sync() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const sseRef = useRef<EventSource | null>(null);
 
+  // O servidor recusa acesso vindo da rede sem o push token. Sem levar esse
+  // token no QR, o celular recebia 401 e a tela culpava o Wi-Fi.
+  const { data: syncTokenData } = trpc.import.getICalUrl.useQuery(undefined, {
+    enabled: isDesktop,
+  });
+
   const fetchSyncInfo = useCallback(async () => {
     if (!isDesktop) return;
     try {
@@ -256,23 +264,27 @@ export default function Sync() {
     } catch {}
   }, []);
 
-  const generateQRs = useCallback(async (info: SyncInfo, ip: string) => {
-    if (!info || !ip) return;
-    setQrLoading(true);
-    try {
-      const base = `http://${ip}:${info.port}`;
-      const [pull, push] = await Promise.all([
-        getQRDataURL(`${base}/api/sync/export`),
-        getQRDataURL(`${base}/api/sync/receive`),
-      ]);
-      setQrPullUrl(pull);
-      setQrPushUrl(push);
-    } catch {
-      toast.error("Erro ao gerar QR Codes");
-    } finally {
-      setQrLoading(false);
-    }
-  }, []);
+  const generateQRs = useCallback(
+    async (info: SyncInfo, ip: string, token: string) => {
+      if (!info || !ip) return;
+      setQrLoading(true);
+      try {
+        const base = `http://${ip}:${info.port}`;
+        const auth = token ? `?token=${encodeURIComponent(token)}` : "";
+        const [pull, push] = await Promise.all([
+          getQRDataURL(`${base}/api/sync/export${auth}`),
+          getQRDataURL(`${base}/api/sync/receive${auth}`),
+        ]);
+        setQrPullUrl(pull);
+        setQrPushUrl(push);
+      } catch {
+        toast.error("Erro ao gerar QR Codes");
+      } finally {
+        setQrLoading(false);
+      }
+    },
+    [],
+  );
 
   const runAutoBackup = useCallback(async () => {
     if (!isDesktop) return;
@@ -319,8 +331,10 @@ export default function Sync() {
   }, [fetchSyncInfo, fetchBackups, runAutoBackup]);
 
   useEffect(() => {
-    if (syncInfo && selectedIp) generateQRs(syncInfo, selectedIp);
-  }, [syncInfo, selectedIp, generateQRs]);
+    if (syncInfo && selectedIp) {
+      generateQRs(syncInfo, selectedIp, syncTokenData?.token || "");
+    }
+  }, [syncInfo, selectedIp, generateQRs, syncTokenData?.token]);
 
   const startListening = useCallback(() => {
     sseRef.current?.close();
@@ -367,9 +381,11 @@ export default function Sync() {
           () =>
             reject(
               new Error(
-                "TIMEOUT: O PC não respondeu em " +
+                "TIMEOUT: o PC não respondeu em " +
                   Math.round(timeoutMs / 1000) +
-                  "s. Verifique se ambos estão no mesmo Wi-Fi e se o app SOE está aberto no computador.",
+                  "s (" +
+                  url +
+                  "). Confirme que o app SOE está aberto no computador e que o Windows Firewall libera o SOE nesta rede.",
               ),
             ),
           timeoutMs,
@@ -393,7 +409,11 @@ export default function Sync() {
             if (lower.includes("timeout") || lower.includes("timed out")) {
               reject(
                 new Error(
-                  "TIMEOUT: O PC demorou a responder. Verifique se ambos estão no mesmo Wi-Fi e se o IP correto (192.168.x.x) foi selecionado no PC.",
+                  "TIMEOUT: o PC demorou a responder em " +
+                    url +
+                    ". Se o celular está no Wi-Fi, confira se este IP (" +
+                    url.replace(/^https?:\/\//, "").split(":")[0] +
+                    ") é o da rede do PC; senão, libere o app SOE no firewall do Windows.",
                 ),
               );
             } else if (
@@ -403,7 +423,9 @@ export default function Sync() {
             ) {
               reject(
                 new Error(
-                  "Conexão recusada pelo PC. Verifique se o aplicativo SOE está aberto no computador e no mesmo Wi-Fi.",
+                  "Conexão recusada pelo PC em " +
+                    url +
+                    ". O app SOE precisa estar aberto no computador e escutando na rede — se ele estiver preso em 127.0.0.1, o celular nunca conecta.",
                 ),
               );
             } else {
@@ -448,7 +470,7 @@ export default function Sync() {
           await nativeFetch(pingUrl, { method: "GET", timeoutMs: 6000 });
         } catch {
           throw new Error(
-            `Não foi possível conectar ao PC (${baseMatch?.[1]}). Verifique se o computador e o celular estão no mesmo Wi-Fi e se o SOE está aberto no PC.`,
+            `Não foi possível conectar ao PC (${baseMatch?.[1]}). O SOE está aberto no computador? Se estiver, libere-o no firewall do Windows (porta ${syncInfo?.port}) e confirme que este IP é o da rede do celular.`,
           );
         }
       }
@@ -566,7 +588,7 @@ export default function Sync() {
           await nativeFetch(pingUrl, { method: "GET", timeoutMs: 6000 });
         } catch {
           throw new Error(
-            `Não foi possível conectar ao PC (${baseMatch?.[1]}). Verifique se o computador e o celular estão no mesmo Wi-Fi e se o SOE está aberto no PC.`,
+            `Não foi possível conectar ao PC (${baseMatch?.[1]}). O SOE está aberto no computador? Se estiver, libere-o no firewall do Windows (porta ${syncInfo?.port}) e confirme que este IP é o da rede do celular.`,
           );
         }
       }
@@ -1183,6 +1205,18 @@ Erros: ${errors}
                         );
                       })()}
                     </div>
+
+                    {syncInfo.lanExposed === false && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-200">
+                        <strong>
+                          Servidor escutando só no próprio computador (
+                          {syncInfo.host || "127.0.0.1"}).
+                        </strong>{" "}
+                        Enquanto for assim, nenhum celular consegue conectar e o
+                        QR Code não funciona. Feche o SOE e abra a versão
+                        atualizada no PC.
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FlipQRCard
