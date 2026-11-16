@@ -3179,3 +3179,82 @@ export async function getRandomTecJsonQuestions(limit = 5): Promise<any[]> {
     banca: q.banca || "TEC",
   }));
 }
+
+/**
+ * Registra uma sessão guiada completa (início, fim, tópico e resultado).
+ *
+ * Antes só existia `logStudySession` (hora + duração + acurácia), sem tópico e
+ * sem identificação de sessão — o que impedia qualquer relatório por sessão.
+ */
+export async function logGuidedSession(
+  userId: number,
+  entry: {
+    startedAt: string;
+    endedAt: string;
+    minutes: number;
+    accuracy: number;
+    questions: number;
+    correct: number;
+    topicId?: number;
+    topicName?: string;
+    disciplineId?: number;
+    blockId?: string;
+    revisionCompleted?: boolean;
+  },
+): Promise<void> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return;
+  if (!user.settings.studySessionLog) user.settings.studySessionLog = [];
+
+  const started = new Date(entry.startedAt);
+  user.settings.studySessionLog.push({
+    date: entry.startedAt.slice(0, 10),
+    hourStart: Number.isNaN(started.getTime()) ? 0 : started.getHours(),
+    durationMin: Math.max(0, Math.round(entry.minutes)),
+    accuracy: Math.max(0, Math.min(1, entry.accuracy / 100)),
+    disciplineId: entry.disciplineId,
+    startedAt: entry.startedAt,
+    endedAt: entry.endedAt,
+    topicId: entry.topicId,
+    topicName: entry.topicName,
+    blockId: entry.blockId,
+    questions: entry.questions,
+    correct: entry.correct,
+    revisionCompleted: entry.revisionCompleted,
+  });
+
+  if (user.settings.studySessionLog.length > 500) {
+    user.settings.studySessionLog = user.settings.studySessionLog.slice(-500);
+  }
+
+  pushStudyEvent(user, {
+    id: `guided-${entry.startedAt}-${entry.topicId ?? "geral"}`,
+    type: "session",
+    occurredAt: entry.endedAt,
+    title: entry.topicName ? `Sessão: ${entry.topicName}` : "Sessão guiada",
+    detail: `${Math.round(entry.minutes)} min · ${entry.correct}/${entry.questions} acertos`,
+    topicId: entry.topicId,
+    disciplineId: entry.disciplineId,
+    topicName: entry.topicName,
+    minutes: Math.round(entry.minutes),
+    source: "guided",
+  });
+
+  writeDatabase(db);
+}
+
+/** Últimas sessões registradas, da mais recente para a mais antiga. */
+export async function getRecentStudySessions(
+  userId: number,
+  limit = 20,
+): Promise<
+  NonNullable<
+    NonNullable<Database["users"][number]["settings"]["studySessionLog"]>
+  >
+> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const log = user?.settings?.studySessionLog ?? [];
+  return [...log].reverse().slice(0, Math.max(1, limit));
+}

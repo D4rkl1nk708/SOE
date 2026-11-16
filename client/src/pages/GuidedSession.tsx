@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { openTecBrowser } from "@/lib/openTecBrowser";
+import { toast } from "sonner";
+import {
+  buildSessionReport,
+  summarizeReport,
+  type SessionReport,
+  type TopicSnapshot,
+} from "@shared/sessionReport";
+import { decideNextBlock, decideReviewGap } from "@shared/decisions";
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,10 +25,16 @@ import {
   Square,
   Target,
   AlertTriangle,
+  Loader2,
+  ThumbsUp,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
 } from "lucide-react";
 
 type GuidedBlock = {
   id?: string;
+  revisionId?: number;
   kind?: string;
   title: string;
   subtitle?: string;
@@ -79,6 +93,20 @@ export default function GuidedSession() {
     accuracy: 0,
   }));
   const [receipt, setReceipt] = useState<any>(null);
+  const [report, setReport] = useState<SessionReport | null>(null);
+  const [revisionDone, setRevisionDone] = useState(false);
+  const [feynmanText, setFeynmanText] = useState("");
+  const [feynmanSave, setFeynmanSave] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    score: number;
+    veredito: string;
+    acertos: string[];
+    lacunas: string[];
+    correcao: string;
+    pergunta: string;
+    saved: boolean;
+  } | null>(null);
+  const beforeMastery = useRef<TopicSnapshot[]>([]);
 
   const { data: stats, refetch: refetchStats } =
     trpc.dashboard.getStats.useQuery();
@@ -88,6 +116,10 @@ export default function GuidedSession() {
       { enabled: !!stats },
     );
   const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
+  const masteryQuery = trpc.study.masterySnapshot.useQuery();
+  const markRevisionDone = trpc.revision.markCompleted.useMutation();
+  const recordSession = trpc.study.recordSession.useMutation();
+  const feynman = trpc.mentor.evaluateExplanation.useMutation();
 
   const apiKey = (stats?.settings as any)?.aiApiKey || "";
   const provider = (stats?.settings as any)?.aiProvider || "gemini";
@@ -97,6 +129,14 @@ export default function GuidedSession() {
   );
 
   const activeBlock = block || overview?.plan.blocks?.[0];
+  const cadernoQuery = trpc.learning.cadernoForDiscipline.useQuery(
+    { disciplineName: activeBlock?.disciplineName || "" },
+    { enabled: !!activeBlock?.disciplineName },
+  );
+  const applyRevision = trpc.study.applySessionRevision.useMutation();
+  const [revisionRescheduledTo, setRevisionRescheduledTo] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (phase !== "running" || !startedAt) return;
@@ -107,8 +147,16 @@ export default function GuidedSession() {
     return () => clearInterval(timer);
   }, [phase, startedAt]);
 
-  const start = () => {
+  const start = async () => {
     setBefore(snapshot(stats));
+    setReport(null);
+    setRevisionDone(false);
+    try {
+      const fresh = await masteryQuery.refetch();
+      beforeMastery.current = fresh.data?.topics ?? [];
+    } catch {
+      beforeMastery.current = masteryQuery.data?.topics ?? [];
+    }
     setStartedAt(Date.now());
     setElapsed(0);
     setPhase("running");
@@ -125,39 +173,88 @@ export default function GuidedSession() {
 
   const finish = async () => {
     await new Promise((resolve) => setTimeout(resolve, 900));
-    const [fresh, freshOverview] = await Promise.all([
+    const [fresh, freshOverview, freshMastery] = await Promise.all([
       refetchStats(),
       refetchOverview(),
+      masteryQuery.refetch(),
     ]);
     const afterSnapshot = snapshot(fresh.data);
-    const newQuestions = Math.max(
-      0,
-      afterSnapshot.questions - before.questions,
-    );
-    const newDelta = afterSnapshot.accuracy - before.accuracy;
-    const nextBlock = freshOverview.data?.plan?.blocks?.[0];
+    // A análise sai do delta de domínio por tópico: mostra exatamente quantas
+    // questões foram respondidas, quantas acertou e onde escorregou.
+    const sessionReport = buildSessionReport({
+      before: beforeMastery.current,
+      after: freshMastery.data?.topics ?? [],
+      globalBefore: before.accuracy,
+      globalAfter: afterSnapshot.accuracy,
+    });
+    // A escolha do próximo bloco vem da árvore de decisão: respeita tempo,
+    // prioriza revisão vencida e não repete o tema que acabou de ser feito.
+    const planBlocks = (freshOverview.data?.plan?.blocks || []) as any[];
+    const decision = decideNextBlock({
+      blocks: planBlocks.map((block) => ({
+        id: block.id,
+        kind: block.kind,
+        minutes: block.minutes,
+        topicId: block.topicId,
+        score: block.score,
+        completed: block.completed,
+      })),
+      minutesAvailable:
+        Number((fresh.data as any)?.settings?.dailyGoalMinutes) || 240,
+      lastTopicId: activeBlock?.topicId ?? null,
+      overdueRevisions: freshOverview.data?.plan?.overdueRevisions ?? 0,
+    });
+    const nextBlock = decision.block
+      ? planBlocks.find((block) => block.id === decision.block?.id)
+      : null;
     const record = {
       date: new Date().toISOString(),
       title: activeBlock?.title || "Sessão de estudo",
       minutes: Math.max(0, Math.round(elapsed / 60)),
-      questions: newQuestions,
-      accuracy: afterSnapshot.accuracy,
-      delta: newDelta,
+      questions: sessionReport.questions,
+      accuracy: sessionReport.accuracy,
+      delta: sessionReport.accuracyAfter - sessionReport.accuracyBefore,
+      summary: summarizeReport(sessionReport),
+      nextWhy: decision.why,
+      strengths: sessionReport.strengths,
+      weaknesses: sessionReport.weaknesses,
       nextBlock: nextBlock
         ? {
             id: nextBlock.id,
             title: nextBlock.title,
             minutes: nextBlock.minutes,
             reason: nextBlock.reason,
+            kind: nextBlock.kind,
+            revisionId: nextBlock.revisionId,
             topicId: nextBlock.topicId,
             topicName: nextBlock.topicName,
             disciplineId: nextBlock.disciplineId,
+            disciplineName: nextBlock.disciplineName,
+            lens: nextBlock.lens,
           }
         : null,
     };
     setAfter(afterSnapshot);
+    setReport(sessionReport);
     setReceipt(record);
     setPhase("receipt");
+    // Sessão como dado: sem isso não existe histórico, nem relatório por sessão.
+    try {
+      recordSession.mutate({
+        startedAt: new Date(
+          startedAt ?? Date.now() - elapsed * 1000,
+        ).toISOString(),
+        endedAt: new Date().toISOString(),
+        minutes,
+        accuracy: sessionReport.accuracy,
+        questions: sessionReport.questions,
+        correct: sessionReport.correct,
+        topicId: activeBlock?.topicId ?? undefined,
+        topicName: activeBlock?.topicName || activeBlock?.title,
+        disciplineId: activeBlock?.disciplineId ?? undefined,
+        blockId: activeBlock?.id,
+      });
+    } catch {}
     try {
       localStorage.setItem("soe_last_session_receipt", JSON.stringify(record));
       localStorage.removeItem("soe_active_mission");
@@ -167,9 +264,87 @@ export default function GuidedSession() {
     } catch {}
   };
 
-  const questionDelta = Math.max(0, after.questions - before.questions);
-  const accuracyDelta = after.accuracy - before.accuracy;
+  const refreshReport = async () => {
+    const [freshStats, freshMastery] = await Promise.all([
+      refetchStats(),
+      masteryQuery.refetch(),
+    ]);
+    const afterSnapshot = snapshot(freshStats.data);
+    setAfter(afterSnapshot);
+    setReport(
+      buildSessionReport({
+        before: beforeMastery.current,
+        after: freshMastery.data?.topics ?? [],
+        globalBefore: before.accuracy,
+        globalAfter: afterSnapshot.accuracy,
+      }),
+    );
+    toast.success("Análise recalculada.");
+  };
+
+  const completeRevision = async () => {
+    if (!activeBlock?.revisionId) return;
+    markRevisionDone.mutate(
+      { id: activeBlock.revisionId, completed: true },
+      {
+        onSuccess: async () => {
+          setRevisionDone(true);
+          const fresh = await refetchOverview();
+          const next = fresh.data?.plan?.blocks?.[0];
+          if (next) {
+            setReceipt((previous: any) => ({
+              ...(previous || {}),
+              nextBlock: {
+                id: next.id,
+                title: next.title,
+                minutes: next.minutes,
+                reason: next.reason,
+                kind: next.kind,
+                revisionId: next.revisionId,
+                topicId: next.topicId,
+                topicName: next.topicName,
+                disciplineId: next.disciplineId,
+                disciplineName: next.disciplineName,
+                lens: next.lens,
+              },
+            }));
+          }
+          toast.success("Revisão concluída — o plano já foi recalculado.");
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    );
+  };
+
+  const startBlock = (target: any) => {
+    if (!target) {
+      navigate("/plan");
+      return;
+    }
+    sessionStorage.setItem("soe_guided_block", JSON.stringify(target));
+    window.location.reload();
+  };
+
   const minutes = Math.max(0, Math.round(elapsed / 60));
+
+  // Sugestão de quando revisar (árvore T6). Não escreve no calendário 25/50:
+  // o agendamento oficial continua sendo o do FSRS/calendário.
+  const reviewGap =
+    report && !report.noData
+      ? decideReviewGap({
+          accuracy: report.accuracy,
+          hadErrors: report.errors > 0,
+        })
+      : null;
+  const reviewDateIso =
+    reviewGap && reviewGap.days > 0
+      ? new Date(Date.now() + reviewGap.days * 86_400_000)
+          .toISOString()
+          .slice(0, 10)
+      : null;
+  const reviewDate = reviewDateIso
+    ? new Date(`${reviewDateIso}T00:00:00`).toLocaleDateString("pt-BR")
+    : null;
 
   const startQuestions = () => {
     if (!activeBlock) return;
@@ -194,6 +369,39 @@ export default function GuidedSession() {
         `quais são as pegadinhas da banca e o que devo estudar primeiro?`,
     );
     navigate("/mentor");
+  };
+
+  const submitFeynman = () => {
+    if (!activeBlock) return;
+    if (!apiKey) {
+      toast.error("Configure a chave de IA no Perfil para usar a correção.");
+      return;
+    }
+    setFeedback(null);
+    feynman.mutate(
+      {
+        topicName: activeBlock.topicName || activeBlock.title,
+        disciplineName: activeBlock.disciplineName || "",
+        explanation: feynmanText.trim(),
+        apiKey,
+        // O router só aceita os providers conhecidos.
+        provider: (["claude", "gemini", "openai"] as const).includes(
+          provider as any,
+        )
+          ? (provider as "claude" | "gemini" | "openai")
+          : "gemini",
+        saveNote: feynmanSave,
+        topicId: activeBlock.topicId ?? undefined,
+        disciplineId: activeBlock.disciplineId ?? undefined,
+      },
+      {
+        onSuccess: (data) => {
+          setFeedback(data as any);
+          if ((data as any)?.saved) toast.success("Anotação salva no tema.");
+        },
+        onError: (error) => toast.error(error.message),
+      },
+    );
   };
 
   const rec = recommendation.data;
@@ -230,7 +438,6 @@ export default function GuidedSession() {
         description="O mentor escolhe, explica e acompanha. Você só executa."
         actions={headerActions}
       />
-
       {phase === "briefing" && (
         <div className="space-y-4">
           <div className="soe-card p-5">
@@ -335,7 +542,6 @@ export default function GuidedSession() {
           </div>
         </div>
       )}
-
       {phase === "running" && (
         <div className="space-y-4">
           <div className="soe-card p-6">
@@ -429,42 +635,144 @@ export default function GuidedSession() {
               </Button>
             </div>
           </div>
+
+          <div className="soe-card p-5">
+            <div className="flex items-center gap-2">
+              <Brain className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Explique com as suas palavras
+              </p>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Técnica Feynman: se não sai em linguagem simples, você ainda não
+              aprendeu. A IA aponta o que ficou vago e o que faltou.
+            </p>
+            <textarea
+              value={feynmanText}
+              onChange={(event) => setFeynmanText(event.target.value)}
+              rows={5}
+              placeholder={`Explique ${activeBlock?.topicName || "o tema"} como se estivesse ensinando alguém que não conhece o assunto...`}
+              className="mt-3 w-full resize-y rounded-md border border-border bg-secondary/30 p-3 text-xs leading-relaxed outline-none focus:border-primary/50"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={feynmanSave}
+                  onChange={(event) => setFeynmanSave(event.target.checked)}
+                />
+                Salvar como anotação do tema
+              </label>
+              <Button
+                size="sm"
+                className="ml-auto"
+                onClick={submitFeynman}
+                disabled={feynman.isPending || feynmanText.trim().length < 40}
+              >
+                {feynman.isPending ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-3.5 w-3.5" />
+                )}
+                Corrigir com IA
+              </Button>
+            </div>
+
+            {feedback && (
+              <div className="mt-3 space-y-2.5 rounded-md border border-border bg-secondary/20 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Correção da sua explicação
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {feedback.score}/100
+                  </p>
+                </div>
+                {feedback.veredito && (
+                  <p className="text-[11.5px] leading-snug">
+                    {feedback.veredito}
+                  </p>
+                )}
+                {feedback.acertos.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-500">
+                      Você acertou
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {feedback.acertos.map((item) => (
+                        <li key={item} className="text-[11px] leading-snug">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {feedback.lacunas.length > 0 && (
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-amber-500">
+                      Ficou de fora
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {feedback.lacunas.map((item) => (
+                        <li key={item} className="text-[11px] leading-snug">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {feedback.correcao && (
+                  <p className="text-[11px] leading-snug">
+                    <b className="text-foreground">Como fica certo:</b>{" "}
+                    <span className="text-muted-foreground">
+                      {feedback.correcao}
+                    </span>
+                  </p>
+                )}
+                {feedback.pergunta && (
+                  <p className="text-[11px] italic leading-snug text-muted-foreground">
+                    Pergunta para fechar a lacuna: {feedback.pergunta}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
-
       {phase === "receipt" && (
         <div className="space-y-4">
-          <div className="soe-card p-6 text-center">
-            <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500" />
-            <h2 className="mt-2 text-xl font-semibold">Sessão encerrada</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {minutes} min de foco em {activeBlock?.title || "seu tema"}.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: "Questões novas", value: questionDelta },
-              { label: "Tempo", value: `${minutes} min` },
-              {
-                label: "Acurácia agora",
-                value: `${after.accuracy}%`,
-              },
-              {
-                label: "Variação",
-                value: `${accuracyDelta >= 0 ? "+" : ""}${accuracyDelta}pp`,
-              },
-            ].map((item) => (
-              <div key={item.label} className="soe-card p-4 text-center">
-                <p className="text-lg font-semibold tabular-nums">
-                  {item.value}
+          <div className="soe-card p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-500">
+                  Sessão encerrada · {minutes} min
                 </p>
-                <p className="text-[9px] text-muted-foreground">{item.label}</p>
+                <h2 className="mt-1 text-xl font-semibold">
+                  {activeBlock?.title || "Sessão de estudo"}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {report && !report.noData
+                    ? `${report.questions} questões · ${report.correct} acertos · ${report.errors} ${report.errors === 1 ? "erro" : "erros"}`
+                    : "Nenhuma questão nova capturada nesta sessão."}
+                </p>
               </div>
-            ))}
+              {report && !report.noData && (
+                <div className="rounded-md border border-border bg-secondary/30 px-4 py-2 text-center">
+                  <p className="text-2xl font-semibold tabular-nums">
+                    {report.accuracy}%
+                  </p>
+                  <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+                    acerto na sessão
+                  </p>
+                  <p className="mt-1 text-[9px] text-muted-foreground">
+                    geral {report.accuracyBefore}% → {report.accuracyAfter}%
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {questionDelta === 0 && (
+          {report?.noData && (
             <div className="soe-card border-amber-500/20 p-4">
               <div className="flex gap-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
@@ -473,22 +781,167 @@ export default function GuidedSession() {
                     Nenhuma questão nova detectada.
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Se você respondeu no TEC, confira a linha “Última captura
-                    TEC” no Treino e se o app está com a versão 6.1.6 ou
-                    superior.
+                    As questões do TEC entram pela captura automática: confira a
+                    linha “Última captura TEC” no Treino e se o app está
+                    atualizado. Sessão sem questão não gera análise — só tempo.
                   </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                    onClick={refreshReport}
+                    disabled={masteryQuery.isFetching}
+                  >
+                    {masteryQuery.isFetching ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : null}
+                    Atualizar análise
+                  </Button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {report && !report.noData && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="soe-card p-5">
+                <div className="flex items-center gap-2 text-emerald-500">
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider">
+                    Pontos fortes
+                  </span>
+                </div>
+                {report.strengths.length ? (
+                  <ul className="mt-3 space-y-1.5">
+                    {report.strengths.map((item) => (
+                      <li key={item} className="text-[11.5px] leading-snug">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    Amostra pequena: nenhum tópico com 3+ questões acima de 70%.
+                  </p>
+                )}
+              </div>
+              <div className="soe-card p-5">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider">
+                    Pontos fracos
+                  </span>
+                </div>
+                {report.weaknesses.length ? (
+                  <ul className="mt-3 space-y-1.5">
+                    {report.weaknesses.map((item) => (
+                      <li key={item} className="text-[11.5px] leading-snug">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    Nada abaixo do esperado nesta sessão.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {report && report.topics.length > 0 && (
+            <div className="soe-card p-5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Por tópico nesta sessão
+              </p>
+              <div className="mt-2 divide-y divide-border">
+                {report.topics.map((topic) => (
+                  <div
+                    key={topic.topicId}
+                    className="flex items-center gap-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-medium">
+                        {topic.topicName}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        {topic.disciplineName}
+                      </p>
+                    </div>
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {topic.correct}/{topic.questions}
+                    </span>
+                    <span
+                      className={`w-10 text-right text-[11.5px] font-semibold tabular-nums ${
+                        topic.accuracy >= 70
+                          ? "text-emerald-500"
+                          : topic.accuracy < 50
+                            ? "text-amber-500"
+                            : ""
+                      }`}
+                    >
+                      {topic.accuracy}%
+                    </span>
+                    <span
+                      className={`flex w-14 items-center justify-end gap-1 text-[10px] tabular-nums ${
+                        topic.readinessDelta >= 0
+                          ? "text-emerald-500"
+                          : "text-amber-500"
+                      }`}
+                    >
+                      {topic.readinessDelta >= 0 ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3" />
+                      )}
+                      {topic.readinessDelta >= 0 ? "+" : ""}
+                      {topic.readinessDelta}pp
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeBlock?.revisionId && !revisionDone && (
+            <div className="soe-card p-5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Revisão do plano
+              </p>
+              <p className="mt-1 text-sm">
+                Este bloco era uma revisão vencida. Se você já revisou o tema,
+                conclua para o plano andar — era isso que fazia o mesmo tema
+                voltar sempre.
+              </p>
+              <Button
+                className="mt-3"
+                onClick={completeRevision}
+                disabled={markRevisionDone.isPending}
+              >
+                {markRevisionDone.isPending ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle className="mr-2 h-3.5 w-3.5" />
+                )}
+                Concluir revisão e avançar
+              </Button>
+            </div>
+          )}
+
+          {activeBlock?.revisionId && revisionDone && (
+            <div className="soe-card flex items-center gap-2 p-4 text-xs text-emerald-500">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Revisão concluída. O plano já mostra o próximo tema.
             </div>
           )}
 
           {receipt?.nextBlock && (
             <div className="soe-card p-5">
               <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                Plano recalculado
+                Próximo no plano
               </p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-semibold">
                     {receipt.nextBlock.title}
                   </p>
@@ -496,17 +949,16 @@ export default function GuidedSession() {
                     {receipt.nextBlock.reason ||
                       "Próximo bloco do plano atualizado."}
                   </p>
+                  {receipt.nextWhy && (
+                    <p className="mt-1 text-[10px] italic text-muted-foreground/80">
+                      Por quê: {receipt.nextWhy}
+                    </p>
+                  )}
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    sessionStorage.setItem(
-                      "soe_guided_block",
-                      JSON.stringify(receipt.nextBlock),
-                    );
-                    window.location.reload();
-                  }}
+                  onClick={() => startBlock(receipt.nextBlock)}
                 >
                   Iniciar próximo
                 </Button>
@@ -516,12 +968,98 @@ export default function GuidedSession() {
 
           <div className="soe-card p-5">
             <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-              Próximo passo
+              Fechar o ciclo
             </p>
-            <p className="mt-2 text-sm">{actionPlan}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button onClick={() => navigate("/plan")}>
-                <Play className="mr-2 h-3.5 w-3.5" /> Ver plano
+            {reviewDate && reviewGap && (
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                Próxima revisão sugerida: <b>{reviewDate}</b> — {reviewGap.why}
+              </p>
+            )}
+            {reviewDateIso && activeBlock?.topicId && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    applyRevision.isPending || revisionRescheduledTo !== null
+                  }
+                  onClick={() =>
+                    applyRevision.mutate(
+                      {
+                        topicId: activeBlock.topicId as number,
+                        suggestedDate: reviewDateIso,
+                      },
+                      {
+                        onSuccess: (result) => {
+                          if (result.rescheduled) {
+                            setRevisionRescheduledTo(result.newDate);
+                            toast.success(
+                              `Revisão reagendada para ${new Date(
+                                `${result.newDate}T00:00:00`,
+                              ).toLocaleDateString("pt-BR")}.`,
+                            );
+                          } else {
+                            toast(
+                              "Nenhuma revisão pendente deste tópico para reagendar.",
+                            );
+                          }
+                        },
+                        onError: (error) => toast.error(error.message),
+                      },
+                    )
+                  }
+                >
+                  {applyRevision.isPending ? (
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Clock className="mr-2 h-3.5 w-3.5" />
+                  )}
+                  Reagendar revisão
+                </Button>
+                {revisionRescheduledTo && (
+                  <span className="text-[10px] text-emerald-500">
+                    reagendada para{" "}
+                    {new Date(
+                      `${revisionRescheduledTo}T00:00:00`,
+                    ).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="outline" onClick={startQuestions}>
+                <Target className="mr-2 h-3.5 w-3.5" /> Praticar no SOE
+              </Button>
+              <Button variant="outline" onClick={explain}>
+                <Brain className="mr-2 h-3.5 w-3.5" /> IA explica
+              </Button>
+              {cadernoQuery.data?.url && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    void openTecBrowser(
+                      pushTokenData?.token || "",
+                      cadernoQuery.data?.url || undefined,
+                    )
+                  }
+                >
+                  <ExternalLink className="mr-2 h-3.5 w-3.5" /> TEC do caderno
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const tema = activeBlock?.topicName || activeBlock?.title;
+                  if (!tema) return;
+                  try {
+                    await navigator.clipboard.writeText(tema);
+                    toast.success("Tema copiado — cole na busca do TEC.");
+                  } catch {
+                    toast.error("Não foi possível copiar o tema.");
+                  }
+                }}
+              >
+                <ExternalLink className="mr-2 h-3.5 w-3.5" /> Copiar tema p/ TEC
               </Button>
               <Button
                 variant="outline"
@@ -529,13 +1067,13 @@ export default function GuidedSession() {
               >
                 Revisar erros
               </Button>
-              <Button variant="outline" onClick={explain}>
-                <Brain className="mr-2 h-3.5 w-3.5" /> IA explica
+              <Button className="ml-auto" onClick={() => navigate("/plan")}>
+                <Play className="mr-2 h-3.5 w-3.5" /> Ver plano
               </Button>
             </div>
           </div>
         </div>
-      )}
+      )}{" "}
     </div>
   );
 }

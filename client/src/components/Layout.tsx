@@ -9,6 +9,8 @@ import {
   Moon,
   LayoutDashboard,
   StickyNote,
+  FileText,
+  History,
   Brain,
   Wifi,
   UserCircle2,
@@ -216,6 +218,7 @@ const NAV_GROUPS = [
     items: [
       { path: "/disciplines", label: "Disciplinas", icon: BarChart3 },
       { path: "/revisions", label: "Revisões", icon: Clock },
+      { path: "/sessions", label: "Sessões", icon: History },
       { path: "/calendar", label: "Calendário", icon: CalendarDays },
       { path: "/mock-exams", label: "Simulados", icon: ClipboardX },
       { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
@@ -224,6 +227,7 @@ const NAV_GROUPS = [
   {
     label: "Conteúdo",
     items: [
+      { path: "/ler", label: "Ler", icon: FileText },
       { path: "/flashcards", label: "Flashcards", icon: Brain },
       { path: "/notes", label: "Anotações", icon: StickyNote },
       { path: "/edital", label: "Editais", icon: Sheet },
@@ -252,12 +256,14 @@ const FOCUSED_NAV_GROUPS = [
     label: "Aprender",
     items: [
       { path: "/study", label: "Estudar", icon: BookOpen },
+      { path: "/ler", label: "Ler", icon: FileText },
       { path: "/mentor", label: "Mentor IA", icon: Sparkles },
     ],
   },
   {
     label: "Sistema",
     items: [
+      { path: "/sessions", label: "Sessões", icon: History },
       { path: "/statistics", label: "Estatísticas", icon: TrendingUp },
       { path: "/sync", label: "Sync & Backup", icon: Wifi },
     ],

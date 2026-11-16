@@ -308,6 +308,25 @@ export interface UserSettings {
     durationMin: number;
     accuracy: number;
     disciplineId?: number;
+    /** Sessão guiada: início e fim reais (ISO). */
+    startedAt?: string;
+    endedAt?: string;
+    topicId?: number;
+    topicName?: string;
+    blockId?: string;
+    questions?: number;
+    correct?: number;
+    /** Revisão do bloco foi concluída dentro da sessão. */
+    revisionCompleted?: boolean;
+  }>;
+  /** Caderno Vivo: índice dos PDFs importados (o texto fica em uploads/learning). */
+  learningDocs?: Array<{
+    id: string;
+    title: string;
+    pages: number;
+    sections: number;
+    createdAt: string;
+    lastOpenedAt?: string;
   }>;
   /** Token secreto usado pelo userscript Tampermonkey para autenticar pushes em tempo real */
   pushToken?: string;

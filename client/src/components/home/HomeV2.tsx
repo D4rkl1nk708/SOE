@@ -383,6 +383,22 @@ export function HomeV2() {
                   Calendário
                 </button>
               </div>
+              {(overview?.plan?.overdueRevisions || 0) > 30 && (
+                <div className="mx-4 mb-2 rounded-[10px] border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                  <p className="text-[11px] leading-snug text-amber-500">
+                    <b>{overview?.plan?.overdueRevisions}</b> revisões vencidas
+                    acumuladas. Fila desse tamanho faz o plano começar sempre
+                    por dívida — vale uma triagem.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/revisions")}
+                    className="mt-1 text-[11px] font-medium text-amber-500 underline-offset-2 hover:underline"
+                  >
+                    Abrir revisões
+                  </button>
+                </div>
+              )}
               {todayBlocks.length > 0 ? (
                 <GroupedList>
                   {todayBlocks.map((block: any, index: number) => (

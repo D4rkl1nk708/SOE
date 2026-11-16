@@ -1510,6 +1510,107 @@ Mentor:`;
       }
     }),
 
+  /**
+   * Técnica Feynman: o aluno explica o tema com as próprias palavras e a IA
+   * aponta o que ficou certo, o que ficou vago e qual pergunta ele ainda nao
+   * consegue responder. A explicacao pode ser salva como anotacao do tema.
+   */
+  evaluateExplanation: protectedProcedure
+    .input(
+      z.object({
+        topicName: z.string().min(1),
+        disciplineName: z.string().optional().default(""),
+        explanation: z.string().min(40, "Escreva pelo menos algumas frases."),
+        apiKey: z.string(),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+        saveNote: z.boolean().optional().default(false),
+        topicId: z.number().optional(),
+        disciplineId: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const prompt = [
+        "Voce e um mentor de concursos publicos corrigindo uma explicacao Feynman.",
+        "O aluno explicou o tema com as proprias palavras. Avalie com rigor tecnico,",
+        "sem elogio vazio: aponte acertos concretos, imprecisoes e o que ficou de fora.",
+        "",
+        `Tema: ${input.topicName}`,
+        input.disciplineName ? `Disciplina: ${input.disciplineName}` : "",
+        "",
+        "Explicacao do aluno, entre as tags:",
+        "<explicacao>",
+        input.explanation,
+        "</explicacao>",
+        "",
+        "Responda SOMENTE com JSON valido, sem markdown, neste formato:",
+        '{"score": 0, "veredito": "uma frase direta", "acertos": ["..."],',
+        ' "lacunas": ["..."], "correcao": "a explicacao correta em ate 4 frases",',
+        ' "pergunta": "uma pergunta que expoe a principal lacuna"}',
+        "score e 0-100: quanto da explicacao de um professor ele reproduziria.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
+      let parsed: any = null;
+      try {
+        parsed = extractJSON(raw) as any;
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error(
+          "A IA nao devolveu uma correcao legivel. Tente novamente.",
+        );
+      }
+
+      const toStringList = (value: unknown): string[] =>
+        Array.isArray(value)
+          ? value.map((item) => String(item).trim()).filter(Boolean)
+          : [];
+
+      const result = {
+        score: Math.max(
+          0,
+          Math.min(100, Math.round(Number(parsed.score) || 0)),
+        ),
+        veredito: String(parsed.veredito || "").trim(),
+        acertos: toStringList(parsed.acertos),
+        lacunas: toStringList(parsed.lacunas),
+        correcao: String(parsed.correcao || "").trim(),
+        pergunta: String(parsed.pergunta || "").trim(),
+        saved: false,
+      };
+
+      if (input.saveNote) {
+        try {
+          await storage.createNote({
+            userId: ctx.user.id,
+            title: `Minha explicacao - ${input.topicName}`,
+            content: [
+              input.explanation,
+              "",
+              "---",
+              `Correcao (${result.score}/100): ${result.veredito}`,
+              result.lacunas.length
+                ? `Lacunas: ${result.lacunas.join(" · ")}`
+                : "",
+              result.correcao ? `Correcao: ${result.correcao}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            topicId: input.topicId,
+            disciplineId: input.disciplineId,
+          });
+          result.saved = true;
+        } catch {
+          result.saved = false;
+        }
+      }
+
+      return result;
+    }),
+
   executeAction: protectedProcedure
     .input(
       z.object({

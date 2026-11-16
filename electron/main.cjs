@@ -304,8 +304,21 @@ function initApp() {
   let tecWindow = null;
   let webRequestHooked = false;
 
-  ipcMain.on("open-tec-browser", (event, token) => {
+  // Só aceita URLs https do próprio TEC: bloqueia file:, javascript:, data: e
+  // domínios parecidos. Qualquer entrada inválida cai na home do TEC.
+  const tecSafeUrl = (value) => {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim();
+    if (!trimmed || /\s/.test(trimmed)) return "";
+    return /^https:\/\/www\.tecconcursos\.com\.br\//.test(trimmed)
+      ? trimmed
+      : "";
+  };
+
+  ipcMain.on("open-tec-browser", (event, token, url) => {
     if (token) global.SOE_PUSH_TOKEN = token;
+
+    const tecTargetUrl = tecSafeUrl(url);
     
     if (!webRequestHooked) {
       webRequestHooked = true;
@@ -321,6 +334,19 @@ function initApp() {
     }
 
     if (tecWindow && !tecWindow.isDestroyed()) {
+      if (
+        tecTargetUrl &&
+        tecWindow.webContents &&
+        !tecWindow.webContents.isDestroyed() &&
+        tecWindow.webContents.getURL() !== tecTargetUrl
+      ) {
+        tecWindow.loadURL(tecTargetUrl).catch((err) => {
+          console.warn(
+            "[SOE] Falha ao abrir caderno no TEC:",
+            (err && err.message) || err,
+          );
+        });
+      }
       tecWindow.show();
       tecWindow.focus();
       return;
@@ -383,7 +409,7 @@ function initApp() {
       }
     });
     
-    tecWindow.loadURL("https://www.tecconcursos.com.br/");
+    tecWindow.loadURL(tecTargetUrl || "https://www.tecconcursos.com.br/");
   });
 
   ipcMain.on("soe-find-in-page", (event, text, options) => {

@@ -113,9 +113,15 @@ describe("StudyPlan", () => {
     expect(screen.getByText("Começar")).toBeTruthy();
   });
 
-  test("inicia um bloco de questões", () => {
+  test("Começar abre a sessão guiada com o bloco escolhido", () => {
     render(<StudyPlan />);
     fireEvent.click(screen.getByText("Começar"));
-    expect(navigate).toHaveBeenCalledWith("/question-session");
+    // Antes caía direto em /revisions e o usuário perdia a sessão inteira.
+    expect(navigate).toHaveBeenCalledWith("/guided");
+    const stored = JSON.parse(
+      window.sessionStorage.getItem("soe_guided_block") || "null",
+    );
+    expect(stored?.topicId).toBe(10);
+    expect(stored?.kind).toBe("questoes");
   });
 });

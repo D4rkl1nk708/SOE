@@ -15,6 +15,8 @@ import type {
   UserSettings,
 } from "../shared/types";
 import { normalizeString, isFuzzyMatch } from "../shared/utils";
+import { formatDateForDb } from "../shared/scheduling";
+import type { TopicSnapshot } from "../shared/sessionReport";
 import * as storage from "./jsonStorage";
 
 const DAY_MS = 86_400_000;
@@ -127,6 +129,10 @@ export interface PlanBlock {
   color: string;
   score: number;
   route: string;
+  /** Revisão de origem quando o bloco é uma revisão pendente. */
+  revisionId?: number | null;
+  /** Bloco já cumprido hoje (tópico estudado na data de hoje). */
+  completed?: boolean;
 }
 
 export interface StudyOverview {
@@ -592,7 +598,7 @@ function computePlan(
   dailyMinutes: number,
   baseDisciplineIds: Set<number>,
 ): StudyOverview["plan"] {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateForDb(new Date());
   const dueRevisions = revisions.filter(
     (r) => !r.completed && !r.ignored && r.scheduledDate <= today,
   );
@@ -634,6 +640,8 @@ function computePlan(
       color: m?.color || "var(--primary)",
       score: 1000 + overdueDays,
       route: "/revisions",
+      revisionId: revision.id,
+      completed: false,
     });
     usedTopics.add(topicId);
   }
@@ -669,6 +677,7 @@ function computePlan(
       color: m.color,
       score: (100 - m.readiness) * (0.5 + (coverageRow?.weight ?? 1)),
       route: "/question-session",
+      completed: m.lastStudyAt?.slice(0, 10) === today,
     });
     usedTopics.add(m.topicId);
   }
@@ -692,6 +701,7 @@ function computePlan(
       color: m?.color || "var(--primary)",
       score: row.weight * (100 - row.readiness),
       route: "/question-session",
+      completed: m?.lastStudyAt?.slice(0, 10) === today,
     });
     usedTopics.add(row.topicId);
   }
@@ -712,6 +722,7 @@ function computePlan(
       color: "#64748b",
       score: 5,
       route: "/edital",
+      completed: false,
     });
   }
 
@@ -736,6 +747,7 @@ function computePlan(
         color: m.color,
         score: 10,
         route: "/question-session",
+        completed: m.lastStudyAt?.slice(0, 10) === today,
       });
       usedTopics.add(m.topicId);
     }
@@ -1105,6 +1117,31 @@ export async function previewFsrsSchedule(
     note: "Prévia experimental. O 25/50 continua ativo; nada é gravado no calendário.",
     items,
   };
+}
+
+/**
+ * Snapshot compacto do domínio de todos os tópicos.
+ *
+ * Existe para a sessão guiada medir o que mudou: tira o snapshot ao começar,
+ * outro ao encerrar e o relatório sai do delta — sem precisar de schema novo
+ * nem de carimbo por questão.
+ */
+export async function getMasterySnapshot(
+  userId: number,
+): Promise<TopicSnapshot[]> {
+  const [disciplines, topics, revisions] = await Promise.all([
+    storage.getDisciplinesByUser(userId),
+    storage.getTopicsByUser(userId),
+    storage.getRevisionsByUser(userId),
+  ]);
+  return buildMastery(disciplines, topics, revisions).map((item) => ({
+    topicId: item.topicId,
+    topicName: item.topicName,
+    disciplineName: item.disciplineName,
+    resolved: item.resolved,
+    correct: item.correct,
+    readiness: item.readiness,
+  }));
 }
 
 export async function getStudyOverview(

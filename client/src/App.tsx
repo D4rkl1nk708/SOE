@@ -33,6 +33,8 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const QuestionSession = lazy(() => import("@/pages/QuestionSession"));
 const QuestionErrors = lazy(() => import("@/pages/QuestionErrors"));
 const Lab = lazy(() => import("@/pages/Lab"));
+const Learning = lazy(() => import("@/pages/Learning"));
+const Sessions = lazy(() => import("@/pages/Sessions"));
 const DisciplinesPage = lazy(() => import("@/pages/DisciplinesPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
 const CienciaDosEstudos = lazy(() => import("@/pages/CienciaDosEstudos"));
@@ -93,6 +95,8 @@ function Router() {
           <Route path="/question-session" component={QuestionSession} />
           <Route path="/question-errors" component={QuestionErrors} />
           <Route path="/lab" component={Lab} />
+          <Route path="/ler" component={Learning} />
+          <Route path="/sessions" component={Sessions} />
           <Route path="/profile" component={Profile} />
           <Route path="/ciencia-dos-estudos" component={CienciaDosEstudos} />
           <Route path="/intercalacao" component={IntercalacaoPlanner} />

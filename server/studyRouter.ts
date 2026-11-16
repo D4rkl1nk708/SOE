@@ -3,12 +3,20 @@ import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { getStudyLedger } from "./studyLedger";
 import {
+  backlogSummary,
+  planSessionReschedule,
+  selectBacklog,
+  suggestBacklogAction,
+} from "./revisionPlanning";
+import { formatDateForDb } from "../shared/scheduling";
+import {
   findBestDisciplineMatch,
   findBestTopicMatch,
 } from "./tecDisciplineMatcher";
 import {
   getDataHealth,
   getErrorIntelligence,
+  getMasterySnapshot,
   getStudyOverview,
   getWeeklyReview,
   previewFsrsSchedule,
@@ -39,6 +47,120 @@ export const studyRouter = router({
     )
     .query(async ({ ctx, input }) => {
       return getStudyOverview(ctx.user.id, input?.minutes);
+    }),
+
+  /** Domínio por tópico (resolvidas/acertos/prontidão) para medir a sessão. */
+  masterySnapshot: protectedProcedure.query(async ({ ctx }) => {
+    return { topics: await getMasterySnapshot(ctx.user.id) };
+  }),
+
+  /** Registra a sessão guiada como dado (início, fim, tópico, resultado). */
+  recordSession: protectedProcedure
+    .input(
+      z.object({
+        startedAt: z.string(),
+        endedAt: z.string(),
+        minutes: z.number().min(0).max(1440),
+        accuracy: z.number().min(0).max(100),
+        questions: z.number().min(0),
+        correct: z.number().min(0),
+        topicId: z.number().optional(),
+        topicName: z.string().optional(),
+        disciplineId: z.number().optional(),
+        blockId: z.string().optional(),
+        revisionCompleted: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await storage.logGuidedSession(ctx.user.id, input);
+      return { success: true };
+    }),
+
+  /** Resumo do backlog de revisões vencidas (triagem honesta, sem mexer no 25/50). */
+  revisionBacklog: protectedProcedure.query(async ({ ctx }) => {
+    const revisions = await storage.getRevisionsByUser(ctx.user.id);
+    const today = formatDateForDb(new Date());
+    const summary = backlogSummary(revisions as any, today);
+    return { ...summary, suggestion: suggestBacklogAction(summary) };
+  }),
+
+  /**
+   * Triagem explícita do backlog. `arquivar` marca como ignoradas; `reagendar`
+   * espalha as pendências antigas nos próximos 14 dias. Nunca cria revisão nova
+   * e nunca altera a lógica 25/50.
+   */
+  triageBacklog: protectedProcedure
+    .input(
+      z.object({
+        action: z.enum(["arquivar", "reagendar"]),
+        olderThanDays: z.number().min(1).max(3650).default(90),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const revisions = await storage.getRevisionsByUser(ctx.user.id);
+      const today = formatDateForDb(new Date());
+      const selected = selectBacklog(
+        revisions as any,
+        today,
+        input.olderThanDays,
+      );
+      for (let index = 0; index < selected.length; index += 1) {
+        if (input.action === "arquivar") {
+          await storage.markRevisionIgnored(
+            selected[index].id,
+            ctx.user.id,
+            true,
+          );
+        } else {
+          const target = new Date();
+          target.setDate(target.getDate() + 1 + Math.floor(index / 10));
+          await storage.rescheduleRevision(
+            selected[index].id,
+            ctx.user.id,
+            formatDateForDb(target),
+          );
+        }
+      }
+      return { affected: selected.length, action: input.action };
+    }),
+
+  /** Reagenda a revisão pendente do tópico para a data sugerida pela sessão. */
+  applySessionRevision: protectedProcedure
+    .input(
+      z.object({
+        topicId: z.number(),
+        suggestedDate: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const revisions = await storage.getRevisionsByUser(ctx.user.id);
+      const today = formatDateForDb(new Date());
+      const plan = planSessionReschedule(
+        revisions as any,
+        input.topicId,
+        input.suggestedDate,
+        today,
+      );
+      if (!plan) return { rescheduled: false as const };
+      await storage.rescheduleRevision(
+        plan.revisionId,
+        ctx.user.id,
+        plan.newDate,
+      );
+      return {
+        rescheduled: true as const,
+        revisionId: plan.revisionId,
+        newDate: plan.newDate,
+      };
+    }),
+
+  /** Últimas sessões registradas. */
+  recentSessions: protectedProcedure
+    .input(
+      z.object({ limit: z.number().min(1).max(100).optional() }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return storage.getRecentStudySessions(ctx.user.id, input?.limit ?? 20);
     }),
 
   recordAttempt: protectedProcedure

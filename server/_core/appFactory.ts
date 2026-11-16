@@ -901,6 +901,30 @@ export async function configureApp(): Promise<{
             correctCount: newCorrect,
             errorCount: newErrors,
           });
+
+          // Antes o TEC só gravava o acumulado do tópico, sem data por resposta:
+          // o relatório de sessão não conseguia atribuir questão → sessão. Quando
+          // o incremento é de UMA questão, registramos a tentativa com horário.
+          const answeredNow = (correctAdd || 0) + (errorAdd || 0);
+          if (answeredNow === 1) {
+            try {
+              await storage.recordQuestionAttempt(user.id, {
+                topicId: topic.id,
+                disciplineId: disc?.id,
+                answered: true,
+                correct: (correctAdd || 0) > 0,
+                confidence: null,
+                confidencePhase: null,
+                seconds: timeSpentSeconds || undefined,
+                source: "tec",
+              });
+            } catch (error) {
+              console.warn(
+                "[TEC] Falha ao registrar tentativa:",
+                (error as Error)?.message,
+              );
+            }
+          }
           if (timeSpentSeconds && timeSpentSeconds > 0) {
             await storage.updateTopic(topic.id, user.id, {
               studyTimeSeconds:

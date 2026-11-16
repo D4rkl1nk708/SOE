@@ -11,6 +11,73 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.2",
+    date: "16/11/2026",
+    title: "Sessão que analisa de verdade, Feynman e o TEC do tema",
+    categories: [
+      {
+        title: "🎯 Sessão guiada",
+        type: "feature",
+        items: [
+          "Ao encerrar, a sessão mostra questões, acertos e erros por tópico — antes só um número global.",
+          "Pontos fortes e pontos fracos saem da acurácia desta sessão, cruzada com a prontidão de cada tema.",
+          "Revisão vencida do plano ganhou o botão de concluir: o plano avança e o mesmo tema para de voltar.",
+          "O próximo bloco sugerido nunca é o que você acabou de fazer.",
+          "Se a captura do TEC chegar atrasada, o botão Atualizar análise refaz o relatório.",
+        ],
+      },
+      {
+        title: "🧠 Aprender",
+        type: "feature",
+        items: [
+          "Explique com as suas palavras (Feynman): a IA diz o que ficou certo, o que ficou vago e qual pergunta expõe a lacuna.",
+          "A explicação pode ser salva como anotação do tema.",
+        ],
+      },
+      {
+        title: "📖 Caderno Vivo",
+        type: "feature",
+        items: [
+          "Nova aba Ler: importe um PDF e ele é dividido em seções, cada uma virando uma sessão de estudo.",
+          "Perguntas de recuperação por seção (não resumo), com a página onde a resposta está.",
+          "Três analogias por tema, cada uma com o mapeamento e o ponto onde quebra — você escolhe a que funciona.",
+          "Micro-mundo: para temas procedimentais, um artefato manipulável gerado por IA, isolado em sandbox.",
+        ],
+      },
+      {
+        title: "🧭 Decisões",
+        type: "improvement",
+        items: [
+          "Árvores de decisão explícitas: qual bloco pegar, o que fazer depois de cada resposta, como atacar cada tipo de conteúdo e quando revisar.",
+          "Cada sessão termina com a próxima revisão sugerida e o motivo.",
+          "A sessão passou a ser registrada como dado (início, fim, tópico, acertos) — base do histórico por sessão.",
+          "Cada questão incrementada pelo TEC agora vira tentativa com horário, o que permite atribuir acerto ao tópico certo.",
+        ],
+      },
+      {
+        title: "🗂 Histórico e cadência",
+        type: "feature",
+        items: [
+          "Nova tela Sessões: as últimas 30 sessões com tópico, duração, acertos e acurácia, mais o resumo dos últimos 7 dias.",
+          "A home avisa quando o backlog de revisões passa de 30 e leva direto para a fila.",
+          "Ao encerrar a sessão você pode reagendar a revisão do tema para a data sugerida, com um clique.",
+          "Analogias escolhidas ficam salvas no tema (com o seu porquê) e voltam nas próximas leituras.",
+          "Micro-mundos gerados ficam salvos no tópico — um por tema.",
+          "Botão TEC do caderno: quando a disciplina do tema casa com um caderno sincronizado, a janela do TEC abre já nele.",
+        ],
+      },
+      {
+        title: "🛠 Correções",
+        type: "fix",
+        items: [
+          "Começar no Plano abre a sessão guiada; antes caía direto na aba de revisões.",
+          "Sync por QR volta a funcionar na rede local: o app escuta em 0.0.0.0 e o QR leva o token.",
+          "Um único X no modal de novidades.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.0",
     date: "10/11/2026",
     title: "Persistência em SQLite, correções de segurança e Edital mais leve",

@@ -9,6 +9,7 @@ import * as storage from "./jsonStorage";
 import { mentorRouter, extractJSON } from "./mentorRouter";
 import { editalRouter } from "./editalRouter";
 import { labRouter } from "./labRouter";
+import { learningRouter } from "./learningRouter";
 import { questionErrorRouter } from "./questionErrorRouter";
 import { essayRouter } from "./essayRouter";
 import { studyRouter } from "./studyRouter";
@@ -1411,6 +1412,7 @@ ${input.text.substring(0, 8000)}`;
 
   mentor: mentorRouter,
   lab: labRouter,
+  learning: learningRouter,
 
   history: router({
     get: protectedProcedure

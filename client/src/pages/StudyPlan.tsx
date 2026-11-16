@@ -102,26 +102,15 @@ export default function StudyPlan() {
   );
 
   const startBlock = (block: any) => {
-    if (block.kind === "revisao") {
-      navigate("/revisions");
-      return;
-    }
     if (block.kind === "mapear") {
       navigate("/edital");
       return;
     }
-    if (block.topicId) {
-      sessionStorage.setItem(
-        "qs_prefill",
-        JSON.stringify({
-          topicId: block.topicId,
-          topicName: block.topicName,
-          disciplineId: block.disciplineId,
-          autoStart: true,
-        }),
-      );
-    }
-    navigate("/question-session");
+    // Todo bloco do plano começa na sessão guiada: é ela que cronometra,
+    // explica, abre o TEC do tema e fecha com o recibo. Antes, bloco de
+    // revisão caía em /revisions e o usuário perdia a sessão inteira.
+    sessionStorage.setItem("soe_guided_block", JSON.stringify(block));
+    navigate("/guided");
   };
 
   if (isLoading) {
