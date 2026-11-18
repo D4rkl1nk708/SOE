@@ -19,6 +19,11 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import {
+  countableMockExams,
+  mockExamAccuracy,
+  summarizeMockExams,
+} from "@shared/mockExamStats";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -142,27 +147,28 @@ export default function MockExams() {
   if (isLoading)
     return <div className="p-8 text-center">Carregando simulados...</div>;
 
-  const chartData = exams
-    ?.map((e) => ({
+  // Item 4 (v6.9.4): simulado entregue com 0 respostas não entra em média.
+  const countable = countableMockExams(exams as any);
+  const summary = summarizeMockExams(exams as any);
+
+  const chartData = countable
+    .map((e: any) => ({
       name: format(parseISO(e.date), "dd/MM"),
       score: e.score,
-      accuracy: Math.round((e.correct / e.totalQuestions) * 100),
+      accuracy:
+        mockExamAccuracy(e as any) ??
+        Math.round((e.correct / Math.max(1, e.totalQuestions)) * 100),
     }))
     .reverse();
 
-  const totalExams = exams?.length || 0;
-  const totalQuestions = (exams || []).reduce(
-    (sum, exam) => sum + (exam.totalQuestions || 0),
+  const totalExams = countable.length;
+  const totalQuestions = countable.reduce(
+    (sum, exam: any) => sum + (exam.totalQuestions || 0),
     0,
   );
-  const totalCorrect = (exams || []).reduce(
-    (sum, exam) => sum + (exam.correct || 0),
-    0,
-  );
-  const avgAccuracy =
-    totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  const bestScore = (exams || []).reduce(
-    (best, exam) => Math.max(best, exam.score || 0),
+  const avgAccuracy = summary.averageAccuracy ?? 0;
+  const bestScore = countable.reduce(
+    (best: number, exam: any) => Math.max(best, exam.score || 0),
     0,
   );
 
@@ -189,6 +195,15 @@ export default function MockExams() {
         { label: "Melhor líquido", value: bestScore },
       ]}
     >
+      {summary.discarded > 0 && (
+        <div className="soe-card border-amber-500/30 p-3 text-[10px] leading-relaxed text-muted-foreground">
+          <b className="text-foreground">
+            {summary.discarded} simulado(s) sem nenhuma resposta
+          </b>{" "}
+          não entram na média nem no histórico estatístico. Você pode excluir
+          cada um na lista abaixo.
+        </div>
+      )}
       {errorIntel?.topTopics?.[0] && (
         <div className="soe-card flex flex-col gap-2 border-primary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2">

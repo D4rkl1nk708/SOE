@@ -28,6 +28,7 @@ export function serializeEditalRows(
     avancar?: boolean;
     discursiva?: boolean;
     isHeader?: boolean;
+    topicIds?: number[];
   }>,
 ): string {
   return JSON.stringify(
@@ -44,6 +45,7 @@ export function serializeEditalRows(
       avancar: r.avancar,
       discursiva: r.discursiva,
       isHeader: r.isHeader,
+      topicIds: r.topicIds,
     })),
   );
 }

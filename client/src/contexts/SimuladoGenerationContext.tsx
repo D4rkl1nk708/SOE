@@ -9,6 +9,7 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { evaluateSimulado } from "@shared/mockExamStats";
 
 export type SimuladoMode = "multiple" | "cebraspe";
 
@@ -17,6 +18,8 @@ export type GeneratedQuestion = {
   number: number;
   disciplineId: number;
   disciplineName: string;
+  /** Tópico do SOE (quando a prova veio de um tópico) — usado no histórico. */
+  topicId?: number;
   topicName?: string;
   banca?: string;
   statement: string;
@@ -105,6 +108,7 @@ export function SimuladoGenerationProvider({
   const createExam = trpc.mockExam.create.useMutation();
   const updateExam = trpc.mockExam.update.useMutation();
   const reviewSimulado = trpc.mentor.reviewSimulado.useMutation();
+  const recordAttempt = trpc.study.recordAttempt.useMutation();
 
   const [status, setStatus] = useState<SimuladoGenerationStatus>("idle");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -200,12 +204,16 @@ export function SimuladoGenerationProvider({
         const buildQuestion = (
           candidate: any,
           index: number,
-          discipline: { id: number; name: string },
+          discipline: { id: number; name: string; topicId?: number },
         ): GeneratedQuestion => ({
           id: candidate.questionId || `q-${Date.now()}-${index}`,
           number: index + 1,
           disciplineId: discipline.id,
           disciplineName: candidate.disciplineName || discipline.name,
+          topicId:
+            Number(candidate.topicId) ||
+            Number((discipline as { topicId?: number }).topicId) ||
+            undefined,
           topicName: candidate.topicName,
           banca: candidate.banca,
           statement: candidate.statement,
@@ -405,9 +413,16 @@ export function SimuladoGenerationProvider({
   const submit = useCallback(
     async (answers: Record<string, string>) => {
       if (!questions.length) return null;
+      const evaluation = evaluateSimulado(questions, answers);
+      // Item 4 (v6.9.4): entrega em branco NÃO é prova concluída. O chamador
+      // recebe null e o simulado fica como está (não entra em média).
+      if (evaluation.answered === 0) {
+        setStatus("ready");
+        return null;
+      }
       setStatus("submitting");
-      let correct = 0;
-      let wrong = 0;
+      const correct = evaluation.correct;
+      const wrong = evaluation.wrong;
       const perDiscipline = new Map<
         string,
         { total: number; correct: number }
@@ -417,24 +432,25 @@ export function SimuladoGenerationProvider({
         const isCorrect =
           String(selected || "").toUpperCase() ===
           String(question.correctAnswer || "").toUpperCase();
-        if (selected) {
-          if (isCorrect) correct++;
-          else wrong++;
-        }
         const item = perDiscipline.get(question.disciplineName) || {
           total: 0,
           correct: 0,
         };
         item.total++;
-        if (isCorrect) item.correct++;
+        if (selected && isCorrect) item.correct++;
         perDiscipline.set(question.disciplineName, item);
       }
-      const blank = questions.length - correct - wrong;
+      const blank = evaluation.blank;
       const result = {
         correct,
         wrong,
         blank,
-        accuracy: Math.round((correct / questions.length) * 100),
+        // CEBRASPE: nota líquida = acertos - erros (branco vale 0).
+        netScore: evaluation.netScore,
+        netIfWrongWereBlank: evaluation.netIfWrongWereBlank,
+        betterBlankCount: evaluation.betterBlankCount,
+        answered: evaluation.answered,
+        accuracy: evaluation.accuracy,
         perDiscipline: [...perDiscipline.entries()].map(([name, value]) => ({
           name,
           ...value,
@@ -460,10 +476,37 @@ export function SimuladoGenerationProvider({
           );
         }
       }
+
+      // v6.9.4 (item 2): cada questão respondida também vira tentativa com
+      // horário, para a evolução por questão deixar de ser só total do TEC.
+      await Promise.all(
+        questions
+          .filter(
+            (question) =>
+              typeof question.topicId === "number" &&
+              Boolean(answers[question.id]),
+          )
+          .map((question) =>
+            recordAttempt
+              .mutateAsync({
+                topicId: question.topicId as number,
+                disciplineId: question.disciplineId,
+                questionId: question.id,
+                answered: true,
+                correct:
+                  String(answers[question.id] || "").toUpperCase() ===
+                  String(question.correctAnswer || "").toUpperCase(),
+                confidence: null,
+                confidencePhase: null,
+                source: "simulado",
+              })
+              .catch(() => null),
+          ),
+      );
       setStatus("completed");
       return result;
     },
-    [examId, questions, updateExam, utils.mockExam.list],
+    [examId, questions, recordAttempt, updateExam, utils.mockExam.list],
   );
 
   const loadExam = useCallback((exam: any) => {

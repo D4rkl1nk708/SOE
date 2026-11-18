@@ -16,6 +16,7 @@ import type {
   CadernoTec,
   Database,
   StudyEventRecord,
+  EditalRow,
 } from "../shared/types";
 
 export type {
@@ -38,6 +39,8 @@ export type {
   StudyEventRecord,
 };
 import { persistBase64Media } from "./mediaStorage";
+import { backupJsonPayload } from "./storage/backup";
+import { preserveRowLinks } from "../shared/editalCoverage";
 import { smartMergeDatabases, normalizeString } from "../shared/merge";
 import * as fs from "fs";
 import * as path from "path";
@@ -173,7 +176,18 @@ export async function getUserSettings(
 ): Promise<UserSettings | undefined> {
   const db = readDatabase();
   const user = db.users.find((u) => u.id === userId);
-  return user?.settings;
+  if (!user) return undefined;
+  // v6.9.4 (item 2): o histórico de tentativas saiu de settings e virou a
+  // coleção `questionAttempts`. Esta é uma VIEW somente-leitura para os
+  // consumidores antigos (ledger, analytics, calibração) continuarem lendo o
+  // mesmo campo — a gravação sempre vai para a coleção.
+  const attempts = (db.questionAttempts || []).filter(
+    (attempt) => !attempt.userId || attempt.userId === userId,
+  );
+  return {
+    ...(user.settings || {}),
+    questionAttempts: attempts,
+  } as UserSettings;
 }
 
 export async function updateUserSettings(
@@ -183,9 +197,98 @@ export async function updateUserSettings(
   const db = readDatabase();
   const index = db.users.findIndex((u) => u.id === userId);
   if (index >= 0) {
-    db.users[index].settings = { ...db.users[index].settings, ...settings };
+    const patch: Partial<UserSettings> = { ...settings };
+
+    // v6.9.4 (item 2): `settings.questionAttempts` não é mais armazenado em
+    // settings. Quem ainda grava por esse caminho (importação, testes, telas
+    // antigas) cai na coleção, sem duplicar por id.
+    if (Object.prototype.hasOwnProperty.call(settings, "questionAttempts")) {
+      const incoming = Array.isArray(settings.questionAttempts)
+        ? settings.questionAttempts
+        : [];
+      if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
+      const byId = new Map(
+        db.questionAttempts.map((attempt) => [String(attempt.id), attempt]),
+      );
+      for (const attempt of incoming) {
+        if (!attempt || !attempt.id) continue;
+        const key = String(attempt.id);
+        if (byId.has(key)) continue;
+        const record = { ...attempt, userId: attempt.userId ?? userId };
+        db.questionAttempts.push(record);
+        byId.set(key, record);
+      }
+      db.questionAttempts.sort((a, b) =>
+        String(a.createdAt || "").localeCompare(String(b.createdAt || "")),
+      );
+      db.counters.questionAttempts = db.questionAttempts.length;
+      delete (patch as Record<string, unknown>).questionAttempts;
+    }
+
+    // v6.9.4 (item 6): a foto de perfil sai do banco. Base64 (850 KB em
+    // settings) vira arquivo em data/uploads e settings guarda só a referência.
+    if (
+      typeof patch.profileImage === "string" &&
+      patch.profileImage.startsWith("data:")
+    ) {
+      const persisted = persistBase64Media(
+        patch.profileImage,
+        `avatar-${userId}`,
+      );
+      if (persisted && !persisted.startsWith("data:")) {
+        patch.profileImage = persisted;
+      }
+    }
+    // v6.9.4 (item 5): quem chama `updateSettings({ editalRows })` (tela de
+    // Edital) grava no concurso ativo. settings deixa de ser dono do edital.
+    if (Object.prototype.hasOwnProperty.call(settings, "editalRows")) {
+      const incomingRows = Array.isArray(settings.editalRows)
+        ? (settings.editalRows as EditalRow[])
+        : [];
+      const current = db.users[index].settings;
+      const exams = Array.isArray(current?.exams) ? [...current.exams] : [];
+      if (exams.length > 0) {
+        const activeId = current.activeExamId || exams[0].id;
+        const examIndex = exams.findIndex((exam) => exam.id === activeId);
+        const targetIndex = examIndex >= 0 ? examIndex : 0;
+        const previousRows = Array.isArray(exams[targetIndex]?.editalRows)
+          ? (exams[targetIndex].editalRows as EditalRow[])
+          : [];
+        exams[targetIndex] = {
+          ...exams[targetIndex],
+          editalRows: preserveRowLinks(
+            incomingRows,
+            previousRows,
+          ) as EditalRow[],
+        };
+        patch.exams = exams;
+        patch.activeExamId = exams[targetIndex].id;
+        patch.editalRows = [];
+      }
+    }
+
+    db.users[index].settings = { ...db.users[index].settings, ...patch };
     writeDatabase(db);
   }
+}
+
+/**
+ * Migração única da foto em base64 que já está gravada no banco.
+ * Retorna true quando converteu. Idempotente: depois da primeira vez a imagem
+ * já é um caminho `/uploads/...` e a função não faz nada.
+ */
+export async function migrateProfileImageToFile(
+  userId: number,
+): Promise<boolean> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const current = user?.settings?.profileImage;
+  if (!current || !current.startsWith("data:")) return false;
+  const persisted = persistBase64Media(current, `avatar-${userId}`);
+  if (!persisted || persisted.startsWith("data:")) return false;
+  user!.settings.profileImage = persisted;
+  writeDatabase(db);
+  return true;
 }
 
 export async function recordQuestionAttempt(
@@ -200,15 +303,36 @@ export async function recordQuestionAttempt(
   if (!user) throw new Error("Usuário não encontrado.");
   const record: QuestionAttempt = {
     ...attempt,
+    userId,
     id:
       attempt.id ||
       `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: attempt.createdAt || now(),
   };
-  user.settings.questionAttempts = [
-    ...(user.settings.questionAttempts || []),
-    record,
-  ].slice(-3000);
+
+  if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
+
+  // Deduplicação (mesma regra da assinatura da 6.9.3): o mesmo questionId no
+  // mesmo tópico, com a mesma resposta, dentro de 10 minutos é eco do mesmo
+  // clique — devolve a tentativa existente em vez de contar duas vezes.
+  if (record.questionId) {
+    const createdMs = Date.parse(record.createdAt);
+    const duplicate = db.questionAttempts.find((existing) => {
+      if (existing.questionId !== record.questionId) return false;
+      if (existing.topicId !== record.topicId) return false;
+      if ((existing.source || "manual") !== (record.source || "manual"))
+        return false;
+      if (existing.correct !== record.correct) return false;
+      const existingMs = Date.parse(String(existing.createdAt || ""));
+      if (!Number.isFinite(existingMs) || !Number.isFinite(createdMs))
+        return false;
+      return Math.abs(createdMs - existingMs) <= 10 * 60 * 1000;
+    });
+    if (duplicate) return duplicate;
+  }
+
+  db.questionAttempts.push(record);
+  db.counters.questionAttempts = db.questionAttempts.length;
   const context = eventContext(db, record.topicId, record.disciplineId);
   pushStudyEvent(user, {
     id: `att-${record.id}`,
@@ -242,9 +366,20 @@ export async function getQuestionAttempts(
   limit = 500,
 ): Promise<QuestionAttempt[]> {
   const db = readDatabase();
-  const user = db.users.find((u) => u.id === userId);
-  const attempts = user?.settings.questionAttempts || [];
+  const attempts = (db.questionAttempts || []).filter(
+    (attempt) => !attempt.userId || attempt.userId === userId,
+  );
   return attempts.slice(-Math.max(1, limit));
+}
+
+/** Todas as tentativas do usuário (sem corte), para tendência e migração. */
+export async function getAllQuestionAttempts(
+  userId: number,
+): Promise<QuestionAttempt[]> {
+  const db = readDatabase();
+  return (db.questionAttempts || []).filter(
+    (attempt) => !attempt.userId || attempt.userId === userId,
+  );
 }
 
 // ============ DISCIPLINE OPERATIONS ============
@@ -344,17 +479,37 @@ const DISCIPLINE_STOPWORDS = new Set([
   "doutrina",
 ]);
 
+/**
+ * Chave de comparação usada nas sugestões de mescla (item 3 da 6.9.4).
+ * Ignora "Matéria:", "TI - ", parênteses e cauda de doutrina — o mesmo
+ * tratamento que o matcher do TEC usa para não criar disciplina nova.
+ */
+function disciplineKey(name: string): string {
+  let value = String(name || "");
+  value = value.replace(
+    /^\s*(mat[eé]ria|disciplina|assunto)\s*[:\-–—]\s*/i,
+    "",
+  );
+  value = value.replace(/^\s*t\.?\s*i\.?\s*[-–—]\s*/i, "");
+  value = value.replace(/\([^)]*\)/g, " ");
+  value = value.replace(
+    /\s*[-–—]\s*(doutrina|leis?|jurisprud[eê]ncia|teoria|exerc[ií]cios?|quest[oõ]es)\b.*$/i,
+    " ",
+  );
+  return normalizeString(value);
+}
+
 function disciplineTokens(name: string): Set<string> {
   return new Set(
-    normalizeString(name)
+    disciplineKey(name)
       .split(/[^a-z0-9]+/)
       .filter((token) => token.length > 1 && !DISCIPLINE_STOPWORDS.has(token)),
   );
 }
 
 function disciplineSimilarity(a: string, b: string): number {
-  const an = normalizeString(a);
-  const bn = normalizeString(b);
+  const an = disciplineKey(a);
+  const bn = disciplineKey(b);
   if (!an || !bn) return 0;
   if (an === bn) return 1;
   if (an.includes(bn) || bn.includes(an)) return 0.92;
@@ -660,7 +815,7 @@ export async function mergeDisciplines(
   userId: number,
   sourceId: number,
   targetId: number,
-): Promise<{ success: boolean; movedTopics: number }> {
+): Promise<{ success: boolean; movedTopics: number; mergedTopics: number }> {
   const db = readDatabase();
   const sourceDisc = db.disciplines.find(
     (d) => d.id === sourceId && d.userId === userId,
@@ -671,6 +826,27 @@ export async function mergeDisciplines(
   if (!sourceDisc || !targetDisc) {
     throw new Error("Disciplina de origem ou destino não encontrada");
   }
+
+  // Backup automático antes de mexer em tópicos/revisões/erros (item 3).
+  backupJsonPayload(getDataDir(), "mescla-disciplinas", {
+    userId,
+    source: sourceDisc,
+    target: targetDisc,
+    topics: db.topics.filter((t) => t.disciplineId === sourceId),
+    revisions: db.revisions.filter((r) =>
+      db.topics.some((t) => t.id === r.topicId && t.disciplineId === sourceId),
+    ),
+    questionErrors: (db.questionErrors || []).filter(
+      (e) => e.disciplineId === sourceId,
+    ),
+    questionAttempts: (db.questionAttempts || []).filter(
+      (a) => a.disciplineId === sourceId,
+    ),
+    flashcards: (db.flashcards || []).filter(
+      (f) => f.disciplineId === sourceId,
+    ),
+    notes: (db.notes || []).filter((n) => n.disciplineId === sourceId),
+  });
 
   let movedTopics = 0;
   for (const t of db.topics) {
@@ -723,12 +899,130 @@ export async function mergeDisciplines(
     }
   }
 
+  // v6.9.4 (item 3): histórico por questão acompanha a disciplina.
+  for (const attempt of db.questionAttempts || []) {
+    if (attempt.disciplineId === sourceId && attempt.userId === userId) {
+      attempt.disciplineId = targetId;
+    }
+  }
+
+  // Tópicos homônimos (mesmo nome normalizado) somam performance em vez de
+  // continuarem duplicados dentro da disciplina de destino.
+  const mergedTopics = mergeHomonymousTopics(db, userId, targetId);
+
   db.disciplines = db.disciplines.filter(
     (d) => d.id !== sourceId || d.userId !== userId,
   );
 
   writeDatabase(db);
-  return { success: true, movedTopics };
+  return {
+    success: true,
+    movedTopics: movedTopics - mergedTopics.absorbed,
+    mergedTopics: mergedTopics.absorbed,
+  };
+}
+
+/**
+ * Agrupa os tópicos de uma disciplina por nome normalizado e funde os
+ * duplicados no de menor id: revisões, tentativas, flashcards, erros, notas e
+ * performance somada. Usado pela mescla de disciplinas (item 3).
+ */
+export function mergeHomonymousTopics(
+  db: Database,
+  userId: number,
+  disciplineId: number,
+): {
+  absorbed: number;
+  groups: Array<{ name: string; into: number; from: number[] }>;
+} {
+  const topics = db.topics.filter(
+    (t) => t.userId === userId && t.disciplineId === disciplineId,
+  );
+  const groups = new Map<string, typeof topics>();
+  for (const topic of topics) {
+    const key = normalizeString(topic.name);
+    if (!key) continue;
+    const list = groups.get(key) || [];
+    list.push(topic);
+    groups.set(key, list);
+  }
+
+  const merged: Array<{ name: string; into: number; from: number[] }> = [];
+  let absorbed = 0;
+
+  for (const [key, list] of groups) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => a.id - b.id);
+    const canonical = sorted[0];
+    const others = sorted.slice(1);
+    const fromIds = others.map((t) => t.id);
+
+    for (const other of others) {
+      for (const revision of db.revisions) {
+        if (revision.topicId === other.id && revision.userId === userId)
+          revision.topicId = canonical.id;
+      }
+      for (const attempt of db.questionAttempts || []) {
+        if (attempt.topicId === other.id) attempt.topicId = canonical.id;
+      }
+      for (const error of db.questionErrors || []) {
+        if (error.topicId === other.id && error.userId === userId)
+          error.topicId = canonical.id;
+      }
+      for (const note of db.notes || []) {
+        if (note.topicId === other.id && note.userId === userId)
+          note.topicId = canonical.id;
+      }
+      for (const flashcard of db.flashcards || []) {
+        if (flashcard.topicId === other.id && flashcard.userId === userId)
+          flashcard.topicId = canonical.id;
+      }
+
+      const fromPerf =
+        other.performance || ({} as NonNullable<Topic["performance"]>);
+      const intoPerf =
+        canonical.performance || ({} as NonNullable<Topic["performance"]>);
+      const resolved =
+        (Number(intoPerf.questionsResolved) || 0) +
+        Math.max(
+          Number(fromPerf.questionsResolved) || 0,
+          (Number(fromPerf.correctCount) || 0) +
+            (Number(fromPerf.errorCount) || 0),
+        );
+      const correct =
+        (Number(intoPerf.correctCount) || 0) +
+        (Number(fromPerf.correctCount) || 0);
+      const errors =
+        (Number(intoPerf.errorCount) || 0) + (Number(fromPerf.errorCount) || 0);
+      canonical.performance = {
+        ...intoPerf,
+        ...fromPerf,
+        questionsResolved: resolved,
+        correctCount: correct,
+        errorCount: errors,
+        accuracy: resolved > 0 ? Math.round((correct / resolved) * 100) : 0,
+      };
+      canonical.studyTimeSeconds =
+        (canonical.studyTimeSeconds || 0) + (other.studyTimeSeconds || 0);
+      canonical.topicNotes = Array.from(
+        new Set([...(canonical.topicNotes || []), ...(other.topicNotes || [])]),
+      );
+      canonical.updatedAt = now();
+      absorbed++;
+    }
+
+    db.topics = db.topics.filter(
+      (t) =>
+        !(
+          t.userId === userId &&
+          t.disciplineId === disciplineId &&
+          fromIds.includes(t.id)
+        ),
+    );
+    merged.push({ name: key, into: canonical.id, from: fromIds });
+  }
+
+  return { absorbed, groups: merged };
 }
 
 export async function mergeTopics(
@@ -1178,6 +1472,9 @@ export async function exportDatabaseForUser(userId: number): Promise<string> {
     essays: db.essays?.filter((e) => e.userId === userId) || [],
     tecSnapshots: db.tecSnapshots?.filter((t) => t.userId === userId) || [],
     mentorSessions: db.mentorSessions || [],
+    questionAttempts: (db.questionAttempts || []).filter(
+      (attempt) => !attempt.userId || attempt.userId === userId,
+    ),
     cadernosTec: db.cadernosTec?.[userId]
       ? { [userId]: db.cadernosTec[userId] }
       : {},
@@ -1338,12 +1635,33 @@ export async function getDashboardStats(userId: number) {
   ).length;
   const completedRevisions = revisions.filter((r) => r.completed).length;
 
+  // v6.9.4 (item 5): a tela de Edital continua lendo `settings.editalRows`,
+  // mas a fonte agora é o concurso ativo.
+  const rawSettings = (user?.settings || {}) as Record<string, any>;
+  const examList = Array.isArray(rawSettings.exams) ? rawSettings.exams : [];
+  const activeExam =
+    examList.find((exam: any) => exam.id === rawSettings.activeExamId) ??
+    examList[0] ??
+    null;
+  const activeRows: EditalRow[] =
+    activeExam && Array.isArray(activeExam.editalRows)
+      ? activeExam.editalRows
+      : Array.isArray(rawSettings.editalRows)
+        ? rawSettings.editalRows
+        : [];
+  const settingsView = {
+    ...rawSettings,
+    exams: examList,
+    activeExamId: activeExam?.id ?? rawSettings.activeExamId,
+    editalRows: activeRows,
+  };
+
   return {
     totalTopics: topics.length,
     totalDisciplines: disciplines.length,
     pendingRevisions,
     completedRevisions,
-    settings: user?.settings,
+    settings: settingsView,
     disciplineStats: disciplines.map((d) => {
       const discTopics = topics.filter((t) => t.disciplineId === d.id);
       // Aggregate performance from topics (questions, accuracy, etc.)
@@ -3257,4 +3575,238 @@ export async function getRecentStudySessions(
   const user = db.users.find((u) => u.id === userId);
   const log = user?.settings?.studySessionLog ?? [];
   return [...log].reverse().slice(0, Math.max(1, limit));
+}
+
+// ============ EDITAL POR CONCURSO (v6.9.4, item 5) ============
+
+export interface ExamEditalItem {
+  id: string;
+  name: string;
+  date: string;
+  rows: number;
+  linkedRows: number;
+  active: boolean;
+}
+
+/**
+ * O edital pertence ao concurso. `activeExamId` diz qual está em uso e o
+ * `dashboard.getStats` devolve as linhas do concurso ativo em
+ * `settings.editalRows` (view), para a tela de Edital não precisar mudar.
+ */
+export async function getExamEditalOverview(userId: number): Promise<{
+  activeExamId: string | null;
+  exams: ExamEditalItem[];
+  rows: EditalRow[];
+}> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const exams = Array.isArray(settings.exams) ? settings.exams : [];
+  const activeExamId =
+    exams.find((exam: any) => exam.id === settings.activeExamId)?.id ??
+    exams[0]?.id ??
+    null;
+  const active = exams.find((exam: any) => exam.id === activeExamId);
+  const rows: EditalRow[] = Array.isArray(active?.editalRows)
+    ? active.editalRows
+    : Array.isArray(settings.editalRows)
+      ? settings.editalRows
+      : [];
+  return {
+    activeExamId,
+    rows,
+    exams: exams.map((exam: any) => {
+      const examRows: EditalRow[] = Array.isArray(exam.editalRows)
+        ? exam.editalRows
+        : [];
+      return {
+        id: exam.id,
+        name: exam.name,
+        date: exam.date,
+        rows: examRows.length,
+        linkedRows: examRows.filter(
+          (row) => Array.isArray(row.topicIds) && row.topicIds.length > 0,
+        ).length,
+        active: exam.id === activeExamId,
+      };
+    }),
+  };
+}
+
+export async function setActiveExam(
+  userId: number,
+  examId: string,
+): Promise<void> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const exams = Array.isArray(user?.settings?.exams)
+    ? user!.settings.exams
+    : [];
+  if (!exams.some((exam) => exam.id === examId)) {
+    throw new Error("Concurso não encontrado.");
+  }
+  await updateUserSettings(userId, { activeExamId: examId });
+}
+
+function writeExamEditalRows(
+  db: Database,
+  userId: number,
+  examId: string | undefined,
+  rows: EditalRow[],
+): void {
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const exams = Array.isArray(user.settings?.exams) ? user.settings.exams : [];
+  const targetId = examId || user.settings.activeExamId || exams[0]?.id;
+  if (!targetId) {
+    // Sem concurso cadastrado: mantém o comportamento antigo (editor livre).
+    user.settings.editalRows = rows;
+    return;
+  }
+  const index = exams.findIndex((exam) => exam.id === targetId);
+  if (index < 0) throw new Error("Concurso não encontrado.");
+  const nextExams = [...exams];
+  const previousRows = Array.isArray(nextExams[index]?.editalRows)
+    ? (nextExams[index].editalRows as EditalRow[])
+    : [];
+  nextExams[index] = {
+    ...nextExams[index],
+    editalRows: preserveRowLinks(rows, previousRows) as EditalRow[],
+  };
+  user.settings.exams = nextExams;
+  user.settings.activeExamId = nextExams[index].id;
+  user.settings.editalRows = [];
+}
+
+export async function setExamEditalRows(
+  userId: number,
+  examId: string | undefined,
+  rows: EditalRow[],
+): Promise<void> {
+  const db = readDatabase();
+  writeExamEditalRows(db, userId, examId, rows);
+  writeDatabase(db);
+}
+
+/**
+ * Liga linhas do edital a tópicos (sugestão aceita ou escolha manual).
+ * Devolve quantas linhas foram alteradas. Backup é responsabilidade do router.
+ */
+export async function patchEditalRowLinks(
+  userId: number,
+  links: Array<{ rowId: string; topicIds: number[] }>,
+): Promise<number> {
+  if (!Array.isArray(links) || links.length === 0) return 0;
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const exams = Array.isArray(settings.exams) ? settings.exams : [];
+  const activeId =
+    exams.find((exam: any) => exam.id === settings.activeExamId)?.id ??
+    exams[0]?.id;
+  const byId = new Map(links.map((link) => [link.rowId, link.topicIds || []]));
+  let changed = 0;
+
+  const patchList = (rows: EditalRow[]): EditalRow[] =>
+    rows.map((row) => {
+      if (!byId.has(row.id)) return row;
+      changed += 1;
+      return {
+        ...row,
+        topicIds: Array.from(
+          new Set(byId.get(row.id)!.filter((id) => Number.isFinite(id))),
+        ),
+      };
+    });
+
+  if (activeId && exams.length > 0) {
+    const index = exams.findIndex((exam: any) => exam.id === activeId);
+    const rows: EditalRow[] = Array.isArray(exams[index]?.editalRows)
+      ? exams[index].editalRows
+      : [];
+    const nextExams = [...exams];
+    nextExams[index] = { ...nextExams[index], editalRows: patchList(rows) };
+    user!.settings.exams = nextExams;
+  } else if (Array.isArray(settings.editalRows)) {
+    user!.settings.editalRows = patchList(settings.editalRows);
+  }
+
+  writeDatabase(db);
+  return changed;
+}
+
+// ============ FLASHCARDS A PARTIR DO CADERNO DE ERROS (item 7) ============
+
+function shortText(value: string | undefined, max = 400): string {
+  const text = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/**
+ * Um flashcard por erro do Caderno de Erros: frente = assertiva curta;
+ * verso = resposta correta + resolução. Sem IA (usa os campos existentes) e
+ * sem duplicar: o card guarda `sourceErrorId`.
+ */
+export async function generateFlashcardsFromErrors(
+  userId: number,
+  errorIds?: number[],
+): Promise<{ created: Flashcard[]; skipped: number; total: number }> {
+  const db = readDatabase();
+  const errors = (db.questionErrors || []).filter(
+    (error) =>
+      error.userId === userId &&
+      (!errorIds || errorIds.length === 0 || errorIds.includes(error.id)),
+  );
+  const already = new Set(
+    (db.flashcards || [])
+      .filter((card) => card.userId === userId && card.sourceErrorId)
+      .map((card) => card.sourceErrorId),
+  );
+
+  const created: Flashcard[] = [];
+  let skipped = 0;
+  const today = now().split("T")[0];
+
+  for (const error of errors) {
+    if (already.has(error.id)) {
+      skipped += 1;
+      continue;
+    }
+    const front = shortText(error.statement, 400) || `Erro #${error.id}`;
+    const answerParts: string[] = [];
+    if (error.correctAnswer)
+      answerParts.push(`Resposta correta: ${error.correctAnswer}`);
+    if (error.userAnswer) answerParts.push(`Você marcou: ${error.userAnswer}`);
+    const explanation =
+      error.resolution || error.supportText || error.aiAnalysis;
+    if (explanation) answerParts.push(shortText(explanation, 900));
+    const back =
+      answerParts.join(String.fromCharCode(10, 10)) ||
+      "Reveja o enunciado e a resolução.";
+
+    db.counters.flashcards++;
+    const card: Flashcard = {
+      id: db.counters.flashcards,
+      userId,
+      disciplineId: error.disciplineId,
+      topicId: error.topicId,
+      front,
+      back,
+      interval: 1,
+      easeFactor: 2.5,
+      repetitions: 0,
+      nextReviewDate: today,
+      sourceErrorId: error.id,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    db.flashcards.push(card);
+    created.push(card);
+    already.add(error.id);
+  }
+
+  if (created.length > 0) writeDatabase(db);
+  return { created, skipped, total: errors.length };
 }

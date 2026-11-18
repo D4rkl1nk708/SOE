@@ -34,6 +34,10 @@ import { RecallRatingDialog } from "@/components/RecallRatingDialog";
 import { PreExamBanner } from "@/components/PreExamBanner";
 import { SleepWarning } from "@/components/SleepWarning";
 import { TeachYourselfMode } from "@/components/TeachYourselfMode";
+import {
+  DEFAULT_DAILY_REVIEW_CAP,
+  prioritizeReviews,
+} from "@shared/reviewQueue";
 
 const PAGE_SIZE = 15;
 
@@ -68,6 +72,10 @@ export default function Revisions() {
   const { data: topicsData } = trpc.topic.list.useQuery();
   const { data: stats } = trpc.dashboard.getStats.useQuery();
 
+  // Item 1 (v6.9.4): a fila mostra o top N e o resto fica em "Em espera".
+  // Nada é apagado nem reagendado — a geração 25/50 não é tocada.
+  const [waitingOpen, setWaitingOpen] = useState(false);
+  const [capInput, setCapInput] = useState("");
   const [pages, setPages] = useState({
     scheduled: PAGE_SIZE,
     overdue: PAGE_SIZE,
@@ -130,6 +138,14 @@ export default function Revisions() {
     },
   });
 
+  const saveCap = trpc.v10.updateV10Settings.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getStats.invalidate();
+      toast.success("Limite diário da fila atualizado.");
+    },
+    onError: () => toast.error("Não foi possível salvar o limite."),
+  });
+
   const markIgnored = trpc.revision.markIgnored.useMutation({
     onSuccess: () => {
       utils.revision.list.invalidate();
@@ -174,6 +190,40 @@ export default function Revisions() {
     };
   }, [enrichedRevisions]);
 
+  const dailyReviewCap = Number.isFinite(
+    Number((stats?.settings as any)?.dailyReviewCap),
+  )
+    ? Number((stats?.settings as any)?.dailyReviewCap)
+    : DEFAULT_DAILY_REVIEW_CAP;
+
+  const queue = useMemo(() => {
+    if (!enrichedRevisions.length) {
+      return {
+        queue: [] as typeof enrichedRevisions,
+        waiting: [] as typeof enrichedRevisions,
+        dueTotal: 0,
+        cap: dailyReviewCap,
+      };
+    }
+    const result = prioritizeReviews(
+      enrichedRevisions,
+      (topicsData?.topics || []) as any,
+      (topicsData?.disciplines || []) as any,
+      new Date(),
+      dailyReviewCap,
+    );
+    return {
+      queue: result.queue.map((item) => item.revision),
+      waiting: result.waiting.map((item) => item.revision),
+      dueTotal: result.dueTotal,
+      cap: result.cap,
+    };
+  }, [enrichedRevisions, topicsData, dailyReviewCap]);
+
+  useEffect(() => {
+    setCapInput(String(dailyReviewCap));
+  }, [dailyReviewCap]);
+
   // Auto infinite scroll when nearing bottom of page. Precisa ficar antes do
   // early return de loading; caso contrário o número de hooks muda entre o
   // primeiro render (loading) e o segundo (dados carregados).
@@ -216,13 +266,20 @@ export default function Revisions() {
     list,
     tab,
     emptyMessage,
+    limit,
   }: {
     list: any[];
     tab: keyof typeof pages;
     emptyMessage: string;
+    /** Quando definido, mostra exatamente esse recorte (sem "carregar mais"). */
+    limit?: number;
   }) => {
-    const visible = list.slice(0, pages[tab]);
-    const hasMore = list.length > pages[tab];
+    const visible =
+      typeof limit === "number"
+        ? list.slice(0, limit)
+        : list.slice(0, pages[tab]);
+    const hasMore =
+      typeof limit === "number" ? false : list.length > pages[tab];
 
     return (
       <div className="space-y-3 mt-4">
@@ -446,6 +503,102 @@ export default function Revisions() {
       )}
       <PreExamBanner />
       <SleepWarning />
+
+      <section className="mb-2 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Fila do dia
+            </h2>
+            <span className="rounded bg-secondary/50 px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+              {queue.queue.length}
+              {queue.waiting.length > 0 ? ` de ${queue.dueTotal}` : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label
+              htmlFor="daily-review-cap"
+              className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground"
+            >
+              Limite/dia
+            </label>
+            <Input
+              id="daily-review-cap"
+              type="number"
+              min={0}
+              max={500}
+              value={capInput}
+              onChange={(event) => setCapInput(event.target.value)}
+              className="h-7 w-16 rounded-md text-center text-[11px]"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest"
+              disabled={
+                saveCap.isPending || Number(capInput) === dailyReviewCap
+              }
+              onClick={() => {
+                const next = Number(capInput);
+                if (!Number.isFinite(next) || next < 0) {
+                  toast.error(
+                    "Informe um número a partir de 0 (0 = sem limite).",
+                  );
+                  return;
+                }
+                saveCap.mutate({ dailyReviewCap: Math.floor(next) });
+              }}
+            >
+              Salvar
+            </Button>
+            <span className="text-[9px] text-muted-foreground">
+              {dailyReviewCap === 0 ? "sem limite" : "0 = sem limite"}
+            </span>
+          </div>
+        </div>
+
+        {queue.dueTotal === 0 ? (
+          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+            Nada vencendo agora. A fila se enche conforme as revisões vencem.
+          </div>
+        ) : (
+          <RevisionList
+            list={queue.queue}
+            tab="scheduled"
+            limit={queue.queue.length}
+            emptyMessage="Nada vencendo agora."
+          />
+        )}
+
+        {queue.waiting.length > 0 && (
+          <div className="rounded-xl border border-border/70 bg-secondary/20">
+            <button
+              type="button"
+              onClick={() => setWaitingOpen((open) => !open)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Em espera ({queue.waiting.length})
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {waitingOpen ? "Recolher" : "Ver revisões fora do topo"}
+              </span>
+            </button>
+            {waitingOpen && (
+              <div className="px-1 pb-2">
+                <RevisionList
+                  list={queue.waiting}
+                  tab="overdue"
+                  limit={queue.waiting.length}
+                  emptyMessage="Nada em espera."
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       <Tabs
         defaultValue="scheduled"
         className="w-full"

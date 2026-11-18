@@ -3,6 +3,10 @@ import { useState } from "react";
 import { Target, CheckCircle2, Clock, ArrowRight, Edit2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import {
+  DEFAULT_DAILY_REVIEW_CAP,
+  prioritizeReviews,
+} from "@shared/reviewQueue";
 
 // ── Daily Goal Progress ────────────────────────────────────────────────────────
 export function DailyGoalWidget() {
@@ -145,11 +149,40 @@ export function TodayRevisions() {
     }
   }
 
-  const todayRevisions = (revisions ?? [])
-    .filter(
-      (r) =>
-        !r.ignored && r.scheduledDate <= todayStr && topicMap.has(r.topicId),
-    )
+  // Item 1 (v6.9.4): mesma fila priorizada da tela de Revisões — top N do dia,
+  // o resto só conta em "em espera". Nada é apagado.
+  const capSetting = Number((stats as any)?.settings?.dailyReviewCap);
+  const cap = Number.isFinite(capSetting)
+    ? capSetting
+    : DEFAULT_DAILY_REVIEW_CAP;
+  const trackedTopics = (stats?.disciplineStats ?? []).flatMap(
+    (discipline: any) =>
+      (discipline.topics ?? []).map((topic: any) => ({
+        id: topic.id,
+        disciplineId: discipline.disciplineId ?? discipline.id,
+        performance: topic.performance,
+      })),
+  );
+  const trackedDisciplines = (stats?.disciplineStats ?? []).map(
+    (discipline: any) => ({
+      id: discipline.disciplineId ?? discipline.id,
+      weight: 1,
+    }),
+  );
+
+  const queue = prioritizeReviews(
+    (revisions ?? []).filter(
+      (r) => !r.ignored && r.scheduledDate <= todayStr,
+    ) as any,
+    trackedTopics as any,
+    trackedDisciplines as any,
+    new Date(),
+    cap,
+  );
+
+  const todayRevisions = queue.queue
+    .map((item) => item.revision)
+    .filter((r) => topicMap.has(r.topicId))
     .map((r) => {
       const info = topicMap.get(r.topicId)!;
       return {
@@ -159,6 +192,7 @@ export function TodayRevisions() {
         disciplineColor: info.disciplineColor,
       };
     });
+  const waitingCount = queue.waiting.length;
 
   if (todayRevisions.length === 0) return null;
 
@@ -210,9 +244,12 @@ export function TodayRevisions() {
             <Clock size={10} className="text-amber-500/50" />
           </div>
         ))}
-        {todayRevisions.length > 5 && (
+        {(waitingCount > 0 || todayRevisions.length > 5) && (
           <p className="text-[9px] text-center font-bold text-muted-foreground opacity-40 pt-1">
-            + {todayRevisions.length - 5} OUTROS TEMAS
+            {waitingCount > 0 ? `EM ESPERA (${waitingCount}) · ` : ""}
+            {todayRevisions.length > 5
+              ? `+ ${todayRevisions.length - 5} OUTROS TEMAS`
+              : "VER FILA COMPLETA"}
           </p>
         )}
       </div>

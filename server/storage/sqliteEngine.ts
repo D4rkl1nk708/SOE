@@ -6,6 +6,7 @@ import {
   getEmptyCounters,
   normalizeDatabase,
 } from "./normalize";
+import { backupBeforeMigration } from "./backup";
 
 /**
  * Motor SQLite (node:sqlite) para o SOE.
@@ -28,6 +29,7 @@ const COLLECTIONS = [
   "questionErrors",
   "essays",
   "tecSnapshots",
+  "questionAttempts",
 ] as const;
 
 type Collection = (typeof COLLECTIONS)[number];
@@ -185,6 +187,7 @@ export function getEmptyDatabase(): Database {
     essays: [],
     tecSnapshots: [],
     cadernosTec: {},
+    questionAttempts: [],
     counters: getEmptyCounters(),
   };
 }
@@ -419,7 +422,13 @@ export function readDatabase(): Database {
     }
   }
 
-  const normalized = normalizeDatabase(db).db;
+  const { db: normalized, migrations } = normalizeDatabase(db);
+
+  // Migração de dados: guarda o .sqlite antes de a próxima escrita aplicar
+  // a mudança (a leitura em si não grava).
+  if (migrations && migrations.length > 0) {
+    backupBeforeMigration(DB_FILE, DATA_DIR, migrations.join("-"));
+  }
 
   // Reconstrói o snapshot para que a próxima escrita saiba o que já está no disco.
   _persisted = rowsOf(normalized);

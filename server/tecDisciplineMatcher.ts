@@ -83,6 +83,35 @@ const SYNONYM_GROUPS: string[][] = [
   ["administracao geral", "administracao publica", "gestao publica"],
 ];
 
+/**
+ * Chave de comparação de nome de disciplina.
+ *
+ * O TEC manda nomes como "Matéria: Direito Administrativo (Doutrina e Leis
+ * Federais)" e "TI - Desenvolvimento de Sistemas"; sem limpar prefixo,
+ * parênteses e acento o matcher não reconhece a disciplina existente e cria
+ * uma duplicata (24 disciplinas onde deveriam ser ~12).
+ */
+export function normalizeDisciplineKey(
+  name: string | null | undefined,
+): string {
+  let value = String(name || "");
+  // "Matéria:", "Disciplina -", "Assunto:"
+  value = value.replace(
+    /^\s*(mat[eé]ria|disciplina|assunto)\s*[:\-–—]\s*/i,
+    "",
+  );
+  // "TI - X", "T.I. - X"
+  value = value.replace(/^\s*t\.?\s*i\.?\s*[-–—]\s*/i, "");
+  // Parênteses explicativos: "(Doutrina e Leis Federais)", "(Parte 1)"
+  value = value.replace(/\([^)]*\)/g, " ");
+  // Cauda de fonte jurídica: "- Doutrina e Leis", "- Jurisprudência"
+  value = value.replace(
+    /\s*[-–—]\s*(doutrina|leis?|jurisprud[eê]ncia|teoria|exerc[ií]cios?|quest[oõ]es)\b.*$/i,
+    " ",
+  );
+  return normalizeString(value);
+}
+
 export function getMeaningfulTokens(s: string): string[] {
   const norm = normalizeString(s);
   return norm.split(" ").filter((t) => t.length > 1 && !STOP_WORDS.has(t));
@@ -204,10 +233,13 @@ export function findBestDisciplineMatch(
     };
   }
 
-  const normIncoming = normalizeString(cleanIncoming);
+  const normIncoming = normalizeDisciplineKey(cleanIncoming);
 
   // 1. Check user aliases
-  if (aliases && aliases[normIncoming]) {
+  if (
+    aliases &&
+    (aliases[normIncoming] || aliases[normalizeString(cleanIncoming)])
+  ) {
     const targetId = aliases[normIncoming];
     const found = disciplines.find((d) => d.id === targetId);
     if (found) {
@@ -220,9 +252,9 @@ export function findBestDisciplineMatch(
     }
   }
 
-  // 2. Exact match after normalization
+  // 2. Exact match after normalization (prefixo/parênteses/acento removidos)
   for (const d of disciplines) {
-    if (normalizeString(d.name) === normIncoming) {
+    if (normalizeDisciplineKey(d.name) === normIncoming) {
       return {
         discipline: d,
         confidence: 1.0,
@@ -238,8 +270,15 @@ export function findBestDisciplineMatch(
     similarity: number;
   } | null = null;
   for (const d of disciplines) {
-    if (!areDisciplineSynonyms(d.name, cleanIncoming)) continue;
-    const similarity = calculateTokenSimilarity(d.name, cleanIncoming);
+    if (
+      !areDisciplineSynonyms(normalizeDisciplineKey(d.name), normIncoming) &&
+      !areDisciplineSynonyms(d.name, cleanIncoming)
+    )
+      continue;
+    const similarity = calculateTokenSimilarity(
+      normalizeDisciplineKey(d.name),
+      normIncoming,
+    );
     if (!bestSynonym || similarity > bestSynonym.similarity) {
       bestSynonym = { discipline: d, similarity };
     }
@@ -259,12 +298,13 @@ export function findBestDisciplineMatch(
     discipline: { id: number; name: string };
     similarity: number;
   } | null = null;
-  const incomingTokens = getMeaningfulTokens(cleanIncoming);
+  const incomingTokens = getMeaningfulTokens(normIncoming);
   for (const d of disciplines) {
-    const existingTokens = getMeaningfulTokens(d.name);
+    const discKey = normalizeDisciplineKey(d.name);
+    const existingTokens = getMeaningfulTokens(discKey);
     if (Math.min(incomingTokens.length, existingTokens.length) < 2) continue;
-    if (!isTokenSubset(d.name, cleanIncoming)) continue;
-    const similarity = calculateTokenSimilarity(d.name, cleanIncoming);
+    if (!isTokenSubset(discKey, normIncoming)) continue;
+    const similarity = calculateTokenSimilarity(discKey, normIncoming);
     if (!bestSubset || similarity > bestSubset.similarity) {
       bestSubset = { discipline: d, similarity };
     }
@@ -282,7 +322,10 @@ export function findBestDisciplineMatch(
   let bestSim = 0;
   let bestSimDisc: { id: number; name: string } | null = null;
   for (const d of disciplines) {
-    const sim = calculateTokenSimilarity(d.name, cleanIncoming);
+    const sim = calculateTokenSimilarity(
+      normalizeDisciplineKey(d.name),
+      normIncoming,
+    );
     if (sim > bestSim && sim >= 0.6) {
       bestSim = sim;
       bestSimDisc = d;

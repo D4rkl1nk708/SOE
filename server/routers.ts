@@ -43,8 +43,12 @@ export const appRouter = router({
   edital: editalRouter,
   study: studyRouter,
   auth: router({
-    me: publicProcedure.query(({ ctx }) => {
-      return ctx.user;
+    me: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return ctx.user;
+      // v6.9.4 (item 6): foto em base64 vira arquivo uma única vez.
+      const migrated = await storage.migrateProfileImageToFile(ctx.user.id);
+      if (!migrated) return ctx.user;
+      return (await storage.getUserById(ctx.user.id)) || ctx.user;
     }),
     logout: protectedProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
@@ -63,6 +67,8 @@ export const appRouter = router({
                 id: z.string(),
                 name: z.string(),
                 date: z.string(),
+                targetScore: z.number().min(0).max(100).optional(),
+                editalRows: z.array(z.any()).optional(),
               }),
             )
             .optional(),
@@ -91,6 +97,7 @@ export const appRouter = router({
                 avancar: z.boolean().optional(),
                 discursiva: z.boolean().optional(),
                 isHeader: z.boolean().optional(),
+                topicIds: z.array(z.number()).optional(),
               }),
             )
             .optional(),
@@ -114,6 +121,7 @@ export const appRouter = router({
                     avancar: z.boolean().optional(),
                     discursiva: z.boolean().optional(),
                     isHeader: z.boolean().optional(),
+                    topicIds: z.array(z.number()).optional(),
                   }),
                 ),
               }),
@@ -139,6 +147,9 @@ export const appRouter = router({
           revisionIntervalDays: z.number().min(0).max(365).optional(),
           revisionSecondPhaseDays: z.number().min(1).max(365).optional(),
           dailyGoalMinutes: z.number().min(0).max(1440).optional(),
+          /** Teto diário da fila de revisões (0 = sem limite). */
+          dailyReviewCap: z.number().min(0).max(500).optional(),
+          activeExamId: z.string().optional(),
           onboardingCompleted: z.boolean().optional(),
           dashboardConfig: z
             .object({
@@ -995,6 +1006,28 @@ export const appRouter = router({
         await storage.deleteFlashcard(input.id, ctx.user.id);
         return { success: true };
       }),
+    /**
+     * Item 7: um card por erro do Caderno de Erros (lei seca).
+     * Sem IA usa enunciado + gabarito + resolução; nunca duplica
+     * (guarda `sourceErrorId`).
+     */
+    generateFromErrors: protectedProcedure
+      .input(
+        z
+          .object({ errorIds: z.array(z.number()).max(500).optional() })
+          .optional(),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const result = await storage.generateFlashcardsFromErrors(
+          ctx.user.id,
+          input?.errorIds,
+        );
+        return {
+          created: result.created.length,
+          skipped: result.skipped,
+          total: result.total,
+        };
+      }),
     review: protectedProcedure
       .input(z.object({ id: z.number(), quality: z.number().min(0).max(5) }))
       .mutation(async ({ ctx, input }) => {
@@ -1399,6 +1432,8 @@ ${input.text.substring(0, 8000)}`;
           baseDisciplineIds: z.array(z.number()).optional(),
           scheduler: z.enum(["classic", "fsrs"]).optional(),
           tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),
+          dailyReviewCap: z.number().min(0).max(500).optional(),
+          activeExamId: z.string().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {

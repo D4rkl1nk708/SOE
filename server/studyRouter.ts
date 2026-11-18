@@ -9,6 +9,7 @@ import {
   suggestBacklogAction,
 } from "./revisionPlanning";
 import { formatDateForDb } from "../shared/scheduling";
+import { computeDisciplineTrends } from "../shared/attemptTrends";
 import {
   findBestDisciplineMatch,
   findBestTopicMatch,
@@ -362,6 +363,36 @@ export const studyRouter = router({
         details: details.slice(0, 50),
       };
     }),
+
+  /**
+   * Acerto por disciplina: últimos 7 dias vs os 30 dias anteriores.
+   * Com menos de 10 tentativas em qualquer janela a resposta é "sem dados
+   * suficientes" — nunca uma seta em cima de 2 questões.
+   */
+  attemptTrends: protectedProcedure.query(async ({ ctx }) => {
+    const [attempts, disciplines, topics] = await Promise.all([
+      storage.getAllQuestionAttempts(ctx.user.id),
+      storage.getDisciplinesByUser(ctx.user.id),
+      storage.getTopicsByUser(ctx.user.id),
+    ]);
+    const trends = computeDisciplineTrends(
+      attempts as any,
+      disciplines.map((discipline) => ({
+        id: discipline.id,
+        name: discipline.name,
+      })),
+      topics.map((topic) => ({
+        id: topic.id,
+        disciplineId: topic.disciplineId,
+      })),
+    );
+    return {
+      trends,
+      totalAttempts: attempts.length,
+      windowDays: 7,
+      baselineDays: 30,
+    };
+  }),
 
   calibration: protectedProcedure.query(async ({ ctx }) => {
     const overview = await getStudyOverview(ctx.user.id);

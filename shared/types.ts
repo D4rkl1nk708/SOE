@@ -155,6 +155,8 @@ export interface EditalRow {
   avancar?: boolean;
   discursiva?: boolean;
   isHeader?: boolean; // first row of a discipline group
+  /** Tópicos do SOE ligados a esta linha do edital (v6.9.4, item 5). */
+  topicIds?: number[];
 }
 
 export interface EditalVersion {
@@ -168,6 +170,8 @@ export type ConfidenceLevel = "chute" | "acho" | "certeza";
 
 export interface QuestionAttempt {
   id: string;
+  /** Dono da tentativa (a coleção é global desde a v6.9.4). */
+  userId?: number;
   topicId: number;
   disciplineId?: number;
   questionId?: string;
@@ -207,7 +211,11 @@ export interface UserSettings {
     date: string;
     /** Meta de acerto para esta prova (0-100) */
     targetScore?: number;
+    /** Edital deste concurso (v6.9.4: o edital pertence ao concurso). */
+    editalRows?: EditalRow[];
   }[];
+  /** Concurso cujo edital está em uso (v6.9.4). */
+  activeExamId?: string;
   editalCycle?: {
     id: string;
     title: string;
@@ -237,6 +245,8 @@ export interface UserSettings {
   revisionSecondPhaseDays?: number;
   /** Meta diária de estudo em minutos */
   dailyGoalMinutes?: number;
+  /** Teto diário de revisões exibidas na fila (padrão 25; 0 = sem limite) */
+  dailyReviewCap?: number;
   /** Anotações globais do usuário - R26 */
   topicNotes?: Array<{
     id: string;
@@ -395,6 +405,8 @@ export interface Flashcard {
   repetitions: number; // times reviewed successfully
   nextReviewDate: string; // YYYY-MM-DD
   archived?: boolean;
+  /** Erro do Caderno de Erros que originou este card (evita duplicar). */
+  sourceErrorId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -507,6 +519,8 @@ export interface Database {
   questionErrors: QuestionError[];
   essays: Essay[];
   tecSnapshots: TecSnapshot[];
+  /** Histórico por questão — coleção própria desde a v6.9.4 (fora de settings). */
+  questionAttempts?: QuestionAttempt[];
   cadernosTec: Record<string | number, any>;
   mentorSessions?: any[];
   subjectiveAnswers?: any[];

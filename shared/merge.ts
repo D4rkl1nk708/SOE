@@ -836,6 +836,53 @@ export function smartMergeDatabases(
   processMentorSessions(safeA.mentorSessions || []);
   processMentorSessions(safeB.mentorSessions || []);
 
+  // 11b. Tentativas de questão (coleção própria desde a 6.9.4; settings é
+  // fallback de bancos antigos). Depois de tópicos/disciplinas remapeados.
+  const canonicalAttempts = new Map<string, any>();
+  const processAttempts = (
+    collection: any[] | undefined,
+    legacy: any[] | undefined,
+    topMap: Map<number, number>,
+    discMap: Map<number, number>,
+  ) => {
+    const list = [
+      ...(Array.isArray(collection) ? collection : []),
+      ...(Array.isArray(legacy) ? legacy : []),
+    ];
+    for (const attempt of list) {
+      if (!attempt) continue;
+      const key = String(
+        attempt.id ||
+          `${attempt.questionId || ""}::${attempt.topicId || ""}::${attempt.createdAt || ""}`,
+      );
+      if (canonicalAttempts.has(key)) continue;
+      const rawTopic = Number(attempt.topicId);
+      const rawDisc =
+        attempt.disciplineId != null ? Number(attempt.disciplineId) : undefined;
+      canonicalAttempts.set(key, {
+        ...attempt,
+        topicId: topMap.get(rawTopic) ?? rawTopic,
+        disciplineId:
+          rawDisc === undefined ? undefined : (discMap.get(rawDisc) ?? rawDisc),
+      });
+    }
+  };
+  processAttempts(
+    safeA.questionAttempts,
+    settingsA.questionAttempts,
+    mapTopIdA,
+    mapDiscIdA,
+  );
+  processAttempts(
+    safeB.questionAttempts,
+    settingsB.questionAttempts,
+    mapTopIdB,
+    mapDiscIdB,
+  );
+  const finalAttempts = Array.from(canonicalAttempts.values()).sort((a, b) =>
+    String(a.createdAt || "").localeCompare(String(b.createdAt || "")),
+  );
+
   // 12. Recalculate Discipline Performance based on merged topics
   const finalTopics = Array.from(canonicalTopics.values());
   for (const disc of canonicalDisciplines.values()) {
@@ -1003,6 +1050,7 @@ export function smartMergeDatabases(
     questionErrors: finalErrors,
     essays: Array.from(canonicalEssays.values()),
     tecSnapshots: Array.from(canonicalSnapshots.values()),
+    questionAttempts: finalAttempts,
     subjectiveAnswers: Array.from(canonicalSubjective.values()),
     conceptConfusions: Array.from(canonicalConfusions.values()),
     mentorSessions: Array.from(canonicalMentorSessions.values()),
@@ -1018,6 +1066,7 @@ export function smartMergeDatabases(
       questionErrors: nextErrId - 1,
       essays: nextEssayId - 1,
       tecSnapshots: nextSnapId - 1,
+      questionAttempts: finalAttempts.length,
     },
     _mergeReport: {
       disciplinesCount: finalDisciplines.length,

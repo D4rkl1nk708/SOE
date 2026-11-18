@@ -67,6 +67,9 @@ export default function Disciplines() {
   });
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
+  // Item 3: mescla manual (origem → destino), além das sugestões.
+  const [manualSource, setManualSource] = useState("");
+  const [manualTarget, setManualTarget] = useState("");
 
   const utils = trpc.useUtils();
   const { data: disciplines, isLoading } = trpc.discipline.list.useQuery();
@@ -553,6 +556,69 @@ export default function Disciplines() {
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-3 overflow-y-auto p-5">
+            <div className="rounded-md border border-dashed border-border p-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Mesclar manualmente
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Escolha a origem (será absorvida) e o destino. Tópicos,
+                revisões, tentativas, flashcards, erros e notas vão juntos; o
+                SOE salva um backup antes.
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <select
+                  aria-label="Disciplina de origem"
+                  value={manualSource}
+                  onChange={(event) => setManualSource(event.target.value)}
+                  className="h-9 min-w-0 rounded-md border border-border bg-card px-2 text-xs"
+                >
+                  <option value="">Origem…</option>
+                  {disciplineList.map((discipline: any) => (
+                    <option key={discipline.id} value={discipline.id}>
+                      {discipline.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Disciplina de destino"
+                  value={manualTarget}
+                  onChange={(event) => setManualTarget(event.target.value)}
+                  className="h-9 min-w-0 rounded-md border border-border bg-card px-2 text-xs"
+                >
+                  <option value="">Destino…</option>
+                  {disciplineList.map((discipline: any) => (
+                    <option key={discipline.id} value={discipline.id}>
+                      {discipline.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  disabled={
+                    !manualSource ||
+                    !manualTarget ||
+                    manualSource === manualTarget ||
+                    mergeMutation.isPending
+                  }
+                  onClick={() =>
+                    mergeMutation.mutate(
+                      {
+                        sourceId: Number(manualSource),
+                        targetId: Number(manualTarget),
+                      },
+                      {
+                        onSuccess: () => {
+                          setManualSource("");
+                          setManualTarget("");
+                        },
+                      },
+                    )
+                  }
+                >
+                  Mesclar
+                </Button>
+              </div>
+            </div>
             {!duplicates?.length ? (
               <p className="text-sm text-muted-foreground">
                 Nenhuma duplicata evidente encontrada.

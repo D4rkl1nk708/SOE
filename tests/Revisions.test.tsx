@@ -20,6 +20,9 @@ vi.mock("@/lib/trpc", () => ({
     dashboard: {
       getStats: { useQuery: vi.fn() },
     },
+    v10: {
+      updateV10Settings: { useMutation: vi.fn() },
+    },
   },
 }));
 
@@ -131,6 +134,10 @@ describe("Revisions Component - Simple", () => {
           }),
       }),
     );
+    (trpc.v10.updateV10Settings.useMutation as any).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    });
     (trpc.revision.markIgnored.useMutation as any).mockImplementation(
       ({ onSuccess }: any) => ({
         mutate: (vars: any) =>
@@ -157,9 +164,11 @@ describe("Revisions Component - Simple", () => {
     });
 
     render(<Revisions />);
-    expect(screen.getByText("Atos Administrativos")).toBeTruthy();
+    expect(screen.getAllByText("Atos Administrativos").length).toBeGreaterThan(
+      0,
+    );
 
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getAllByRole("checkbox")[0]);
     expect(screen.getByTestId("recall-dialog")).toBeTruthy();
   });
 

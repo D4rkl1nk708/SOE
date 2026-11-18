@@ -109,6 +109,11 @@ vi.mock("@/lib/trpc", () => ({
         },
       },
     }),
+    study: {
+      attemptTrends: {
+        useQuery: () => ({ data: { trends: [] }, isLoading: false }),
+      },
+    },
     dashboard: {
       getHeatmap: { useQuery: () => ({ data: [] }) },
       getStats: {

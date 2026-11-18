@@ -12,6 +12,11 @@ import {
   getScheduleParams,
 } from "@shared/scheduling";
 import { callAiProvider, extractJSON, AiProvider } from "./aiHelpers";
+import { computeDisciplineTrends } from "@shared/attemptTrends";
+import {
+  computeEditalCoverage,
+  suggestTopicLinks,
+} from "@shared/editalCoverage";
 
 const now = () => new Date().toISOString();
 
@@ -3015,4 +3020,230 @@ export async function localEssayDelete(
 ): Promise<{ success: boolean }> {
   await db.essays.delete(id);
   return { success: true };
+}
+
+// ============ v6.9.4 — paridade offline ============
+
+/** Tendência por disciplina (últimos 7 dias vs 30 dias anteriores). */
+export async function localStudyAttemptTrends(): Promise<{
+  trends: ReturnType<typeof computeDisciplineTrends>;
+  totalAttempts: number;
+  windowDays: number;
+  baselineDays: number;
+}> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const attempts = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+  const disciplines = await localDisciplineList();
+  const { topics } = await localTopicList({});
+  return {
+    trends: computeDisciplineTrends(
+      attempts,
+      disciplines.map((d) => ({ id: d.id, name: d.name })),
+      topics.map((t: any) => ({ id: t.id, disciplineId: t.disciplineId })),
+    ),
+    totalAttempts: attempts.length,
+    windowDays: 7,
+    baselineDays: 30,
+  };
+}
+
+/** Flashcards de lei seca a partir dos erros (um por erro, sem duplicar). */
+export async function localGenerateFlashcardsFromErrors(input?: {
+  errorIds?: number[];
+}): Promise<{ created: number; skipped: number; total: number }> {
+  const errors = await db.questionErrors
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const selected = errors.filter(
+    (error: any) =>
+      !input?.errorIds ||
+      input.errorIds.length === 0 ||
+      input.errorIds.includes(error.id),
+  );
+  const cards = await db.flashcards
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const already = new Set(
+    cards
+      .map((card: any) => card.sourceErrorId)
+      .filter((value: any) => typeof value === "number"),
+  );
+  let created = 0;
+  let skipped = 0;
+  for (const error of selected as any[]) {
+    if (already.has(error.id)) {
+      skipped += 1;
+      continue;
+    }
+    const front = String(error.statement || "")
+      .replace(/\s+/g, " ")
+      .slice(0, 400);
+    const parts: string[] = [];
+    if (error.correctAnswer)
+      parts.push(`Resposta correta: ${error.correctAnswer}`);
+    if (error.userAnswer) parts.push(`Você marcou: ${error.userAnswer}`);
+    const explanation =
+      error.resolution || error.supportText || error.aiAnalysis;
+    if (explanation) parts.push(String(explanation).slice(0, 900));
+    const back = parts.join("\n\n") || "Reveja o enunciado e a resolução.";
+    await localFlashcardCreate({
+      disciplineId: error.disciplineId,
+      topicId: error.topicId,
+      front: front || `Erro #${error.id}`,
+      back,
+    });
+    const last = await db.flashcards.orderBy("id").last();
+    if (last) {
+      await db.flashcards.update(last.id, { sourceErrorId: error.id } as any);
+    }
+    already.add(error.id);
+    created += 1;
+  }
+  return { created, skipped, total: selected.length };
+}
+
+async function localEditalState(): Promise<{
+  settings: Record<string, any>;
+  exams: any[];
+  activeExamId: string | null;
+  rows: any[];
+}> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const exams = Array.isArray(settings.exams) ? settings.exams : [];
+  const activeExamId =
+    exams.find((exam: any) => exam.id === settings.activeExamId)?.id ??
+    exams[0]?.id ??
+    null;
+  const active = exams.find((exam: any) => exam.id === activeExamId);
+  const rows =
+    active && Array.isArray(active.editalRows)
+      ? active.editalRows
+      : Array.isArray(settings.editalRows)
+        ? settings.editalRows
+        : [];
+  return { settings, exams, activeExamId, rows };
+}
+
+export async function localEditalOverview() {
+  const state = await localEditalState();
+  return {
+    activeExamId: state.activeExamId,
+    rows: state.rows,
+    exams: state.exams.map((exam: any) => {
+      const rows = Array.isArray(exam.editalRows) ? exam.editalRows : [];
+      return {
+        id: exam.id,
+        name: exam.name,
+        date: exam.date,
+        rows: rows.length,
+        linkedRows: rows.filter(
+          (row: any) => Array.isArray(row.topicIds) && row.topicIds.length > 0,
+        ).length,
+        active: exam.id === state.activeExamId,
+      };
+    }),
+    cadernos: [] as any[],
+  };
+}
+
+export async function localEditalSetActiveExam(input: { examId: string }) {
+  await localUpdateSettings({ activeExamId: input.examId });
+  return { success: true, activeExamId: input.examId };
+}
+
+async function localPatchEditalRows(
+  patch: (rows: any[]) => any[],
+): Promise<number> {
+  const state = await localEditalState();
+  const nextRows = patch(state.rows);
+  const exams = [...state.exams];
+  if (state.activeExamId && exams.length > 0) {
+    const index = exams.findIndex(
+      (exam: any) => exam.id === state.activeExamId,
+    );
+    if (index >= 0) exams[index] = { ...exams[index], editalRows: nextRows };
+    await localUpdateSettings({ exams });
+  } else {
+    await localUpdateSettings({ editalRows: nextRows });
+  }
+  return nextRows.length;
+}
+
+export async function localEditalCoverage() {
+  const state = await localEditalState();
+  const disciplines = await localDisciplineList();
+  const { topics } = await localTopicList({});
+  const coverage = computeEditalCoverage(
+    state.rows as any,
+    topics as any,
+    disciplines.map((discipline) => ({
+      id: discipline.id,
+      name: discipline.name,
+    })),
+  );
+  return {
+    ...coverage,
+    activeExamId: state.activeExamId,
+    exams: (await localEditalOverview()).exams,
+    cadernos: [] as any[],
+    rows: state.rows,
+  };
+}
+
+export async function localEditalSuggestLinks(input?: {
+  apply?: boolean;
+  threshold?: number;
+}) {
+  const state = await localEditalState();
+  const disciplines = await localDisciplineList();
+  const { topics } = await localTopicList({});
+  const suggestions = suggestTopicLinks(
+    state.rows as any,
+    topics as any,
+    disciplines.map((discipline) => ({
+      id: discipline.id,
+      name: discipline.name,
+    })),
+    { threshold: input?.threshold ?? 0.45 },
+  );
+  const linked = suggestions.filter((item) => item.topicIds.length > 0);
+  let applied = 0;
+  if (input?.apply && linked.length > 0) {
+    const byId = new Map(
+      linked.map((item) => [item.rowId, item.topicIds] as const),
+    );
+    await localPatchEditalRows((rows) =>
+      rows.map((row) =>
+        byId.has(row.id) ? { ...row, topicIds: byId.get(row.id) } : row,
+      ),
+    );
+    applied = linked.length;
+  }
+  return {
+    suggestions: suggestions.slice(0, 300),
+    matched: linked.length,
+    total: suggestions.length,
+    applied,
+  };
+}
+
+export async function localEditalLinkRow(input: {
+  rowId: string;
+  topicIds: number[];
+}) {
+  let changed = 0;
+  await localPatchEditalRows((rows) =>
+    rows.map((row) => {
+      if (row.id !== input.rowId) return row;
+      changed += 1;
+      return { ...row, topicIds: input.topicIds };
+    }),
+  );
+  return { success: true, changed };
 }

@@ -51,6 +51,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/layout/PageShell";
 import { formatDateForDb } from "@shared/scheduling";
+import { EditalCoveragePanel } from "@/components/EditalCoveragePanel";
 import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 
@@ -438,6 +439,8 @@ function EditalTab({
       avancar: r.avancar,
       discursiva: r.discursiva,
       isHeader: r.isHeader,
+      // Item 5: vínculo da linha com tópicos do SOE precisa sobreviver ao save.
+      topicIds: (r as any).topicIds,
     }));
 
   const persistRows = (list: EditalTopico[]) => {
@@ -2248,7 +2251,10 @@ export default function Edital() {
       </div>
 
       {tab === "edital" && (
-        <EditalTab rows={rows} setRows={setRows} data={data} />
+        <>
+          <EditalCoveragePanel />
+          <EditalTab rows={rows} setRows={setRows} data={data} />
+        </>
       )}
       {tab === "ciclos" && <CiclosTab data={data} />}
     </div>

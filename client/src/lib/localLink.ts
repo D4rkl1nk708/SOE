@@ -77,6 +77,13 @@ import {
   localGenerateFlashcardsFromText,
   localGetConceptConfusions,
   localSaveConceptConfusion,
+  localStudyAttemptTrends,
+  localGenerateFlashcardsFromErrors,
+  localEditalOverview,
+  localEditalSetActiveExam,
+  localEditalCoverage,
+  localEditalSuggestLinks,
+  localEditalLinkRow,
 } from "./localDb";
 
 const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
@@ -243,6 +250,16 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
     localGenerateFlashcardsFromText(i as any),
   "mentor.getConceptConfusions": () => localGetConceptConfusions(),
   "mentor.saveConceptConfusion": (i) => localSaveConceptConfusion(i as any),
+  "study.attemptTrends": () => localStudyAttemptTrends(),
+  "flashcard.generateFromErrors": (i) =>
+    localGenerateFlashcardsFromErrors(i as { errorIds?: number[] } | undefined),
+  "edital.overview": () => localEditalOverview(),
+  "edital.setActiveExam": (i) =>
+    localEditalSetActiveExam(i as { examId: string }),
+  "edital.coverage": () => localEditalCoverage(),
+  "edital.suggestLinks": (i) =>
+    localEditalSuggestLinks(i as { apply?: boolean; threshold?: number }),
+  "edital.linkRow": (i) => localEditalLinkRow(i as any),
   "v10.updateV10Settings": (i) =>
     localUpdateSettings(i as Record<string, unknown>),
   "v10.saveRecallRating": (i) => Promise.resolve({ success: true }),

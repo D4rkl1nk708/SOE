@@ -11,6 +11,41 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.4",
+    date: "18/11/2026",
+    title: "Fila de revisões utilizável e evolução por questão",
+    categories: [
+      {
+        title: "📚 Revisões",
+        type: "feature",
+        items: [
+          "A fila do dia agora é priorizada: tópico mais fraco × peso da disciplina × atraso (saturado), com revisão antes de teste no empate.",
+          "Ela mostra só o topo (padrão 25, ajustável, 0 = sem limite); o resto fica recolhido em Em espera — nada é apagado e a geração 25/50 não mudou.",
+        ],
+      },
+      {
+        title: "📈 Evolução",
+        type: "feature",
+        items: [
+          "Cada resposta (TEC, sessão, simulado) vira uma tentativa com data, tópico e disciplina; o histórico saiu de settings para a coleção própria, com migração e backup automáticos.",
+          "Estatísticas mostram acerto por disciplina nos últimos 7 dias contra os 30 dias anteriores, com seta e sem dados suficientes quando há menos de 10 tentativas.",
+        ],
+      },
+      {
+        title: "🧹 Organização",
+        type: "improvement",
+        items: [
+          "Matéria:, TI - e parênteses deixam de criar disciplina duplicada na captura do TEC.",
+          "Disciplinas ganharam mescla manual (origem → destino) que leva tópicos homônimos, revisões, tentativas, flashcards, erros e notas, somando a performance, com backup antes.",
+          "Edital agora pertence ao concurso: escolha o concurso ativo, ligue cada linha a tópicos (sugestão por similaridade + ajuste manual) e veja cobertura, questões e blocos sem nenhuma questão.",
+          "Simulado entregue com zero respostas pede confirmação de descarte e não entra mais em média; modo C/E mostra a nota líquida e quantas erradas teriam sido melhores em branco.",
+          "Botão Gerar flashcards no Caderno de Erros cria um card por erro (frente: assertiva; verso: gabarito + resolução), sem duplicar.",
+          "Foto de perfil saiu de settings e virou arquivo; chave de IA e token de push não vão mais para o auto-backup.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.3",
     date: "16/11/2026",
     title: "Contagem exata no TEC",

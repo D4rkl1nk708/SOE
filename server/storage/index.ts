@@ -1,5 +1,6 @@
 import type { Database } from "../../shared/types";
 import * as jsonEngine from "./engine";
+import { setUploadsDir } from "../mediaStorage";
 import * as sqliteEngine from "./sqliteEngine";
 
 /**
@@ -43,6 +44,12 @@ export const storageDriver: "sqlite" | "json" = useSqlite ? "sqlite" : "json";
 const engine = useSqlite ? sqliteEngine : jsonEngine;
 
 export { DatabaseCorruptError } from "./normalize";
+export {
+  withoutSecrets,
+  sanitizeDatabaseForBackup,
+  redactSettings,
+} from "./sanitize";
+export { backupBeforeMigration, backupJsonPayload } from "./backup";
 
 export function readDatabase(): Database {
   return engine.readDatabase();
@@ -68,6 +75,13 @@ export function resetCache() {
 
 export function setDataDir(dir: string) {
   engine.setDataDir(dir);
+  // Mantém uploads/ junto do banco (foto de perfil, PDFs) também em testes,
+  // onde o DATA_DIR é temporário.
+  try {
+    setUploadsDir(dir);
+  } catch {
+    /* mediaStorage indisponível: não é crítico */
+  }
 }
 
 export function getDataDir(): string {

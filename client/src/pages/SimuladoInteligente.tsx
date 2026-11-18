@@ -499,6 +499,30 @@ export default function SimuladoInteligente() {
   const finishExam = async (auto = false) => {
     if (submittedRef.current || questions.length === 0) return;
     const currentAnswers = answersRef.current;
+    const answeredNow = Object.keys(currentAnswers).filter((key) =>
+      Boolean(currentAnswers[key]),
+    ).length;
+
+    // Item 4 (v6.9.4): zero respondidas nunca vira "concluído". Confirma o
+    // descarte em vez de gravar nota 0 com todas as questões em branco.
+    if (answeredNow === 0) {
+      if (auto) {
+        toast.info("Tempo encerrado sem respostas: simulado descartado.");
+        resetAll();
+        return;
+      }
+      if (
+        window.confirm(
+          "Descartar simulado? Nenhuma questão foi respondida, então ele não será salvo como concluído.",
+        )
+      ) {
+        resetAll();
+        toast.info("Simulado descartado. Nada foi gravado.");
+        return;
+      }
+      return;
+    }
+
     const unanswered = questions.filter(
       (question) => !currentAnswers[question.id],
     ).length;
@@ -515,6 +539,8 @@ export default function SimuladoInteligente() {
     const submitted = await submit(currentAnswers);
     if (!submitted) {
       submittedRef.current = false;
+      setResult(null);
+      toast.error("Não foi possível registrar o simulado.");
       return;
     }
     setResult({ ...submitted, auto });
@@ -1264,6 +1290,28 @@ export default function SimuladoInteligente() {
                 em branco
                 {result.auto ? " · encerrada pelo tempo" : ""}
               </p>
+              {mode === "cebraspe" && (
+                <div className="mx-auto mt-3 max-w-sm rounded-xl border border-border bg-secondary/30 p-3 text-left text-[10.5px] leading-relaxed">
+                  <p className="font-semibold text-foreground">
+                    Nota líquida: {result.netScore}
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      (acertos − erros)
+                    </span>
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {result.betterBlankCount > 0
+                      ? `${result.betterBlankCount} questão(ões) errada(s) teriam sido melhores em branco: a nota líquida seria ${result.netIfWrongWereBlank}.`
+                      : "Nenhuma errada — deixar em branco não teria ajudado."}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {result.blank} em branco
+                    {result.blank > 0
+                      ? " · branco vale 0 no cálculo do CEBRASPE"
+                      : ""}
+                    .
+                  </p>
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 <Button onClick={() => printExam(true)}>
                   <Download className="mr-2 h-3.5 w-3.5" /> Baixar gabarito

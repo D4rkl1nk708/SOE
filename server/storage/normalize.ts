@@ -2,6 +2,7 @@ import { normalizeString } from "../../shared/merge";
 import type {
   Database,
   Discipline,
+  QuestionAttempt,
   Revision,
   Topic,
   User,
@@ -62,7 +63,95 @@ export function getEmptyCounters() {
     questionErrors: 0,
     essays: 0,
     tecSnapshots: 0,
+    questionAttempts: 0,
   };
+}
+
+/** Nome da migração aplicada — os motores usam isso para gerar backup antes de gravar. */
+export type StorageMigration = "questionAttempts" | "editalPerExam";
+
+/**
+ * Item 2 (v6.9.4): `settings.questionAttempts` vira a coleção `questionAttempts`.
+ * A tentativa ganha `userId` (a coleção é global) e o array antigo é esvaziado
+ * para não existir duas fontes para o mesmo dado.
+ */
+function migrateQuestionAttemptsCollection(db: Database): boolean {
+  if (
+    !Array.isArray((db as unknown as Record<string, unknown>).questionAttempts)
+  ) {
+    (db as unknown as Record<string, unknown>).questionAttempts = [];
+  }
+  const collection = db.questionAttempts as QuestionAttempt[];
+  const seen = new Set(collection.map((item) => String(item?.id)));
+
+  let moved = false;
+  for (const user of db.users) {
+    const legacy = Array.isArray(user.settings?.questionAttempts)
+      ? user.settings.questionAttempts
+      : [];
+    if (legacy.length === 0) {
+      // Remove a chave vazia: settings não é mais o dono desse histórico.
+      if (user.settings && "questionAttempts" in user.settings) {
+        delete (user.settings as unknown as Record<string, unknown>)
+          .questionAttempts;
+      }
+      continue;
+    }
+    for (const attempt of legacy) {
+      if (!attempt || typeof attempt !== "object") continue;
+      const id =
+        attempt.id ||
+        `att-legacy-${user.id}-${attempt.createdAt || Date.now()}-${collection.length}`;
+      if (seen.has(String(id))) continue;
+      seen.add(String(id));
+      collection.push({ ...attempt, id: String(id), userId: user.id });
+      moved = true;
+    }
+    delete (user.settings as unknown as Record<string, unknown>)
+      .questionAttempts;
+    moved = true;
+  }
+  if (moved) {
+    collection.sort((a, b) =>
+      String(a.createdAt || "").localeCompare(String(b.createdAt || "")),
+    );
+    db.counters.questionAttempts = collection.length;
+  }
+  return moved;
+}
+
+/**
+ * Item 5 (v6.9.4): o edital deixa de ser global (`settings.editalRows`) e passa
+ * a pertencer a um concurso (`exams[i].editalRows`), com `activeExamId`.
+ * Migração única: o edital atual vai para o concurso ativo (ou o primeiro).
+ */
+function migrateEditalPerExam(db: Database): boolean {
+  let migrated = false;
+  for (const user of db.users) {
+    const settings = (user.settings || {}) as Record<string, any>;
+    const exams = Array.isArray(settings.exams) ? settings.exams : [];
+    const legacyRows = Array.isArray(settings.editalRows)
+      ? settings.editalRows
+      : [];
+    if (legacyRows.length === 0 || exams.length === 0) continue;
+    const alreadyHasRows = exams.some(
+      (exam: any) =>
+        Array.isArray(exam.editalRows) && exam.editalRows.length > 0,
+    );
+    if (alreadyHasRows) {
+      // Já existe edital por concurso: o array global é legado duplicado.
+      settings.editalRows = [];
+      migrated = true;
+      continue;
+    }
+    const target =
+      exams.find((exam: any) => exam.id === settings.activeExamId) || exams[0];
+    target.editalRows = legacyRows;
+    settings.activeExamId = target.id;
+    settings.editalRows = [];
+    migrated = true;
+  }
+  return migrated;
 }
 
 /**
@@ -70,11 +159,13 @@ export function getEmptyCounters() {
  * migrações de campo, o reparo de encoding e a deduplicação de disciplinas.
  *
  * `changed` indica que o resultado difere do que estava gravado e precisa ser
- * persistido de volta.
+ * persistido de volta. `migrations` lista as migrações de dados aplicadas nesta
+ * leitura (para o motor gerar backup antes de gravar).
  */
 export function normalizeDatabase(raw: unknown): {
   db: Database;
   changed: boolean;
+  migrations: StorageMigration[];
 } {
   if (!isValidDatabaseShape(raw)) {
     throw new Error(
@@ -101,12 +192,15 @@ export function normalizeDatabase(raw: unknown): {
   if (!db.essays) db.essays = [];
   if (!db.tecSnapshots) db.tecSnapshots = [];
   if (!db.cadernosTec) db.cadernosTec = {};
+  if (!db.questionAttempts) db.questionAttempts = [];
   if (!db.counters.mockExams) db.counters.mockExams = 0;
   if (!db.counters.notes) db.counters.notes = 0;
   if (!db.counters.flashcards) db.counters.flashcards = 0;
   if (!db.counters.questionErrors) db.counters.questionErrors = 0;
   if (!db.counters.essays) db.counters.essays = 0;
   if (!db.counters.tecSnapshots) db.counters.tecSnapshots = 0;
+  if (!db.counters.questionAttempts)
+    db.counters.questionAttempts = db.questionAttempts.length || 0;
 
   type RawRecord = Record<string, unknown>;
   db.disciplines = (db.disciplines as unknown as RawRecord[])
@@ -206,10 +300,16 @@ export function normalizeDatabase(raw: unknown): {
     for (const n of db.notes || []) remapDisciplineId(n);
     for (const f of db.flashcards || []) remapDisciplineId(f);
     for (const e of db.essays || []) remapDisciplineId(e);
+    for (const a of db.questionAttempts || []) remapDisciplineId(a);
   }
 
-  const changed = dedupeChanged || !wasEncodingFixed;
+  const migrations: StorageMigration[] = [];
+  if (migrateQuestionAttemptsCollection(db))
+    migrations.push("questionAttempts");
+  if (migrateEditalPerExam(db)) migrations.push("editalPerExam");
+
+  const changed = dedupeChanged || !wasEncodingFixed || migrations.length > 0;
   db._encodingFixed = true;
 
-  return { db, changed };
+  return { db, changed, migrations };
 }

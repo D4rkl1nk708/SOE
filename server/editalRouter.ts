@@ -8,8 +8,134 @@ import {
   loadEditalText,
   parseEditalWithAi,
 } from "./editalParser";
+import {
+  computeEditalCoverage,
+  suggestTopicLinks,
+} from "../shared/editalCoverage";
+import { backupJsonPayload } from "./storage/backup";
 
 export const editalRouter = router({
+  /**
+   * Concursos cadastrados + qual edital está ativo + cadernos do TEC já
+   * sincronizados (para "Abrir caderno no TEC").
+   */
+  overview: protectedProcedure.query(async ({ ctx }) => {
+    const [overview, cadernos] = await Promise.all([
+      storage.getExamEditalOverview(ctx.user.id),
+      storage.getCadernosTec(ctx.user.id),
+    ]);
+    return { ...overview, cadernos };
+  }),
+
+  /** Escolhe o concurso ativo (dono do edital exibido). */
+  setActiveExam: protectedProcedure
+    .input(z.object({ examId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await storage.setActiveExam(ctx.user.id, input.examId);
+      return { success: true, activeExamId: input.examId };
+    }),
+
+  /**
+   * Cobertura real do edital ativo: tópicos ligados, questões, acerto e os
+   * blocos sem nenhuma questão.
+   */
+  coverage: protectedProcedure.query(async ({ ctx }) => {
+    const [overview, topics, disciplines, cadernos] = await Promise.all([
+      storage.getExamEditalOverview(ctx.user.id),
+      storage.getTopicsByUser(ctx.user.id),
+      storage.getDisciplinesByUser(ctx.user.id),
+      storage.getCadernosTec(ctx.user.id),
+    ]);
+    const coverage = computeEditalCoverage(
+      overview.rows as any,
+      topics as any,
+      disciplines.map((discipline) => ({
+        id: discipline.id,
+        name: discipline.name,
+      })),
+    );
+    return {
+      ...coverage,
+      activeExamId: overview.activeExamId,
+      exams: overview.exams,
+      cadernos,
+      rows: overview.rows,
+    };
+  }),
+
+  /**
+   * Sugere tópicos para cada linha do edital por similaridade de nome.
+   * `apply: false` só devolve a prévia; `apply: true` grava (com backup).
+   */
+  suggestLinks: protectedProcedure
+    .input(
+      z
+        .object({
+          apply: z.boolean().optional(),
+          threshold: z.number().min(0.2).max(1).optional(),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [overview, topics, disciplines] = await Promise.all([
+        storage.getExamEditalOverview(ctx.user.id),
+        storage.getTopicsByUser(ctx.user.id),
+        storage.getDisciplinesByUser(ctx.user.id),
+      ]);
+      const suggestions = suggestTopicLinks(
+        overview.rows as any,
+        topics as any,
+        disciplines.map((discipline) => ({
+          id: discipline.id,
+          name: discipline.name,
+        })),
+        { threshold: input?.threshold ?? 0.45 },
+      );
+      const linked = suggestions.filter((item) => item.topicIds.length > 0);
+      let applied = 0;
+      if (input?.apply && linked.length > 0) {
+        backupJsonPayload(
+          storage.getDataDir(),
+          "edital-vinculos",
+          overview.rows,
+        );
+        applied = await storage.patchEditalRowLinks(
+          ctx.user.id,
+          linked.map((item) => ({
+            rowId: item.rowId,
+            topicIds: item.topicIds,
+          })),
+        );
+      }
+      return {
+        suggestions: suggestions.slice(0, 300),
+        matched: linked.length,
+        total: suggestions.length,
+        applied,
+      };
+    }),
+
+  /** Ajuste manual: liga uma linha a 1+ tópicos (ou desliga com lista vazia). */
+  linkRow: protectedProcedure
+    .input(
+      z.object({
+        rowId: z.string().min(1),
+        topicIds: z.array(z.number()).max(20),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const overview = await storage.getExamEditalOverview(ctx.user.id);
+      backupJsonPayload(
+        storage.getDataDir(),
+        "edital-vinculo-manual",
+        overview.rows,
+      );
+      const changed = await storage.patchEditalRowLinks(ctx.user.id, [
+        { rowId: input.rowId, topicIds: input.topicIds },
+      ]);
+      return { success: true, changed };
+    }),
+
   /**
    * Inspeciona o PDF/texto sem IA: detecta título, páginas, tamanho do
    * conteúdo programático e cargos/especialidades disponíveis.

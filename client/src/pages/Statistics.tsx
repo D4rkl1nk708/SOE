@@ -32,6 +32,7 @@ import { ShareProgress } from "@/components/ShareProgress";
 import { AIAnalysis } from "@/components/AIAnalysis";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
+import { DisciplineTrendCard } from "@/components/DisciplineTrendCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
@@ -443,6 +444,8 @@ export default function Statistics() {
           </div>
         )}
       </div>
+
+      <DisciplineTrendCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">

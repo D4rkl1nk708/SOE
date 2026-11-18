@@ -6,6 +6,8 @@ import {
   getEmptyCounters,
   normalizeDatabase,
 } from "./normalize";
+import { backupBeforeMigration } from "./backup";
+import { sanitizeDatabaseForBackup } from "./sanitize";
 
 export { DatabaseCorruptError };
 
@@ -96,6 +98,7 @@ export function getEmptyDatabase(): Database {
     essays: [],
     tecSnapshots: [],
     cadernosTec: {},
+    questionAttempts: [],
     counters: getEmptyCounters(),
   };
 }
@@ -113,7 +116,13 @@ export function readDatabase(): Database {
     // BOM no começo do arquivo quebra o JSON.parse (arquivos gerados no Windows).
     const raw = fs.readFileSync(DB_FILE, "utf-8").replace(/^\uFEFF/, "");
     const parsed = JSON.parse(raw);
-    const { db, changed } = normalizeDatabase(parsed);
+    const { db, changed, migrations } = normalizeDatabase(parsed);
+
+    // Migração de dados (tentativas fora de settings, edital por concurso):
+    // backup automático ANTES de gravar qualquer coisa.
+    if (migrations && migrations.length > 0) {
+      backupBeforeMigration(DB_FILE, DATA_DIR, migrations.join("-"));
+    }
 
     // Persiste reparos de encoding/dedupe uma única vez.
     if (changed) {
@@ -169,7 +178,10 @@ function triggerDebouncedBackup(db: Database) {
             fs.mkdirSync(targetDir, { recursive: true });
           }
           const backupFile = path.join(targetDir, "soe_backup_sync.json");
-          fs.copyFileSync(DB_FILE, backupFile);
+          // Nunca copiar o arquivo cru: ele carrega aiApiKey/pushToken em
+          // texto claro. O backup vai sanitizado.
+          const safe = sanitizeDatabaseForBackup(db);
+          fs.writeFileSync(backupFile, JSON.stringify(safe), "utf-8");
         }
       }
     } catch (copyErr) {

@@ -26,6 +26,7 @@ import {
   Check,
   Clock,
   Calendar,
+  Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -263,6 +264,19 @@ export default function QuestionErrors() {
       toast.error(e.message);
     },
   });
+  // Item 7 (v6.9.4): flashcards de lei seca a partir dos erros, sem IA.
+  const bulkFlashcards = trpc.flashcard.generateFromErrors.useMutation({
+    onSuccess: (result) => {
+      toast.success(
+        `${result.created} flashcard(s) criado(s)` +
+          (result.skipped > 0
+            ? ` · ${result.skipped} já existiam (sem duplicar).`
+            : "."),
+      );
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
   const flashcardMut = trpc.questionError.generateFlashcard.useMutation({
     onSuccess: (d) => {
       setLoadingAction(null);
@@ -328,13 +342,24 @@ export default function QuestionErrors() {
           </p>
         </div>
 
-        <div
-          className={`flex items-center gap-2 rounded-md border px-3 py-2 ${dbApiKey ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500" : "border-rose-500/20 bg-rose-500/5 text-rose-500"}`}
-        >
-          <Zap size={13} />
-          <span className="text-[9px] font-bold uppercase tracking-wider">
-            {dbApiKey ? `IA ativa · ${dbProvider}` : "IA desativada"}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 ${dbApiKey ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500" : "border-rose-500/20 bg-rose-500/5 text-rose-500"}`}
+          >
+            <Zap size={13} />
+            <span className="text-[9px] font-bold uppercase tracking-wider">
+              {dbApiKey ? `IA ativa · ${dbProvider}` : "IA desativada"}
+            </span>
+          </div>
+          <button
+            onClick={() => bulkFlashcards.mutate({})}
+            disabled={bulkFlashcards.isPending || errors.length === 0}
+            className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-foreground hover:bg-secondary/60 disabled:opacity-40"
+            title="Um card por erro: frente = assertiva curta; verso = gabarito + resolução"
+          >
+            <Layers size={13} />
+            {bulkFlashcards.isPending ? "Gerando…" : "Gerar flashcards"}
+          </button>
         </div>
       </div>
 
