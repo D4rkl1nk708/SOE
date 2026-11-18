@@ -422,6 +422,13 @@ export function readDatabase(): Database {
     }
   }
 
+  // O que está de fato no disco, ANTES da normalização (que muda `db` no lugar).
+  // Se o snapshot fosse tirado depois, os registros criados por migrações
+  // (ex.: questionAttempts) pareceriam já gravados e nunca iriam para o disco,
+  // enquanto o campo antigo era apagado de settings -> perda de dados.
+  const diskRows = rowsOf(db);
+  const diskMeta = metaOf(db);
+
   const { db: normalized, migrations } = normalizeDatabase(db);
 
   // Migração de dados: guarda o .sqlite antes de a próxima escrita aplicar
@@ -430,9 +437,10 @@ export function readDatabase(): Database {
     backupBeforeMigration(DB_FILE, DATA_DIR, migrations.join("-"));
   }
 
-  // Reconstrói o snapshot para que a próxima escrita saiba o que já está no disco.
-  _persisted = rowsOf(normalized);
-  _persistedMeta = metaOf(normalized);
+  // A próxima escrita compara com o disco real e grava também o que a
+  // normalização/migração alterou.
+  _persisted = diskRows;
+  _persistedMeta = diskMeta;
   _dbCache = normalized;
   return normalized;
 }

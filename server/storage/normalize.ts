@@ -121,6 +121,39 @@ function migrateQuestionAttemptsCollection(db: Database): boolean {
 }
 
 /**
+ * Sem concurso ativo definido, escolhe o concurso cujo nome aparece no texto das
+ * linhas do edital (ex.: linhas citando "CGU" vão para "CGU - Dev"), em vez de
+ * despejar tudo no primeiro da lista. Devolve undefined se nada casar.
+ */
+function pickExamByRowsContent(exams: any[], rows: any[]): any | undefined {
+  const fold = (text: string) =>
+    String(text || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const haystack = fold(
+    rows.map((row) => `${row?.discipline || ""} ${row?.topic || ""}`).join(" "),
+  );
+  let best: any | undefined;
+  let bestScore = 0;
+  for (const exam of exams) {
+    const tokens = fold(exam?.name)
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 3);
+    let score = 0;
+    for (const token of tokens) {
+      if (new RegExp(`(^|[^a-z0-9])${token}([^a-z0-9]|$)`).test(haystack))
+        score += 1;
+    }
+    if (score > bestScore) {
+      best = exam;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/**
  * Item 5 (v6.9.4): o edital deixa de ser global (`settings.editalRows`) e passa
  * a pertencer a um concurso (`exams[i].editalRows`), com `activeExamId`.
  * Migração única: o edital atual vai para o concurso ativo (ou o primeiro).
@@ -145,7 +178,9 @@ function migrateEditalPerExam(db: Database): boolean {
       continue;
     }
     const target =
-      exams.find((exam: any) => exam.id === settings.activeExamId) || exams[0];
+      exams.find((exam: any) => exam.id === settings.activeExamId) ||
+      pickExamByRowsContent(exams, legacyRows) ||
+      exams[0];
     target.editalRows = legacyRows;
     settings.activeExamId = target.id;
     settings.editalRows = [];
