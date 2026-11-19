@@ -933,7 +933,10 @@ export async function getDataHealth(userId: number): Promise<DataHealth> {
     (e) => !topicIds.has(e.topicId) || !disciplineIds.has(e.disciplineId),
   );
   const orphanAttempts = (settings?.questionAttempts || []).filter(
-    (attempt) => !topicIds.has(attempt.topicId),
+    (attempt) =>
+      attempt.topicId !== null &&
+      attempt.topicId !== undefined &&
+      !topicIds.has(attempt.topicId),
   );
   const examples = [
     ...duplicatesDisc

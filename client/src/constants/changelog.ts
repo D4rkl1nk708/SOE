@@ -11,6 +11,42 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.5",
+    date: "19/11/2026",
+    title: "Captura do TEC que não perde questão e classificação sem achismo",
+    categories: [
+      {
+        title: "🎯 Captura do TEC",
+        type: "fix",
+        items: [
+          'A resposta passa a ser detectada pelo próprio DOM (MutationObserver + checagem a cada 1,5 s): o banner "Você acertou/errou" não precisa mais de uma requisição para aparecer. Continua 100% passivo — o app só lê a página aberta, sem clique, rolagem ou requisição ao TEC.',
+          'Cada questão tem identidade estável: #id do TEC → id na URL/atributo → hash do enunciado → hash do assunto com contador de transição. Nunca mais "a URL é a questão": 10 questões seguidas na mesma página contam 10.',
+          "O tempo por questão vai de quando ela aparece até o resultado, com teto de 600 s — acabou o registro de 443 s.",
+          "O Caderno de Erros guarda o enunciado e as alternativas de verdade; quando o texto não é capturado, fica marcado como enunciado pendente em vez de um texto de mentira.",
+        ],
+      },
+      {
+        title: "🧠 Classificação",
+        type: "feature",
+        items: [
+          "A matéria do cabeçalho é procurada primeiro nas suas disciplinas e tópicos (com alias). A IA só entra quando não bate, uma única vez por rótulo novo, com limite por hora e sem quebrar quando a cota acaba.",
+          "Cabeçalho genérico do site (Blog, Guias, TEC Concursos) não vira mais disciplina nem joga o acerto no tópico errado.",
+          'Quando a certeza é baixa, nada é criado sozinho: o app mostra "N questões do TEC aguardam classificação" e você escolhe o tópico, cria um novo ou ignora. A decisão vira alias e reatribui as questões antigas daquele rótulo.',
+        ],
+      },
+      {
+        title: "📅 Sessão e calendário",
+        type: "feature",
+        items: [
+          'Contador ao vivo na Sessão Guiada ("Contabilizadas: N") com as últimas respostas: hora, #id, acerto/erro e tópico — e botões +Acertei / +Errei / Desfazer última.',
+          "Aviso discreto quando passa de 4 min sem nenhuma captura com o TEC aberto.",
+          "O relatório da sessão sai das tentativas com horário dentro de [início, fim]; o delta de performance virou só fallback.",
+          "Ao treinar um tópico que tem revisão de teste vencida, o SOE conclui no máximo uma a cada N questões (padrão 5, configurável, 0 desliga) com Desfazer no aviso. Revisão de teoria nunca é concluída sozinha: o app pergunta.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.4",
     date: "18/11/2026",
     title: "Fila de revisões utilizável e evolução por questão",

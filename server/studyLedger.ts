@@ -94,6 +94,7 @@ export async function getStudyLedger(
   }
 
   for (const attempt of settings?.questionAttempts || []) {
+    if (attempt.topicId === null || attempt.topicId === undefined) continue;
     const topic = topicById.get(attempt.topicId);
     if (!topic) continue;
     const discipline = disciplineById.get(topic.disciplineId);

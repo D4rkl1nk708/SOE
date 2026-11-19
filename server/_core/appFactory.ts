@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import * as storage from "../jsonStorage";
 import { syncCors } from "./syncCors";
+import { handleTecAnswer } from "../tecCaptureService";
 import {
   findBestDisciplineMatch,
   findBestTopicMatch,
@@ -840,183 +841,79 @@ export async function configureApp(): Promise<{
           `[TEC SERVER] Incremento: ${assuntoName} [${disciplinaName}] (+${correctAdd}a, +${errorAdd}e, ${timeSpentSeconds}s)`,
         );
 
-        if (!assuntoName)
-          return res.status(400).json({ error: "Assunto obrigatório" });
+        // v6.9.5: classificação local-primeiro (IA só como último recurso),
+        // tentativa com horário, pendência quando não dá para classificar,
+        // evento "estudou hoje" e conclusão de no máximo UMA revisão de teste
+        // por bloco de N questões. Tudo isso em server/tecCaptureService.ts.
+        const result = await handleTecAnswer(user.id, {
+          cadernoId,
+          cadernoUrl,
+          disciplina: rawDisciplina,
+          assunto: assuntoName,
+          questionLabel: req.body.questionLabel,
+          questionStatement: req.body.questionStatement,
+          correctAdd,
+          errorAdd,
+          timeSpentSeconds,
+          dedupKey,
+          questionSignature,
+          questionId: req.body.questionId,
+        });
 
-        let disciplines = await storage.getDisciplinesByUser(user.id);
-        let topics = await storage.getTopicsByUser(user.id);
-        const userSettings = await storage.getUserSettings(user.id);
-
-        const discMatch = findBestDisciplineMatch(
-          disciplines,
-          disciplinaName,
-          assuntoName,
-          userSettings?.tecDisciplineAliases,
-          topics,
-        );
-        let disc = discMatch.discipline;
-
-        if (!disc && storage.isDisciplineNameBlocked(user.id, disciplinaName)) {
-          return res.status(400).json({
-            error:
-              "Disciplina excluída pelo usuário; recriação automática bloqueada.",
-          });
-        }
-
-        if (!disc) {
-          const aiAnalysis = await analyzeDisciplineOrTopicWithAI({
-            incomingDiscipline: disciplinaName,
-            incomingTopic: assuntoName,
-            existingDisciplines: disciplines,
-            existingTopics: topics,
-            userSettings,
-          });
-          if (aiAnalysis.matchedDisciplineId) {
-            disc =
-              disciplines.find(
-                (d) => d.id === aiAnalysis.matchedDisciplineId,
-              ) || null;
-          }
-
-          // Only create new discipline if AI explicitly says it should be created
-          if (!disc && aiAnalysis.shouldCreateNew) {
-            console.log(
-              `[TEC Server] Creating new discipline: "${disciplinaName}" (AI explicitly approved)`,
-            );
-            const created = await storage.createDiscipline({
-              userId: user.id,
-              name: disciplinaName,
-              color: "#6366f1",
-              weight: 1,
-            });
-            disc = Object.assign({}, created, { id: created.id }) as any;
-            disciplines = await storage.getDisciplinesByUser(user.id);
-          } else if (!disc) {
-            console.log(
-              `[TEC Server] Skipping discipline creation for "${disciplinaName}" - AI did not approve new discipline creation`,
-            );
-            return res.status(400).json({
-              error:
-                "Disciplina não encontrada e IA não aprovou criação de nova disciplina",
-            });
-          }
-        }
-
-        // Add time to discipline
-        if (timeSpentSeconds && timeSpentSeconds > 0) {
-          await storage.updateDiscipline(disc!.id, user.id, {
-            studyTimeSeconds:
-              ((disc as any)?.studyTimeSeconds || 0) + timeSpentSeconds,
-          });
-        }
-
-        const topicMatch = findBestTopicMatch(topics, assuntoName, disc!.id);
-        let topic = topicMatch.topic;
-
-        let topicId = 0;
-        if (topic) {
-          console.log(
-            `[TEC SERVER] Topico encontrado: ${topic.name} (ID: ${topic.id})`,
-          );
-          topicId = topic.id;
-          const prevCorrect = topic.performance?.correctCount ?? 0;
-          const prevErrors = topic.performance?.errorCount ?? 0;
-          const newCorrect = prevCorrect + (correctAdd || 0);
-          const newErrors = prevErrors + (errorAdd || 0);
-
-          await storage.setTopicPerformance(topic.id, user.id, {
-            correctCount: newCorrect,
-            errorCount: newErrors,
-          });
-
-          // Antes o TEC só gravava o acumulado do tópico, sem data por resposta:
-          // o relatório de sessão não conseguia atribuir questão → sessão. Quando
-          // o incremento é de UMA questão, registramos a tentativa com horário.
-          const answeredNow = (correctAdd || 0) + (errorAdd || 0);
-          if (answeredNow === 1) {
-            try {
-              await storage.recordQuestionAttempt(user.id, {
-                topicId: topic.id,
-                disciplineId: disc?.id,
-                answered: true,
-                correct: (correctAdd || 0) > 0,
-                confidence: null,
-                confidencePhase: null,
-                seconds: timeSpentSeconds || undefined,
-                source: "tec",
-              });
-            } catch (error) {
-              console.warn(
-                "[TEC] Falha ao registrar tentativa:",
-                (error as Error)?.message,
-              );
-            }
-          }
-          if (timeSpentSeconds && timeSpentSeconds > 0) {
-            await storage.updateTopic(topic.id, user.id, {
-              studyTimeSeconds:
-                (topic.studyTimeSeconds || 0) + timeSpentSeconds,
-            });
-          }
-        } else {
-          const studyDate = new Date().toISOString();
-          const created = await storage.createTopic({
-            userId: user.id,
-            disciplineId: disc!.id,
-            name: assuntoName,
-            studyDate,
-            notes: null,
-          });
-          topicId = created.id;
-          await storage.setTopicPerformance(created.id, user.id, {
-            correctCount: correctAdd || 0,
-            errorCount: errorAdd || 0,
-          });
-          if (timeSpentSeconds && timeSpentSeconds > 0) {
-            await storage.updateTopic(created.id, user.id, {
-              studyTimeSeconds: timeSpentSeconds,
-            });
-          }
-        }
-
-        // Feature 3: Sirene de Ilusão de Competência
+        // Feature 3: Sirene de Ilusão de Competência (só quando a questão foi
+        // classificada: sem tópico não há padrão de erro a apontar).
         let blockPage = false;
         let alertMessage = "";
-        if (errorAdd && errorAdd > 0) {
+        const alertTopicId = result.topicId;
+        if (errorAdd && errorAdd > 0 && alertTopicId) {
           let topicsMap = userErrorTracker.get(user.id);
           if (!topicsMap) {
             topicsMap = new Map();
             userErrorTracker.set(user.id, topicsMap);
           }
-          let times = topicsMap.get(topicId) || [];
+          let times = topicsMap.get(alertTopicId) || [];
           const now = Date.now();
           // Keep only errors from the last 3 minutes
           times = times.filter((t) => now - t < 3 * 60 * 1000);
           times.push(now);
-          topicsMap.set(topicId, times);
+          topicsMap.set(alertTopicId, times);
 
           if (times.length >= 3) {
             blockPage = true;
             alertMessage = `⚠️ SOE Mentor: Sinto uma deficiência teórica de base aguda no assunto '${assuntoName}'. Você errou ${times.length} vezes em um curto espaço de tempo. Sugiro estancar o cansaço. Por favor, vá ler seu resumo / Grife a teoria novamente!`;
-            topicsMap.set(topicId, []); // reseta
+            topicsMap.set(alertTopicId, []); // reseta
           }
-        } else if (correctAdd && correctAdd > 0) {
+        } else if (correctAdd && correctAdd > 0 && alertTopicId) {
           // Se acertou, pode limpar o contador daquele assunto
           const topicsMap = userErrorTracker.get(user.id);
-          if (topicsMap && topicsMap.has(topicId)) {
-            topicsMap.set(topicId, []);
+          if (topicsMap && topicsMap.has(alertTopicId)) {
+            topicsMap.set(alertTopicId, []);
           }
         }
 
         res.json({
           success: true,
-          message: "Estatística incrementada com sucesso",
+          message: result.pending
+            ? "Resposta registrada — classificação pendente"
+            : "Estatística incrementada com sucesso",
           blockPage,
           alertMessage,
+          pending: result.pending,
+          topicId: result.topicId,
+          topicName: result.topicName,
+          attemptedId: result.attemptId,
+          autoCompleted: result.autoCompleted,
+          theorySuggestion: result.theorySuggestion,
+          classification: {
+            source: result.matchedBy,
+            reason: result.reason,
+          },
         });
       } catch (e: any) {
         console.error("[TEC Increment]", e);
-        res.status(500).json({ error: e.message ?? "Erro interno" });
+        res
+          .status(e?.status === 400 ? 400 : 500)
+          .json({ error: e.message ?? "Erro interno" });
       }
     },
   );
@@ -1052,7 +949,12 @@ export async function configureApp(): Promise<{
           assunto: assuntoName,
         } = req.body;
 
-        if (!statement)
+        // v6.9.5: quando o enunciado não é capturado, guarda o #id de verdade e
+        // marca `statementPending` — sem texto de mentira e sem perder o erro.
+        const statementText = String(statement || "").trim();
+        const statementPending =
+          req.body.statementPending === true || statementText.length < 15;
+        if (!statementText && !questionId)
           return res.status(400).json({ error: "Statement is required" });
 
         let disciplines = await storage.getDisciplinesByUser(user.id);
@@ -1141,7 +1043,10 @@ export async function configureApp(): Promise<{
           year:
             typeof year === "number" ? year : parseInt(year, 10) || undefined,
           contest,
-          statement,
+          statementPending,
+          statement:
+            statementText ||
+            `Questão #${questionId || "?"} — enunciado não capturado`,
           alternatives: alternatives || [],
           correctAnswer,
           userAnswer,

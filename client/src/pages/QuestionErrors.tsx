@@ -545,6 +545,11 @@ export default function QuestionErrors() {
                         <p className="line-clamp-3 text-sm font-semibold leading-relaxed">
                           {e.statement}
                         </p>
+                        {e.statementPending && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+                            Enunciado pendente
+                          </span>
+                        )}
                       </div>
 
                       {e.userAnswer && e.correctAnswer && (
@@ -655,6 +660,12 @@ export default function QuestionErrors() {
                             >
                               {e.statement}
                             </p>
+                            {e.statementPending && (
+                              <p className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
+                                Enunciado pendente — abra a questão no TEC e
+                                recapture
+                              </p>
+                            )}
                           </div>
                         </div>
 

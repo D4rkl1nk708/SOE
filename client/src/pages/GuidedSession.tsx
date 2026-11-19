@@ -7,10 +7,13 @@ import { openTecBrowser } from "@/lib/openTecBrowser";
 import { toast } from "sonner";
 import {
   buildSessionReport,
+  buildSessionReportFromAttempts,
   summarizeReport,
   type SessionReport,
   type TopicSnapshot,
 } from "@shared/sessionReport";
+import { TecSessionLivePanel } from "@/components/tec/TecSessionLivePanel";
+import { TecPendingClassifications } from "@/components/tec/TecPendingClassifications";
 import { decideNextBlock, decideReviewGap } from "@shared/decisions";
 import {
   ArrowLeft,
@@ -95,6 +98,9 @@ export default function GuidedSession() {
   const [receipt, setReceipt] = useState<any>(null);
   const [report, setReport] = useState<SessionReport | null>(null);
   const [revisionDone, setRevisionDone] = useState(false);
+  // Quando o usuário abriu o TEC nesta sessão: base do aviso "nenhuma resposta
+  // detectada há X min".
+  const [tecOpenedAt, setTecOpenedAt] = useState<number | null>(null);
   const [feynmanText, setFeynmanText] = useState("");
   const [feynmanSave, setFeynmanSave] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -117,6 +123,9 @@ export default function GuidedSession() {
     );
   const { data: pushTokenData } = trpc.import.getICalUrl.useQuery();
   const masteryQuery = trpc.study.masterySnapshot.useQuery();
+  const utils = trpc.useUtils();
+  const { data: topicsData } = trpc.topic.list.useQuery();
+  const { data: disciplinesData } = trpc.discipline.list.useQuery();
   const markRevisionDone = trpc.revision.markCompleted.useMutation();
   const recordSession = trpc.study.recordSession.useMutation();
   const feynman = trpc.mentor.evaluateExplanation.useMutation();
@@ -166,6 +175,7 @@ export default function GuidedSession() {
         JSON.stringify({ block: activeBlock, startedAt: Date.now() }),
       );
     } catch {}
+    setTecOpenedAt(Date.now());
     setTimeout(() => {
       void openTecBrowser(pushTokenData?.token || "");
     }, 250);
@@ -179,14 +189,49 @@ export default function GuidedSession() {
       masteryQuery.refetch(),
     ]);
     const afterSnapshot = snapshot(fresh.data);
-    // A análise sai do delta de domínio por tópico: mostra exatamente quantas
-    // questões foram respondidas, quantas acertou e onde escorregou.
-    const sessionReport = buildSessionReport({
+    // v6.9.5: a fonte da verdade do relatório são as `questionAttempts` com
+    // createdAt dentro de [início, fim] — o delta de domínio por tópico só é
+    // usado quando não há tentativa nenhuma na janela (fallback).
+    const endedIso = new Date().toISOString();
+    const startedIso = new Date(
+      startedAt ?? Date.now() - elapsed * 1000,
+    ).toISOString();
+    const deltaReport = buildSessionReport({
       before: beforeMastery.current,
       after: freshMastery.data?.topics ?? [],
       globalBefore: before.accuracy,
       globalAfter: afterSnapshot.accuracy,
     });
+    let sessionReport: SessionReport = deltaReport;
+    try {
+      const live = (await utils.tec.liveActivity.fetch({
+        since: startedIso,
+        until: endedIso,
+      })) as any;
+      const fromAttempts = buildSessionReportFromAttempts({
+        attempts: live?.attempts || [],
+        startedAt: startedIso,
+        endedAt: endedIso,
+        topics: (((topicsData as any)?.topics as any[]) || []).map(
+          (topic: any) => ({
+            id: topic.id,
+            name: topic.name,
+            disciplineId: topic.disciplineId,
+          }),
+        ),
+        disciplines: ((disciplinesData as any[]) || []).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+        })),
+        before: beforeMastery.current,
+        after: freshMastery.data?.topics ?? [],
+        globalBefore: before.accuracy,
+        globalAfter: afterSnapshot.accuracy,
+      });
+      if (!fromAttempts.noData) sessionReport = fromAttempts;
+    } catch {
+      // servidor antigo/offline: mantém o relatório por delta
+    }
     // A escolha do próximo bloco vem da árvore de decisão: respeita tempo,
     // prioriza revisão vencida e não repete o tema que acabou de ser feito.
     const planBlocks = (freshOverview.data?.plan?.blocks || []) as any[];
@@ -570,15 +615,37 @@ export default function GuidedSession() {
                 </div>
                 <Button
                   variant="outline"
-                  onClick={() =>
-                    void openTecBrowser(pushTokenData?.token || "")
-                  }
+                  onClick={() => {
+                    setTecOpenedAt(Date.now());
+                    void openTecBrowser(pushTokenData?.token || "");
+                  }}
                 >
                   <ExternalLink className="mr-2 h-3.5 w-3.5" /> Abrir TEC
                 </Button>
               </div>
             </div>
           </div>
+
+          <TecSessionLivePanel
+            since={startedAt ? new Date(startedAt).toISOString() : null}
+            sessionTopicId={activeBlock?.topicId ?? null}
+            sessionTopicName={
+              activeBlock?.topicName || activeBlock?.title || null
+            }
+            topicOptions={(((topicsData as any)?.topics as any[]) || []).map(
+              (topic: any) => ({
+                id: topic.id,
+                name: topic.name,
+              }),
+            )}
+            tecOpenedAt={tecOpenedAt}
+            onChanged={() => {
+              void masteryQuery.refetch();
+              void refetchStats();
+            }}
+          />
+
+          <TecPendingClassifications />
 
           <div className="grid gap-4 sm:grid-cols-3">
             {[
@@ -771,6 +838,16 @@ export default function GuidedSession() {
               )}
             </div>
           </div>
+
+          <TecPendingClassifications />
+
+          {report && ((report as any).unclassified || 0) > 0 && (
+            <p className="rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
+              {(report as any).unclassified as number} resposta(s) entraram sem
+              tópico porque o rótulo do TEC está pendente de classificação —
+              resolva no cartão acima para elas aparecerem no tópico certo.
+            </p>
+          )}
 
           {report?.noData && (
             <div className="soe-card border-amber-500/20 p-4">

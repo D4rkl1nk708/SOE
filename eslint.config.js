@@ -18,6 +18,15 @@ export default [
     ],
   },
   {
+    // Scripts de build/ferramentas em ESM rodam no Node, não no navegador.
+    files: ["scripts/**/*.mjs", "scripts/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,

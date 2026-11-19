@@ -13,6 +13,7 @@ import { learningRouter } from "./learningRouter";
 import { questionErrorRouter } from "./questionErrorRouter";
 import { essayRouter } from "./essayRouter";
 import { studyRouter } from "./studyRouter";
+import { tecRouter } from "./tecRouter";
 import { callAiProvider } from "./aiProviders";
 import {
   buildSchedule,
@@ -42,6 +43,7 @@ export const appRouter = router({
   system: systemRouter,
   edital: editalRouter,
   study: studyRouter,
+  tec: tecRouter,
   auth: router({
     me: publicProcedure.query(async ({ ctx }) => {
       if (!ctx.user) return ctx.user;

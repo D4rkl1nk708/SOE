@@ -84,6 +84,11 @@ import {
   localEditalCoverage,
   localEditalSuggestLinks,
   localEditalLinkRow,
+  localTecLiveActivity,
+  localTecAddManualAnswer,
+  localTecUndoLastAnswer,
+  localTecPendingClassifications,
+  localTecResolvePending,
 } from "./localDb";
 
 const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
@@ -263,6 +268,17 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "v10.updateV10Settings": (i) =>
     localUpdateSettings(i as Record<string, unknown>),
   "v10.saveRecallRating": (i) => Promise.resolve({ success: true }),
+  // v6.9.5: paridade offline da captura do TEC na Sessão Guiada.
+  "tec.liveActivity": (i) =>
+    localTecLiveActivity(
+      i as { since: string; until?: string; limit?: number },
+    ),
+  "tec.addManualAnswer": (i) =>
+    localTecAddManualAnswer(i as { correct: boolean; topicId?: number | null }),
+  "tec.undoLastAnswer": (i) => localTecUndoLastAnswer(i as { since: string }),
+  "tec.pendingClassifications": () => localTecPendingClassifications(),
+  "tec.resolvePending": (i) => localTecResolvePending(i),
+  "tec.setAutoCompleteAfter": () => Promise.resolve({ ok: true, value: 0 }),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {

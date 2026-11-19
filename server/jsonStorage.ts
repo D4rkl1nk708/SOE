@@ -333,7 +333,11 @@ export async function recordQuestionAttempt(
 
   db.questionAttempts.push(record);
   db.counters.questionAttempts = db.questionAttempts.length;
-  const context = eventContext(db, record.topicId, record.disciplineId);
+  const context = eventContext(
+    db,
+    record.topicId ?? undefined,
+    record.disciplineId,
+  );
   pushStudyEvent(user, {
     id: `att-${record.id}`,
     type: "answer",
@@ -349,7 +353,7 @@ export async function recordQuestionAttempt(
     ]
       .filter(Boolean)
       .join(" · "),
-    topicId: record.topicId,
+    topicId: record.topicId ?? undefined,
     disciplineId: context.disciplineId,
     topicName: context.topicName,
     disciplineName: context.disciplineName,
@@ -359,6 +363,134 @@ export async function recordQuestionAttempt(
   });
   writeDatabase(db);
   return record;
+}
+
+/** Remove uma tentativa (usado pelo "desfazer última resposta"). */
+export async function deleteQuestionAttempt(
+  userId: number,
+  id: string,
+): Promise<QuestionAttempt | null> {
+  const db = readDatabase();
+  if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
+  const index = db.questionAttempts.findIndex(
+    (attempt) =>
+      String(attempt.id) === String(id) &&
+      (!attempt.userId || attempt.userId === userId),
+  );
+  if (index < 0) return null;
+  const [removed] = db.questionAttempts.splice(index, 1);
+  const user = db.users.find((u) => u.id === userId);
+  if (user?.settings?.studyEvents) {
+    user.settings.studyEvents = user.settings.studyEvents.filter(
+      (event) => event.id !== `att-${removed.id}`,
+    );
+  }
+  db.counters.questionAttempts = db.questionAttempts.length;
+  writeDatabase(db);
+  return removed;
+}
+
+/** Atualiza campos de uma tentativa (ex.: reatribuir tópico de pendência). */
+export async function updateQuestionAttempt(
+  userId: number,
+  id: string,
+  patch: Partial<QuestionAttempt>,
+): Promise<QuestionAttempt | null> {
+  const db = readDatabase();
+  if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
+  const index = db.questionAttempts.findIndex(
+    (attempt) =>
+      String(attempt.id) === id &&
+      (!attempt.userId || attempt.userId === userId),
+  );
+  if (index < 0) return null;
+  db.questionAttempts[index] = { ...db.questionAttempts[index], ...patch };
+  writeDatabase(db);
+  return db.questionAttempts[index];
+}
+
+/**
+ * Soma um delta EXATO ao desempenho do tópico (negativo no desfazer).
+ * Nunca deixa contadores abaixo de zero e sempre passa por
+ * `setTopicPerformance`, para não duplicar a conta de acurácia/histórico.
+ */
+export async function adjustTopicPerformance(
+  topicId: number,
+  userId: number,
+  delta: { correct?: number; errors?: number },
+): Promise<void> {
+  const db = readDatabase();
+  const topic = db.topics.find((t) => t.id === topicId && t.userId === userId);
+  if (!topic) return;
+  const correct = Math.max(
+    0,
+    (topic.performance?.correctCount ?? 0) + (delta.correct ?? 0),
+  );
+  const errors = Math.max(
+    0,
+    (topic.performance?.errorCount ?? 0) + (delta.errors ?? 0),
+  );
+  await setTopicPerformance(topicId, userId, {
+    correctCount: correct,
+    errorCount: errors,
+  });
+}
+
+/**
+ * "Estudou hoje" no tópico. Idempotente por (tópico, dia): o calendário mostra
+ * um evento por dia, não um por questão.
+ */
+export async function logTopicStudiedToday(
+  userId: number,
+  topicId: number,
+  whenIso?: string,
+): Promise<void> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return;
+  const occurredAt = whenIso || now();
+  const day = occurredAt.slice(0, 10);
+  const context = eventContext(db, topicId);
+  pushStudyEvent(user, {
+    id: `tec-day-${topicId}-${day}`,
+    type: "tec",
+    occurredAt,
+    title: `Estudou hoje: ${context.topicName || "tópico"}`,
+    detail: "Questões respondidas no TEC",
+    topicId,
+    disciplineId: context.disciplineId,
+    topicName: context.topicName,
+    disciplineName: context.disciplineName,
+    source: "tec",
+  });
+  writeDatabase(db);
+}
+
+/** Registro do que o SOE marcou sozinho no calendário (para desfazer). */
+export async function logAutoRevisionEvent(
+  userId: number,
+  revisionId: number,
+  topicId: number,
+  detail: string,
+  whenIso?: string,
+): Promise<void> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return;
+  const context = eventContext(db, topicId);
+  pushStudyEvent(user, {
+    id: `auto-test-${revisionId}`,
+    type: "revision",
+    occurredAt: whenIso || now(),
+    title: `Revisão concluída automaticamente: ${context.topicName || "tópico"}`,
+    detail,
+    topicId,
+    disciplineId: context.disciplineId,
+    topicName: context.topicName,
+    disciplineName: context.disciplineName,
+    source: "auto",
+  });
+  writeDatabase(db);
 }
 
 export async function getQuestionAttempts(
@@ -696,7 +828,8 @@ export async function deleteDiscipline(
       );
       if (user.settings.questionAttempts?.length) {
         user.settings.questionAttempts = user.settings.questionAttempts.filter(
-          (attempt) => !topicIds.includes(attempt.topicId),
+          (attempt) =>
+            attempt.topicId !== null && !topicIds.includes(attempt.topicId),
         );
       }
     }
@@ -2458,14 +2591,18 @@ function sanitizeQuestionErrorData<T extends Record<string, any>>(data: T): T {
     return letter && (letters.size === 0 || letters.has(letter)) ? letter : "";
   };
 
+  // v6.9.5: nada de placeholder enganoso. Quando o que veio é só o cabeçalho
+  // (#id/banca), guardamos o texto real e marcamos `statementPending` — a UI
+  // avisa "enunciado pendente" em vez de fingir que capturou a questão.
   const headerOnly = /^#?\d{5,}\s/.test(statement) && statement.length < 220;
-  const finalStatement = headerOnly
-    ? `[Enunciado não capturado pelo TEC]\n\n${statement}`
-    : statement;
+  const statementPending =
+    headerOnly ||
+    (data as { statementPending?: boolean }).statementPending === true;
 
   return {
     ...data,
-    statement: finalStatement,
+    statement,
+    statementPending,
     alternatives,
     userAnswer: cleanAnswer(data.userAnswer),
     correctAnswer: cleanAnswer(data.correctAnswer),

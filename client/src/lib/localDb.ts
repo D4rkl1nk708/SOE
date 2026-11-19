@@ -3247,3 +3247,229 @@ export async function localEditalLinkRow(input: {
   );
   return { success: true, changed };
 }
+
+// ─── v6.9.5: paridade offline da captura do TEC ──────────────────────────────
+// O Android grava as tentativas em `settings.questionAttempts` do IndexedDB.
+// Estas funções espelham o formato do servidor (tec.liveActivity,
+// tec.addManualAnswer, tec.undoLastAnswer) para a Sessão Guiada funcionar sem
+// rede. O que depende de IA (classificação pendente) fica desabilitado com
+// mensagem clara — nunca quebra a tela.
+
+type LocalAttempt = {
+  id: string;
+  topicId?: number | null;
+  disciplineId?: number;
+  correct?: boolean;
+  answered?: boolean;
+  createdAt?: string;
+  source?: string;
+  questionId?: string;
+  pendingClassification?: unknown;
+};
+
+async function localAttempts(): Promise<LocalAttempt[]> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  return Array.isArray(settings.questionAttempts)
+    ? (settings.questionAttempts as LocalAttempt[])
+    : [];
+}
+
+export async function localTecLiveActivity(input: {
+  since: string;
+  until?: string;
+  limit?: number;
+}): Promise<{
+  since: string;
+  until: string;
+  count: number;
+  correct: number;
+  errors: number;
+  pending: number;
+  items: Array<Record<string, unknown>>;
+  attempts: Array<{
+    id: string;
+    at: string;
+    topicId: number | null;
+    correct: boolean;
+    source: string;
+  }>;
+  lastCaptureAt: string | null;
+  autoCompleted: never[];
+  theorySuggestion: null;
+  autoCompleteThreshold: number;
+  offline: true;
+}> {
+  const sinceMs = Date.parse(input.since);
+  const untilMs = input.until ? Date.parse(input.until) : Date.now();
+  const safeSince = Number.isFinite(sinceMs) ? sinceMs : 0;
+  const safeUntil = Number.isFinite(untilMs) ? untilMs : Date.now();
+  const all = await localAttempts();
+  const inWindow = all.filter((attempt) => {
+    const at = Date.parse(String(attempt.createdAt || ""));
+    return Number.isFinite(at) && at >= safeSince && at <= safeUntil;
+  });
+
+  const { topics } = await localTopicList();
+  const topicById = new Map(topics.map((topic: any) => [topic.id, topic]));
+  const limit = Math.max(1, input.limit || 8);
+
+  return {
+    since: new Date(safeSince).toISOString(),
+    until: new Date(safeUntil).toISOString(),
+    count: inWindow.length,
+    correct: inWindow.filter((attempt) => !!attempt.correct).length,
+    errors: inWindow.filter((attempt) => !attempt.correct).length,
+    pending: inWindow.filter((attempt) => !!attempt.pendingClassification)
+      .length,
+    items: inWindow.slice(-limit).map((attempt) => ({
+      id: String(attempt.id),
+      at: String(attempt.createdAt || ""),
+      questionId: attempt.questionId,
+      correct: !!attempt.correct,
+      source: attempt.source || "manual",
+      topicId: attempt.topicId ?? null,
+      topicName: attempt.topicId
+        ? topicById.get(attempt.topicId)?.name
+        : undefined,
+      pending: !!attempt.pendingClassification,
+    })),
+    attempts: inWindow.map((attempt) => ({
+      id: String(attempt.id),
+      at: String(attempt.createdAt || ""),
+      topicId: attempt.topicId ?? null,
+      correct: !!attempt.correct,
+      source: attempt.source || "manual",
+    })),
+    lastCaptureAt:
+      inWindow.length > 0
+        ? String(inWindow[inWindow.length - 1].createdAt || "")
+        : null,
+    autoCompleted: [],
+    theorySuggestion: null,
+    autoCompleteThreshold: 0,
+    offline: true,
+  };
+}
+
+export async function localTecAddManualAnswer(input: {
+  correct: boolean;
+  topicId?: number | null;
+}): Promise<{
+  ok: boolean;
+  attemptId?: string;
+  topicId?: number;
+  message?: string;
+}> {
+  const { topics } = await localTopicList();
+  const topic = topics.find(
+    (item: any) => item.id === Number(input.topicId),
+  ) as any | undefined;
+  if (!topic) {
+    return { ok: false, message: "Escolha o tópico da sessão para registrar." };
+  }
+  const attempt = await localRecordQuestionAttempt({
+    topicId: topic.id,
+    disciplineId: topic.disciplineId,
+    answered: true,
+    correct: !!input.correct,
+    confidence: null,
+    confidencePhase: null,
+    source: "manual",
+  });
+  const prevCorrect = topic.performance?.correctCount ?? 0;
+  const prevErrors = topic.performance?.errorCount ?? 0;
+  await localTopicSetPerformance({
+    topicId: topic.id,
+    correctCount: prevCorrect + (input.correct ? 1 : 0),
+    errorCount: prevErrors + (input.correct ? 0 : 1),
+  });
+  return {
+    ok: true,
+    attemptId: String((attempt as any)?.id || ""),
+    topicId: topic.id,
+  };
+}
+
+export async function localTecUndoLastAnswer(input: {
+  since: string;
+}): Promise<{
+  ok: boolean;
+  undone?: { id: string; topicId: number | null; correct: boolean };
+  message?: string;
+}> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  if (!user) return { ok: false, message: "Usuário local não encontrado." };
+  const settings = (user.settings || {}) as Record<string, any>;
+  const attempts: LocalAttempt[] = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+  const sinceMs = Date.parse(input.since);
+  const candidates = attempts.filter((attempt) => {
+    const at = Date.parse(String(attempt.createdAt || ""));
+    if (!Number.isFinite(at)) return false;
+    if (Number.isFinite(sinceMs) && at < sinceMs) return false;
+    return attempt.source !== "simulado";
+  });
+  const last = candidates[candidates.length - 1];
+  if (!last) return { ok: false, message: "Nenhuma resposta para desfazer." };
+
+  await db.users.update(LOCAL_USER_ID, {
+    settings: {
+      ...settings,
+      questionAttempts: attempts.filter((attempt) => attempt.id !== last.id),
+    },
+  } as any);
+
+  if (last.topicId) {
+    const { topics } = await localTopicList();
+    const topic = topics.find((item: any) => item.id === last.topicId) as any;
+    if (topic) {
+      const prevCorrect = topic.performance?.correctCount ?? 0;
+      const prevErrors = topic.performance?.errorCount ?? 0;
+      await localTopicSetPerformance({
+        topicId: topic.id,
+        correctCount: Math.max(0, prevCorrect - (last.correct ? 1 : 0)),
+        errorCount: Math.max(0, prevErrors - (last.correct ? 0 : 1)),
+      });
+    }
+  }
+
+  return {
+    ok: true,
+    undone: {
+      id: String(last.id),
+      topicId: last.topicId ?? null,
+      correct: !!last.correct,
+    },
+  };
+}
+
+/** Offline não classifica rótulo do TEC: a decisão exige o servidor/IA. */
+export async function localTecPendingClassifications(): Promise<{
+  groups: never[];
+  total: number;
+  offlineMessage: string;
+}> {
+  return {
+    groups: [],
+    total: 0,
+    offlineMessage:
+      "Classificação pendente do TEC exige o SOE online (IA e disciplinas do servidor).",
+  };
+}
+
+export async function localTecResolvePending(_input?: unknown): Promise<{
+  ok: false;
+  updated: 0;
+  topicId: null;
+  message: string;
+}> {
+  return {
+    ok: false,
+    updated: 0,
+    topicId: null,
+    message:
+      "Classificar rótulo do TEC exige o SOE online. No celular, use +Acertei/+Errei para o tópico da sessão.",
+  };
+}

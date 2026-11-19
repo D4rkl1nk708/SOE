@@ -168,11 +168,29 @@ export interface EditalVersion {
 
 export type ConfidenceLevel = "chute" | "acho" | "certeza";
 
+/** Classificação que o usuário ainda precisa confirmar (v6.9.5). */
+export interface PendingClassification {
+  tecLabel: string;
+  tecDiscipline: string;
+  /** Sugestão da heurística/IA — nunca aplicada sozinha. */
+  suggestion?: {
+    disciplineId?: number | null;
+    topicId?: number | null;
+    createDiscipline?: string;
+    createTopic?: string;
+    confidence: number;
+    reason: string;
+  } | null;
+  reason?: string;
+  since: string;
+}
+
 export interface QuestionAttempt {
   id: string;
   /** Dono da tentativa (a coleção é global desde a v6.9.4). */
   userId?: number;
-  topicId: number;
+  /** `null` = rótulo do TEC ainda não classificado (ver pendingClassification). */
+  topicId: number | null;
   disciplineId?: number;
   questionId?: string;
   banca?: string;
@@ -183,6 +201,17 @@ export interface QuestionAttempt {
   confidencePhase: "before_result" | "after_result" | null;
   seconds?: number;
   source?: "manual" | "tec" | "simulado";
+  /** Assinatura estável da questão no TEC (qid:/stmt:/dom:). */
+  questionSignature?: string;
+  /** Rótulo ("Assunto:") e disciplina ("Matéria:") brutos vindos do TEC. */
+  tecLabel?: string;
+  tecDiscipline?: string;
+  /** Trecho do enunciado usado na classificação (até 600 chars). */
+  statementSnippet?: string;
+  /** Presente quando a tentativa ainda espera classificação do usuário. */
+  pendingClassification?: PendingClassification | null;
+  /** Marcado quando a tentativa foi reatribuída por um alias do usuário. */
+  reclassifiedAt?: string;
   createdAt: string;
 }
 
@@ -283,6 +312,24 @@ export interface UserSettings {
   tecSmartDisciplineMatching?: boolean;
   tecAskBeforeCreatingDiscipline?: boolean;
   tecDisciplineAliases?: Record<string, number>;
+  /** Rótulo normalizado do TEC -> topicId (uma decisão do usuário por rótulo). */
+  tecTopicAliases?: Record<string, number>;
+  /** Sugestão de IA por rótulo: cada rótulo custa no máximo UMA chamada. */
+  tecLabelAiCache?: Record<
+    string,
+    {
+      disciplineId?: number | null;
+      topicId?: number | null;
+      createDiscipline?: string;
+      createTopic?: string;
+      confidence: number;
+      reason: string;
+    }
+  >;
+  /** Limite de chamadas de IA por hora para classificar rótulos do TEC. */
+  tecAiClassifyPerHour?: number;
+  /** Conclui a revisão de teste vencida a cada N questões do tópico (0 = off). */
+  autoCompleteTestAfter?: number;
   pendingTecDisciplines?: Array<{
     id: string;
     disciplineName: string;
@@ -422,6 +469,8 @@ export interface QuestionError {
   year?: number;
   contest?: string; // e.g. "Agente Fazendário Estadual (SEFAZ PR)/Administrador"
   statement: string; // full question statement
+  /** Capturado só o #id: o enunciado ainda não veio (v6.9.5). */
+  statementPending?: boolean;
   alternatives: { letter: string; text: string }[];
   userAnswer?: string; // e.g. "B"
   correctAnswer?: string; // e.g. "C"

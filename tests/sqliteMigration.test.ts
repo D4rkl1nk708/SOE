@@ -138,3 +138,76 @@ describe.skipIf(!available)("SQLite existente — migrações persistem", () => 
     expect(backups.some((name) => name.endsWith(".sqlite"))).toBe(true);
   });
 });
+
+describe.skipIf(!available)(
+  "SQLite existente — campos novos da captura do TEC (v6.9.5)",
+  () => {
+    it("tentativa pendente, assinatura e rótulos sobrevivem a uma escrita e reabertura", async () => {
+      await createLegacySqlite();
+      sqliteEngine.setDataDir(DIR);
+
+      const db = sqliteEngine.readDatabase();
+      const user = db.users[0];
+      // Settings novos (alias de rótulo, cache de IA e limite do calendário).
+      (user.settings as any).tecTopicAliases = { blog: 99 };
+      (user.settings as any).tecLabelAiCache = {
+        blog: { topicId: 99, confidence: 0.9, reason: "teste" },
+      };
+      (user.settings as any).autoCompleteTestAfter = 5;
+
+      // Tentativa pendente: topicId null e o rótulo do TEC guardado.
+      (db.questionAttempts as any[]).push({
+        id: "att-pending-695",
+        userId: user.id,
+        topicId: null,
+        answered: true,
+        correct: false,
+        confidence: null,
+        confidencePhase: null,
+        source: "tec",
+        questionId: "qid:777",
+        questionSignature: "qid:777",
+        tecLabel: "Blog",
+        tecDiscipline: "Desenvolvimento",
+        statementSnippet: "Enunciado capturado do TEC",
+        seconds: 33,
+        pendingClassification: {
+          tecLabel: "Blog",
+          tecDiscipline: "Desenvolvimento",
+          suggestion: null,
+          reason: "rótulo genérico",
+          since: "2026-11-19T15:00:00.000Z",
+        },
+        createdAt: "2026-11-19T15:00:00.000Z",
+      });
+      sqliteEngine.writeDatabase(db);
+
+      // Outra escrita qualquer (o bug da 6.9.4 era o snapshot não gravar).
+      const again = sqliteEngine.readDatabase();
+      again.users[0].settings.theme = "dark";
+      sqliteEngine.writeDatabase(again);
+
+      sqliteEngine.closeDatabase();
+      sqliteEngine.setDataDir(DIR);
+      const reread = sqliteEngine.readDatabase();
+      const pending = (reread.questionAttempts as any[]).find(
+        (attempt) => attempt.id === "att-pending-695",
+      );
+
+      expect(pending).toBeTruthy();
+      expect(pending.topicId).toBeNull();
+      expect(pending.questionSignature).toBe("qid:777");
+      expect(pending.tecLabel).toBe("Blog");
+      expect(pending.seconds).toBe(33);
+      expect(pending.pendingClassification?.tecLabel).toBe("Blog");
+      expect((reread.users[0].settings as any).tecTopicAliases).toEqual({
+        blog: 99,
+      });
+      expect((reread.users[0].settings as any).autoCompleteTestAfter).toBe(5);
+      // As tentativas legadas continuam onde estavam.
+      expect((reread.questionAttempts as any[]).length).toBeGreaterThanOrEqual(
+        2,
+      );
+    });
+  },
+);

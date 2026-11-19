@@ -1,130 +1,126 @@
 import { describe, it, expect } from "vitest";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 /**
- * Regressão do bug "2 questões contaram 4".
+ * Contrato de identidade da questão no TEC.
  *
- * O script injetado no TEC é JS de navegador (não pode importar módulos), então
- * o teste extrai as funções de identidade da questão do próprio arquivo e
- * verifica o contrato: a assinatura NÃO pode depender da URL quando existe
- * enunciado — era justamente a URL que mudava depois de responder.
+ * O script injetado não pode mais carregar a própria implementação: ele usa o
+ * núcleo comum. Aqui carregamos o bloco SOE_TEC_CORE do arquivo real e
+ * verificamos as regras:
+ *  - assinatura NUNCA constante por URL;
+ *  - mesma questão = mesma assinatura (mesmo com URL diferente);
+ *  - sem id/enunciado, o fallback depende do contador de transição.
  */
 
-function loadHelpers(filePath: string) {
-  const source = fs.readFileSync(filePath, "utf8");
-  const start = source.indexOf("function stableHash");
-  if (start < 0) throw new Error("helpers não encontrados em " + filePath);
-  const end = source.indexOf("function tryScrapeDOM", start);
-  const code = source.slice(start, end);
-  const factory = new Function(
-    "document",
-    "location",
-    `${code}
-     return { stableHash, normalizeSnippet, extractStatementSnippet, buildQuestionSignature };`,
-  );
-  return factory;
+const BLOCK_START =
+  "// >>> SOE_TEC_CORE (gerado de shared/tecCaptureCore.ts — não editar à mão)";
+const BLOCK_END = "// <<< SOE_TEC_CORE";
+
+const FILES = [
+  "electron/tec-content.js",
+  "electron/tec-preload.cjs",
+  "android/app/src/main/assets/tec-content.js",
+  "chrome-extension/src/content.js",
+];
+
+interface CoreApi {
+  buildQuestionSignature: (input: {
+    questionId?: string | null;
+    disciplina?: string;
+    assunto?: string;
+    snippet?: string;
+    transitionCount?: number;
+    pathname?: string;
+  }) => string;
 }
 
-const files = ["electron/tec-content.js", "chrome-extension/src/content.js"];
+function loadCore(file: string): CoreApi {
+  const source = fs.readFileSync(path.resolve(process.cwd(), file), "utf8");
+  const start = source.indexOf(BLOCK_START);
+  const end = source.indexOf(BLOCK_END);
+  if (start < 0 || end < 0)
+    throw new Error(`bloco SOE_TEC_CORE ausente em ${file}`);
+  const block = source.slice(start, end + BLOCK_END.length);
 
-describe("assinatura da questão no TEC", () => {
-  for (const file of files) {
+  return new Function(`${block}\n;return SOE_TEC_CORE;`)() as CoreApi;
+}
+
+const STATEMENT =
+  "Sobre os principios das metodologias ageis, assinale a alternativa correta considerando o manifesto agil e seus valores.";
+
+describe("assinatura da questão no TEC (núcleo comum)", () => {
+  for (const file of FILES) {
     it(`${file}: usa o id da questão quando existe`, () => {
-      const doc = { querySelector: () => null, body: { innerText: "" } };
-      const loc = {
-        pathname: "/questoes/123",
-        href: "https://tec/questoes/123",
-      };
-      const helpers = loadHelpers(path.resolve(process.cwd(), file))(doc, loc);
-      expect(helpers.buildQuestionSignature("98765", "Penal", "Crimes")).toBe(
-        "qid:98765",
-      );
+      const core = loadCore(file);
+      expect(
+        core.buildQuestionSignature({
+          questionId: "98765",
+          disciplina: "Penal",
+          assunto: "Crimes",
+        }),
+      ).toBe("qid:98765");
     });
 
     it(`${file}: mesma questão = mesma assinatura mesmo com URL diferente`, () => {
-      const statement =
-        "Sobre os principios das metodologias ageis, assinale a alternativa correta considerando o manifesto agil e seus valores.";
-      const makeDoc = (pathname: string) => ({
-        querySelector: (selector: string) =>
-          selector.includes("enunciado") ? { innerText: statement } : null,
-        body: { innerText: statement },
-        __path: pathname,
+      const core = loadCore(file);
+      const sigA = core.buildQuestionSignature({
+        disciplina: "Engenharia de Software",
+        assunto: "Metodologias Ageis",
+        snippet: STATEMENT,
+        pathname: "/cadernos/1",
       });
-
-      const locA = {
-        pathname: "/cadernos/1",
-        href: "https://tec/cadernos/1?questao=1",
-      };
-      const locB = {
-        pathname: "/cadernos/1",
-        href: "https://tec/cadernos/1#comentario",
-      };
-
-      const helpers = loadHelpers(path.resolve(process.cwd(), file));
-      const sigA = helpers(makeDoc("/cadernos/1"), locA).buildQuestionSignature(
-        null,
-        "Engenharia de Software",
-        "Metodologias Ageis",
-      );
-      const sigB = helpers(makeDoc("/cadernos/1"), locB).buildQuestionSignature(
-        null,
-        "Engenharia de Software",
-        "Metodologias Ageis",
-      );
-
+      const sigB = core.buildQuestionSignature({
+        disciplina: "Engenharia de Software",
+        assunto: "Metodologias Ageis",
+        snippet: STATEMENT,
+        pathname: "/cadernos/1/topico/9",
+      });
       expect(sigA).toMatch(/^stmt:/);
       expect(sigA).toBe(sigB);
     });
 
     it(`${file}: questões diferentes geram assinaturas diferentes`, () => {
-      const loc = { pathname: "/cadernos/1", href: "https://tec/cadernos/1" };
-      const helpers = loadHelpers(path.resolve(process.cwd(), file));
-
-      const first = helpers(
-        {
-          querySelector: () => ({
-            innerText:
-              "Primeira questao sobre containers docker, camadas de imagem e reaproveitamento de cache em builds.",
-          }),
-          body: { innerText: "" },
-        },
-        loc,
-      ).buildQuestionSignature(null, "Redes", "Docker");
-
-      const second = helpers(
-        {
-          querySelector: () => ({
-            innerText:
-              "Segunda questao sobre prazos processuais, contagem em dias uteis e suspensao do expediente forense.",
-          }),
-          body: { innerText: "" },
-        },
-        loc,
-      ).buildQuestionSignature(null, "Redes", "Docker");
-
+      const core = loadCore(file);
+      const first = core.buildQuestionSignature({
+        assunto: "Redes",
+        snippet:
+          "Primeira questao sobre containers docker, camadas de imagem e reaproveitamento de cache em builds.",
+        pathname: "/cadernos/1",
+      });
+      const second = core.buildQuestionSignature({
+        assunto: "Redes",
+        snippet:
+          "Segunda questao sobre prazos processuais, contagem em dias uteis e suspensao do expediente forense.",
+        pathname: "/cadernos/1",
+      });
       expect(first).not.toBe(second);
     });
 
-    it(`${file}: sem id e sem enunciado, cai no caminho (sem query) e não na URL completa`, () => {
-      const loc = {
+    it(`${file}: fallback nunca é constante por URL (usa o contador de transição)`, () => {
+      const core = loadCore(file);
+      const first = core.buildQuestionSignature({
+        assunto: "",
+        snippet: "curto",
         pathname: "/cadernos/42",
-        href: "https://tec/cadernos/42?questao=9&pagina=2",
-      };
-      const doc = { querySelector: () => null, body: { innerText: "curto" } };
-      const helpers = loadHelpers(path.resolve(process.cwd(), file))(doc, loc);
-      expect(helpers.buildQuestionSignature(null, "", "")).toBe(
-        "url:/cadernos/42",
-      );
+        transitionCount: 0,
+      });
+      const second = core.buildQuestionSignature({
+        assunto: "",
+        snippet: "curto",
+        pathname: "/cadernos/42",
+        transitionCount: 1,
+      });
+      expect(first.startsWith("ass:")).toBe(true);
+      expect(first).not.toMatch(/^url:/);
+      expect(first).not.toBe(second);
     });
 
-    it(`${file}: não usa mais "questionId || location.href" como chave de contagem`, () => {
+    it(`${file}: delega identidade/tempo ao núcleo e não usa mais url:pathname`, () => {
       const source = fs.readFileSync(path.resolve(process.cwd(), file), "utf8");
-      expect(source).not.toContain(
-        "const storageKey = 'soe_scored_' + dedupKey",
-      );
-      expect(source).toContain("buildQuestionSignature");
-      expect(source).toContain("questionSignature: questionSignature");
+      expect(source).toContain("SOE_TEC_CORE.installTecCapture(");
+      expect(source).not.toContain("'url:' + location.pathname");
+      expect(source).not.toContain('"url:" + location.pathname');
     });
   }
 });
