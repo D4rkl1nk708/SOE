@@ -36,13 +36,80 @@ export function resolveLocalAiConfig(
   };
 }
 
+/**
+ * Ordem = confiabilidade medida (19/11/2026): o 2.5-flash responde em <1s; o
+ * flash-lite-latest costuma ter cota própria; 3.x oscila (503) e o 3.5 chegou
+ * a travar mais de 20s, por isso fica por último e toda chamada tem timeout.
+ */
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
-  "gemini-3.5-flash",
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+  "gemini-3.5-flash",
 ];
+
+export interface AiCallOptions {
+  /** Tarefas curtas e estruturadas (JSON): desliga o "thinking" do Gemini 2.5,
+   * que consome o orçamento de saída e deixava o JSON truncado. */
+  noThinking?: boolean;
+  /** Pede resposta application/json ao Gemini. */
+  json?: boolean;
+}
+
+let geminiTimeoutMs = 25_000;
+/** Só para testes. */
+export function __setGeminiTimeoutMsForTests(ms: number) {
+  geminiTimeoutMs = ms;
+}
+
+/**
+ * Memória de falhas: (chave, modelo) -> instante até o qual não vale tentar de
+ * novo. Evita que toda chamada comece pela chave/modelo já esgotado (cada
+ * tentativa queimava requisições e 500 ms de espera).
+ */
+const cooldownUntil = new Map<string, number>();
+let nextKeyOffset = 0;
+const QUOTA_COOLDOWN_MS = 5 * 60_000;
+const OVERLOAD_COOLDOWN_MS = 30_000;
+const INVALID_KEY_COOLDOWN_MS = 60 * 60_000;
+
+function fingerprint(key: string): string {
+  let h = 5381;
+  for (let i = 0; i < key.length; i += 1) {
+    h = ((h << 5) + h + key.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36);
+}
+
+function cooldownId(key: string, model: string): string {
+  return `${fingerprint(key)}|${model}`;
+}
+
+function isCooling(key: string, model: string, now = Date.now()): boolean {
+  const until = cooldownUntil.get(cooldownId(key, model));
+  return typeof until === "number" && until > now;
+}
+
+function setCooldown(key: string, model: string, ms: number) {
+  cooldownUntil.set(cooldownId(key, model), Date.now() + ms);
+}
+
+/** Só para testes. */
+export function __resetAiCooldownsForTests() {
+  cooldownUntil.clear();
+  nextKeyOffset = 0;
+}
+
+/** Quantos segundos o Google pediu para esperar (RetryInfo), se vier. */
+function parseRetryDelayMs(raw: unknown): number | null {
+  const text = typeof raw === "string" ? raw : JSON.stringify(raw ?? "");
+  const match = /"?retryDelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s/i.exec(text);
+  if (!match) return null;
+  const ms = Math.round(Number(match[1]) * 1000);
+  return Number.isFinite(ms) ? Math.min(Math.max(ms, 1000), 15 * 60_000) : null;
+}
 
 interface GeminiErrorResponse {
   error?: { message?: string; code?: number; status?: string };
@@ -64,6 +131,7 @@ export async function callGeminiWithFallback(
   prompt: string,
   maxOutputTokens = 1024,
   imageBase64?: string,
+  options: AiCallOptions = {},
 ): Promise<string> {
   const parts: any[] = [{ text: prompt }];
   if (imageBase64) {
@@ -77,78 +145,126 @@ export async function callGeminiWithFallback(
   }
 
   let lastError = "";
-  for (const apiVersion of ["v1beta"]) {
-    for (const model of GEMINI_MODELS) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: { maxOutputTokens, temperature: 0.7 },
-              safetySettings: [
-                {
-                  category: "HARM_CATEGORY_HARASSMENT",
-                  threshold: "BLOCK_NONE",
-                },
-                {
-                  category: "HARM_CATEGORY_HATE_SPEECH",
-                  threshold: "BLOCK_NONE",
-                },
-                {
-                  category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                  threshold: "BLOCK_NONE",
-                },
-                {
-                  category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                  threshold: "BLOCK_NONE",
-                },
-              ],
-            }),
-          },
-        );
+  let sawQuota = false;
+  let triedNetwork = false;
 
-        const data = (await res.json()) as GeminiErrorResponse;
+  for (const model of GEMINI_MODELS) {
+    // Esta chave já falhou neste modelo há pouco: pula sem gastar rede.
+    if (isCooling(apiKey, model)) {
+      continue;
+    }
 
-        if (data.error) {
-          let msg = data.error.message ?? "Erro Gemini";
-          if (
-            msg.includes("API key not valid") ||
-            msg.includes("expired") ||
-            data.error.status === "UNAUTHENTICATED"
-          ) {
-            msg =
-              "Chave API Gemini expirada ou inválida. Por favor, renove-a nas configurações.";
-          }
+    const generationConfig: Record<string, unknown> = {
+      maxOutputTokens,
+      temperature: options.json ? 0.2 : 0.7,
+    };
+    if (options.json) generationConfig.responseMimeType = "application/json";
+    if (options.noThinking && model.startsWith("gemini-2.5-flash")) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
 
-          const isLimitZero =
-            msg.toLowerCase().includes("limit: 0") ||
-            msg.toLowerCase().includes("not found") ||
-            msg.toLowerCase().includes("not supported");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), geminiTimeoutMs);
+    try {
+      triedNetwork = true;
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ parts }],
+            generationConfig,
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              {
+                category: "HARM_CATEGORY_HATE_SPEECH",
+                threshold: "BLOCK_NONE",
+              },
+              {
+                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                threshold: "BLOCK_NONE",
+              },
+              {
+                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                threshold: "BLOCK_NONE",
+              },
+            ],
+          }),
+        },
+      );
 
-          if (res.status === 429 && !isLimitZero) {
-            throw new Error(`QUOTA_EXCEEDED: ${msg}`);
-          }
+      const data = (await res.json()) as GeminiErrorResponse;
 
-          if (isLimitZero || res.status === 404 || res.status === 403) {
-            lastError = `[${model} @ ${apiVersion}] ${msg}`;
-            continue;
-          }
-
+      if (data.error) {
+        let msg = data.error.message ?? "Erro Gemini";
+        const invalidKey =
+          msg.includes("API key not valid") ||
+          msg.includes("expired") ||
+          data.error.status === "UNAUTHENTICATED";
+        if (invalidKey) {
+          msg =
+            "Chave API Gemini expirada ou inválida. Por favor, renove-a nas configurações.";
+          // chave ruim: não adianta tentar outros modelos com ela
+          for (const m of GEMINI_MODELS)
+            setCooldown(apiKey, m, INVALID_KEY_COOLDOWN_MS);
           throw new Error(msg);
         }
 
-        return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      } catch (e: any) {
-        if (e.message.includes("QUOTA_EXCEEDED")) throw e;
-        lastError = e.message;
+        const isLimitZero =
+          msg.toLowerCase().includes("limit: 0") ||
+          msg.toLowerCase().includes("not found") ||
+          msg.toLowerCase().includes("not supported") ||
+          msg.toLowerCase().includes("no longer available");
+
+        if (res.status === 429 && !isLimitZero) {
+          // Cota é POR MODELO: esgotou este, tente o próximo antes de trocar de chave.
+          sawQuota = true;
+          lastError = `[${model}] ${msg}`;
+          const wait =
+            parseRetryDelayMs((data.error as any).details) ??
+            parseRetryDelayMs(msg) ??
+            QUOTA_COOLDOWN_MS;
+          setCooldown(apiKey, model, wait);
+          continue;
+        }
+
+        if (res.status === 503 || res.status === 500) {
+          lastError = `[${model}] ${msg}`;
+          setCooldown(apiKey, model, OVERLOAD_COOLDOWN_MS);
+          continue;
+        }
+
+        if (isLimitZero || res.status === 404 || res.status === 403) {
+          lastError = `[${model}] ${msg}`;
+          setCooldown(apiKey, model, QUOTA_COOLDOWN_MS);
+          continue;
+        }
+
+        throw new Error(msg);
+      }
+
+      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    } catch (e: any) {
+      if (e?.name === "AbortError") {
+        lastError = `[${model}] sem resposta em ${Math.round(geminiTimeoutMs / 1000)}s`;
+        setCooldown(apiKey, model, OVERLOAD_COOLDOWN_MS);
         continue;
       }
+      if (String(e?.message).includes("expirada ou inválida")) throw e;
+      lastError = e?.message ?? String(e);
+      continue;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
+  if (sawQuota || (!triedNetwork && lastError === "")) {
+    throw new Error(
+      `QUOTA_EXCEEDED: todos os modelos Gemini esgotaram a cota desta chave. ${lastError}`.trim(),
+    );
+  }
   throw new Error(
     `Nenhum modelo Gemini disponível para esta chave. Último erro: ${lastError}`,
   );
@@ -237,13 +353,18 @@ export async function callAiProvider(
   prompt: string,
   maxTokens = 1024,
   imageBase64?: string,
+  options: AiCallOptions = {},
 ): Promise<string> {
   const apiKeys = normalizeApiKeys(apiKeyString);
   if (apiKeys.length === 0) throw new Error("Nenhuma API Key configurada.");
 
+  // Rodízio: cada chamada começa numa chave diferente, espalhando a cota e o
+  // limite por minuto em vez de martelar sempre a chave 1.
+  const start = provider === "gemini" ? nextKeyOffset++ % apiKeys.length : 0;
+
   let lastError = "";
-  for (let i = 0; i < apiKeys.length; i++) {
-    const key = apiKeys[i];
+  for (let n = 0; n < apiKeys.length; n++) {
+    const key = apiKeys[(start + n) % apiKeys.length];
     try {
       switch (provider) {
         case "gemini":
@@ -252,6 +373,7 @@ export async function callAiProvider(
             prompt,
             maxTokens,
             imageBase64,
+            options,
           );
         case "openai":
           return await callOpenAi(key, prompt, maxTokens, imageBase64);
@@ -263,25 +385,25 @@ export async function callAiProvider(
     } catch (err: any) {
       lastError = err.message;
       console.warn(
-        `[AI Rotation] Falha com a chave ${key.substring(0, 6)}... : ${err.message}`,
+        `[AI Rotation] Falha com a chave #${((start + n) % apiKeys.length) + 1} (${fingerprint(key)}): ${err.message}`,
       );
 
+      const lower = String(err.message).toLowerCase();
       const isQuota =
-        err.message.toLowerCase().includes("quota") ||
-        err.message.toLowerCase().includes("exceeded") ||
+        lower.includes("quota") ||
+        lower.includes("exceeded") ||
         err.message.includes("429");
       const isInvalid =
-        err.message.toLowerCase().includes("invalid") ||
-        err.message.toLowerCase().includes("key") ||
+        lower.includes("invalid") ||
+        lower.includes("inválida") ||
+        lower.includes("key") ||
         err.message.includes("401");
       const isNotFound =
-        err.message.toLowerCase().includes("not found") ||
-        err.message.toLowerCase().includes("not supported");
+        lower.includes("not found") ||
+        lower.includes("not supported") ||
+        lower.includes("nenhum modelo");
 
       if (apiKeys.length > 1 && (isQuota || isInvalid || isNotFound)) {
-        if (i < apiKeys.length - 1 && isQuota) {
-          await new Promise((res) => setTimeout(res, 500));
-        }
         continue;
       }
       throw err;

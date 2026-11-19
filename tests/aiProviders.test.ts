@@ -5,12 +5,15 @@ import {
   callClaude,
   callAiProvider,
   testAiKey,
+  __resetAiCooldownsForTests,
 } from "../server/aiProviders";
 
 describe("aiProviders", () => {
   let fetchMock: any;
 
   beforeEach(() => {
+    // a memória de cota/falha é do processo: cada teste começa limpo
+    __resetAiCooldownsForTests();
     fetchMock = vi.fn();
     global.fetch = fetchMock;
   });

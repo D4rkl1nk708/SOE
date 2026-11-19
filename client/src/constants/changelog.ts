@@ -16,6 +16,17 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
     title: "Captura do TEC que não perde questão e classificação sem achismo",
     categories: [
       {
+        title: "🔑 IA e rodízio de chaves",
+        type: "fix",
+        items: [
+          "Cota esgotada em um modelo agora tenta o próximo modelo da mesma chave antes de trocar de chave.",
+          "O app lembra qual chave/modelo esgotou e pula direto, em vez de começar sempre pela chave 1.",
+          "Rodízio entre as chaves a cada chamada, espalhando o limite por minuto.",
+          "Toda chamada ao Gemini tem timeout (o gemini-3.5 chegou a travar mais de 20s).",
+          "Classificação de questões do TEC pede JSON sem 'thinking' — antes a resposta vinha truncada.",
+        ],
+      },
+      {
         title: "🎯 Captura do TEC",
         type: "fix",
         items: [

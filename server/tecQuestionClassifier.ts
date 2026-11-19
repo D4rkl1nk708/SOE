@@ -52,7 +52,7 @@ export type TecClassification = {
 const DEFAULT_MIN_CONFIDENCE = 0.75;
 const DEFAULT_MAX_AI_CALLS_PER_HOUR = 10;
 const AI_WINDOW_MS = 60 * 60 * 1000;
-const AI_MAX_TOKENS = 400;
+const AI_MAX_TOKENS = 600;
 const STATEMENT_SNIPPET_LIMIT = 600;
 
 /** userId -> timestamps (ms) das chamadas de IA já feitas. */
@@ -651,7 +651,11 @@ export async function classifyTecQuestion(params: {
   });
   const aiCall =
     params.aiCall ??
-    ((text: string) => callAiProvider(provider, apiKey, text, AI_MAX_TOKENS));
+    ((text: string) =>
+      callAiProvider(provider, apiKey, text, AI_MAX_TOKENS, undefined, {
+        noThinking: true,
+        json: true,
+      }));
 
   registerAiCall(params.userId, nowValue);
 
