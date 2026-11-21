@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +118,8 @@ export default function Revisions() {
       toast.error("Erro ao atualizar status da revisão.");
     },
     onSuccess: (_, vars) => {
-      utils.dashboard.getStats.invalidate();
+      // v6.9.8 (item 2.1): conjunto completo de caches, sempre pelo helper.
+      void invalidateStudyState(utils, "revision");
       if (vars.completed) {
         const rev = enrichedRevisions.find((r) => r.id === vars.id);
         if (rev) {

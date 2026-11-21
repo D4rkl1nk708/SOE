@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { localDayISO } from "@shared/localDay";
 
 // __APP_VERSION__ is injected by Vite
 declare const __APP_VERSION__: string;
@@ -35,7 +36,7 @@ async function triggerSafetyBackup() {
     }
     if (!json) return;
 
-    const fileName = `soe-backup-seguranca-${new Date().toISOString().split("T")[0]}.json`;
+    const fileName = `soe-backup-seguranca-${localDayISO()}.json`;
 
     if (Capacitor.isNativePlatform()) {
       const { Filesystem, Directory } = await import("@capacitor/filesystem");

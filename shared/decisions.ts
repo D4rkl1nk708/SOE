@@ -215,6 +215,9 @@ export type PlanBlockLike = {
   topicId?: number | null;
   score?: number;
   completed?: boolean;
+  topicName?: string;
+  disciplineName?: string;
+  reason?: string;
 };
 
 export type NextBlockInput = {
@@ -259,7 +262,11 @@ export function decideNextBlock(input: NextBlockInput): NextBlockDecision {
     if (revision) {
       return {
         block: revision,
-        why: `Você tem ${input.overdueRevisions} revisão(ões) vencida(s): ela vem antes de conteúdo novo.`,
+        // v6.9.8 (item 1.1): sem o total absoluto de vencidas ("8.458") —
+        // o aluno precisa do motivo útil deste bloco, não da dívida inteira.
+        why: revision.reason
+          ? `${revision.topicName || "Revisão"}: ${revision.reason}`
+          : "revisão vencida vem antes de conteúdo novo — é a que mais pesa no seu plano hoje.",
       };
     }
   }

@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
+import { notify } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,9 +73,8 @@ export default function History() {
 
   const markCompletedMutation = trpc.revision.markCompleted.useMutation({
     onSuccess: () => {
-      utils.history.get.invalidate();
-      utils.dashboard.getStats.invalidate();
-      toast.success("Status atualizado!");
+      void invalidateStudyState(utils, "revision");
+      notify.once("revision-status", "Status atualizado!");
     },
     onError: (error) => {
       toast.error("Erro: " + error.message);

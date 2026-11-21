@@ -21,6 +21,7 @@ import {
   formatDateForDb,
   getScheduleParams,
 } from "../shared/scheduling";
+import { localDayISO } from "../shared/localDay";
 import {
   getDashboardStats,
   getWeeklyStats,
@@ -512,6 +513,32 @@ export const appRouter = router({
           input.completed,
         );
         return { success: true };
+      }),
+    /**
+     * v6.9.8 (item 1.3): quantas revisões vencidas do tópico existem hoje.
+     * Alimenta o checkbox "concluir também as N anteriores" da sessão guiada.
+     */
+    topicBacklog: protectedProcedure
+      .input(z.object({ topicId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return storage.countTopicBacklog(
+          ctx.user.id,
+          input.topicId,
+          localDayISO(),
+        );
+      }),
+    /**
+     * v6.9.8 (item 1.3): conclui em lote só as pendentes com `scheduledDate`
+     * até hoje local. Futuras intactas; nada criado ou reagendado.
+     */
+    completeTopicBacklog: protectedProcedure
+      .input(z.object({ topicId: z.number(), today: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        return storage.completeTopicBacklog(
+          ctx.user.id,
+          input.topicId,
+          input.today || localDayISO(),
+        );
       }),
     updateLink: protectedProcedure
       .input(z.object({ id: z.number(), link: z.string() }))
@@ -1461,7 +1488,7 @@ ${input.text.substring(0, 8000)}`;
 
     checkMassStudy: protectedProcedure.query(async ({ ctx }) => {
       const db_topics = await storage.getTopicsByUser(ctx.user.id);
-      const today = new Date().toISOString().split("T")[0];
+      const today = localDayISO();
       const todayTopics = db_topics.filter((t) => t.studyDate === today);
       const countByDiscipline: Record<number, number> = {};
       for (const t of todayTopics) {

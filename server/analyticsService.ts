@@ -7,6 +7,7 @@
 
 import * as storage from "./jsonStorage";
 import type { Discipline, Topic, Revision } from "./jsonStorage";
+import { localDayISO } from "../shared/localDay";
 
 // ─── Utilitários internos ──────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ export async function getDashboardStats(userId: number) {
   ]);
   const settings = await storage.getUserSettings(userId);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDayISO();
   const pendingRevisions = revisions.filter(
     (r) => !r.completed && !r.ignored && r.scheduledDate < today,
   ).length;
@@ -363,7 +364,7 @@ export async function getStudyHeatmap(userId: number, months: number) {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
   cutoff.setHours(0, 0, 0, 0);
-  const cutoffStr = cutoff.toISOString().split("T")[0];
+  const cutoffStr = localDayISO(cutoff);
 
   const map = new Map<string, { count: number; seconds: number }>();
   const bump = (date: string | null | undefined, seconds = 0) => {
@@ -411,7 +412,7 @@ export async function getStudyHeatmap(userId: number, months: number) {
 // ─── Today Study Minutes ─────────────────────────────────────────────────────
 
 export async function getTodayStudyMinutes(userId: number): Promise<number> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDayISO();
   const topics = await storage.getTopicsByUser(userId);
   return Math.round(
     topics

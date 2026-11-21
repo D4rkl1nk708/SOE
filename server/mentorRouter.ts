@@ -6,6 +6,7 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
+import { localDayISO } from "../shared/localDay";
 import fs from "fs";
 import path from "path";
 
@@ -1434,7 +1435,7 @@ Se você não souber o disciplineId ou topicId correto, escolha o DiscID/ID do t
 Poder Mágico 2 (Agendamento de Revisões):
 Se o aluno pedir para adiar ou reagendar o estudo/revisão de alguma matéria, você pode fazer isso automaticamente por ele gerando o seguinte bloco no final da resposta:
 [RESCHEDULE]{"topicId": 123, "newDate": "YYYY-MM-DD"}[/RESCHEDULE]
-Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${new Date().toISOString().split("T")[0]}). Pode gerar vários blocos se necessário.
+Substitua topicId pelo ID numérico do tópico que deve ser reagendado e newDate pela nova data (no formato YYYY-MM-DD, a data de hoje é ${localDayISO()}). Pode gerar vários blocos se necessário.
 
 Poder Mágico 3 (Memória Estratégica):
 Sempre que você notar um padrão de comportamento, um erro recorrente de lógica ou uma evolução notável, salve uma observação curta (máx 15 palavras) para você mesmo ler no futuro usando:
@@ -2094,7 +2095,7 @@ Mentor:`;
                 {
                   userId: ctx.user.id,
                   topicId: weakTopics[0].id,
-                  scheduledDate: new Date().toISOString().split("T")[0],
+                  scheduledDate: localDayISO(),
                   type: "revision",
                   revisionNumber: 99, // Flag emergencial
                 },

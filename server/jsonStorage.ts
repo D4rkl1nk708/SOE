@@ -1,4 +1,5 @@
 import type {
+  DataHealthFixId,
   Discipline,
   Topic,
   Revision,
@@ -38,6 +39,8 @@ export type {
   Database,
   StudyEventRecord,
 };
+import { addLocalDays, localDayISO } from "../shared/localDay";
+import { normalizeLocalDay } from "../shared/planRules";
 import { persistBase64Media } from "./mediaStorage";
 import { backupJsonPayload } from "./storage/backup";
 import { preserveRowLinks } from "../shared/editalCoverage";
@@ -1567,6 +1570,152 @@ export async function markRevisionCompleted(
   }
 }
 
+/**
+ * v6.9.8 (item 1.3): revisões pendentes de UM tópico que já venceram
+ * (`scheduledDate <= hoje local`). Futuras não entram: o calendário 25/50 é
+ * intocável — nada é criado nem reagendado.
+ */
+export async function countTopicBacklog(
+  userId: number,
+  topicId: number,
+  todayLocal: string,
+): Promise<{ duePending: number; previous: number }> {
+  const today = normalizeLocalDay(todayLocal);
+  const revisions = await getRevisionsByUser(userId, {
+    completed: false,
+    ignored: false,
+  });
+  const due = revisions.filter(
+    (revision) =>
+      revision.topicId === topicId &&
+      Boolean(today) &&
+      String(revision.scheduledDate || "") <= today,
+  );
+  return {
+    duePending: due.length,
+    // "anteriores" = todas menos a revisão ativa da sessão.
+    previous: Math.max(0, due.length - 1),
+  };
+}
+
+/**
+ * v6.9.8 (item 1.3): conclui em lote o backlog vencido de um tópico.
+ * Idempotente, com backup antes de gravar. Nunca toca em revisão futura,
+ * nunca cria revisão nova e não altera a regra 25/50.
+ */
+export async function completeTopicBacklog(
+  userId: number,
+  topicId: number,
+  todayLocal: string,
+): Promise<{ completed: number; revisionIds: number[] }> {
+  const today = normalizeLocalDay(todayLocal);
+  if (!today) return { completed: 0, revisionIds: [] };
+  const db = readDatabase();
+  const due = db.revisions.filter(
+    (revision) =>
+      revision.userId === userId &&
+      revision.topicId === topicId &&
+      !revision.completed &&
+      !revision.ignored &&
+      String(revision.scheduledDate || "") <= today,
+  );
+  if (due.length === 0) return { completed: 0, revisionIds: [] };
+
+  // Ação em lote sobre dados do aluno: cópia de segurança antes de gravar.
+  backupJsonPayload(getDataDir(), `backlog-topico-${topicId}`, db);
+
+  const stamp = now();
+  for (const revision of due) {
+    revision.completed = true;
+    revision.completedAt = stamp;
+    revision.updatedAt = stamp;
+  }
+  const context = eventContext(db, topicId);
+  pushStudyEvent(
+    db.users.find((user) => user.id === userId),
+    {
+      id: `rev-batch-${topicId}-${today}`,
+      type: "revision",
+      occurredAt: stamp,
+      title: `Revisões concluídas em lote: ${context.topicName || "tópico"}`,
+      detail: `${due.length} revisão(ões) com data até ${today}`,
+      topicId,
+      disciplineId: context.disciplineId,
+      topicName: context.topicName,
+      disciplineName: context.disciplineName,
+    },
+  );
+  writeDatabase(db);
+  return {
+    completed: due.length,
+    revisionIds: due.map((revision) => revision.id),
+  };
+}
+
+/**
+ * v6.9.8 (item 2.4): correções seguras do cartão "Saúde dos dados".
+ *
+ * Nenhuma delas apaga histórico: reordena, marca enunciado como pendente,
+ * remove simulado que nunca foi respondido e reagenda flashcard esquecido.
+ * Todas gravam backup ANTES de tocar no banco.
+ */
+export async function applyDataHealthFix(
+  userId: number,
+  fix: DataHealthFixId,
+  todayLocal?: string,
+): Promise<{ affected: number; backup: string | null }> {
+  const db = readDatabase();
+  const today = normalizeLocalDay(todayLocal) || localDayISO();
+  const stamp = now();
+  let affected = 0;
+
+  const backup = backupJsonPayload(getDataDir(), `saude-dados-${fix}`, db);
+
+  if (fix === "reorder-disciplines") {
+    const mine = db.disciplines.filter(
+      (discipline) => discipline.userId === userId,
+    );
+    const ordered = [...mine].sort(
+      (a, b) => (b.weight || 1) - (a.weight || 1) || a.id - b.id,
+    );
+    ordered.forEach((discipline, index) => {
+      if (discipline.order !== index + 1) {
+        discipline.order = index + 1;
+        discipline.updatedAt = stamp;
+        affected += 1;
+      }
+    });
+  } else if (fix === "delete-empty-mock-exams") {
+    const before = db.mockExams.length;
+    db.mockExams = db.mockExams.filter(
+      (exam) =>
+        exam.userId !== userId || Object.keys(exam.answers || {}).length > 0,
+    );
+    affected = before - db.mockExams.length;
+  } else if (fix === "mark-errors-statement-pending") {
+    for (const error of db.questionErrors || []) {
+      if (error.userId !== userId) continue;
+      if (error.statementPending === true) continue;
+      if (String(error.statement || "").trim().length >= 20) continue;
+      error.statementPending = true;
+      affected += 1;
+    }
+  } else if (fix === "reschedule-stale-flashcards") {
+    const cutoff = addLocalDays(today, -90);
+    for (const card of db.flashcards || []) {
+      if (card.userId !== userId || card.archived) continue;
+      const day = String(card.nextReviewDate || "").slice(0, 10);
+      if (!day || day >= cutoff) continue;
+      card.nextReviewDate = today;
+      card.updatedAt = stamp;
+      affected += 1;
+    }
+  }
+
+  if (affected > 0) writeDatabase(db);
+  return { affected, backup };
+}
+
 export async function rescheduleRevision(
   id: number,
   userId: number,
@@ -1970,7 +2119,7 @@ export async function getDashboardStats(userId: number) {
       !r.completed &&
       !r.ignored &&
       r.type === "revision" &&
-      r.scheduledDate < now().split("T")[0],
+      r.scheduledDate < localDayISO(),
   ).length;
   const completedRevisions = revisions.filter((r) => r.completed).length;
 
@@ -2151,7 +2300,7 @@ export async function setTopicPerformance(
         ? Math.round((data.correctCount / totalResolved) * 100)
         : 0;
     const prev = db.topics[index].performance;
-    const today = now().split("T")[0];
+    const today = localDayISO();
 
     const prevHistory = (prev?.history ?? []).filter((h) => h.date !== today);
     const history = [
@@ -2576,7 +2725,7 @@ export async function getStudyHeatmap(
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
   cutoff.setHours(0, 0, 0, 0);
-  const cutoffStr = cutoff.toISOString().split("T")[0];
+  const cutoffStr = localDayISO(cutoff);
 
   // Aggregate topics by studyDate (count topics + sum studyTimeSeconds)
   const map: Record<string, { count: number; seconds: number }> = {};
@@ -2620,7 +2769,7 @@ export async function createFlashcard(data: {
 }): Promise<Flashcard> {
   const db = readDatabase();
   db.counters.flashcards++;
-  const today = now().split("T")[0];
+  const today = localDayISO();
   const card: Flashcard = {
     id: db.counters.flashcards,
     userId: data.userId,
@@ -2701,7 +2850,7 @@ export async function reviewFlashcard(
 
   const next = new Date();
   next.setDate(next.getDate() + card.interval);
-  card.nextReviewDate = next.toISOString().split("T")[0];
+  card.nextReviewDate = localDayISO(next);
   card.updatedAt = now();
 
   db.flashcards[idx] = card;
@@ -2712,7 +2861,7 @@ export async function reviewFlashcard(
 // Get today's study time in minutes (from topics updated today)
 export async function getTodayStudyMinutes(userId: number): Promise<number> {
   const db = readDatabase();
-  const today = new Date().toISOString().split("T")[0];
+  const today = localDayISO();
   const topics = db.topics.filter(
     (t) => t.userId === userId && t.updatedAt?.startsWith(today),
   );
@@ -3253,7 +3402,7 @@ export async function logStudySession(
   const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.studySessionLog) user.settings.studySessionLog = [];
-  const date = now().split("T")[0];
+  const date = localDayISO();
   user.settings.studySessionLog.push({
     date,
     hourStart,
@@ -3312,7 +3461,7 @@ export async function logStudyEndTime(
   const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   if (!user.settings.sleepLog) user.settings.sleepLog = [];
-  const today = now().split("T")[0];
+  const today = localDayISO();
   const existing = user.settings.sleepLog.findIndex((s) => s.date === today);
   if (existing >= 0) {
     user.settings.sleepLog[existing] = {
@@ -3679,9 +3828,7 @@ export async function addMentorObservation(
       user.settings.mentorObservations = [];
 
     // Keep only last 20 observations to prevent prompt bloating
-    user.settings.mentorObservations.push(
-      `${new Date().toISOString().split("T")[0]}: ${observation}`,
-    );
+    user.settings.mentorObservations.push(`${localDayISO()}: ${observation}`);
     if (user.settings.mentorObservations.length > 20) {
       user.settings.mentorObservations.shift();
     }
@@ -3897,7 +4044,11 @@ export async function logGuidedSession(
 
   const started = new Date(entry.startedAt);
   user.settings.studySessionLog.push({
-    date: entry.startedAt.slice(0, 10),
+    // v6.9.8 (item 2.2): o dia da sessão é o dia LOCAL — uma sessão às 23:30
+    // (02:30 UTC) caía no dia seguinte.
+    date: Number.isNaN(started.getTime())
+      ? localDayISO()
+      : localDayISO(started),
     hourStart: Number.isNaN(started.getTime()) ? 0 : started.getHours(),
     durationMin: Math.max(0, Math.round(entry.minutes)),
     accuracy: Math.max(0, Math.min(1, entry.accuracy / 100)),
@@ -4137,7 +4288,7 @@ export async function generateFlashcardsFromErrors(
 
   const created: Flashcard[] = [];
   let skipped = 0;
-  const today = now().split("T")[0];
+  const today = localDayISO();
 
   for (const error of errors) {
     if (already.has(error.id)) {
@@ -4224,7 +4375,7 @@ export async function buildLeiSecaDeck(
     if (card.sourceNoteKey) existing.add(`key:${card.sourceNoteKey}`);
   }
 
-  const today = now().split("T")[0];
+  const today = localDayISO();
   const created: Flashcard[] = [];
   let skipped = 0;
   for (const draft of cards) {
@@ -4294,7 +4445,7 @@ export async function getLeiSecaToday(userId: number): Promise<{
 }> {
   const db = readDatabase();
   const user = db.users.find((item) => item.id === userId);
-  const today = now().split("T")[0];
+  const today = localDayISO();
   const cards = (db.flashcards || []).filter((card) => card.userId === userId);
   const summary = summarizeLeiSecaDeck(cards as any, today, undefined);
   const cap = resolveDailyCap(user?.settings?.leiSecaDailyCap ?? summary.cap);

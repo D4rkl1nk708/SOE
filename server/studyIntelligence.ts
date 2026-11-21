@@ -9,6 +9,7 @@
  *  - pendências de revisão.
  */
 import type {
+  DataHealthFixId,
   Discipline,
   Revision,
   Topic,
@@ -16,6 +17,14 @@ import type {
 } from "../shared/types";
 import { normalizeString, isFuzzyMatch } from "../shared/utils";
 import { formatDateForDb } from "../shared/scheduling";
+import { addLocalDays, isSameLocalDay, localDayISO } from "../shared/localDay";
+import {
+  limitConsecutiveRevisions,
+  overdueDaysFor,
+  overdueReason,
+  planRevisionScore,
+  topicsCompletedOnLocalDay,
+} from "../shared/planRules";
 import type { TopicSnapshot } from "../shared/sessionReport";
 import * as storage from "./jsonStorage";
 
@@ -156,6 +165,10 @@ export interface StudyOverview {
     dailyMinutes: number;
     plannedMinutes: number;
     overdueRevisions: number;
+    /** Todas as revisões vencidas do dia já foram concluídas hoje. */
+    dueDoneToday?: boolean;
+    /** Aviso amigável quando o dia de revisão está em dia (item 1.1). */
+    notice?: string | null;
     blocks: PlanBlock[];
   };
   base: BaseLensSummary;
@@ -598,12 +611,17 @@ function computePlan(
   dailyMinutes: number,
   baseDisciplineIds: Set<number>,
 ): StudyOverview["plan"] {
-  const today = formatDateForDb(new Date());
+  const today = localDayISO();
+  // v6.9.8 (item 1.1): tópico com revisão concluída no dia local de HOJE não
+  // volta para o plano do dia. Antes o aluno concluía o mesmo tópico 9 vezes e
+  // o "próximo no plano" continuava sendo ele (havia 82+ vencidas no tópico).
+  const completedToday = topicsCompletedOnLocalDay(revisions, today);
   const dueRevisions = revisions.filter(
     (r) => !r.completed && !r.ignored && r.scheduledDate <= today,
   );
   const overdueByTopic = new Map<number, Revision>();
   for (const revision of dueRevisions) {
+    if (completedToday.has(revision.topicId)) continue;
     const existing = overdueByTopic.get(revision.topicId);
     if (!existing || revision.scheduledDate < existing.scheduledDate) {
       overdueByTopic.set(revision.topicId, revision);
@@ -621,24 +639,31 @@ function computePlan(
 
   for (const [topicId, revision] of overdueByTopic) {
     const m = masteryByTopic.get(topicId);
-    const overdueDays = Math.max(0, daysSince(revision.scheduledDate));
+    // v6.9.8 (item 1.1): atraso contado em dia local, com teto na pontuação —
+    // a revisão mais atrasada não pode vencer sempre.
+    const overdueDays = Math.max(
+      0,
+      overdueDaysFor(revision.scheduledDate, today),
+    );
     blocks.push({
       id: `rev-${revision.id}`,
       kind: "revisao",
       lens: "revisao",
       title: m?.topicName || "Revisão pendente",
       subtitle: m?.disciplineName || "Revisão",
+      // O "por quê" com contexto útil (acerto do tópico) no lugar do total
+      // absoluto de vencidas, que só assustava o aluno.
       reason:
-        overdueDays > 0
-          ? `Revisão vencida há ${overdueDays} dia(s)`
-          : "Revisão programada para hoje",
+        m && m.resolved >= 10
+          ? `${overdueReason(overdueDays)} · ${m.accuracy}% de acerto em ${m.resolved} questões`
+          : overdueReason(overdueDays),
       minutes: 15,
       topicId,
       topicName: m?.topicName || "Revisão",
       disciplineId: m?.disciplineId ?? null,
       disciplineName: m?.disciplineName || "Revisão",
       color: m?.color || "var(--primary)",
-      score: 1000 + overdueDays,
+      score: planRevisionScore(overdueDays),
       route: "/revisions",
       revisionId: revision.id,
       completed: false,
@@ -647,7 +672,12 @@ function computePlan(
   }
 
   const weakTopics = [...mastery]
-    .filter((m) => m.resolved > 0 && !usedTopics.has(m.topicId))
+    .filter(
+      (m) =>
+        m.resolved > 0 &&
+        !usedTopics.has(m.topicId) &&
+        !completedToday.has(m.topicId),
+    )
     .sort((a, b) => {
       const weightA = coverageByTopic.get(a.topicId)?.weight ?? 1;
       const weightB = coverageByTopic.get(b.topicId)?.weight ?? 1;
@@ -685,6 +715,7 @@ function computePlan(
   for (const row of coverage.priorities) {
     if (blocks.length >= 12) break;
     if (!row.topicId || usedTopics.has(row.topicId)) continue;
+    if (completedToday.has(row.topicId)) continue;
     const m = masteryByTopic.get(row.topicId);
     blocks.push({
       id: `gap-${row.id}`,
@@ -730,7 +761,8 @@ function computePlan(
     if (
       m.readiness >= 75 &&
       m.daysSinceStudy >= 14 &&
-      !usedTopics.has(m.topicId)
+      !usedTopics.has(m.topicId) &&
+      !completedToday.has(m.topicId)
     ) {
       blocks.push({
         id: `maint-${m.topicId}`,
@@ -755,6 +787,42 @@ function computePlan(
 
   blocks.sort((a, b) => b.score - a.score);
 
+  // v6.9.8 (item 1.1): se não sobrou nenhuma vencida e alguma vencida foi
+  // concluída hoje, o dia de revisão está cumprido — o plano avisa em vez de
+  // devolver o mesmo tema.
+  const dueDoneToday =
+    dueRevisions.length === 0 &&
+    revisions.some(
+      (revision) =>
+        revision.completed &&
+        !revision.ignored &&
+        String(revision.scheduledDate || "") <= today &&
+        isSameLocalDay(revision.completedAt, today),
+    );
+
+  if (dueDoneToday) {
+    // O dia de revisão está cumprido: o plano diz isso e aponta o próximo
+    // passo, em vez de devolver o mesmo tópico.
+    blocks.push({
+      id: "plan-due-done",
+      kind: "estudo",
+      lens: "revisao",
+      title: "Revisões do dia em dia",
+      subtitle: "Backlog do dia concluído",
+      reason:
+        "Você já concluiu o que estava vencido hoje — o próximo passo é conteúdo novo.",
+      minutes: 5,
+      topicId: null,
+      topicName: "Revisões do dia em dia",
+      disciplineId: null,
+      disciplineName: "Plano",
+      color: "var(--primary)",
+      score: 900,
+      route: "/plan",
+      completed: false,
+    });
+  }
+
   // Intercala disciplinas para não começar com 4 blocos da mesma matéria.
   const ordered: PlanBlock[] = [];
   const remaining = [...blocks];
@@ -773,9 +841,16 @@ function computePlan(
     if (next) ordered.push(next);
   }
 
+  // v6.9.8 (item 1.1): no máximo 2 blocos de revisão seguidos, depois um de
+  // ponto fraco/conteúdo novo — senão o dia inteiro vira só backlog.
+  const interleaved = limitConsecutiveRevisions(
+    ordered,
+    (block) => block.kind === "revisao",
+  );
+
   let remainingMinutes = dailyMinutes;
   const selected: PlanBlock[] = [];
-  for (const block of ordered) {
+  for (const block of interleaved) {
     if (block.minutes > remainingMinutes) continue;
     selected.push(block);
     remainingMinutes -= block.minutes;
@@ -787,6 +862,10 @@ function computePlan(
     dailyMinutes,
     plannedMinutes: selected.reduce((sum, block) => sum + block.minutes, 0),
     overdueRevisions: dueRevisions.length,
+    dueDoneToday,
+    notice: dueDoneToday
+      ? "Revisões do dia em dia: você já concluiu o que estava vencido hoje. O próximo passo é conteúdo novo ou ponto fraco."
+      : null,
     blocks: selected,
   };
 }
@@ -890,6 +969,12 @@ export async function getErrorIntelligence(
   };
 }
 
+export interface DataHealthAction {
+  id: DataHealthFixId;
+  label: string;
+  count: number;
+}
+
 export interface DataHealth {
   duplicateDisciplines: number;
   duplicateTopics: number;
@@ -897,19 +982,47 @@ export interface DataHealth {
   orphanRevisions: number;
   orphanErrors: number;
   orphanAttempts: number;
+  /** Erros salvos sem enunciado útil (herança de capturas antigas). */
+  errorsWithoutStatement: number;
+  /** Simulados sem nenhuma resposta registrada. */
+  emptyMockExams: number;
+  /** Flashcards vencidos há mais de 90 dias. */
+  staleFlashcards: number;
+  /** Disciplinas com `order` duplicado. */
+  duplicateOrder: number;
+  /** Tópicos com mais de 30 revisões vencidas (dívida estrutural). */
+  topicBacklog: number;
+  /** Tópicos com `correct + error != questionsResolved`. */
+  incoherentPerformance: number;
+  /** Tentativas sem tópico (ou com tópico inexistente). */
+  attemptsWithoutTopic: number;
+  /** Correções seguras disponíveis — sempre com backup antes de gravar. */
+  actions: DataHealthAction[];
   examples: string[];
   healthy: boolean;
+  generatedAt: string;
 }
 
 export async function getDataHealth(userId: number): Promise<DataHealth> {
-  const [disciplines, topics, revisions, errorsPage, settings] =
-    await Promise.all([
-      storage.getDisciplinesByUser(userId),
-      storage.getTopicsByUser(userId),
-      storage.getRevisionsByUser(userId),
-      storage.getQuestionErrorsByUser(userId, { limit: 200 }),
-      storage.getUserSettings(userId),
-    ]);
+  const [
+    disciplines,
+    topics,
+    revisions,
+    errorsPage,
+    settings,
+    mockExams,
+    flashcards,
+    attempts,
+  ] = await Promise.all([
+    storage.getDisciplinesByUser(userId),
+    storage.getTopicsByUser(userId),
+    storage.getRevisionsByUser(userId),
+    storage.getQuestionErrorsByUser(userId, { limit: 1000 }),
+    storage.getUserSettings(userId),
+    storage.getMockExamsByUser(userId),
+    storage.getFlashcardsByUser(userId),
+    storage.getAllQuestionAttempts(userId),
+  ]);
   const disciplineIds = new Set(disciplines.map((d) => d.id));
   const topicIds = new Set(topics.map((t) => t.id));
   const discNames = new Map<string, number>();
@@ -953,6 +1066,125 @@ export async function getDataHealth(userId: number): Promise<DataHealth> {
     orphanRevisions.length +
     orphanErrors.length +
     orphanAttempts.length;
+
+  // ── verificadores novos (v6.9.8, item 2.4) ──────────────────────────────
+  const today = localDayISO();
+  const staleCutoff = addLocalDays(today, -90);
+
+  // Erro sem enunciado útil: só o #id da questão veio na captura antiga.
+  const errorsWithoutStatement = errorsPage.items.filter(
+    (error) =>
+      error.statementPending === true ||
+      String(error.statement || "").trim().length < 20,
+  );
+
+  // Simulado criado e nunca respondido.
+  const emptyMockExams = mockExams.filter(
+    (exam) => Object.keys(exam.answers || {}).length === 0,
+  );
+
+  // Flashcard vencido há mais de 90 dias (o aluno nunca vai revisar).
+  const staleFlashcards = flashcards.filter((card) => {
+    if (card.archived) return false;
+    const day = String(card.nextReviewDate || "").slice(0, 10);
+    return Boolean(day) && day < staleCutoff;
+  });
+
+  // `order` duplicado entre disciplinas do mesmo usuário.
+  const orderCount = new Map<number, number>();
+  for (const discipline of disciplines) {
+    const order = Number(discipline.order) || 0;
+    orderCount.set(order, (orderCount.get(order) || 0) + 1);
+  }
+  const duplicateOrder = [...orderCount.values()].filter(
+    (count) => count > 1,
+  ).length;
+
+  // Tópico com dívida acima de 30 revisões vencidas.
+  const overdueByTopic = new Map<number, number>();
+  for (const revision of revisions) {
+    if (revision.completed || revision.ignored) continue;
+    if (String(revision.scheduledDate || "") >= today) continue;
+    overdueByTopic.set(
+      revision.topicId,
+      (overdueByTopic.get(revision.topicId) || 0) + 1,
+    );
+  }
+  const topicBacklog = [...overdueByTopic.values()].filter(
+    (count) => count > 30,
+  ).length;
+
+  // Performance incoerente: acertos + erros não fecha com o total resolvido.
+  const incoherentPerformance = topics.filter((topic) => {
+    const performance = topic.performance;
+    if (!performance) return false;
+    const resolved = Number(performance.questionsResolved) || 0;
+    const correct = Number(performance.correctCount) || 0;
+    const errors = Number(performance.errorCount) || 0;
+    if (resolved === 0 && correct === 0 && errors === 0) return false;
+    return resolved !== correct + errors;
+  }).length;
+
+  // Tentativa sem tópico (ou com tópico que não existe mais).
+  const attemptsWithoutTopic = attempts.filter(
+    (attempt) =>
+      attempt.topicId === null ||
+      attempt.topicId === undefined ||
+      !topicIds.has(attempt.topicId),
+  ).length;
+
+  // Só o que tem correção segura vira ação — e só isso "alarma" o aluno.
+  const actions: DataHealthAction[] = [];
+  if (duplicateOrder > 0) {
+    actions.push({
+      id: "reorder-disciplines",
+      label: "Reordenar disciplinas",
+      count: duplicateOrder,
+    });
+  }
+  if (emptyMockExams.length > 0) {
+    actions.push({
+      id: "delete-empty-mock-exams",
+      label: "Excluir simulado sem resposta",
+      count: emptyMockExams.length,
+    });
+  }
+  if (errorsWithoutStatement.length > 0) {
+    actions.push({
+      id: "mark-errors-statement-pending",
+      label: "Marcar erro como enunciado pendente",
+      count: errorsWithoutStatement.length,
+    });
+  }
+  if (staleFlashcards.length > 0) {
+    actions.push({
+      id: "reschedule-stale-flashcards",
+      label: "Reagendar flashcards vencidos",
+      count: staleFlashcards.length,
+    });
+  }
+
+  const actionable =
+    totalProblems +
+    duplicateOrder +
+    emptyMockExams.length +
+    errorsWithoutStatement.length +
+    staleFlashcards.length;
+
+  if (errorsWithoutStatement.length > 0) {
+    examples.push(
+      `${errorsWithoutStatement.length} erro(s) sem enunciado útil`,
+    );
+  }
+  if (emptyMockExams.length > 0) {
+    examples.push(`${emptyMockExams.length} simulado(s) sem resposta`);
+  }
+  if (staleFlashcards.length > 0) {
+    examples.push(
+      `${staleFlashcards.length} flashcard(s) vencidos há mais de 90 dias`,
+    );
+  }
+
   return {
     duplicateDisciplines: duplicatesDisc.length,
     duplicateTopics: duplicateTopics.length,
@@ -960,8 +1192,17 @@ export async function getDataHealth(userId: number): Promise<DataHealth> {
     orphanRevisions: orphanRevisions.length,
     orphanErrors: orphanErrors.length,
     orphanAttempts: orphanAttempts.length,
+    errorsWithoutStatement: errorsWithoutStatement.length,
+    emptyMockExams: emptyMockExams.length,
+    staleFlashcards: staleFlashcards.length,
+    duplicateOrder,
+    topicBacklog,
+    incoherentPerformance,
+    attemptsWithoutTopic,
+    actions,
     examples,
-    healthy: totalProblems === 0,
+    healthy: actionable === 0,
+    generatedAt: new Date().toISOString(),
   };
 }
 
@@ -1003,8 +1244,8 @@ export async function getWeeklyReview(userId: number): Promise<WeeklyReview> {
     (sum, session) => sum + (Number(session.durationMin) || 0),
     0,
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const next7 = new Date(now + 7 * DAY_MS).toISOString().slice(0, 10);
+  const today = localDayISO();
+  const next7 = addLocalDays(today, 7);
   const revisionsCompleted = revisions.filter(
     (revision) =>
       revision.completed &&
@@ -1037,8 +1278,8 @@ export async function getWeeklyReview(userId: number): Promise<WeeklyReview> {
     risks.push(`${revisionsDueNext7} revisões nos próximos 7 dias`);
   if (minutes < 60) risks.push("Tempo de estudo baixo nesta semana");
   return {
-    from: new Date(from).toISOString().slice(0, 10),
-    to: new Date(to).toISOString().slice(0, 10),
+    from: localDayISO(new Date(from)),
+    to: localDayISO(new Date(to)),
     answered: answered.length,
     correct,
     accuracy,
@@ -1092,9 +1333,7 @@ export async function previewFsrsSchedule(
         3,
         Math.min(days, Math.round(stability * (0.6 + item.retention * 0.6))),
       );
-      const date = new Date(Date.now() + interval * DAY_MS)
-        .toISOString()
-        .slice(0, 10);
+      const date = addLocalDays(localDayISO(), interval);
       return {
         topicId: item.topicId,
         topicName: item.topicName,

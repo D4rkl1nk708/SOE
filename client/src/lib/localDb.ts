@@ -11,6 +11,15 @@ import {
   formatDateForDb,
   getScheduleParams,
 } from "@shared/scheduling";
+import { isSameLocalDay, localDayISO } from "@shared/localDay";
+import {
+  limitConsecutiveRevisions,
+  normalizeLocalDay,
+  overdueDaysFor,
+  overdueReason,
+  planRevisionScore,
+  topicsCompletedOnLocalDay,
+} from "@shared/planRules";
 import { callAiProvider, extractJSON, AiProvider } from "./aiHelpers";
 import { computeDisciplineTrends } from "@shared/attemptTrends";
 import {
@@ -1184,6 +1193,59 @@ export async function localRevisionMarkCompleted(input: {
   return { success: true };
 }
 
+/** Paridade offline do checkbox de lote (item 1.3). */
+export async function localRevisionTopicBacklog(input: {
+  topicId: number;
+}): Promise<{ duePending: number; previous: number }> {
+  const today = localDayISO();
+  const revisions = await db.revisions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const due = revisions.filter(
+    (revision) =>
+      revision.topicId === input.topicId &&
+      !revision.completed &&
+      !revision.ignored &&
+      String(revision.scheduledDate || "") <= today,
+  );
+  return { duePending: due.length, previous: Math.max(0, due.length - 1) };
+}
+
+/**
+ * Paridade offline de `revision.completeTopicBacklog` (item 1.3): conclui só as
+ * pendentes até hoje local daquele tópico. Futuras intactas, nada criado.
+ */
+export async function localRevisionCompleteTopicBacklog(input: {
+  topicId: number;
+  today?: string;
+}): Promise<{ completed: number; revisionIds: number[] }> {
+  const today = normalizeLocalDay(input.today) || localDayISO();
+  const revisions = await db.revisions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const due = revisions.filter(
+    (revision) =>
+      revision.topicId === input.topicId &&
+      !revision.completed &&
+      !revision.ignored &&
+      String(revision.scheduledDate || "") <= today,
+  );
+  const stamp = now();
+  for (const revision of due) {
+    await db.revisions.update(revision.id, {
+      completed: true,
+      completedAt: stamp,
+      updatedAt: stamp,
+    });
+  }
+  return {
+    completed: due.length,
+    revisionIds: due.map((revision) => revision.id),
+  };
+}
+
 export async function localRevisionMarkIgnored(input: {
   id: number;
   ignored: boolean;
@@ -1821,7 +1883,7 @@ export async function localStudyOverview(input?: { minutes?: number }) {
   ]);
   const topics = topicsResult.topics;
   const settings = (user?.settings || {}) as Record<string, any>;
-  const today = formatDateForDb(new Date());
+  const today = localDayISO();
   const dailyMinutes =
     Number(settings.dailyGoalMinutes) || input?.minutes || 240;
 
@@ -1937,17 +1999,37 @@ export async function localStudyOverview(input?: { minutes?: number }) {
     .slice(0, 8);
 
   // ── plano do dia ───────────────────────────────────────────────────────
+  // v6.9.8 (item 1.1): a MESMA regra do servidor (shared/planRules) — tópico
+  // com revisão concluída hoje não volta para o plano do dia.
+  const completedToday = topicsCompletedOnLocalDay(revisions as any, today);
+  const pendingDueAll = revisions.filter(
+    (revision) =>
+      !revision.completed &&
+      !revision.ignored &&
+      revision.scheduledDate <= today,
+  );
+  const dueDoneToday =
+    pendingDueAll.length === 0 &&
+    revisions.some(
+      (revision) =>
+        revision.completed &&
+        !revision.ignored &&
+        String(revision.scheduledDate || "") <= today &&
+        isSameLocalDay(revision.completedAt, today),
+    );
   const overdue = revisions.filter(
     (revision) =>
       !revision.completed &&
       !revision.ignored &&
-      revision.scheduledDate < today,
+      revision.scheduledDate < today &&
+      !completedToday.has(revision.topicId),
   );
   const dueToday = revisions.filter(
     (revision) =>
       !revision.completed &&
       !revision.ignored &&
-      revision.scheduledDate === today,
+      revision.scheduledDate === today &&
+      !completedToday.has(revision.topicId),
   );
 
   const blocks: Array<Record<string, unknown>> = [];
@@ -1957,26 +2039,72 @@ export async function localStudyOverview(input?: { minutes?: number }) {
     const discipline = disciplines.find(
       (item) => item.id === topic.disciplineId,
     );
-    const stale = revision.scheduledDate < today;
+    const overdueDays = overdueDaysFor(revision.scheduledDate, today);
     blocks.push({
       id: `block-${revision.id}`,
       kind: "revision",
       lens: "revisao",
       title: topic.name,
       subtitle: discipline?.name || "Revisão",
-      reason: stale
-        ? `Revisão vencida em ${revision.scheduledDate}`
-        : "Revisão agendada para hoje",
+      reason: overdueReason(overdueDays),
       minutes: 25,
       topicId: topic.id,
       topicName: topic.name,
       disciplineId: topic.disciplineId,
       disciplineName: discipline?.name || "Disciplina",
       color: discipline?.color || "#0066CC",
-      score: revision.scheduledDate < today ? 100 : 80,
+      score: overdueDays > 0 ? planRevisionScore(overdueDays) : 800,
       route: "/revisions",
     });
   }
+
+  // v6.9.8 (item 1.1): dia de revisão em dia avisa e aponta a próxima ação
+  // (conteúdo novo/ponto fraco) em vez de repetir o tema do dia.
+  if (dueDoneToday) {
+    blocks.push({
+      id: "plan-due-done",
+      kind: "study",
+      lens: "revisao",
+      title: "Revisões do dia em dia",
+      subtitle: "Backlog do dia concluído",
+      reason:
+        "Você já concluiu o que estava vencido hoje — agora é conteúdo novo.",
+      minutes: 5,
+      topicId: null,
+      topicName: "Revisões do dia em dia",
+      disciplineId: null,
+      disciplineName: "Plano",
+      color: "#0066CC",
+      score: 900,
+      route: "/plan",
+    });
+    const nextWeak = [...masteryTopics]
+      .filter((topic) => !completedToday.has(topic.topicId))
+      .sort((a, b) => a.readiness - b.readiness)[0];
+    if (nextWeak) {
+      blocks.push({
+        id: `weak-${nextWeak.topicId}`,
+        kind: "study",
+        lens: "edital",
+        title: nextWeak.topicName,
+        subtitle: nextWeak.disciplineName,
+        reason: `Ponto fraco: ${nextWeak.readiness}% de prontidão`,
+        minutes: 25,
+        topicId: nextWeak.topicId,
+        topicName: nextWeak.topicName,
+        disciplineId: nextWeak.disciplineId,
+        disciplineName: nextWeak.disciplineName,
+        color: nextWeak.color,
+        score: 700,
+        route: "/question-session",
+      });
+    }
+  }
+
+  const orderedBlocks = limitConsecutiveRevisions(
+    blocks,
+    (block) => block.kind === "revision",
+  );
 
   const baseIds: number[] = Array.isArray(settings.baseDisciplineIds)
     ? settings.baseDisciplineIds
@@ -2028,12 +2156,16 @@ export async function localStudyOverview(input?: { minutes?: number }) {
     plan: {
       date: today,
       dailyMinutes,
-      plannedMinutes: blocks.reduce(
+      plannedMinutes: orderedBlocks.reduce(
         (sum, block) => sum + Number(block.minutes || 0),
         0,
       ),
-      overdueRevisions: overdue.length,
-      blocks,
+      overdueRevisions: pendingDueAll.length,
+      dueDoneToday,
+      notice: dueDoneToday
+        ? "Revisões do dia em dia: você já concluiu o que estava vencido hoje. O próximo passo é conteúdo novo ou ponto fraco."
+        : null,
+      blocks: orderedBlocks,
     },
     base: {
       configured: baseIds.length > 0,

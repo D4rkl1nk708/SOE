@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
+import { notify } from "@/lib/notify";
 import { toast } from "sonner";
 import { minutesSinceIso, shouldWarnNoCapture } from "@shared/sessionReport";
 import { Button } from "@/components/ui/button";
@@ -80,9 +82,7 @@ export function TecSessionLivePanel({
 
   const markCompleted = trpc.revision.markCompleted.useMutation({
     onSuccess: () => {
-      void utils.tec.liveActivity.invalidate();
-      void utils.dashboard.getStats.invalidate();
-      void utils.calendar.getData.invalidate();
+      void invalidateStudyState(utils, "revision");
     },
   });
 
@@ -126,7 +126,9 @@ export function TecSessionLivePanel({
     for (const item of data.autoCompleted) {
       if (shownAuto.current.has(item.revisionId)) continue;
       shownAuto.current.add(item.revisionId);
-      toast.success(
+      // v6.9.8 (item 2.5): ide estável por revisão — uma ação, um toast.
+      notify.once(
+        `revision-auto-${item.revisionId}`,
         `Revisão de teste de ${item.topicName || "tópico"} concluída (${item.answersToday} questões hoje).`,
         {
           duration: 12000,
@@ -149,27 +151,9 @@ export function TecSessionLivePanel({
     }
   }, [data?.autoCompleted, markCompleted]);
 
-  // Revisão de TEORIA nunca é concluída sozinha: o app pergunta.
-  useEffect(() => {
-    const theory = data?.theorySuggestion;
-    if (!theory || shownTheory.current.has(theory.revisionId)) return;
-    shownTheory.current.add(theory.revisionId);
-    toast(`Concluir revisão de ${theory.topicName}?`, {
-      description: "Revisão de teoria pendente deste tópico.",
-      duration: 12000,
-      action: {
-        label: "Concluir",
-        onClick: () =>
-          markCompleted.mutate(
-            { id: theory.revisionId, completed: true },
-            {
-              onSuccess: () => toast.success("Revisão concluída."),
-              onError: (error) => toast.error(error.message),
-            },
-          ),
-      },
-    });
-  }, [data?.theorySuggestion, markCompleted]);
+  // v6.9.8 (item 1.2): a revisão de teoria pendente deixou de ser um toast
+  // solto no canto da tela — agora ela é um checkbox no bloco "Fechar o ciclo"
+  // da sessão guiada. Aqui só informamos a sugestão ao pai, sem toast.
 
   // `tick` força o recálculo a cada 30s; a regra dos 4 min é pura e testada.
   const idleMinutes = useMemo(() => {

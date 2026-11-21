@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Download, Upload, Database, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { localDayISO } from "@shared/localDay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +18,16 @@ export function DataManager() {
   const [showImportWarning, setShowImportWarning] = useState(false);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
-  const exportMutation = trpc.import.exportBackup.useQuery(undefined, { enabled: false });
+  const exportMutation = trpc.import.exportBackup.useQuery(undefined, {
+    enabled: false,
+  });
   const importMutation = trpc.import.importBackup.useMutation({
     onSuccess: () => {
       toast.success("Dados e configurações importados com sucesso!");
       utils.invalidate();
       setTimeout(() => window.location.reload(), 1000);
     },
-    onError: (err) => toast.error("Erro ao importar: " + err.message)
+    onError: (err) => toast.error("Erro ao importar: " + err.message),
   });
 
   const handleExport = async () => {
@@ -35,7 +38,7 @@ export function DataManager() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `soe_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `soe_backup_${localDayISO()}.json`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success("Backup exportado com sucesso!");
@@ -50,7 +53,7 @@ export function DataManager() {
     if (!file) return;
 
     // Validate file
-    if (!file.name.endsWith('.json')) {
+    if (!file.name.endsWith(".json")) {
       toast.error("Por favor, selecione um arquivo JSON válido");
       return;
     }
@@ -122,10 +125,13 @@ export function DataManager() {
             Importar Dados
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Ao importar um backup, todos os seus dados atuais (disciplinas, temas, simulados, configurações, etc.) serão substituídos pelos dados do arquivo.
+            Ao importar um backup, todos os seus dados atuais (disciplinas,
+            temas, simulados, configurações, etc.) serão substituídos pelos
+            dados do arquivo.
             <br />
             <br />
-            <strong>Esta ação não pode ser desfeita!</strong> Certifique-se de que deseja continuar.
+            <strong>Esta ação não pode ser desfeita!</strong> Certifique-se de
+            que deseja continuar.
           </AlertDialogDescription>
           <div className="flex justify-end gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

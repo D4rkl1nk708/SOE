@@ -42,6 +42,7 @@ const IntercalacaoPlanner = lazy(() => import("@/pages/IntercalacaoPlanner"));
 const MentorTab = lazy(() => import("@/pages/MentorTab"));
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useDataHealthWatch } from "@/hooks/useDataHealthWatch";
 import { useDiarioOficial } from "@/hooks/useDiarioOficial";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { GuidedTour } from "./components/GuidedTour";
@@ -51,6 +52,8 @@ function Router() {
   useAuth({ redirectOnUnauthenticated: true });
   useSmartNotifications();
   useNotifications();
+  // v6.9.8 (item 2.4): verifica a saúde dos dados na abertura e grava o resultado.
+  useDataHealthWatch();
   useDiarioOficial();
   useAutoUpdate();
 

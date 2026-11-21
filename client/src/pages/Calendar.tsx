@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
 import {
   Select,
   SelectContent,
@@ -277,9 +278,7 @@ export default function Calendar() {
           return next;
         });
       }
-      utils.calendar.getActivities.invalidate(activitiesQueryKey);
-      utils.dashboard.getStats.invalidate();
-      utils.study.overview.invalidate();
+      void invalidateStudyState(utils, "revision");
     },
   });
 

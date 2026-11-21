@@ -9,8 +9,10 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
 import { evaluateSimulado } from "@shared/mockExamStats";
 import { bancaPaceSeconds, summarizePace } from "@shared/examPace";
+import { localDayISO } from "@shared/localDay";
 
 export type SimuladoMode = "multiple" | "cebraspe";
 
@@ -112,7 +114,11 @@ export function SimuladoGenerationProvider({
   const createExam = trpc.mockExam.create.useMutation();
   const updateExam = trpc.mockExam.update.useMutation();
   const reviewSimulado = trpc.mentor.reviewSimulado.useMutation();
-  const recordAttempt = trpc.study.recordAttempt.useMutation();
+  const recordAttempt = trpc.study.recordAttempt.useMutation({
+    onSettled: () => {
+      void invalidateStudyState(utils, "attempt");
+    },
+  });
 
   const [status, setStatus] = useState<SimuladoGenerationStatus>("idle");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -377,7 +383,7 @@ export function SimuladoGenerationProvider({
         )}`;
         const created = await createExam.mutateAsync({
           name: examName,
-          date: new Date().toISOString().slice(0, 10),
+          date: localDayISO(),
           correct: 0,
           wrong: 0,
           blank: finalQuestions.length,

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { formatDateForDb } from "@shared/scheduling";
+import { localDayISO } from "@shared/localDay";
 import { Capacitor } from "@capacitor/core";
 import { trpc } from "@/lib/trpc";
 
@@ -35,7 +36,7 @@ async function scheduleRevisionNotifications(
     if (permResult.display !== "granted") return;
 
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = localDayISO(today);
     const notifKey = `notif_scheduled_${todayStr}`;
 
     // Only schedule once per day
@@ -175,7 +176,7 @@ async function scheduleRevisionNotifications(
       if (permission !== "granted") return;
 
       const today = new Date();
-      const todayStr = today.toISOString().split("T")[0];
+      const todayStr = localDayISO(today);
       const key = `notif_web_${todayStr}`;
       if (localStorage.getItem(key)) return;
 

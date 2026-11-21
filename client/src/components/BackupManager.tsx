@@ -3,17 +3,20 @@ import { Button } from "./ui/button";
 import { Download, Upload, Database } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { localDayISO } from "@shared/localDay";
 
 export function BackupManager() {
   const utils = trpc.useUtils();
-  const exportMutation = trpc.import.exportBackup.useQuery(undefined, { enabled: false });
+  const exportMutation = trpc.import.exportBackup.useQuery(undefined, {
+    enabled: false,
+  });
   const importMutation = trpc.import.importBackup.useMutation({
     onSuccess: () => {
       toast.success("Dados importados com sucesso!");
       utils.invalidate();
       window.location.reload();
     },
-    onError: (err) => toast.error("Erro ao importar: " + err.message)
+    onError: (err) => toast.error("Erro ao importar: " + err.message),
   });
 
   const handleExport = async () => {
@@ -23,7 +26,7 @@ export function BackupManager() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `estudo_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `estudo_backup_${localDayISO()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Backup exportado!");
@@ -43,14 +46,26 @@ export function BackupManager() {
 
   return (
     <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExport}
+        className="gap-2"
+      >
         <Download className="h-4 w-4" /> Exportar Banco
       </Button>
       <label className="cursor-pointer">
         <Button variant="outline" size="sm" className="gap-2" asChild>
-          <span><Upload className="h-4 w-4" /> Importar Banco</span>
+          <span>
+            <Upload className="h-4 w-4" /> Importar Banco
+          </span>
         </Button>
-        <input type="file" className="hidden" accept=".json" onChange={handleImport} />
+        <input
+          type="file"
+          className="hidden"
+          accept=".json"
+          onChange={handleImport}
+        />
       </label>
     </div>
   );

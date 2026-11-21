@@ -2,6 +2,8 @@ import QRCode from "qrcode";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
+import { localDayISO } from "@shared/localDay";
+import { DataHealthCard } from "@/components/DataHealthCard";
 import {
   QrCode,
   Smartphone,
@@ -715,7 +717,7 @@ export default function Sync() {
           "O backup veio vazio. O banco deste dispositivo pode estar sem dados; abra o sistema no desktop e exporte de lá.",
         );
       }
-      const fileName = `soe-backup-${new Date().toISOString().split("T")[0]}.json`;
+      const fileName = `soe-backup-${localDayISO()}.json`;
 
       // No Android/APK nativo: Abre o compartilhador do sistema (WhatsApp, Drive, Email, Arquivos)
       if (Capacitor.isNativePlatform()) {
@@ -1086,6 +1088,9 @@ Erros: ${errors}
           </p>
         </details>
       ) : null}
+
+      {/* v6.9.8 (item 2.4): saúde dos dados — cartão de correções seguras */}
+      <DataHealthCard className="mx-2" />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-2">
         {/* Left Column: QR & Sync */}

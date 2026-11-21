@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { localDayISO } from "@shared/localDay";
 import {
   Share2,
   Download,
@@ -353,7 +354,7 @@ export function ShareProgress({ onClose }: ShareProgressProps) {
     if (!imageUrl) return;
     const a = document.createElement("a");
     a.href = imageUrl;
-    a.download = `soe_progresso_${new Date().toISOString().split("T")[0]}.png`;
+    a.download = `soe_progresso_${localDayISO()}.png`;
     a.click();
   };
 

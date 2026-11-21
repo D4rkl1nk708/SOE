@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
+import { notify } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { openTecBrowser } from "@/lib/openTecBrowser";
@@ -17,6 +19,7 @@ import { TecPendingClassifications } from "@/components/tec/TecPendingClassifica
 import { CalibrationCard } from "@/components/apple/CalibrationCard";
 import { calibrationAdvice, summarizeCalibration } from "@shared/calibration";
 import { decideNextBlock, decideReviewGap } from "@shared/decisions";
+import { addLocalDays, localDayISO } from "@shared/localDay";
 import {
   ArrowLeft,
   ArrowRight,
@@ -107,6 +110,10 @@ export default function GuidedSession() {
     [sessionAttempts],
   );
   const [revisionDone, setRevisionDone] = useState(false);
+  // v6.9.8 (item 1.2): fechamento único da sessão (um clique, um toast).
+  const [closeIncludeBacklog, setCloseIncludeBacklog] = useState(true);
+  const [closeTheory, setCloseTheory] = useState(false);
+  const [closing, setClosing] = useState(false);
   // Quando o usuário abriu o TEC nesta sessão: base do aviso "nenhuma resposta
   // detectada há X min".
   const [tecOpenedAt, setTecOpenedAt] = useState<number | null>(null);
@@ -135,8 +142,18 @@ export default function GuidedSession() {
   const utils = trpc.useUtils();
   const { data: topicsData } = trpc.topic.list.useQuery();
   const { data: disciplinesData } = trpc.discipline.list.useQuery();
-  const markRevisionDone = trpc.revision.markCompleted.useMutation();
-  const recordSession = trpc.study.recordSession.useMutation();
+  // v6.9.8 (item 2.1): este arquivo não invalidava NADA — era a tela que mais
+  // deixava o plano desatualizado depois de concluir uma revisão.
+  const markRevisionDone = trpc.revision.markCompleted.useMutation({
+    onSuccess: () => {
+      void invalidateStudyState(utils, "revision");
+    },
+  });
+  const recordSession = trpc.study.recordSession.useMutation({
+    onSuccess: () => {
+      void invalidateStudyState(utils, "session");
+    },
+  });
   const feynman = trpc.mentor.evaluateExplanation.useMutation();
 
   const apiKey = (stats?.settings as any)?.aiApiKey || "";
@@ -152,6 +169,34 @@ export default function GuidedSession() {
     { enabled: !!activeBlock?.disciplineName },
   );
   const applyRevision = trpc.study.applySessionRevision.useMutation();
+  const completeBacklog = trpc.revision.completeTopicBacklog.useMutation({
+    onSuccess: () => {
+      void invalidateStudyState(utils, "revision");
+    },
+  });
+  // v6.9.8 (item 1.2): o N do checkbox vem do servidor (offline usa localDb).
+  const backlogQuery = trpc.revision.topicBacklog.useQuery(
+    { topicId: activeBlock?.topicId as number },
+    { enabled: Boolean(activeBlock?.topicId) && phase === "running" },
+  );
+  const backlogPrevious = backlogQuery.data?.previous ?? 0;
+  // A revisão de TEORIA pendente deixou de ser toast solto: virou checkbox.
+  const theoryQuery = trpc.tec.liveActivity.useQuery(
+    {
+      since: startedAt
+        ? new Date(startedAt).toISOString()
+        : new Date().toISOString(),
+    },
+    {
+      enabled: phase === "running" && Boolean(startedAt),
+      refetchInterval: 10_000,
+    },
+  );
+  const theorySuggestion = theoryQuery.data?.theorySuggestion ?? null;
+
+  useEffect(() => {
+    if (backlogPrevious > 0) setCloseIncludeBacklog(true);
+  }, [backlogPrevious]);
   const [revisionRescheduledTo, setRevisionRescheduledTo] = useState<
     string | null
   >(null);
@@ -245,7 +290,17 @@ export default function GuidedSession() {
     }
     // A escolha do próximo bloco vem da árvore de decisão: respeita tempo,
     // prioriza revisão vencida e não repete o tema que acabou de ser feito.
-    const planBlocks = (freshOverview.data?.plan?.blocks || []) as any[];
+    const planBlocksAll = (freshOverview.data?.plan?.blocks || []) as any[];
+    // v6.9.8 (item 1.2): o recibo aponta um bloco de OUTRO tópico quando há
+    // alternativa — antes o mesmo tema voltava no "Iniciar próximo".
+    const hasOtherTopic = planBlocksAll.some(
+      (block) => block.topicId && block.topicId !== activeBlock?.topicId,
+    );
+    const planBlocks = hasOtherTopic
+      ? planBlocksAll.filter(
+          (block) => !block.topicId || block.topicId !== activeBlock?.topicId,
+        )
+      : planBlocksAll;
     const decision = decideNextBlock({
       blocks: planBlocks.map((block) => ({
         id: block.id,
@@ -254,6 +309,9 @@ export default function GuidedSession() {
         topicId: block.topicId,
         score: block.score,
         completed: block.completed,
+        topicName: block.topicName,
+        disciplineName: block.disciplineName,
+        reason: block.reason,
       })),
       minutesAvailable:
         Number((fresh.data as any)?.settings?.dailyGoalMinutes) || 240,
@@ -365,11 +423,77 @@ export default function GuidedSession() {
               },
             }));
           }
-          toast.success("Revisão concluída — o plano já foi recalculado.");
+          // item 2.5: uma ação, um toast (id estável).
+          notify.once(
+            "revision-completed",
+            "Revisão concluída — o plano já foi recalculado.",
+          );
         },
         onError: (error) => toast.error(error.message),
       },
     );
+  };
+
+  /**
+   * v6.9.8 (item 1.2): UM fechamento de sessão.
+   *
+   * Registra a sessão, conclui a revisão ativa, o lote do tópico (só as
+   * vencidas) e a teoria pendente, recalcula o plano e mostra UM toast.
+   */
+  const closeSession = async (options: { complete: boolean }) => {
+    if (closing) return;
+    setClosing(true);
+    let completed = 0;
+    let theoryCompleted = false;
+    try {
+      if (options.complete && activeBlock?.topicId) {
+        if (closeIncludeBacklog && backlogPrevious > 0) {
+          const result = await completeBacklog.mutateAsync({
+            topicId: activeBlock.topicId,
+            today: localDayISO(),
+          });
+          completed = result.completed;
+        } else if (activeBlock.revisionId) {
+          await markRevisionDone.mutateAsync({
+            id: activeBlock.revisionId,
+            completed: true,
+          });
+          completed = 1;
+        }
+        if (closeTheory && theorySuggestion) {
+          await markRevisionDone.mutateAsync({
+            id: theorySuggestion.revisionId,
+            completed: true,
+          });
+          theoryCompleted = true;
+        }
+        setRevisionDone(completed > 0);
+      }
+    } catch (error) {
+      notify.once(
+        "guided-close-error",
+        "Não foi possível concluir a revisão.",
+        {
+          variant: "error",
+          description: error instanceof Error ? error.message : undefined,
+        },
+      );
+      setClosing(false);
+      return;
+    }
+    await finish();
+    const parts = ["Sessão encerrada"];
+    if (completed > 0) {
+      parts.push(
+        completed > 1
+          ? `revisão concluída (+${completed - 1} anteriores)`
+          : "revisão concluída",
+      );
+    }
+    if (theoryCompleted) parts.push("teoria concluída");
+    // id fixo: o sonner substitui em vez de empilhar dois toasts iguais.
+    notify.once("guided-close", parts.join(" · "), { duration: 6000 });
+    setClosing(false);
   };
 
   const startBlock = (target: any) => {
@@ -394,9 +518,7 @@ export default function GuidedSession() {
       : null;
   const reviewDateIso =
     reviewGap && reviewGap.days > 0
-      ? new Date(Date.now() + reviewGap.days * 86_400_000)
-          .toISOString()
-          .slice(0, 10)
+      ? addLocalDays(localDayISO(), reviewGap.days)
       : null;
   const reviewDate = reviewDateIso
     ? new Date(`${reviewDateIso}T00:00:00`).toLocaleDateString("pt-BR")
@@ -708,8 +830,86 @@ export default function GuidedSession() {
               <Button variant="outline" onClick={explain}>
                 <Brain className="mr-2 h-3.5 w-3.5" /> IA explica
               </Button>
-              <Button onClick={finish} className="ml-auto">
-                <Square className="mr-2 h-3.5 w-3.5" /> Encerrar sessão
+            </div>
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              Para encerrar, use <b>Fechar o ciclo</b> logo abaixo: encerrar,
+              concluir a revisão e recalcular o plano no mesmo clique.
+            </p>
+          </div>
+
+          {/* v6.9.8 (item 1.2): um único fechamento de sessão */}
+          <div className="soe-card p-5">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Fechar o ciclo
+              </p>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Um clique: encerra a sessão, conclui a revisão de hoje e recalcula
+              o plano.
+            </p>
+            <div className="mt-3 space-y-2.5">
+              <label className="flex items-start gap-2 text-[11.5px] leading-snug">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                  checked={closeIncludeBacklog && backlogPrevious > 0}
+                  disabled={backlogPrevious === 0 || closing}
+                  onChange={(event) =>
+                    setCloseIncludeBacklog(event.target.checked)
+                  }
+                />
+                <span>
+                  Concluir também as <b>{backlogPrevious}</b>{" "}
+                  {backlogPrevious === 1
+                    ? "revisão anterior"
+                    : "revisões anteriores"}{" "}
+                  deste tópico
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                    Só as que já venceram — o calendário 25/50 fica intacto.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-[11.5px] leading-snug">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-3.5 w-3.5 accent-primary"
+                  checked={closeTheory && Boolean(theorySuggestion)}
+                  disabled={!theorySuggestion || closing}
+                  onChange={(event) => setCloseTheory(event.target.checked)}
+                />
+                <span>
+                  Concluir revisão de teoria pendente
+                  {theorySuggestion ? ` (${theorySuggestion.topicName})` : ""}
+                  {!theorySuggestion && (
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      Nenhuma revisão de teoria pendente neste tópico.
+                    </span>
+                  )}
+                </span>
+              </label>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => void closeSession({ complete: true })}
+                disabled={closing}
+              >
+                {closing ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle className="mr-2 h-3.5 w-3.5" />
+                )}
+                Encerrar sessão e concluir
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => void closeSession({ complete: false })}
+                disabled={closing}
+              >
+                <Square className="mr-2 h-3.5 w-3.5" /> Encerrar sem concluir
               </Button>
             </div>
           </div>

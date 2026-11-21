@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { localDayISO } from "@shared/localDay";
 import { trpc } from "@/lib/trpc";
 import {
   Sparkles,
@@ -53,7 +54,7 @@ export function RecommendationCard() {
   useEffect(() => {
     if (!rec) return;
     try {
-      const key = `soe_mentor_popup_${new Date().toISOString().slice(0, 10)}`;
+      const key = `soe_mentor_popup_${localDayISO()}`;
       if (localStorage.getItem(key)) return;
       localStorage.setItem(key, "1");
       setOpen(true);

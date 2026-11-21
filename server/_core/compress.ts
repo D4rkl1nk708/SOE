@@ -49,6 +49,18 @@ export function gzipResponses() {
     };
 
     res.end = function end(chunk?: any, encoding?: any, cb?: any): Response {
+      // v6.9.8: resposta em streaming (arquivo estático) já mandou os headers.
+      // Mexer em header aqui lançava ERR_HTTP_HEADERS_SENT e derrubava o
+      // processo inteiro do servidor local. Só libera o que estava bufferizado.
+      if (res.headersSent) {
+        if (chunks.length > 0) {
+          const buffered =
+            chunks.length === 1 ? chunks[0] : Buffer.concat(chunks);
+          chunks.length = 0;
+          originalWrite(buffered);
+        }
+        return originalEnd(chunk, encoding, cb);
+      }
       if (shouldBypass()) {
         if (typeof encoding === "function") return originalEnd(chunk, encoding);
         if (typeof cb === "function") return originalEnd(chunk, encoding, cb);

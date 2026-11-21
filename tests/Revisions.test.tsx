@@ -116,9 +116,25 @@ describe("Revisions Component - Simple", () => {
     disciplines: [{ id: 1, name: "Direito Admin", color: "#f00" }],
   };
 
+  // v6.9.8 (item 2.1): a tela invalida o conjunto completo via
+  // `invalidateStudyState`; o fake de utils precisa cobrir todos os caches.
+  const invalidateAll = () => vi.fn();
   const mockUtils = {
-    revision: { list: { invalidate: vi.fn() } },
-    dashboard: { getStats: { invalidate: vi.fn() } },
+    revision: { list: { invalidate: invalidateAll() } },
+    dashboard: { getStats: { invalidate: invalidateAll() } },
+    study: {
+      overview: { invalidate: invalidateAll() },
+      masterySnapshot: { invalidate: invalidateAll() },
+      calibration: { invalidate: invalidateAll() },
+      attemptTrends: { invalidate: invalidateAll() },
+      recentSessions: { invalidate: invalidateAll() },
+    },
+    calendar: {
+      getData: { invalidate: invalidateAll() },
+      getActivities: { invalidate: invalidateAll() },
+    },
+    history: { get: { invalidate: invalidateAll() } },
+    tec: { liveActivity: { invalidate: invalidateAll() } },
   };
 
   beforeEach(() => {

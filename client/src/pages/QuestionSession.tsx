@@ -6,6 +6,7 @@ import { MnemonicSos } from "@/components/question-session/MnemonicSos";
 
 import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
+import { invalidateStudyState } from "@/lib/studyState";
 import { toast } from "sonner";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -317,11 +318,14 @@ export default function QuestionSession() {
   });
   const markTestCompleted = trpc.revision.markCompleted.useMutation({
     onSuccess: () => {
-      utils.calendar.getData.invalidate();
-      utils.dashboard.getStats.invalidate();
+      void invalidateStudyState(utils, "revision");
     },
   });
-  const recordAttempt = trpc.study.recordAttempt.useMutation();
+  const recordAttempt = trpc.study.recordAttempt.useMutation({
+    onSuccess: () => {
+      void invalidateStudyState(utils, "attempt");
+    },
+  });
   const saveQuestionError = trpc.questionError.save.useMutation({
     onSuccess: () => {
       setQSaved(true);

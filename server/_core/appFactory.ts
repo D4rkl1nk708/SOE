@@ -22,6 +22,7 @@ import { setFallbackApiKeyResolver } from "../aiProviders";
 import { readDatabase as readDatabaseSync } from "../jsonStorage";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
 import { formatDateForDb } from "../../shared/scheduling";
+import { localDayISO } from "../../shared/localDay";
 
 export function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -1931,10 +1932,10 @@ ${questionText}`;
           allFiles.push({
             name: f,
             path: "root",
-            date:
-              stats.mtime.toISOString().split("T")[0] +
-              " " +
-              stats.mtime.toISOString().split("T")[1].substring(0, 5),
+            date: `${localDayISO(stats.mtime)} ${stats.mtime.toLocaleTimeString(
+              "pt-BR",
+              { hour: "2-digit", minute: "2-digit" },
+            )}`,
             timestamp: stats.mtime.getTime(),
             size: stats.size,
           });
@@ -1954,10 +1955,10 @@ ${questionText}`;
             // Sem hora, dois backups do mesmo dia ficavam idênticos na lista.
             date: f.startsWith("backup_")
               ? f.replace("backup_", "").replace(".json", "")
-              : `${stats.mtime.toISOString().split("T")[0]} ${stats.mtime
-                  .toISOString()
-                  .split("T")[1]
-                  .substring(0, 5)}`,
+              : `${localDayISO(stats.mtime)} ${stats.mtime.toLocaleTimeString(
+                  "pt-BR",
+                  { hour: "2-digit", minute: "2-digit" },
+                )}`,
             timestamp: stats.mtime.getTime(),
             size: stats.size,
           });

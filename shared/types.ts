@@ -108,6 +108,16 @@ export interface SimuladoBlueprintItem {
   count: number;
 }
 
+/**
+ * Correções seguras do cartão "Saúde dos dados" (v6.9.8, item 2.4).
+ * Cada uma sempre grava um backup antes de mexer no banco do aluno.
+ */
+export type DataHealthFixId =
+  | "reorder-disciplines"
+  | "delete-empty-mock-exams"
+  | "mark-errors-statement-pending"
+  | "reschedule-stale-flashcards";
+
 export interface MockExam {
   id: number;
   userId: number;

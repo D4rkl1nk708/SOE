@@ -38,6 +38,12 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # Jornadas do aluno (router tRPC real + SQLite temporário) e testes de
+      # fuso em TZ=America/Sao_Paulo. São o portão contra as "monstruosidades"
+      # da v6.9.8: plano repetindo tópico, dia UTC, conclusão duplicada.
+      - name: Journey tests (TZ Brasil + SQLite)
+        run: npm run test:journeys
+
   prepare:
     runs-on: ubuntu-latest
     outputs:

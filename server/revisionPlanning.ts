@@ -70,6 +70,9 @@ function toUtcMidnight(iso: string): number | null {
 function normalizeIsoDate(iso: string): string | null {
   const ts = toUtcMidnight(iso);
   if (ts === null) return null;
+  // `ts` é meia-noite UTC de propósito: aqui normalizamos uma data já
+  // informada, não "hoje" — trocar por dia local deslocaria o dia.
+  // eslint-disable-next-line no-restricted-syntax
   return new Date(ts).toISOString().slice(0, 10);
 }
 

@@ -460,6 +460,29 @@ export const studyRouter = router({
     return getDataHealth(ctx.user.id);
   }),
 
+  /**
+   * v6.9.8 (item 2.4): correção segura de um achado do cartão "Saúde dos
+   * dados". Sempre com backup antes de gravar. Nada destrutivo.
+   */
+  fixDataHealth: protectedProcedure
+    .input(
+      z.object({
+        fix: z.enum([
+          "reorder-disciplines",
+          "delete-empty-mock-exams",
+          "mark-errors-statement-pending",
+          "reschedule-stale-flashcards",
+        ]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return storage.applyDataHealthFix(
+        ctx.user.id,
+        input.fix,
+        formatDateForDb(new Date()),
+      );
+    }),
+
   weeklyReview: protectedProcedure.query(async ({ ctx }) => {
     return getWeeklyReview(ctx.user.id);
   }),

@@ -73,4 +73,42 @@ export default [
       },
     },
   },
+  {
+    // ── Guarda de "hoje é dia LOCAL" (v6.9.8, item 2.2) ──────────────────────
+    // `toISOString()` é UTC: depois das 21h em Brasília (UTC-3) o app achava
+    // que já era amanhã, a revisão de amanhã aparecia vencida e a sessão caía
+    // no dia errado. Quem precisa do dia do aluno usa `localDayISO()`.
+    // Ficam de fora a própria fonte da verdade e os testes (o agendador 25/50
+    // trabalha com datas UTC de propósito e isso é verificado nos testes dele).
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "shared/localDay.ts",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='split'][callee.object.callee.property.name='toISOString']",
+          message:
+            "Dia local é localDayISO() (shared/localDay). toISOString() é UTC e erra depois das 21h em Brasília.",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='slice'][callee.object.callee.property.name='toISOString']",
+          message:
+            "Dia local é localDayISO() (shared/localDay). toISOString() é UTC e erra depois das 21h em Brasília.",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='split'][callee.object.callee.name='now']",
+          message:
+            "`now()` devolve timestamp UTC. Para o dia do aluno use localDayISO() (shared/localDay).",
+        },
+      ],
+    },
+  },
 ];

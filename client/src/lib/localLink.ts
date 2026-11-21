@@ -29,6 +29,8 @@ import {
   localTopicResetAllStats,
   localRevisionList,
   localRevisionMarkCompleted,
+  localRevisionTopicBacklog,
+  localRevisionCompleteTopicBacklog,
   localRevisionMarkIgnored,
   localImportExportBackup,
   localImportImportBackup,
@@ -158,6 +160,10 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
     localRevisionMarkCompleted(i as { id: number; completed: boolean }),
   "revision.markIgnored": (i) =>
     localRevisionMarkIgnored(i as { id: number; ignored: boolean }),
+  "revision.topicBacklog": (i) =>
+    localRevisionTopicBacklog(i as { topicId: number }),
+  "revision.completeTopicBacklog": (i) =>
+    localRevisionCompleteTopicBacklog(i as { topicId: number; today?: string }),
   "import.exportBackup": () => localImportExportBackup(),
   "import.importBackup": (i) => localImportImportBackup(i as { json: string }),
   "import.tecConcursos": () =>

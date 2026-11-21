@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "6.9.7",
+  "version": "6.9.8",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -19,6 +19,7 @@
     "check": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:journeys": "vitest run --config vitest.journeys.config.ts",
     "test:all": "npm run check && npm run test -- --coverage && npx playwright test",
     "lint": "eslint . --ext .ts,.tsx",
     "ios:add": "npx cap add ios",
