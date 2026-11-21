@@ -1,4 +1,6 @@
 import { trpc } from "@/lib/trpc";
+import { PaceCard } from "@/components/apple/PaceCard";
+import { summarizePace } from "@shared/examPace";
 import { toast } from "sonner";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
@@ -363,6 +365,29 @@ function RunningScreen({
   };
 
   const progress = ((currentQ - 1) / config.totalQuestions) * 100;
+  // v6.9.7 (item 4): alvo por questão derivado do tempo limite configurado.
+  const paceSeconds = Math.max(
+    10,
+    Math.round(
+      (config.timeLimitMinutes * 60) / Math.max(1, config.totalQuestions),
+    ),
+  );
+  const paceState =
+    elapsedSinceQ > paceSeconds * 2
+      ? "critical"
+      : elapsedSinceQ > paceSeconds
+        ? "late"
+        : elapsedSinceQ < paceSeconds * 0.6
+          ? "ahead"
+          : "on";
+  const paceLabel =
+    paceState === "critical"
+      ? `2× o alvo · ${elapsedSinceQ}s`
+      : paceState === "late"
+        ? `atrasado ${elapsedSinceQ - paceSeconds}s`
+        : paceState === "ahead"
+          ? `adiantado ${paceSeconds - elapsedSinceQ}s`
+          : `no ritmo · ${elapsedSinceQ}s`;
   const isUrgent = timeLeft < 300; // < 5 min
   const timeColor = isUrgent
     ? "var(--accent-red, #dc2626)"
@@ -427,6 +452,23 @@ function RunningScreen({
             style={{ color: timeColor }}
           >
             {formatTime(timeLeft)}
+          </p>
+          {/* v6.9.7 (item 4): ritmo da questão atual, discreto e sem bloquear. */}
+          <p
+            className="mt-1 text-[10px] font-semibold whitespace-nowrap"
+            style={{
+              color:
+                paceState === "critical"
+                  ? "var(--accent-red, #dc2626)"
+                  : paceState === "late"
+                    ? "var(--accent-amber)"
+                    : paceState === "ahead"
+                      ? "var(--accent-green)"
+                      : "var(--muted-text)",
+            }}
+            title={`Alvo: ${paceSeconds}s por questão`}
+          >
+            {paceLabel}
           </p>
         </div>
       </div>
@@ -586,6 +628,18 @@ function ResultsScreen({
   }, [results]);
 
   const avgTime = answered > 0 ? Math.round(totalTime / answered) : 0;
+  // v6.9.7 (item 4): ritmo real da prova (tempo por questão já é medido aqui).
+  const paceSeconds = Math.max(
+    10,
+    Math.round(
+      (config.timeLimitMinutes * 60) / Math.max(1, config.totalQuestions),
+    ),
+  );
+  const paceSummary = summarizePace(
+    results.map((item) => ({ answered: true, seconds: item.timeSeconds })),
+    paceSeconds,
+    config.totalQuestions,
+  );
   const grade =
     pct >= 80
       ? "Excelente!"
@@ -671,6 +725,9 @@ function ResultsScreen({
           </div>
         ))}
       </div>
+
+      {/* v6.9.7 (item 4): bloco de ritmo */}
+      <PaceCard summary={paceSummary} />
 
       {/* By discipline */}
       {byDisc.length > 1 && (

@@ -63,6 +63,11 @@ import {
   localImportCaderno,
   localStudyOverview,
   localStudyErrorPatterns,
+  localStudyCalibration,
+  localBuildLeiSeca,
+  localLeiSecaToday,
+  localDisciplineConsolidationPreview,
+  localConsolidateDisciplines,
   localEssayList,
   localEssaySave,
   localEssayUpdate,
@@ -272,6 +277,15 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.getConceptConfusions": () => localGetConceptConfusions(),
   "mentor.saveConceptConfusion": (i) => localSaveConceptConfusion(i as any),
   "study.attemptTrends": () => localStudyAttemptTrends(),
+  // v6.9.7: calibração, lei seca e consolidação no APK (mesmas funções puras).
+  "study.calibration": () => localStudyCalibration(),
+  "flashcard.buildLeiSeca": (i) =>
+    localBuildLeiSeca(i as { topicIds?: number[] } | undefined),
+  "flashcard.leiSecaToday": () => localLeiSecaToday(),
+  "discipline.consolidationPreview": () =>
+    localDisciplineConsolidationPreview(),
+  "discipline.consolidate": () => localConsolidateDisciplines(),
+  "mockExam.paceReport": () => Promise.resolve(null),
   "flashcard.generateFromErrors": (i) =>
     localGenerateFlashcardsFromErrors(i as { errorIds?: number[] } | undefined),
   "edital.overview": () => localEditalOverview(),

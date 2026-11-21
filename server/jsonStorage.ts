@@ -42,6 +42,17 @@ import { persistBase64Media } from "./mediaStorage";
 import { backupJsonPayload } from "./storage/backup";
 import { preserveRowLinks } from "../shared/editalCoverage";
 import { smartMergeDatabases, normalizeString } from "../shared/merge";
+import {
+  LEI_SECA_DECK,
+  buildLeiSecaCards,
+  resolveDailyCap,
+  selectLeiSecaToday,
+  summarizeLeiSecaDeck,
+} from "./leiSeca";
+import {
+  groupDisciplineDuplicates,
+  summarizeDuplicates,
+} from "../shared/disciplineDuplicates";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -328,7 +339,48 @@ export async function recordQuestionAttempt(
         return false;
       return Math.abs(createdMs - existingMs) <= 10 * 60 * 1000;
     });
-    if (duplicate) return duplicate;
+    if (duplicate) {
+      // v6.9.7 (item 1.3): a confiança chega DEPOIS da captura do TEC (o prompt
+      // abre no evento soe-tec-answer). Antes o eco era descartado e o
+      // `confidence` nunca era gravado; agora ele anota a tentativa original.
+      if (record.confidence && !duplicate.confidence) {
+        duplicate.confidence = record.confidence;
+        duplicate.confidencePhase = record.confidencePhase ?? "after_result";
+        if (
+          typeof record.seconds === "number" &&
+          !Number.isFinite(Number(duplicate.seconds))
+        ) {
+          duplicate.seconds = record.seconds;
+        }
+        writeDatabase(db);
+        return duplicate;
+      }
+      return duplicate;
+    }
+  }
+
+  // Sem questionId o TEC não dá como casar o eco: se o usuário está apenas
+  // declarando a confiança de uma resposta recém-capturada (mesma disciplina,
+  // mesmo resultado, até 10 min, ainda sem confiança), anota nela em vez de
+  // criar uma tentativa fantasma que dobraria a contagem.
+  if (record.confidence && !record.questionId) {
+    const createdMs = Date.parse(record.createdAt);
+    const recent = [...db.questionAttempts].reverse().find((existing) => {
+      if (existing.confidence) return false;
+      if (existing.source !== "tec" || record.source !== "tec") return false;
+      if (existing.correct !== record.correct) return false;
+      if (existing.topicId !== record.topicId) return false;
+      const existingMs = Date.parse(String(existing.createdAt || ""));
+      if (!Number.isFinite(existingMs) || !Number.isFinite(createdMs))
+        return false;
+      return Math.abs(createdMs - existingMs) <= 10 * 60 * 1000;
+    });
+    if (recent) {
+      recent.confidence = record.confidence;
+      recent.confidencePhase = record.confidencePhase ?? "after_result";
+      writeDatabase(db);
+      return recent;
+    }
   }
 
   db.questionAttempts.push(record);
@@ -363,6 +415,38 @@ export async function recordQuestionAttempt(
   });
   writeDatabase(db);
   return record;
+}
+
+/**
+ * v6.9.7 (item 1.3): anota certeza/dúvida/chute na resposta do TEC mais recente
+ * que ainda está sem confiança. É o caminho de segurança para quando o rótulo
+ * do prompt não casa com nenhum tópico: a confiança não pode se perder.
+ */
+export async function attachConfidenceToLatestTecAttempt(
+  userId: number,
+  correct: boolean,
+  confidence: QuestionAttempt["confidence"],
+  seconds?: number,
+): Promise<QuestionAttempt | null> {
+  const db = readDatabase();
+  if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
+  const nowMs = Date.parse(now());
+  const recent = [...db.questionAttempts].reverse().find((attempt) => {
+    if (attempt.confidence) return false;
+    if (attempt.source !== "tec") return false;
+    if (Boolean(attempt.correct) !== Boolean(correct)) return false;
+    const createdMs = Date.parse(String(attempt.createdAt || ""));
+    if (!Number.isFinite(createdMs) || !Number.isFinite(nowMs)) return false;
+    return nowMs - createdMs <= 30 * 60 * 1000;
+  });
+  if (!recent) return null;
+  recent.confidence = confidence;
+  recent.confidencePhase = "after_result";
+  if (typeof seconds === "number" && !Number.isFinite(Number(recent.seconds))) {
+    recent.seconds = seconds;
+  }
+  writeDatabase(db);
+  return recent;
 }
 
 /** Remove uma tentativa (usado pelo "desfazer última resposta"). */
@@ -1077,6 +1161,41 @@ export async function mergeDisciplines(
   targetDisc.studyTimeSeconds =
     (targetDisc.studyTimeSeconds || 0) + (sourceDisc.studyTimeSeconds || 0);
 
+  // v6.9.7 (item 7): a performance da disciplina também soma. Antes a mescla
+  // movia os tópicos, mas o total de questões da origem desaparecia da lista.
+  const sourcePerf = (sourceDisc.performance || {}) as Record<string, any>;
+  const targetPerf = (targetDisc.performance || {}) as Record<string, any>;
+  const sourceResolved = Math.max(
+    Number(sourcePerf.questionsResolved) || 0,
+    (Number(sourcePerf.correctCount) || 0) +
+      (Number(sourcePerf.errorCount) || 0),
+  );
+  const sumResolved =
+    (Number(targetPerf.questionsResolved) || 0) + sourceResolved;
+  const sumCorrect =
+    (Number(targetPerf.correctCount) || 0) +
+    (Number(sourcePerf.correctCount) || 0);
+  const sumErrors =
+    (Number(targetPerf.errorCount) || 0) + (Number(sourcePerf.errorCount) || 0);
+  if (sumResolved > 0 || sumCorrect > 0 || sumErrors > 0) {
+    const lastImportedAt = [
+      targetPerf.lastImportedAt,
+      sourcePerf.lastImportedAt,
+    ]
+      .filter(Boolean)
+      .sort()
+      .pop();
+    targetDisc.performance = {
+      ...targetPerf,
+      questionsResolved: sumResolved,
+      correctCount: sumCorrect,
+      errorCount: sumErrors,
+      accuracy:
+        sumResolved > 0 ? Math.round((sumCorrect / sumResolved) * 100) : 0,
+      ...(lastImportedAt ? { lastImportedAt } : {}),
+    };
+  }
+
   // Merge também é uma exclusão: impede que sync/import recrie a origem.
   const user = db.users.find((u) => u.id === userId);
   if (user) {
@@ -1115,6 +1234,19 @@ export async function mergeDisciplines(
   db.disciplines = db.disciplines.filter(
     (d) => d.id !== sourceId || d.userId !== userId,
   );
+
+  if (user) {
+    pushStudyEvent(user, {
+      id: `mescla-disciplinas-${sourceId}-${targetId}-${Date.now()}`,
+      type: "session",
+      occurredAt: now(),
+      title: `Disciplinas mescladas: ${sourceDisc.name} → ${targetDisc.name}`,
+      detail: `${movedTopics} tópico(s) movido(s) · ${mergedTopics.absorbed} fundido(s) · ${sourceResolved} questão(ões) somadas · backup em data/backups/mescla-disciplinas-*.json.`,
+      disciplineId: targetId,
+      disciplineName: targetDisc.name,
+      source: "mescla-disciplinas",
+    });
+  }
 
   writeDatabase(db);
   return {
@@ -2481,6 +2613,10 @@ export async function createFlashcard(data: {
   noteId?: number;
   front: string;
   back: string;
+  /** v6.9.7: deck do cartão e origem (lei seca exige `sourceErrorId`/`noteId`). */
+  deck?: string;
+  sourceErrorId?: number;
+  sourceNoteKey?: string;
 }): Promise<Flashcard> {
   const db = readDatabase();
   db.counters.flashcards++;
@@ -2497,6 +2633,9 @@ export async function createFlashcard(data: {
     easeFactor: 2.5,
     repetitions: 0,
     nextReviewDate: today,
+    deck: data.deck,
+    sourceErrorId: data.sourceErrorId,
+    sourceNoteKey: data.sourceNoteKey,
     createdAt: now(),
     updatedAt: now(),
   };
@@ -4040,4 +4179,277 @@ export async function generateFlashcardsFromErrors(
 
   if (created.length > 0) writeDatabase(db);
   return { created, skipped, total: errors.length };
+}
+
+// ============ LEI SECA (v6.9.7, item 3) ============
+/**
+ * Monta o deck "Lei seca" a partir do material do próprio aluno.
+ *
+ * Idempotente: um cartão por `sourceErrorId` / `noteId` / `sourceNoteKey`.
+ * Nada é inventado — cartão sem origem não é criado.
+ */
+export async function buildLeiSecaDeck(
+  userId: number,
+  topicIds?: number[],
+): Promise<{
+  created: Flashcard[];
+  skipped: number;
+  candidates: ReturnType<typeof buildLeiSecaCards>["candidates"];
+  total: number;
+}> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  const disciplines = (db.disciplines || []).filter(
+    (item) => item.userId === userId,
+  );
+  const topics = (db.topics || []).filter((item) => item.userId === userId);
+  const errors = (db.questionErrors || []).filter(
+    (item) => item.userId === userId,
+  );
+  const notes = (db.notes || []).filter((item) => item.userId === userId);
+
+  const { cards, candidates } = buildLeiSecaCards({
+    disciplines,
+    topics,
+    errors,
+    notes,
+    topicIds,
+  });
+
+  const existing = new Set<string>();
+  for (const card of db.flashcards || []) {
+    if (card.userId !== userId) continue;
+    if (card.sourceErrorId) existing.add(`err:${card.sourceErrorId}`);
+    if (card.noteId) existing.add(`note:${card.noteId}`);
+    if (card.sourceNoteKey) existing.add(`key:${card.sourceNoteKey}`);
+  }
+
+  const today = now().split("T")[0];
+  const created: Flashcard[] = [];
+  let skipped = 0;
+  for (const draft of cards) {
+    const key = draft.sourceErrorId
+      ? `err:${draft.sourceErrorId}`
+      : draft.noteId
+        ? `note:${draft.noteId}`
+        : draft.sourceNoteKey
+          ? `key:${draft.sourceNoteKey}`
+          : "";
+    if (!key) {
+      skipped += 1;
+      continue;
+    }
+    if (existing.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    db.counters.flashcards++;
+    const card: Flashcard = {
+      id: db.counters.flashcards,
+      userId,
+      disciplineId: draft.disciplineId,
+      topicId: draft.topicId,
+      noteId: draft.noteId,
+      front: draft.front,
+      back: draft.back,
+      interval: 1,
+      easeFactor: 2.5,
+      repetitions: 0,
+      nextReviewDate: today,
+      deck: LEI_SECA_DECK,
+      sourceErrorId: draft.sourceErrorId,
+      sourceNoteKey: draft.sourceNoteKey,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    db.flashcards.push(card);
+    created.push(card);
+    existing.add(key);
+  }
+
+  if (created.length > 0) {
+    if (user) {
+      pushStudyEvent(user, {
+        id: `lei-seca-${Date.now()}`,
+        type: "lesson",
+        occurredAt: now(),
+        title: `Lei seca: ${created.length} cartão(ões) montado(s)`,
+        detail: `Origem: ${created.length} do seu próprio material (erros e notas).`,
+        source: "lei-seca",
+      });
+    }
+    writeDatabase(db);
+  }
+
+  return { created, skipped, candidates, total: cards.length };
+}
+
+/** Cartões de hoje do deck Lei seca, respeitando a meta diária. */
+export async function getLeiSecaToday(userId: number): Promise<{
+  cards: Flashcard[];
+  total: number;
+  dueToday: number;
+  cap: number;
+  candidates: ReturnType<typeof buildLeiSecaCards>["candidates"];
+}> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  const today = now().split("T")[0];
+  const cards = (db.flashcards || []).filter((card) => card.userId === userId);
+  const summary = summarizeLeiSecaDeck(cards as any, today, undefined);
+  const cap = resolveDailyCap(user?.settings?.leiSecaDailyCap ?? summary.cap);
+  const batch = selectLeiSecaToday(cards as any, today, cap) as Flashcard[];
+  const { candidates } = buildLeiSecaCards({
+    disciplines: (db.disciplines || []).filter(
+      (item) => item.userId === userId,
+    ),
+    topics: (db.topics || []).filter((item) => item.userId === userId),
+    errors: (db.questionErrors || []).filter((item) => item.userId === userId),
+    notes: (db.notes || []).filter((item) => item.userId === userId),
+  });
+  return {
+    cards: batch,
+    total: summary.total,
+    dueToday: summary.dueToday,
+    cap,
+    candidates,
+  };
+}
+
+// ============ CONSOLIDAÇÃO DE DISCIPLINAS DUPLICADAS (v6.9.7, item 7) ============
+export interface DisciplineConsolidationPreview {
+  groups: Array<{
+    key: string;
+    targetId: number;
+    targetName: string;
+    targetQuestions: number;
+    sources: Array<{
+      id: number;
+      name: string;
+      questions: number;
+      topics: number;
+    }>;
+    topics: number;
+    questions: number;
+  }>;
+  disciplinesBefore: number;
+  disciplinesAfter: number;
+  totalTopics: number;
+  questionsMoved: number;
+}
+
+/** Prévia (nada é escrito): origem → destino, tópicos e questões afetados. */
+export async function previewDisciplineConsolidation(
+  userId: number,
+): Promise<DisciplineConsolidationPreview> {
+  const db = readDatabase();
+  const disciplines = (db.disciplines || []).filter(
+    (item) => item.userId === userId,
+  );
+  const topics = (db.topics || []).filter((item) => item.userId === userId);
+  const overview = summarizeDuplicates(disciplines);
+  const topicCount = (disciplineId: number) =>
+    topics.filter((topic) => topic.disciplineId === disciplineId).length;
+
+  const groups = overview.groups.map((group) => {
+    const sources = group.sources.map((source) => ({
+      ...source,
+      topics: topicCount(source.id),
+    }));
+    return {
+      key: group.key,
+      targetId: group.suggestedTarget.id,
+      targetName: group.suggestedTarget.name,
+      targetQuestions: group.suggestedTarget.questions,
+      sources,
+      topics: sources.reduce((sum, source) => sum + source.topics, 0),
+      questions: sources.reduce((sum, source) => sum + source.questions, 0),
+    };
+  });
+
+  return {
+    groups,
+    disciplinesBefore: overview.disciplinesBefore,
+    disciplinesAfter: overview.disciplinesAfter,
+    totalTopics: groups.reduce((sum, group) => sum + group.topics, 0),
+    questionsMoved: groups.reduce((sum, group) => sum + group.questions, 0),
+  };
+}
+
+/**
+ * Consolida todos os grupos duplicados de uma vez, reutilizando
+ * `mergeDisciplines` (que já faz backup por mescla e funde tópicos homônimos).
+ *
+ * Idempotente: sem duplicadas, devolve `consolidated: 0` e não escreve nada.
+ */
+export async function consolidateDuplicateDisciplines(userId: number): Promise<{
+  consolidated: number;
+  sourcesAbsorbed: number;
+  disciplinesBefore: number;
+  disciplinesAfter: number;
+  questionsBefore: number;
+  questionsAfter: number;
+  details: Array<{
+    targetName: string;
+    merged: Array<{ name: string; questions: number }>;
+  }>;
+}> {
+  const before = await previewDisciplineConsolidation(userId);
+  const questionsBefore = (await getDisciplinesByUser(userId)).reduce(
+    (sum, discipline) =>
+      sum + (Number(discipline.performance?.questionsResolved) || 0),
+    0,
+  );
+
+  const details: Array<{
+    targetName: string;
+    merged: Array<{ name: string; questions: number }>;
+  }> = [];
+
+  for (const group of before.groups) {
+    const merged: Array<{ name: string; questions: number }> = [];
+    for (const source of group.sources) {
+      await mergeDisciplines(userId, source.id, group.targetId);
+      merged.push({ name: source.name, questions: source.questions });
+    }
+    details.push({ targetName: group.targetName, merged });
+  }
+
+  const disciplinesAfterList = await getDisciplinesByUser(userId);
+  const questionsAfter = disciplinesAfterList.reduce(
+    (sum, discipline) =>
+      sum + (Number(discipline.performance?.questionsResolved) || 0),
+    0,
+  );
+
+  if (details.length > 0) {
+    const db = readDatabase();
+    const user = db.users.find((item) => item.id === userId);
+    if (user) {
+      pushStudyEvent(user, {
+        id: `consolidacao-${Date.now()}`,
+        type: "session",
+        occurredAt: now(),
+        title: `Consolidação: ${before.groups.length} grupo(s) de disciplinas duplicadas`,
+        detail: `${before.disciplinesBefore} → ${before.disciplinesAfter} disciplinas · ${before.questionsMoved} questões somadas. ${details
+          .map(
+            (item) =>
+              `${item.merged.map((m) => m.name).join(", ")} → ${item.targetName}`,
+          )
+          .join(" | ")}`,
+        source: "consolidacao",
+      });
+      writeDatabase(db);
+    }
+  }
+
+  return {
+    consolidated: details.length,
+    sourcesAbsorbed: details.reduce((sum, item) => sum + item.merged.length, 0),
+    disciplinesBefore: before.disciplinesBefore,
+    disciplinesAfter: disciplinesAfterList.length,
+    questionsBefore,
+    questionsAfter,
+    details,
+  };
 }

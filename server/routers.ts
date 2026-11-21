@@ -15,6 +15,7 @@ import { essayRouter } from "./essayRouter";
 import { studyRouter } from "./studyRouter";
 import { tecRouter } from "./tecRouter";
 import { callAiProvider } from "./aiProviders";
+import { bancaPaceSeconds, summarizePace } from "../shared/examPace";
 import {
   buildSchedule,
   formatDateForDb,
@@ -232,6 +233,14 @@ export const appRouter = router({
     }),
     duplicates: protectedProcedure.query(async ({ ctx }) => {
       return storage.getDisciplineDuplicateSuggestions(ctx.user.id);
+    }),
+    /** v6.9.7 (item 7): prévia da consolidação (origem → destino, tópicos, questões). */
+    consolidationPreview: protectedProcedure.query(async ({ ctx }) => {
+      return storage.previewDisciplineConsolidation(ctx.user.id);
+    }),
+    /** v6.9.7 (item 7): consolida TODOS os grupos de uma vez, com backup por mescla. */
+    consolidate: protectedProcedure.mutation(async ({ ctx }) => {
+      return storage.consolidateDuplicateDisciplines(ctx.user.id);
     }),
     create: protectedProcedure
       .input(
@@ -769,6 +778,19 @@ export const appRouter = router({
           totalQuestions: z.number(),
           questions: z.array(z.any()).optional(),
           answers: z.record(z.string(), z.string()).optional(),
+          // v6.9.7 (item 4): ritmo de prova — tempo por questão e alvo.
+          answerTimings: z
+            .record(
+              z.string(),
+              z.object({
+                seconds: z.number().min(0).max(86400),
+                answeredAt: z.string().optional(),
+                viewedAt: z.string().optional(),
+              }),
+            )
+            .optional(),
+          pace: z.number().min(10).max(1800).optional(),
+          paceReport: z.any().nullable().optional(),
           blueprint: z.array(z.any()).optional(),
           status: z.enum(["in_progress", "completed"]).optional(),
           mode: z.enum(["cebraspe", "multiple"]).optional(),
@@ -792,6 +814,19 @@ export const appRouter = router({
           totalQuestions: z.number().optional(),
           questions: z.array(z.any()).optional(),
           answers: z.record(z.string(), z.string()).optional(),
+          // v6.9.7 (item 4): ritmo de prova — tempo por questão e alvo.
+          answerTimings: z
+            .record(
+              z.string(),
+              z.object({
+                seconds: z.number().min(0).max(86400),
+                answeredAt: z.string().optional(),
+                viewedAt: z.string().optional(),
+              }),
+            )
+            .optional(),
+          pace: z.number().min(10).max(1800).optional(),
+          paceReport: z.any().nullable().optional(),
           blueprint: z.array(z.any()).optional(),
           status: z.enum(["in_progress", "completed"]).optional(),
           mode: z.enum(["cebraspe", "multiple"]).optional(),
@@ -817,6 +852,30 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await storage.deleteMockExam(input.id, ctx.user.id);
         return { success: true };
+      }),
+    /**
+     * v6.9.7 (item 4): relatório de ritmo de um simulado. Usa o relatório
+     * persistido na entrega; se a prova é antiga (sem ritmo), recalcula a
+     * partir do que existir e avisa que não há tempo por questão.
+     */
+    paceReport: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const exams = await storage.getMockExamsByUser(ctx.user.id);
+        const exam = exams.find((item) => item.id === input.id);
+        if (!exam) return null;
+        if (exam.paceReport) return exam.paceReport;
+        const paceSeconds =
+          Number(exam.pace) ||
+          bancaPaceSeconds(exam.mode === "cebraspe" ? "CEBRASPE" : undefined);
+        return summarizePace(
+          (exam.answerTimings || {}) as Record<
+            string,
+            { seconds?: number; answeredAt?: string }
+          >,
+          paceSeconds,
+          Number(exam.totalQuestions) || (exam.questions || []).length,
+        );
       }),
   }),
 
@@ -1035,6 +1094,32 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return storage.reviewFlashcard(input.id, ctx.user.id, input.quality);
       }),
+    /**
+     * v6.9.7 (item 3): monta o deck "Lei seca" a partir do material do próprio
+     * aluno (erros + notas). Sem IA e sem inventar literalidade; idempotente.
+     */
+    buildLeiSeca: protectedProcedure
+      .input(
+        z
+          .object({ topicIds: z.array(z.number()).max(200).optional() })
+          .optional(),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const result = await storage.buildLeiSecaDeck(
+          ctx.user.id,
+          input?.topicIds,
+        );
+        return {
+          created: result.created.length,
+          skipped: result.skipped,
+          total: result.total,
+          candidates: result.candidates.slice(0, 20),
+        };
+      }),
+    /** v6.9.7 (item 3): cartões de hoje do deck, respeitando a meta diária. */
+    leiSecaToday: protectedProcedure.query(async ({ ctx }) => {
+      return storage.getLeiSecaToday(ctx.user.id);
+    }),
     archive: protectedProcedure
       .input(
         z.object({

@@ -22,6 +22,11 @@ import {
   getWeeklyReview,
   previewFsrsSchedule,
 } from "./studyIntelligence";
+import {
+  calibrationAdvice,
+  summarizeCalibration,
+  summarizeCalibrationByDiscipline,
+} from "../shared/calibration";
 
 const confidenceSchema = z.enum(["chute", "acho", "certeza"]).nullable();
 
@@ -222,7 +227,19 @@ export const studyRouter = router({
         topics,
       );
       const discipline = discMatch.discipline;
-      if (!discipline) return { ok: false, reason: "discipline_not_found" };
+      if (!discipline) {
+        // v6.9.7 (item 1.3): sem disciplina classificada a confiança ainda é
+        // anotada na resposta capturada — perder o dado era o bug do item.
+        const attached = await storage.attachConfidenceToLatestTecAttempt(
+          ctx.user.id,
+          input.correct,
+          input.confidence,
+          input.seconds,
+        );
+        return attached
+          ? { ok: true, attached: true, attemptId: attached.id }
+          : { ok: false, reason: "discipline_not_found" };
+      }
 
       const topicMatch = findBestTopicMatch(
         topics,
@@ -230,7 +247,17 @@ export const studyRouter = router({
         discipline.id,
       );
       const topic = topicMatch.topic;
-      if (!topic) return { ok: false, reason: "topic_not_found" };
+      if (!topic) {
+        const attached = await storage.attachConfidenceToLatestTecAttempt(
+          ctx.user.id,
+          input.correct,
+          input.confidence,
+          input.seconds,
+        );
+        return attached
+          ? { ok: true, attached: true, attemptId: attached.id }
+          : { ok: false, reason: "topic_not_found" };
+      }
 
       const attempt = await storage.recordQuestionAttempt(ctx.user.id, {
         topicId: topic.id,
@@ -394,9 +421,35 @@ export const studyRouter = router({
     };
   }),
 
+  /**
+   * v6.9.7 (item 1): calibração certeza × acerto.
+   *
+   * Devolve o resumo do usuário, o recorte por disciplina (top 5 com dados),
+   * as frases de risco e o número de tentativas sem confiança declarada —
+   * a UI usa isso para convidar o aluno em vez de mostrar gráfico vazio.
+   */
   calibration: protectedProcedure.query(async ({ ctx }) => {
-    const overview = await getStudyOverview(ctx.user.id);
-    return overview.calibration;
+    const [attempts, disciplines, legacyOverview] = await Promise.all([
+      storage.getAllQuestionAttempts(ctx.user.id),
+      storage.getDisciplinesByUser(ctx.user.id),
+      getStudyOverview(ctx.user.id),
+    ]);
+    const summary = summarizeCalibration(attempts as any);
+    return {
+      ...summary,
+      advice: calibrationAdvice(summary),
+      byDiscipline: summarizeCalibrationByDiscipline(
+        attempts as any,
+        disciplines.map((discipline) => ({
+          id: discipline.id,
+          name: discipline.name,
+        })),
+        5,
+      ),
+      /** Brier/overconfidence da versão anterior (StudyPlan ainda usa). */
+      legacy: legacyOverview.calibration,
+      generatedAt: new Date().toISOString(),
+    };
   }),
 
   errorPatterns: protectedProcedure.query(async ({ ctx }) => {

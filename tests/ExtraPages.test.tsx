@@ -113,6 +113,27 @@ vi.mock("@/lib/trpc", () => ({
       attemptTrends: {
         useQuery: () => ({ data: { trends: [] }, isLoading: false }),
       },
+      // v6.9.7 (item 1): o card de calibração consulta study.calibration.
+      calibration: {
+        useQuery: () => ({
+          data: {
+            total: 0,
+            answered: 0,
+            skipped: 0,
+            declared: 0,
+            undeclaredPct: 0,
+            buckets: [],
+            chutesAcertados: 0,
+            chutesErrados: 0,
+            taxaChute: 0,
+            indiceConfianca: 0,
+            overallAccuracy: 0,
+            calibrated: false,
+            advice: [],
+            byDiscipline: [],
+          },
+        }),
+      },
     },
     dashboard: {
       getHeatmap: { useQuery: () => ({ data: [] }) },

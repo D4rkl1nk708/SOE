@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
 import { useSimuladoGeneration } from "@/contexts/SimuladoGenerationContext";
+import { PaceCard } from "@/components/apple/PaceCard";
+import { bancaPaceSeconds } from "@shared/examPace";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -313,6 +315,18 @@ export default function SimuladoInteligente() {
   const [selectedIds, setSelectedIds] = useState<number[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const answersRef = useRef<Record<string, string>>({});
+  // v6.9.7 (item 4): tempo por questão (segundos + quando foi marcada).
+  const [timings, setTimings] = useState<
+    Record<string, { seconds: number; answeredAt?: string }>
+  >({});
+  const timingsRef = useRef<
+    Record<string, { seconds: number; answeredAt?: string }>
+  >({});
+  const seenRef = useRef<{ id: string | null; at: number }>({
+    id: null,
+    at: Date.now(),
+  });
+  const [clock, setClock] = useState(Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
   const [result, setResult] = useState<any>(null);
@@ -357,6 +371,10 @@ export default function SimuladoInteligente() {
     const storedAnswers = exam.answers || {};
     answersRef.current = storedAnswers;
     setAnswers(storedAnswers);
+    // v6.9.7 (item 4): retoma o tempo já registrado, se houver.
+    const storedTimings = exam.answerTimings || {};
+    timingsRef.current = storedTimings;
+    setTimings(storedTimings);
     setTitle(exam.name || "Simulado");
     setMode(exam.mode === "cebraspe" ? "cebraspe" : "multiple");
     setDurationMinutes(Number(exam.durationMinutes) || 20);
@@ -492,9 +510,34 @@ export default function SimuladoInteligente() {
     if (phase !== "running") return;
     const timer = setInterval(() => {
       setTimeLeft((seconds) => Math.max(0, seconds - 1));
+      setClock(Date.now());
     }, 1000);
     return () => clearInterval(timer);
   }, [phase]);
+
+  // Marca o instante em que a questão atual entrou em foco (tempo por questão).
+  const currentQuestionId = questions[currentIndex]?.id ?? null;
+  useEffect(() => {
+    if (phase !== "running") return;
+    seenRef.current = { id: currentQuestionId, at: Date.now() };
+  }, [currentQuestionId, phase]);
+
+  const paceSeconds = useMemo(
+    () => bancaPaceSeconds(mode === "cebraspe" ? "CEBRASPE" : undefined),
+    [mode],
+  );
+  const currentElapsed =
+    phase === "running" && seenRef.current.id === currentQuestionId
+      ? Math.max(0, Math.round((clock - seenRef.current.at) / 1000))
+      : 0;
+  const paceState =
+    currentElapsed > paceSeconds * 2
+      ? "critical"
+      : currentElapsed > paceSeconds
+        ? "late"
+        : currentElapsed < paceSeconds * 0.6
+          ? "ahead"
+          : "on";
 
   const finishExam = async (auto = false) => {
     if (submittedRef.current || questions.length === 0) return;
@@ -536,7 +579,7 @@ export default function SimuladoInteligente() {
       return;
     }
     submittedRef.current = true;
-    const submitted = await submit(currentAnswers);
+    const submitted = await submit(currentAnswers, timingsRef.current);
     if (!submitted) {
       submittedRef.current = false;
       setResult(null);
@@ -565,6 +608,8 @@ export default function SimuladoInteligente() {
     setResult(null);
     setAnswers({});
     answersRef.current = {};
+    setTimings({});
+    timingsRef.current = {};
     setCurrentIndex(0);
     setTimeLeft(durationMinutes * 60);
     await start({
@@ -596,6 +641,24 @@ export default function SimuladoInteligente() {
   };
 
   const selectAnswer = (questionId: string, letter: string) => {
+    // v6.9.7 (item 4): acumula o tempo gasto nesta questão antes de marcar.
+    const seen = seenRef.current;
+    const delta =
+      seen.id === questionId
+        ? Math.max(0, Math.round((Date.now() - seen.at) / 1000))
+        : 0;
+    setTimings((prev) => {
+      const next = {
+        ...prev,
+        [questionId]: {
+          seconds: Math.max(0, (prev[questionId]?.seconds ?? 0) + delta),
+          answeredAt: new Date().toISOString(),
+        },
+      };
+      timingsRef.current = next;
+      return next;
+    });
+    seenRef.current = { id: questionId, at: Date.now() };
     const next = { ...answersRef.current, [questionId]: letter };
     answersRef.current = next;
     setAnswers(next);
@@ -642,6 +705,8 @@ export default function SimuladoInteligente() {
     setResult(null);
     setAnswers({});
     answersRef.current = {};
+    setTimings({});
+    timingsRef.current = {};
     setCurrentIndex(0);
     timerExamRef.current = null;
     submittedRef.current = false;
@@ -1091,6 +1156,27 @@ export default function SimuladoInteligente() {
                       <span className="text-[9px] text-muted-foreground">
                         {answeredCount}/{questions.length} marcadas
                       </span>
+                      {/* v6.9.7 (item 4): ritmo por questão, sem bloquear a resposta. */}
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+                          paceState === "critical"
+                            ? "bg-rose-500/15 text-rose-600"
+                            : paceState === "late"
+                              ? "bg-amber-500/15 text-amber-600"
+                              : paceState === "ahead"
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : "bg-secondary text-muted-foreground"
+                        }`}
+                        title={`Alvo da banca: ${paceSeconds}s por questão`}
+                      >
+                        {paceState === "critical"
+                          ? `2× o alvo · ${currentElapsed}s`
+                          : paceState === "late"
+                            ? `atrasado ${currentElapsed - paceSeconds}s`
+                            : paceState === "ahead"
+                              ? `adiantado ${paceSeconds - currentElapsed}s`
+                              : `no ritmo · ${currentElapsed}s`}
+                      </span>
                       <span
                         className={`font-mono text-sm font-semibold ${timeLeft < 60 ? "text-destructive" : ""}`}
                       >
@@ -1327,6 +1413,12 @@ export default function SimuladoInteligente() {
                 </Button>
               </div>
             </section>
+
+            {/* v6.9.7 (item 4): bloco de ritmo do simulado. */}
+            <PaceCard
+              summary={result.pace}
+              className="soe-card bg-transparent"
+            />
 
             <section className="soe-card p-4">
               <h3 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">

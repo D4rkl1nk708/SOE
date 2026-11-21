@@ -1,4 +1,5 @@
 import { normalizeString } from "../shared/utils";
+import { normalizeDisciplineKey } from "../shared/disciplineDuplicates";
 
 const STOP_WORDS = new Set([
   "e",
@@ -86,31 +87,11 @@ const SYNONYM_GROUPS: string[][] = [
 /**
  * Chave de comparação de nome de disciplina.
  *
- * O TEC manda nomes como "Matéria: Direito Administrativo (Doutrina e Leis
- * Federais)" e "TI - Desenvolvimento de Sistemas"; sem limpar prefixo,
- * parênteses e acento o matcher não reconhece a disciplina existente e cria
- * uma duplicata (24 disciplinas onde deveriam ser ~12).
+ * A implementação vive em `shared/disciplineDuplicates.ts` (v6.9.7) para ser
+ * reutilizada pela consolidação de duplicadas também no cliente. Reexportada
+ * aqui porque todo o matcher do TEC já importa deste módulo.
  */
-export function normalizeDisciplineKey(
-  name: string | null | undefined,
-): string {
-  let value = String(name || "");
-  // "Matéria:", "Disciplina -", "Assunto:"
-  value = value.replace(
-    /^\s*(mat[eé]ria|disciplina|assunto)\s*[:\-–—]\s*/i,
-    "",
-  );
-  // "TI - X", "T.I. - X"
-  value = value.replace(/^\s*t\.?\s*i\.?\s*[-–—]\s*/i, "");
-  // Parênteses explicativos: "(Doutrina e Leis Federais)", "(Parte 1)"
-  value = value.replace(/\([^)]*\)/g, " ");
-  // Cauda de fonte jurídica: "- Doutrina e Leis", "- Jurisprudência"
-  value = value.replace(
-    /\s*[-–—]\s*(doutrina|leis?|jurisprud[eê]ncia|teoria|exerc[ií]cios?|quest[oõ]es)\b.*$/i,
-    " ",
-  );
-  return normalizeString(value);
-}
+export { normalizeDisciplineKey };
 
 export function getMeaningfulTokens(s: string): string[] {
   const norm = normalizeString(s);

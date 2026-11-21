@@ -1,6 +1,8 @@
 import { formatPlainTextHtml } from "@/lib/sanitize";
 import { trpc } from "@/lib/trpc";
 import { PageShell } from "@/components/layout/PageShell";
+import { SegmentedControl } from "@/components/apple";
+import { LeiSecaBoard } from "@/components/apple/LeiSecaBoard";
 import { formatDateForDb } from "@shared/scheduling";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -544,6 +546,20 @@ export default function Flashcards() {
   const [filterDisc, setFilterDisc] = useState<number | null>(null);
   const [reviewFilter, setReviewFilter] = useState<"due" | "all">("due");
   const [hardMode, setHardMode] = useState(false);
+  // v6.9.7 (item 3): aba "Lei seca" reutiliza a mesma sessão de cartões.
+  const [tab, setTab] = useState<"cards" | "lei-seca">("cards");
+  const [leiSecaCards, setLeiSecaCards] = useState<any[] | null>(null);
+
+  const tabs = (
+    <SegmentedControl
+      value={tab}
+      options={[
+        { value: "cards", label: "Acervo" },
+        { value: "lei-seca", label: "Lei seca" },
+      ]}
+      onChange={(value) => setTab(value)}
+    />
+  );
 
   const today = formatDateForDb(new Date());
   const dueCards = useMemo(
@@ -559,11 +575,12 @@ export default function Flashcards() {
   }, [cards, filterDisc]);
 
   const reviewCards = useMemo(() => {
+    if (leiSecaCards) return leiSecaCards;
     let list = reviewFilter === "due" ? dueCards : (cards as any[]);
     if (filterDisc)
       list = list.filter((c: any) => c.disciplineId === filterDisc);
     return list;
-  }, [dueCards, cards, filterDisc, reviewFilter]);
+  }, [dueCards, cards, filterDisc, reviewFilter, leiSecaCards]);
 
   if (isLoading)
     return (
@@ -573,11 +590,15 @@ export default function Flashcards() {
     );
 
   if (mode === "review") {
+    const exitReview = () => {
+      setLeiSecaCards(null);
+      setMode("list");
+    };
     return (
       <div className="h-[calc(100vh-6rem)] flex flex-col">
         <div className="flex items-center justify-between mb-4 px-2">
           <button
-            onClick={() => setMode("list")}
+            onClick={exitReview}
             className="flex items-center gap-2 p-2 rounded-xl bg-secondary/40 hover:bg-secondary/60 transition-all text-xs font-black uppercase tracking-widest"
           >
             <ChevronLeft className="h-4 w-4" /> Cancelar
@@ -606,7 +627,7 @@ export default function Flashcards() {
               </p>
             </div>
             <button
-              onClick={() => setMode("list")}
+              onClick={exitReview}
               className="px-10 py-3 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest"
             >
               Painel Principal
@@ -615,7 +636,7 @@ export default function Flashcards() {
         ) : (
           <ReviewSession
             cards={reviewCards}
-            onDone={() => setMode("list")}
+            onDone={exitReview}
             hardMode={hardMode}
           />
         )}
@@ -649,6 +670,30 @@ export default function Flashcards() {
     );
   }
 
+  if (tab === "lei-seca") {
+    return (
+      <PageShell
+        eyebrow="Memória"
+        title="Lei seca"
+        description="Literalidade montada do seu próprio material: erros com resolução e notas do tópico."
+      >
+        <LeiSecaBoard
+          tabs={tabs}
+          onReview={(list) => {
+            if (list.length === 0) return;
+            setReviewFilter("all");
+            setLeiSecaCards(list);
+            setMode("review");
+          }}
+          onEdit={(card) => {
+            setEditingCard(card);
+            setMode("edit");
+          }}
+        />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell
       eyebrow="Memória"
@@ -676,6 +721,14 @@ export default function Flashcards() {
         </Button>
       }
     >
+      {/* v6.9.7: abas Cards / Lei seca */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {tabs}
+        <span className="text-[11.5px] text-muted-foreground">
+          {cards.length} no acervo · {dueCards.length} pendentes hoje
+        </span>
+      </div>
+
       {/* Hero CTA */}
       <AnimatePresence>
         {dueCards.length > 0 && (

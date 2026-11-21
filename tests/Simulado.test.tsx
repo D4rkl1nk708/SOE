@@ -40,6 +40,8 @@ vi.mock("lucide-react", () => ({
   Check: () => <span data-testid="icon-check" />,
   X: () => <span data-testid="icon-x" />,
   Sparkles: () => <span data-testid="icon-sparkles" />,
+  // v6.9.7: ícones do bloco de ritmo (apple/PaceCard).
+  Gauge: () => <span data-testid="icon-gauge" />,
 }));
 
 describe("Simulado Component", () => {

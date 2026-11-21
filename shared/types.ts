@@ -123,6 +123,53 @@ export interface MockExam {
   questions?: SimuladoQuestion[];
   /** questionId -> alternativa marcada */
   answers?: Record<string, string>;
+  /**
+   * v6.9.7 (item 4): tempo por questão. É o `answers[i].seconds`/`answeredAt`
+   * do item, guardado em mapa paralelo para não quebrar o mapa de letras.
+   */
+  answerTimings?: Record<
+    string,
+    { seconds: number; answeredAt?: string; viewedAt?: string }
+  >;
+  /** Segundos-alvo por questão (padrão da banca: Cebraspe 90s, FGV 120s). */
+  pace?: number;
+  /** Relatório de ritmo persistido na entrega (`shared/examPace`). */
+  paceReport?: {
+    paceSeconds: number;
+    totalQuestions: number;
+    answered: number;
+    blank: number;
+    totalSeconds: number;
+    averageSeconds: number;
+    medianSeconds: number;
+    p90Seconds: number;
+    secondsOverTarget: number;
+    aboveTargetCount: number;
+    pctAboveTarget: number;
+    projectedQuestionsAtPace: number;
+    blankAtTargetPace: number;
+    questionsLostToLateness?: number;
+    projectedCorrect: number;
+    histogram: Array<{
+      label: string;
+      from: number;
+      to: number | null;
+      count: number;
+    }>;
+    slowestTopic: {
+      name: string;
+      questions: number;
+      secondsOver: number;
+      aboveTarget: number;
+    } | null;
+    slowestDiscipline: {
+      name: string;
+      questions: number;
+      secondsOver: number;
+      aboveTarget: number;
+    } | null;
+    conclusion: string;
+  } | null;
   blueprint?: SimuladoBlueprintItem[];
   status?: "in_progress" | "completed";
   mode?: "cebraspe" | "multiple";
@@ -276,6 +323,8 @@ export interface UserSettings {
   dailyGoalMinutes?: number;
   /** Teto diário de revisões exibidas na fila (padrão 25; 0 = sem limite) */
   dailyReviewCap?: number;
+  /** v6.9.7: meta diária de cartões do deck Lei seca (padrão 15; 0 = desligado) */
+  leiSecaDailyCap?: number;
   /** Anotações globais do usuário - R26 */
   topicNotes?: Array<{
     id: string;
@@ -454,6 +503,10 @@ export interface Flashcard {
   archived?: boolean;
   /** Erro do Caderno de Erros que originou este card (evita duplicar). */
   sourceErrorId?: number;
+  /** Deck do cartão: ausente = deck normal; "lei-seca" = literalidade (v6.9.7). */
+  deck?: "lei-seca" | string;
+  /** Origem textual do tópico (`topicNotes[i]`), quando não há nota do banco. */
+  sourceNoteKey?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -33,6 +33,7 @@ import { AIAnalysis } from "@/components/AIAnalysis";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
 import { DisciplineTrendCard } from "@/components/DisciplineTrendCard";
+import { CalibrationCard } from "@/components/apple/CalibrationCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
@@ -44,6 +45,8 @@ export default function Statistics() {
   const { data: completedRevisions } = trpc.revision.list.useQuery({
     completed: true,
   });
+  // v6.9.7 (item 1): certeza × acerto do usuário.
+  const { data: calibration } = trpc.study.calibration.useQuery();
 
   const [showShare, setShowShare] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -387,6 +390,12 @@ export default function Statistics() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CalibrationCard
+        summary={calibration}
+        advice={calibration?.advice}
+        byDiscipline={calibration?.byDiscipline}
+      />
 
       <div className="soe-card p-6">
         <div className="flex items-center gap-3 mb-6">

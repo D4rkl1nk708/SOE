@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/layout/PageShell";
+import { DisciplineConsolidationCard } from "@/components/apple/DisciplineConsolidationCard";
 
 const PRESET_COLORS = [
   "#3B82F6",
@@ -172,6 +173,9 @@ export default function Disciplines() {
         },
       ]}
     >
+      {/* v6.9.7 (item 7): consolidação dos grupos duplicados em um clique. */}
+      <DisciplineConsolidationCard />
+
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button
           variant="outline"

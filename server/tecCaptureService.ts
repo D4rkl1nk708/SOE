@@ -342,6 +342,11 @@ export type TecLiveAttempt = {
   topicId: number | null;
   correct: boolean;
   source: string;
+  /** v6.9.7 (item 1): confiança declarada, para a calibração da sessão. */
+  confidence?: "chute" | "acho" | "certeza" | null;
+  confidencePhase?: "before_result" | "after_result" | null;
+  answered?: boolean;
+  disciplineId?: number;
 };
 
 export type TecLiveActivity = {
@@ -490,6 +495,10 @@ export async function buildTecLiveActivity(
       topicId: attempt.topicId ?? null,
       correct: !!attempt.correct,
       source: attempt.source || "manual",
+      confidence: attempt.confidence ?? null,
+      confidencePhase: attempt.confidencePhase ?? null,
+      answered: attempt.answered !== false,
+      disciplineId: attempt.disciplineId,
     })),
     lastCaptureAt,
     autoCompleted,

@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { evaluateSimulado } from "@shared/mockExamStats";
+import { bancaPaceSeconds, summarizePace } from "@shared/examPace";
 
 export type SimuladoMode = "multiple" | "cebraspe";
 
@@ -78,7 +79,10 @@ type SimuladoGenerationContextValue = {
     reviewed: boolean;
   } | null;
   start: (payload: StartPayload) => Promise<void>;
-  submit: (answers: Record<string, string>) => Promise<any | null>;
+  submit: (
+    answers: Record<string, string>,
+    timings?: Record<string, { seconds: number; answeredAt?: string }>,
+  ) => Promise<any | null>;
   reset: () => void;
   loadExam: (exam: any) => boolean;
 };
@@ -411,7 +415,10 @@ export function SimuladoGenerationProvider({
   );
 
   const submit = useCallback(
-    async (answers: Record<string, string>) => {
+    async (
+      answers: Record<string, string>,
+      timings?: Record<string, { seconds: number; answeredAt?: string }>,
+    ) => {
       if (!questions.length) return null;
       const evaluation = evaluateSimulado(questions, answers);
       // Item 4 (v6.9.4): entrega em branco NÃO é prova concluída. O chamador
@@ -441,6 +448,25 @@ export function SimuladoGenerationProvider({
         perDiscipline.set(question.disciplineName, item);
       }
       const blank = evaluation.blank;
+      // v6.9.7 (item 4): relatório de ritmo calculado uma vez e persistido.
+      const paceSeconds = bancaPaceSeconds(
+        meta?.mode === "cebraspe" ? "CEBRASPE" : undefined,
+      );
+      const paceSummary = summarizePace(
+        questions.map((question) => ({
+          id: question.id,
+          seconds: timings?.[question.id]?.seconds ?? 0,
+          answeredAt: timings?.[question.id]?.answeredAt,
+          answered: Boolean(answers[question.id]),
+          correct:
+            String(answers[question.id] || "").toUpperCase() ===
+            String(question.correctAnswer || "").toUpperCase(),
+          disciplineName: question.disciplineName,
+          topicName: question.topicName,
+        })),
+        paceSeconds,
+        questions.length,
+      );
       const result = {
         correct,
         wrong,
@@ -456,6 +482,7 @@ export function SimuladoGenerationProvider({
           ...value,
           accuracy: Math.round((value.correct / value.total) * 100),
         })),
+        pace: paceSummary,
       };
       if (examId) {
         try {
@@ -466,6 +493,9 @@ export function SimuladoGenerationProvider({
             blank,
             totalQuestions: questions.length,
             answers,
+            answerTimings: timings ?? {},
+            pace: paceSeconds,
+            paceReport: paceSummary,
             status: "completed",
             completedAt: new Date().toISOString(),
           });
@@ -506,7 +536,14 @@ export function SimuladoGenerationProvider({
       setStatus("completed");
       return result;
     },
-    [examId, questions, recordAttempt, updateExam, utils.mockExam.list],
+    [
+      examId,
+      meta?.mode,
+      questions,
+      recordAttempt,
+      updateExam,
+      utils.mockExam.list,
+    ],
   );
 
   const loadExam = useCallback((exam: any) => {

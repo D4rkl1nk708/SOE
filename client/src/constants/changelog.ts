@@ -11,6 +11,51 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.7",
+    date: "21/11/2026",
+    title:
+      "Calibração do chute, lei seca do seu próprio material e ritmo de prova",
+    categories: [
+      {
+        title: "🎯 Calibração certeza × acerto",
+        type: "feature",
+        items: [
+          "Novo card em Estatísticas e no relatório da sessão: quantas questões você acertou por nível (certeza, dúvida, chute), a taxa de chute e o índice de confiança.",
+          "A confiança que você marca no TEC passou a ser gravada de verdade na tentativa — antes o eco da captura era descartado e o dado se perdia.",
+          "Frase de risco objetiva: quantos acertos vieram de chute e quantas certezas você errou. Nada de IA aqui: é contagem.",
+          "Com mais de 80% das tentativas sem confiança declarada, o card vira um convite curto em vez de um gráfico vazio.",
+        ],
+      },
+      {
+        title: "📕 Lei seca automática",
+        type: "feature",
+        items: [
+          "Nova aba em Flashcards: monta cartões de literalidade a partir dos seus erros com resolução e das notas dos tópicos — nenhum texto legal inventado, cada cartão aponta a origem.",
+          "Detecta os pontos cegos (10+ questões com menos de 60% de acerto) e prioriza os tópicos que citam artigo.",
+          "Deck com meta diária de 15 cartões, reaproveitando a repetição espaçada que já existia; cada cartão mostra tópico e número da questão e pode ser editado ou apagado.",
+        ],
+      },
+      {
+        title: "⏱ Ritmo de prova no simulado",
+        type: "feature",
+        items: [
+          "Durante a prova: alvo por questão conforme a banca (Cebraspe 90s, FGV 120s), indicador 'no ritmo / atrasado / adiantado' e aviso discreto ao passar do dobro do alvo — nada bloqueia a resposta.",
+          "No resultado: mediana, média, distribuição por faixa de tempo, questões acima do alvo, o tópico onde você perdeu mais tempo e quantas questões ficariam em branco no ritmo alvo.",
+          "O tempo por questão é gravado no simulado, então o relatório reabre depois sem recalcular.",
+        ],
+      },
+      {
+        title: "🧹 Disciplinas duplicadas",
+        type: "fix",
+        items: [
+          "Card em Disciplinas com a prévia completa (origem → destino, tópicos e questões) e um botão único para consolidar todos os grupos.",
+          "A mescla soma a performance das disciplinas — antes o total de questões da origem desaparecia do catálogo — e registra o evento no histórico.",
+          "Backup automático em data/backups antes de cada mescla; rodar de novo sem duplicadas não faz nada.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.6",
     date: "21/11/2026",
     title:

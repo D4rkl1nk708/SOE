@@ -25,6 +25,18 @@ import {
   upsertLesson,
   type SavedLesson,
 } from "@shared/topicLessons";
+import {
+  calibrationAdvice,
+  summarizeCalibration,
+  summarizeCalibrationByDiscipline,
+} from "@shared/calibration";
+import {
+  buildLeiSecaCards,
+  resolveDailyCap,
+  selectLeiSecaToday,
+  summarizeLeiSecaDeck,
+} from "@shared/leiSeca";
+import { summarizeDuplicates } from "@shared/disciplineDuplicates";
 
 const now = () => new Date().toISOString();
 
@@ -1030,6 +1042,64 @@ export async function localRecordQuestionAttempt(input: {
   return record;
 }
 
+/**
+ * v6.9.7 (item 1.3, offline): anota a confiança na resposta do TEC mais recente
+ * que ainda está sem confiança, quando o rótulo não casa com tópico nenhum.
+ */
+async function attachLocalConfidence(input: {
+  correct: boolean;
+  confidence?: "chute" | "acho" | "certeza" | null;
+  seconds?: number;
+}): Promise<{
+  ok: boolean;
+  reason?: string;
+  attached?: boolean;
+  attemptId?: string;
+  topicId?: number;
+  topicName?: string;
+} | null> {
+  if (!input.confidence) return null;
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const attempts: any[] = Array.isArray(settings.questionAttempts)
+    ? [...settings.questionAttempts]
+    : [];
+  const nowMs = Date.parse(now());
+  let index = -1;
+  for (let i = attempts.length - 1; i >= 0; i--) {
+    const attempt = attempts[i];
+    if (!attempt || attempt.confidence) continue;
+    if (attempt.source !== "tec") continue;
+    if (Boolean(attempt.correct) !== Boolean(input.correct)) continue;
+    const createdMs = Date.parse(String(attempt.createdAt || ""));
+    if (!Number.isFinite(createdMs)) continue;
+    if (nowMs - createdMs > 30 * 60 * 1000) continue;
+    index = i;
+    break;
+  }
+  if (index < 0) return null;
+  const target = attempts[index];
+  attempts[index] = {
+    ...target,
+    confidence: input.confidence,
+    confidencePhase: "after_result",
+    seconds:
+      typeof input.seconds === "number" &&
+      !Number.isFinite(Number(target.seconds))
+        ? input.seconds
+        : target.seconds,
+  };
+  await db.users.update(LOCAL_USER_ID, {
+    settings: { ...settings, questionAttempts: attempts },
+  } as any);
+  return {
+    ok: true,
+    attached: true,
+    attemptId: String(target.id),
+    topicId: target.topicId ?? undefined,
+  };
+}
+
 /** Resposta vinda do TEC + grau de confiança (modo offline). */
 export async function localRecordTecAnswer(input: {
   disciplina: string;
@@ -1049,13 +1119,25 @@ export async function localRecordTecAnswer(input: {
   const discipline = disciplines.find(
     (item) => normalizeString(item.name) === normalizeString(input.disciplina),
   );
-  if (!discipline) return { ok: false, reason: "discipline_not_found" };
+  if (!discipline)
+    return (
+      (await attachLocalConfidence(input)) || {
+        ok: false,
+        reason: "discipline_not_found",
+      }
+    );
 
   const { topics } = await localTopicList({ disciplineId: discipline.id });
   const topic = topics.find(
     (item) => normalizeString(item.name) === normalizeString(input.assunto),
   );
-  if (!topic) return { ok: false, reason: "topic_not_found" };
+  if (!topic)
+    return (
+      (await attachLocalConfidence(input)) || {
+        ok: false,
+        reason: "topic_not_found",
+      }
+    );
 
   await localRecordQuestionAttempt({
     topicId: topic.id,
@@ -3719,5 +3801,175 @@ export function localGenerationStatus(): never {
 export function localCancelGeneration(): never {
   throw new Error(
     "Não há geração para cancelar no celular: a geração roda no servidor.",
+  );
+}
+
+// ─── v6.9.7: paridade offline (calibração, lei seca e consolidação) ──────────
+// As mesmas funções puras de `shared/` rodam sobre o IndexedDB: o APK não pode
+// mostrar um número diferente do desktop para o mesmo dado.
+
+export async function localStudyCalibration() {
+  const attempts = await localAttempts();
+  const disciplines = await localDisciplineList();
+  const summary = summarizeCalibration(attempts as any);
+  return {
+    ...summary,
+    advice: calibrationAdvice(summary),
+    byDiscipline: summarizeCalibrationByDiscipline(
+      attempts as any,
+      disciplines.map((discipline) => ({
+        id: discipline.id,
+        name: discipline.name,
+      })),
+      5,
+    ),
+    generatedAt: now(),
+  };
+}
+
+/** Monta o deck Lei seca no APK (mesmas regras e mesmas origens). */
+export async function localBuildLeiSeca(input?: {
+  topicIds?: number[];
+}): Promise<{
+  created: number;
+  skipped: number;
+  total: number;
+  candidates: any[];
+}> {
+  const [disciplines, topics, errors, notes, cards] = await Promise.all([
+    db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.topics.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.questionErrors.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.notes.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.flashcards.where("userId").equals(LOCAL_USER_ID).toArray(),
+  ]);
+
+  const built = buildLeiSecaCards({
+    disciplines: disciplines as any,
+    topics: topics as any,
+    errors: errors as any,
+    notes: notes as any,
+    topicIds: input?.topicIds,
+  });
+
+  const existing = new Set<string>();
+  for (const card of cards as any[]) {
+    if (card.sourceErrorId) existing.add(`err:${card.sourceErrorId}`);
+    if (card.noteId) existing.add(`note:${card.noteId}`);
+    if (card.sourceNoteKey) existing.add(`key:${card.sourceNoteKey}`);
+  }
+
+  let created = 0;
+  let skipped = 0;
+  const today = formatDateForDb(new Date());
+  for (const draft of built.cards) {
+    const key = draft.sourceErrorId
+      ? `err:${draft.sourceErrorId}`
+      : draft.noteId
+        ? `note:${draft.noteId}`
+        : draft.sourceNoteKey
+          ? `key:${draft.sourceNoteKey}`
+          : "";
+    if (!key || existing.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    const id = await incCounter("flashcards");
+    const card: Flashcard & {
+      deck?: string;
+      sourceErrorId?: number;
+      sourceNoteKey?: string;
+    } = {
+      id,
+      userId: LOCAL_USER_ID,
+      disciplineId: draft.disciplineId,
+      topicId: draft.topicId,
+      noteId: draft.noteId,
+      front: draft.front,
+      back: draft.back,
+      interval: 1,
+      easeFactor: 2.5,
+      repetitions: 0,
+      nextReviewDate: today,
+      deck: draft.deck,
+      sourceErrorId: draft.sourceErrorId,
+      sourceNoteKey: draft.sourceNoteKey,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    await db.flashcards.add(card as any);
+    existing.add(key);
+    created += 1;
+  }
+
+  return {
+    created,
+    skipped,
+    total: built.cards.length,
+    candidates: built.candidates.slice(0, 20),
+  };
+}
+
+export async function localLeiSecaToday() {
+  const user = await db.users.get(LOCAL_USER_ID);
+  const settings = (user?.settings || {}) as Record<string, any>;
+  const cards = await db.flashcards
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const today = formatDateForDb(new Date());
+  const cap = resolveDailyCap(settings.leiSecaDailyCap);
+  const summary = summarizeLeiSecaDeck(cards as any, today, cap);
+  const batch = selectLeiSecaToday(cards as any, today, cap);
+  return {
+    cards: batch,
+    total: summary.total,
+    dueToday: summary.dueToday,
+    cap,
+    candidates: [] as any[],
+  };
+}
+
+/** Prévia da consolidação no APK: só leitura. */
+export async function localDisciplineConsolidationPreview() {
+  const [disciplines, topics] = await Promise.all([
+    db.disciplines.where("userId").equals(LOCAL_USER_ID).toArray(),
+    db.topics.where("userId").equals(LOCAL_USER_ID).toArray(),
+  ]);
+  const overview = summarizeDuplicates(disciplines as any);
+  const topicCount = (disciplineId: number) =>
+    topics.filter((topic) => topic.disciplineId === disciplineId).length;
+  const groups = overview.groups.map((group) => {
+    const sources = group.sources.map((source) => ({
+      ...source,
+      topics: topicCount(source.id),
+    }));
+    return {
+      key: group.key,
+      targetId: group.suggestedTarget.id,
+      targetName: group.suggestedTarget.name,
+      targetQuestions: group.suggestedTarget.questions,
+      sources,
+      topics: sources.reduce((sum, source) => sum + source.topics, 0),
+      questions: sources.reduce((sum, source) => sum + source.questions, 0),
+    };
+  });
+  return {
+    groups,
+    disciplinesBefore: overview.disciplinesBefore,
+    disciplinesAfter: overview.disciplinesAfter,
+    totalTopics: groups.reduce((sum, group) => sum + group.topics, 0),
+    questionsMoved: groups.reduce((sum, group) => sum + group.questions, 0),
+  };
+}
+
+/**
+ * Consolidação no modo offline. A mescla completa (backup em arquivo) vive no
+ * servidor; aqui o IndexedDB é local e o backup é o export do próprio app, por
+ * isso a operação é recusada com a explicação em vez de mesclar sem rede.
+ */
+export function localConsolidateDisciplines(): never {
+  throw new Error(
+    "Consolidar duplicadas move tópicos, revisões, erros e flashcards com backup automático: faça no SOE do computador. A prévia e o alerta de duplicadas aparecem aqui no celular.",
   );
 }

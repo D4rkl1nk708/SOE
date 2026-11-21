@@ -14,6 +14,8 @@ import {
 } from "@shared/sessionReport";
 import { TecSessionLivePanel } from "@/components/tec/TecSessionLivePanel";
 import { TecPendingClassifications } from "@/components/tec/TecPendingClassifications";
+import { CalibrationCard } from "@/components/apple/CalibrationCard";
+import { calibrationAdvice, summarizeCalibration } from "@shared/calibration";
 import { decideNextBlock, decideReviewGap } from "@shared/decisions";
 import {
   ArrowLeft,
@@ -97,6 +99,13 @@ export default function GuidedSession() {
   }));
   const [receipt, setReceipt] = useState<any>(null);
   const [report, setReport] = useState<SessionReport | null>(null);
+  // v6.9.7 (item 1): tentativas da sessão (com confiança) para o card de calibração.
+  const [sessionAttempts, setSessionAttempts] = useState<any[]>([]);
+  const sessionCalibration = useMemo(
+    () =>
+      sessionAttempts.length > 0 ? summarizeCalibration(sessionAttempts) : null,
+    [sessionAttempts],
+  );
   const [revisionDone, setRevisionDone] = useState(false);
   // Quando o usuário abriu o TEC nesta sessão: base do aviso "nenhuma resposta
   // detectada há X min".
@@ -229,6 +238,8 @@ export default function GuidedSession() {
         globalAfter: afterSnapshot.accuracy,
       });
       if (!fromAttempts.noData) sessionReport = fromAttempts;
+      // v6.9.7 (item 1): a calibração da sessão vem das mesmas tentativas.
+      setSessionAttempts((live?.attempts as any[]) || []);
     } catch {
       // servidor antigo/offline: mantém o relatório por delta
     }
@@ -924,6 +935,15 @@ export default function GuidedSession() {
                 )}
               </div>
             </div>
+          )}
+
+          {sessionCalibration && (
+            <CalibrationCard
+              summary={sessionCalibration}
+              advice={calibrationAdvice(sessionCalibration)}
+              compact
+              className="soe-card bg-transparent"
+            />
           )}
 
           {report && report.topics.length > 0 && (
