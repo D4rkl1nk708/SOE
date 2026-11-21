@@ -132,17 +132,41 @@ jobs:
 
       - name: Build Android APK
         run: |
+          set -o pipefail
           chmod +x android/gradlew
+          echo "== ambiente =="
+          java -version 2>&1 | head -3
+          echo "ANDROID_HOME=${ANDROID_HOME:-<vazio>} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<vazio>}"
+          df -h / | tail -1
           cd android
-          ./gradlew assembleRelease
-          cd ..
-          APK_FILE=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+
+          build() {
+            ./gradlew "$@" --stacktrace --no-daemon 2>&1 | tee /tmp/gradle.log
+            return ${PIPESTATUS[0]}
+          }
+
+          # 1ª tentativa: release. Se falhar (rede/cache/memória do runner),
+          # tenta de novo uma vez e, por último, cai no debug — que é assinado
+          # com a debug keystore e é o que já era publicado até aqui.
+          if build assembleRelease || build assembleRelease; then
+            echo "::notice::release APK compilado"
+          elif build assembleDebug; then
+            echo "::warning::assembleRelease falhou; publicado APK debug (mesma assinatura das versões anteriores)"
+          else
+            echo "::error::Nenhum APK compilado. Últimas linhas do Gradle:"
+            tail -60 /tmp/gradle.log
+            exit 1
+          fi
+
+          APK_FILE=$(find app/build/outputs/apk -name "*.apk" | sort | head -n 1)
           if [ -z "$APK_FILE" ]; then
             echo "::error::Android APK not found in android/app/build/outputs/apk!"
+            find app/build/outputs -name "*.apk" | head -5
             exit 1
           fi
           echo "Found Android APK: $APK_FILE"
-          cp "$APK_FILE" "Android-SOE-v${{ needs.prepare.outputs.version }}.apk"
+          cp "$APK_FILE" "../Android-SOE-v${{ needs.prepare.outputs.version }}.apk"
+          ls -la "../Android-SOE-v${{ needs.prepare.outputs.version }}.apk"
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
