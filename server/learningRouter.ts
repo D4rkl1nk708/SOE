@@ -10,6 +10,7 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
+import { parseAiJson } from "./aiJson";
 import * as learning from "./learningService";
 import * as store from "./learningStore";
 import { matchCadernoForDiscipline, cadernoUrlFor } from "./tecLink";
@@ -23,12 +24,30 @@ async function callAI(
   prompt: string,
   maxTokens = 1600,
 ): Promise<string> {
+  // JSON estruturado e sem "thinking": no Gemini 2.5 o thinking consumia o
+  // orçamento de saída e o JSON chegava truncado (o erro que o usuário viu).
   return callAiProvider(
     provider,
     apiKeyString,
     prompt,
     Math.max(maxTokens, 4000),
+    undefined,
+    { noThinking: true, json: true },
   );
+}
+
+/**
+ * Chave efetiva: a que o cliente mandou ou, de preferência, a salva nas
+ * configurações do usuário (o app não precisa expor a chave no browser).
+ */
+async function resolveApiKey(
+  userId: number,
+  provided?: string,
+): Promise<string> {
+  const direct = String(provided || "").trim();
+  if (direct) return direct;
+  const settings = await storage.getUserSettings(userId);
+  return String(settings?.aiApiKey || "").trim();
 }
 
 function toStringList(value: unknown): string[] {
@@ -143,7 +162,7 @@ export const learningRouter = router({
       z.object({
         docId: z.string(),
         sectionIndex: z.number().min(0),
-        apiKey: z.string(),
+        apiKey: z.string().optional(),
         provider: providerSchema,
       }),
     )
@@ -170,8 +189,13 @@ export const learningRouter = router({
         "pageFrom/pageTo: páginas reais (dentro do intervalo informado) onde a resposta está.",
       ].join("\n");
 
-      const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
-      const parsed = extractJSON(raw) as any;
+      const raw = await callAI(
+        input.provider,
+        await resolveApiKey(ctx.user.id, input.apiKey),
+        prompt,
+        1400,
+      );
+      const parsed = parseAiJson(raw) as any;
       const questions = Array.isArray(parsed?.questions)
         ? parsed.questions.slice(0, 5).map((item: any, index: number) => ({
             question: String(item?.question || "").trim(),
@@ -197,7 +221,7 @@ export const learningRouter = router({
         topicName: z.string().min(2),
         disciplineName: z.string().optional().default(""),
         context: z.string().optional().default(""),
-        apiKey: z.string(),
+        apiKey: z.string().optional(),
         provider: providerSchema,
       }),
     )
@@ -219,8 +243,13 @@ export const learningRouter = router({
         .filter(Boolean)
         .join("\n");
 
-      const raw = await callAI(input.provider, input.apiKey, prompt, 1400);
-      const parsed = extractJSON(raw) as any;
+      const raw = await callAI(
+        input.provider,
+        await resolveApiKey(ctx.user.id, input.apiKey),
+        prompt,
+        1400,
+      );
+      const parsed = parseAiJson(raw) as any;
       const analogies = Array.isArray(parsed?.analogies)
         ? parsed.analogies.slice(0, 3).map((item: any) => ({
             analogy: String(item?.analogy || "").trim(),
@@ -244,7 +273,7 @@ export const learningRouter = router({
       z.object({
         topicName: z.string().min(2),
         disciplineName: z.string().optional().default(""),
-        apiKey: z.string(),
+        apiKey: z.string().optional(),
         provider: providerSchema,
       }),
     )
@@ -271,8 +300,13 @@ export const learningRouter = router({
         .filter(Boolean)
         .join("\n");
 
-      const raw = await callAI(input.provider, input.apiKey, prompt, 3000);
-      const parsed = extractJSON(raw) as any;
+      const raw = await callAI(
+        input.provider,
+        await resolveApiKey(ctx.user.id, input.apiKey),
+        prompt,
+        12000,
+      );
+      const parsed = parseAiJson(raw) as any;
       const html = String(parsed?.html || "").trim();
       if (!html.toLowerCase().includes("<html")) {
         throw new Error("A IA não devolveu um HTML válido. Tente de novo.");

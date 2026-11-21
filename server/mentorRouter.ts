@@ -12,6 +12,7 @@ import path from "path";
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 import { callAiProvider } from "./aiProviders";
+import { parseAiJson } from "./aiJson";
 
 async function callAI(
   provider: "claude" | "gemini" | "openai",
@@ -120,7 +121,13 @@ export function extractJSON(text: string): unknown {
     };
   }
 
-  throw new Error("Não foi possível recuperar o JSON da resposta truncada.");
+  // Última tentativa: parser tolerante (cerca de markdown, texto em volta,
+  // controle cru, JSON cortado no fim).
+  try {
+    return parseAiJson(text) as any;
+  } catch {
+    throw new Error("Não foi possível recuperar o JSON da resposta truncada.");
+  }
 }
 
 // ─── router ───────────────────────────────────────────────────────────────────
