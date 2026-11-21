@@ -1,3 +1,4 @@
+import { formatPlainTextHtml } from "@/lib/sanitize";
 import { trpc } from "@/lib/trpc";
 import { PageShell } from "@/components/layout/PageShell";
 import { formatDateForDb } from "@shared/scheduling";
@@ -297,8 +298,8 @@ function ReviewSession({
                   style={{ color: "var(--app-fg)" }}
                   dangerouslySetInnerHTML={{
                     __html: flipped
-                      ? `<div class="text-2xl leading-relaxed">${card.back}</div>`
-                      : `<div class="text-3xl font-black tracking-tight">${card.front}</div>`,
+                      ? `<div class="text-2xl leading-relaxed">${formatPlainTextHtml(card.back)}</div>`
+                      : `<div class="text-3xl font-black tracking-tight">${formatPlainTextHtml(card.front)}</div>`,
                   }}
                 />
               )}
@@ -822,7 +823,9 @@ export default function Flashcards() {
                     <p
                       className="text-sm font-bold leading-relaxed line-clamp-3"
                       style={{ color: "var(--app-fg)" }}
-                      dangerouslySetInnerHTML={{ __html: card.front }}
+                      dangerouslySetInnerHTML={{
+                        __html: formatPlainTextHtml(card.front),
+                      }}
                     />
                   </div>
                   <div className="h-px bg-secondary/40 w-1/4" />
@@ -832,7 +835,9 @@ export default function Flashcards() {
                     </p>
                     <p
                       className="text-xs opacity-50 line-clamp-3 leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: card.back }}
+                      dangerouslySetInnerHTML={{
+                        __html: formatPlainTextHtml(card.back),
+                      }}
                     />
                   </div>
                 </div>

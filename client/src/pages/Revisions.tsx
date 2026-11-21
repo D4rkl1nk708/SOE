@@ -205,12 +205,25 @@ export default function Revisions() {
         cap: dailyReviewCap,
       };
     }
+    // Tópicos que já tiveram revisão concluída HOJE saem da fila do dia: a
+    // geração 25/50 cria ~150 revisões por tópico, então sem isso a "próxima"
+    // era sempre o mesmo tema (relato do dono em 21/11).
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const topicsDoneToday = new Set<number>();
+    for (const revision of enrichedRevisions as any[]) {
+      if (!revision?.completed) continue;
+      const when = String(revision.completedAt || "").slice(0, 10);
+      if (when === todayKey) topicsDoneToday.add(revision.topicId);
+    }
+
     const result = prioritizeReviews(
       enrichedRevisions,
       (topicsData?.topics || []) as any,
       (topicsData?.disciplines || []) as any,
       new Date(),
       dailyReviewCap,
+      { topicsDoneToday },
     );
     return {
       queue: result.queue.map((item) => item.revision),

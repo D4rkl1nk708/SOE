@@ -1,3 +1,4 @@
+import { escapeHtml } from "@/lib/sanitize";
 import { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -329,7 +330,8 @@ export function EssaysTab() {
       .split(/\n+/)
       .filter((l) => l.trim())
       .map((line, i) => {
-        const clean = line
+        // Escapa primeiro: o texto vem da IA/transcrição e pode conter HTML.
+        const clean = escapeHtml(line)
           .replace(/^#{1,4}\s/, "")
           .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
           .replace(/^[-*] /, "");

@@ -91,12 +91,45 @@ export async function getDashboardStats(userId: number) {
     revisionsByTopic.set(r.topicId, list);
   }
 
+  // Payload do dashboard: sai em toda tela. Com a base real chegava a 200 KB
+  // (studyEvents 82 KB, edital duplicado dentro de cada concurso). Enviamos só
+  // o que a UI usa; listas longas têm endpoint próprio.
+  const rawSettings = (settings || {}) as Record<string, any>;
+  const examList = Array.isArray(rawSettings.exams) ? rawSettings.exams : [];
+  const activeExam =
+    examList.find((exam: any) => exam.id === rawSettings.activeExamId) ??
+    examList[0] ??
+    null;
+  const activeRows = Array.isArray(activeExam?.editalRows)
+    ? activeExam.editalRows
+    : Array.isArray(rawSettings.editalRows)
+      ? rawSettings.editalRows
+      : [];
+  const settingsView: Record<string, any> = {
+    ...rawSettings,
+    studyEvents: Array.isArray(rawSettings.studyEvents)
+      ? rawSettings.studyEvents.slice(-30)
+      : [],
+    mentorObservations: Array.isArray(rawSettings.mentorObservations)
+      ? rawSettings.mentorObservations.slice(-10)
+      : [],
+    exams: examList.map((exam: any) => {
+      const { editalRows: rows, ...rest } = exam || {};
+      return {
+        ...rest,
+        editalRowCount: Array.isArray(rows) ? rows.length : 0,
+      };
+    }),
+    activeExamId: activeExam?.id ?? rawSettings.activeExamId,
+    editalRows: activeRows,
+  };
+
   return {
     totalTopics: topics.length,
     totalDisciplines: disciplines.length,
     pendingRevisions,
     completedRevisions,
-    settings,
+    settings: settingsView,
     disciplineStats: disciplines.map((d) => {
       const discTopics = topicsByDiscipline.get(d.id) ?? [];
       const totalCorrect = discTopics.reduce(

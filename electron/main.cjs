@@ -248,7 +248,7 @@ function initApp() {
       height: 900,
       minWidth: 1000,
       minHeight: 700,
-      icon: path.join(__dirname, "..", "assets", "icons", "icon.png"),
+      icon: resolveAsset("assets", "icons", "icon.png") || undefined,
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -285,8 +285,47 @@ function initApp() {
     mainWindow.loadURL(url);
   }
 
+/**
+ * Ícone da bandeja. Antes era `nativeImage.createEmpty()`, ou seja, um quadrado
+ * invisível na área de notificação do Windows.
+ */
+function resolveAsset(...parts) {
+  const candidates = [
+    path.join(__dirname, "..", ...parts), // dev
+    path.join(process.resourcesPath || "", "app.asar", ...parts), // empacotado
+    path.join(process.resourcesPath || "", ...parts),
+    path.join(__dirname, "..", "build", ...parts),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (candidate && fs.existsSync(candidate)) return candidate;
+    } catch {
+      /* segue */
+    }
+  }
+  return null;
+}
+
+function trayImage() {
+  // `tray.png` é desenhado para 16px (livro grosso, fundo chapado); o ícone
+  // completo tem traços finos e virava mancha na bandeja.
+  const file =
+    resolveAsset("assets", "icons", "tray.png") ||
+    resolveAsset("assets", "icons", "icon.png");
+  if (!file) return nativeImage.createEmpty();
+  try {
+    const image = nativeImage.createFromPath(file);
+    if (image.isEmpty()) return nativeImage.createEmpty();
+    // Windows usa 16px (32 em telas 2x); macOS prefere 18px de altura.
+    if (process.platform === "darwin") return image.resize({ height: 18 });
+    return image.resize({ width: 16, height: 16 });
+  } catch {
+    return nativeImage.createEmpty();
+  }
+}
+
   function createTray(port) {
-    tray = new Tray(nativeImage.createEmpty());
+    tray = new Tray(trayImage());
     tray.setToolTip("SOE - Sistema de Organizacao de Estudos");
     updateTrayMenu(port);
 

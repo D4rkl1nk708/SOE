@@ -5,6 +5,23 @@
 import { retryWithBackoff } from "./retryWithBackoff";
 export type AiProvider = "gemini" | "openai" | "claude";
 
+/**
+ * Chave de reserva: quando a chamada chega sem chave (cliente novo, outra
+ * máquina, localStorage limpo), usamos a chave salva nas configurações do
+ * usuário. Sem isso a IA falhava com "Nenhuma API Key configurada" mesmo com a
+ * chave cadastrada em Ajustes.
+ */
+let fallbackApiKeyResolver: () => string | null = () => null;
+
+export function setFallbackApiKeyResolver(fn: () => string | null): void {
+  fallbackApiKeyResolver = fn;
+}
+
+/** Só para testes. */
+export function __resetFallbackApiKeyForTests(): void {
+  fallbackApiKeyResolver = () => null;
+}
+
 export function normalizeApiKeys(apiKeyString?: string | null): string[] {
   if (!apiKeyString) return [];
 
@@ -355,8 +372,19 @@ export async function callAiProvider(
   imageBase64?: string,
   options: AiCallOptions = {},
 ): Promise<string> {
-  const apiKeys = normalizeApiKeys(apiKeyString);
-  if (apiKeys.length === 0) throw new Error("Nenhuma API Key configurada.");
+  let apiKeys = normalizeApiKeys(apiKeyString);
+  if (apiKeys.length === 0) {
+    try {
+      apiKeys = normalizeApiKeys(fallbackApiKeyResolver());
+    } catch {
+      apiKeys = [];
+    }
+  }
+  if (apiKeys.length === 0) {
+    throw new Error(
+      "Nenhuma API Key configurada. Cadastre a chave em Ajustes para usar os recursos de IA.",
+    );
+  }
 
   // Rodízio: cada chamada começa numa chave diferente, espalhando a cota e o
   // limite por minuto em vez de martelar sempre a chave 1.

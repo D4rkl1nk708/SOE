@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import * as storage from "../jsonStorage";
 import { syncCors } from "./syncCors";
+import { gzipResponses } from "./compress";
 import { handleTecAnswer } from "../tecCaptureService";
 import {
   findBestDisciplineMatch,
@@ -17,6 +18,8 @@ import {
   analyzeDisciplineOrTopicWithAI,
 } from "../tecDisciplineMatcher";
 import tecProxy from "../tecProxy";
+import { setFallbackApiKeyResolver } from "../aiProviders";
+import { readDatabase as readDatabaseSync } from "../jsonStorage";
 import { normalizeString, isFuzzyMatch } from "../../shared/utils";
 import { formatDateForDb } from "../../shared/scheduling";
 
@@ -41,10 +44,27 @@ export async function findAvailablePort(
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+/**
+ * Reserva de chave de IA: quando uma tela chama a IA sem mandar a chave (outra
+ * máquina, localStorage limpo), usamos a chave salva nas configurações.
+ */
+function installAiKeyFallback(): void {
+  setFallbackApiKeyResolver(() => {
+    try {
+      const db = readDatabaseSync();
+      const user = db.users?.[0];
+      return String(user?.settings?.aiApiKey || "").trim() || null;
+    } catch {
+      return null;
+    }
+  });
+}
+
 export async function configureApp(): Promise<{
   app: express.Express;
   server: Server;
 }> {
+  installAiKeyFallback();
   // Garante que existe pelo menos um usuário no banco (necessário para TEC no Electron)
   try {
     await storage.upsertUser({
@@ -60,6 +80,9 @@ export async function configureApp(): Promise<{
 
   const app = express();
   const server = createServer(app);
+
+  // Compressão primeiro: todo o resto se beneficia.
+  app.use(gzipResponses());
   // Limite alto para backups/PDFs, mas não 1 GB por requisição (DoS local).
   app.get("/api/health", (_req: any, res: any) => {
     let version = process.env.npm_package_version || "dev";

@@ -17,6 +17,19 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
       "Caderno Vivo: ler com conforto, ver a geração andar e aprender com animação",
     categories: [
       {
+        title: "🛠 Confiabilidade e desempenho",
+        type: "fix",
+        items: [
+          "Ícone da bandeja do Windows: era uma imagem vazia e agora aparece de verdade (ícone próprio para 16px, e os assets passaram a ir no pacote instalado).",
+          "Fila de revisões: um cartão por tópico e tópico já concluído hoje sai da fila do dia — acabou a sequência do mesmo tema.",
+          "Dashboard caiu de 200 KB para 130 KB e o servidor passou a comprimir as respostas (16 KB na prática).",
+          "Histórico diário do tópico mostrava o número anterior ao da atualização; corrigido.",
+          "Recursos de IA usam a chave salva em Ajustes quando a tela não manda chave (outra máquina, navegador limpo).",
+          "Conteúdo de flashcard e de redação não é mais injetado como HTML cru.",
+          "Eventos de estudo limitados a 1.000 por usuário (antes cresciam sem teto dentro das configurações).",
+        ],
+      },
+      {
         title: "📖 Ambiente de leitura",
         type: "improvement",
         items: [

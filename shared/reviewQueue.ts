@@ -43,6 +43,8 @@ export interface PrioritizedReview<T extends ReviewLike = ReviewLike> {
   disciplineWeight: number;
   lateness: number;
   daysLate: number;
+  /** Outras revisões pendentes do MESMO tópico (o tópico é um cartão só). */
+  sameTopicPending?: number;
 }
 
 export interface ReviewQueueResult<T extends ReviewLike = ReviewLike> {
@@ -157,12 +159,25 @@ export function scoreReview<T extends ReviewLike>(
   };
 }
 
+export interface PrioritizeOptions {
+  /**
+   * Tópicos que já tiveram revisão concluída HOJE. Eles saem da fila do dia
+   * (vão para "Em espera"): antes, o aluno concluía uma revisão e a próxima da
+   * fila era o mesmo tópico de novo, porque a geração 25/50 cria ~150 revisões
+   * de teste por tópico.
+   */
+  topicsDoneToday?: Iterable<number>;
+  /** Um cartão por tópico em vez de um por revisão (padrão: true). */
+  onePerTopic?: boolean;
+}
+
 export function prioritizeReviews<T extends ReviewLike>(
   revisions: T[],
   topics: QueueTopicLike[],
   disciplines: QueueDisciplineLike[],
   today: Date | string,
   cap: number = DEFAULT_DAILY_REVIEW_CAP,
+  options: PrioritizeOptions = {},
 ): ReviewQueueResult<T> {
   const todayDate = typeof today === "string" ? parseDbDate(today) : today;
   const reference =
@@ -200,12 +215,53 @@ export function prioritizeReviews<T extends ReviewLike>(
     return a.revision.id - b.revision.id;
   });
 
+  const doneToday = new Set<number>(options.topicsDoneToday ?? []);
+  const onePerTopic = options.onePerTopic !== false;
+
+  // Tópico já estudado hoje sai da fila do dia (segue em "Em espera":
+  // nada é apagado nem ignorado, só sai da lista de hoje).
+  const eligible: PrioritizedReview<T>[] = [];
+  const doneTodayItems: PrioritizedReview<T>[] = [];
+  for (const item of due) {
+    if (doneToday.has(item.revision.topicId)) doneTodayItems.push(item);
+    else eligible.push(item);
+  }
+
+  // Um cartão por tópico: o primeiro (mais prioritário) representa o tópico;
+  // os demais contam em `sameTopicPending` e ficam em espera.
+  const representativeByTopic = new Map<number, PrioritizedReview<T>>();
+  const grouped: PrioritizedReview<T>[] = [];
+  const rest: PrioritizedReview<T>[] = [];
+
+  for (const item of eligible) {
+    if (!onePerTopic) {
+      grouped.push(item);
+      continue;
+    }
+    const existing = representativeByTopic.get(item.revision.topicId);
+    if (!existing) {
+      const copy: PrioritizedReview<T> = { ...item, sameTopicPending: 1 };
+      representativeByTopic.set(item.revision.topicId, copy);
+      grouped.push(copy);
+    } else {
+      existing.sameTopicPending = (existing.sameTopicPending ?? 1) + 1;
+      rest.push(item);
+    }
+  }
+
   const numericCap = Number.isFinite(Number(cap))
     ? Number(cap)
     : DEFAULT_DAILY_REVIEW_CAP;
   const effectiveCap = numericCap <= 0 ? 0 : Math.floor(numericCap);
-  const queue = effectiveCap === 0 ? due.slice() : due.slice(0, effectiveCap);
-  const waiting = effectiveCap === 0 ? [] : due.slice(effectiveCap);
+  const queue =
+    effectiveCap === 0 ? grouped.slice() : grouped.slice(0, effectiveCap);
+  const notChosen = effectiveCap === 0 ? [] : grouped.slice(effectiveCap);
+  const waiting = [...notChosen, ...rest, ...doneTodayItems];
 
-  return { queue, waiting, dueTotal: due.length, cap: effectiveCap };
+  return {
+    queue,
+    waiting,
+    dueTotal: due.length,
+    cap: effectiveCap,
+  };
 }

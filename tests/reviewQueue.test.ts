@@ -24,6 +24,13 @@ function rev(
   };
 }
 
+const topicsMany = Array.from({ length: 40 }, (_, index) => ({
+  id: 100 + index,
+  disciplineId: 1,
+  performance: { questionsResolved: 10, correctCount: 5, errorCount: 5 },
+}));
+const disciplinesMany = [{ id: 1, weight: 3 }];
+
 describe("prioritizeReviews — fila de revisões (item 1)", () => {
   const disciplines = [
     { id: 1, weight: 3 },
@@ -71,11 +78,67 @@ describe("prioritizeReviews — fila de revisões (item 1)", () => {
     expect(result.queue[0].weakness).toBeGreaterThan(1);
   });
 
-  it("corta no teto e mantém o resto em espera sem apagar nada", () => {
-    const revisions = Array.from({ length: 8 }, (_, index) =>
+  it("várias revisões do MESMO tópico viram um cartão só (conta em sameTopicPending)", () => {
+    const revisions = Array.from({ length: 12 }, (_, index) =>
       rev({ id: index + 1, topicId: 10 }),
     );
-    const result = prioritizeReviews(revisions, topics, disciplines, today, 3);
+    const result = prioritizeReviews(revisions, topics, disciplines, today, 25);
+    expect(result.queue).toHaveLength(1);
+    expect(result.queue[0].revision.topicId).toBe(10);
+    expect(result.queue[0].sameTopicPending).toBe(12);
+    expect(result.dueTotal).toBe(12);
+    expect(result.waiting).toHaveLength(11);
+  });
+
+  it("tópico com revisão concluída HOJE sai da fila do dia", () => {
+    const revisions = [
+      rev({ id: 1, topicId: 10 }),
+      rev({ id: 2, topicId: 10, scheduledDate: "2026-11-15" }),
+      rev({ id: 3, topicId: 11 }),
+    ];
+    const result = prioritizeReviews(
+      revisions,
+      [{ id: 10, disciplineId: 1 }, { id: 11, disciplineId: 1 }, ...topicsMany],
+      disciplines,
+      today,
+      25,
+      { topicsDoneToday: [10] },
+    );
+    expect(result.queue.map((item) => item.revision.topicId)).toEqual([11]);
+    // nada é apagado: as do tópico 10 continuam em espera
+    expect(
+      result.waiting.filter((item) => item.revision.topicId === 10).length,
+    ).toBe(2);
+  });
+
+  it("onePerTopic: false volta ao comportamento lista-crua", () => {
+    const revisions = Array.from({ length: 5 }, (_, index) =>
+      rev({ id: index + 1, topicId: 10 }),
+    );
+    const result = prioritizeReviews(
+      revisions,
+      topics,
+      disciplines,
+      today,
+      25,
+      {
+        onePerTopic: false,
+      },
+    );
+    expect(result.queue).toHaveLength(5);
+  });
+
+  it("corta no teto e mantém o resto em espera sem apagar nada", () => {
+    const revisions = Array.from({ length: 8 }, (_, index) =>
+      rev({ id: index + 1, topicId: 100 + index }),
+    );
+    const result = prioritizeReviews(
+      revisions,
+      topicsMany,
+      disciplinesMany,
+      today,
+      3,
+    );
     expect(result.queue).toHaveLength(3);
     expect(result.waiting).toHaveLength(5);
     expect(result.queue.length + result.waiting.length).toBe(8);
@@ -85,9 +148,15 @@ describe("prioritizeReviews — fila de revisões (item 1)", () => {
 
   it("cap 0 significa sem limite", () => {
     const revisions = Array.from({ length: 40 }, (_, index) =>
-      rev({ id: index + 1, topicId: 10 }),
+      rev({ id: index + 1, topicId: 100 + index }),
     );
-    const result = prioritizeReviews(revisions, topics, disciplines, today, 0);
+    const result = prioritizeReviews(
+      revisions,
+      topicsMany,
+      disciplinesMany,
+      today,
+      0,
+    );
     expect(result.queue).toHaveLength(40);
     expect(result.waiting).toHaveLength(0);
     expect(result.cap).toBe(0);
@@ -95,12 +164,12 @@ describe("prioritizeReviews — fila de revisões (item 1)", () => {
 
   it("usa 25 como padrão quando o cap não é informado", () => {
     const revisions = Array.from({ length: 30 }, (_, index) =>
-      rev({ id: index + 1, topicId: 10 }),
+      rev({ id: index + 1, topicId: 100 + index }),
     );
     const result = prioritizeReviews(
       revisions,
-      topics,
-      disciplines,
+      topicsMany,
+      disciplinesMany,
       today,
       undefined as any,
     );
