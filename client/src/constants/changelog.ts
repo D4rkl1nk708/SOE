@@ -11,6 +11,54 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.9",
+    date: "21/11/2026",
+    title: "O aviso de novidades volta a mostrar a versão certa",
+    categories: [
+      {
+        title: "🧹 Ajuste",
+        type: "fix",
+        items: [
+          "A janela de novidades da 6.9.8 aparecia com o texto da 6.9.7. Corrigido, e um teste agora garante que a versão do app e a do aviso andam juntas.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "6.9.8",
+    date: "21/11/2026",
+    title: "Fim de ficar preso no mesmo tópico, e o app erra menos o dia",
+    categories: [
+      {
+        title: "🔁 Revisão que avança de verdade",
+        type: "fix",
+        items: [
+          'O plano não volta para um tópico que você já concluiu hoje. Antes, concluir a revisão deixava a próxima do mesmo tema (cada tópico acumula dezenas) como "próximo".',
+          "O atraso passou a pesar no máximo 30 dias e entram no máximo 2 revisões seguidas antes de um bloco de outro tipo, então conteúdo novo e pontos fracos aparecem.",
+          '"Encerrar sessão e concluir" é um botão só, com a opção de concluir também as revisões anteriores do tópico. As futuras do calendário não são tocadas.',
+          'Um aviso por ação: acabaram as duas mensagens "Revisão concluída" e o botão solto no canto da tela.',
+        ],
+      },
+      {
+        title: "🕘 Dia certo à noite",
+        type: "fix",
+        items: [
+          "Depois das 21h o app achava que já era o dia seguinte (usava o relógio UTC). Revisões de amanhã apareciam como vencidas e o histórico gravava no dia errado. Agora tudo usa o dia local, em 37 pontos.",
+        ],
+      },
+      {
+        title: "🛡 Menos erros bobos",
+        type: "improvement",
+        items: [
+          "Concluir uma revisão atualiza plano, calendário, fila e painel juntos, em qualquer tela. Antes cinco das seis telas deixavam o plano desatualizado.",
+          'Cartão "Saúde dos dados" em Sync e Backup: encontra erro sem enunciado, simulado vazio, flashcards muito atrasados e disciplinas fora de ordem, e corrige com backup antes.',
+          "Servidor local não cai mais ao abrir arquivos grandes (corrigido um erro do gzip).",
+          "Testes que simulam o aluno concluindo revisão pelos seis caminhos e virando o dia às 23:59 entram no portão do release.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.7",
     date: "21/11/2026",
     title:
