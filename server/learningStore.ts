@@ -1,4 +1,12 @@
 import type { UserSettings } from "../shared/types";
+import {
+  MAX_LESSONS,
+  MAX_TOPIC_LESSON_VERSIONS,
+  deleteLessonFrom,
+  lessonsForTopic,
+  upsertLesson,
+  type SavedLesson,
+} from "../shared/topicLessons";
 import { getUserSettings, updateUserSettings } from "./jsonStorage";
 
 /**
@@ -45,8 +53,10 @@ export type SavedMicroWorld = {
   createdAt: string;
 };
 
+export type { SavedLesson } from "../shared/topicLessons";
+
 /** Chaves de `UserSettings` usadas por este módulo (fora do tipo, ver casts). */
-type LearningKey = "topicAnalogies" | "microWorlds";
+type LearningKey = "topicAnalogies" | "microWorlds" | "topicLessons";
 
 function normalizeTopicName(value: string | undefined | null): string {
   return (value ?? "").trim().toLowerCase();
@@ -218,4 +228,58 @@ export async function listMicroWorlds(
     topicName,
   );
   return sortNewestFirst(filtered, (item) => item.createdAt);
+}
+
+/**
+ * Aula interativa: uma por tópico na frente, até 5 versões guardadas.
+ * O `id` é sempre novo (cada geração é uma versão); a ordem de leitura vem de
+ * `createdAt`. A poda por tópico vive em `shared/topicLessons.ts` para o app
+ * offline aplicar exatamente a mesma regra.
+ */
+export async function saveLesson(
+  userId: number,
+  entry: Omit<SavedLesson, "id" | "createdAt">,
+): Promise<SavedLesson> {
+  const settings = await requireSettings(userId);
+  const current = readList<SavedLesson>(settings, "topicLessons");
+  const record: SavedLesson = {
+    ...entry,
+    topicName: entry.topicName.trim(),
+    id: makeId("aula"),
+    createdAt: new Date().toISOString(),
+  };
+  await persist(
+    userId,
+    "topicLessons",
+    upsertLesson(current, record, {
+      perTopic: MAX_TOPIC_LESSON_VERSIONS,
+      total: MAX_LESSONS,
+    }),
+  );
+  return record;
+}
+
+/** Aulas do usuário (da mais recente para a mais antiga), filtradas por tópico. */
+export async function listLessons(
+  userId: number,
+  topicName?: string,
+): Promise<SavedLesson[]> {
+  const settings = await getUserSettings(userId);
+  return lessonsForTopic(
+    readList<SavedLesson>(settings, "topicLessons"),
+    topicName,
+  );
+}
+
+/** Apaga uma versão de aula. Devolve `false` quando o id não existe. */
+export async function deleteLesson(
+  userId: number,
+  lessonId: string,
+): Promise<boolean> {
+  const settings = await requireSettings(userId);
+  const current = readList<SavedLesson>(settings, "topicLessons");
+  const next = deleteLessonFrom(current, lessonId);
+  if (next.length === current.length) return false;
+  await persist(userId, "topicLessons", next);
+  return true;
 }

@@ -89,6 +89,22 @@ import {
   localTecUndoLastAnswer,
   localTecPendingClassifications,
   localTecResolvePending,
+  localLearningList,
+  localLearningGet,
+  localLearningRemove,
+  localLearningImportPdf,
+  localLearningAnalogies,
+  localLearningSaveAnalogy,
+  localLearningMicroWorlds,
+  localLearningSaveMicroWorld,
+  localLearningLessons,
+  localLearningSaveLesson,
+  localLearningDeleteLesson,
+  localLessonStudiedToday,
+  localMarkLessonStudied,
+  localStartGeneration,
+  localGenerationStatus,
+  localCancelGeneration,
 } from "./localDb";
 
 const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
@@ -279,6 +295,32 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "tec.pendingClassifications": () => localTecPendingClassifications(),
   "tec.resolvePending": (i) => localTecResolvePending(i),
   "tec.setAutoCompleteAfter": () => Promise.resolve({ ok: true, value: 0 }),
+  // v6.9.6: Caderno Vivo no APK — lê/cria o que é dado do aluno; o que depende
+  // do servidor (PDF e IA) responde com uma explicação clara.
+  "learning.list": () => localLearningList(),
+  "learning.get": () => localLearningGet(),
+  "learning.remove": (i) => localLearningRemove(i as { docId: string }),
+  "learning.importPdf": () => localLearningImportPdf(),
+  "learning.analogiesFor": (i) =>
+    localLearningAnalogies(i as { topicName?: string } | undefined),
+  "learning.saveAnalogy": (i) =>
+    localLearningSaveAnalogy(i as Record<string, unknown>),
+  "learning.microWorldsFor": (i) =>
+    localLearningMicroWorlds(i as { topicName?: string } | undefined),
+  "learning.saveMicroWorld": (i) =>
+    localLearningSaveMicroWorld(i as Record<string, unknown>),
+  "learning.lessonsFor": (i) =>
+    localLearningLessons(i as { topicName?: string } | undefined),
+  "learning.saveLesson": (i) => localLearningSaveLesson(i as any),
+  "learning.deleteLesson": (i) =>
+    localLearningDeleteLesson(i as { lessonId: string }),
+  "learning.lessonStudiedToday": (i) =>
+    localLessonStudiedToday(i as { topicName: string }),
+  "learning.markLessonStudied": (i) =>
+    localMarkLessonStudied(i as { topicName: string; topicId?: number }),
+  "learning.startGeneration": () => localStartGeneration(),
+  "learning.generationStatus": () => localGenerationStatus(),
+  "learning.cancelGeneration": () => localCancelGeneration(),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {

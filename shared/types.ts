@@ -217,7 +217,7 @@ export interface QuestionAttempt {
 
 export interface StudyEventRecord {
   id: string;
-  type: "revision" | "answer" | "error" | "session" | "tec";
+  type: "revision" | "answer" | "error" | "session" | "tec" | "lesson";
   occurredAt: string;
   title: string;
   detail: string;

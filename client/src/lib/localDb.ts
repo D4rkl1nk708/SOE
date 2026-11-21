@@ -17,6 +17,14 @@ import {
   computeEditalCoverage,
   suggestTopicLinks,
 } from "@shared/editalCoverage";
+import {
+  MAX_LESSONS,
+  MAX_TOPIC_LESSON_VERSIONS,
+  deleteLessonFrom,
+  lessonsForTopic,
+  upsertLesson,
+  type SavedLesson,
+} from "@shared/topicLessons";
 
 const now = () => new Date().toISOString();
 
@@ -3472,4 +3480,244 @@ export async function localTecResolvePending(_input?: unknown): Promise<{
     message:
       "Classificar rótulo do TEC exige o SOE online. No celular, use +Acertei/+Errei para o tópico da sessão.",
   };
+}
+
+// ============ CADERNO VIVO (APK) ============
+/**
+ * Paridade offline do Caderno Vivo.
+ *
+ * O que dá para fazer sem servidor: ler e apagar documentos já indexados, e
+ * ler/criar o que é dado do aluno (analogias, micro-mundos, aulas). O que NÃO
+ * dá: extrair texto de PDF e gerar com IA — os dois dependem do servidor e
+ * respondem com uma frase clara em vez de "procedimento não implementado".
+ */
+
+type LocalLearningDocMeta = {
+  id: string;
+  title: string;
+  pages: number;
+  sections: number;
+  createdAt: string;
+  lastOpenedAt?: string;
+};
+
+function settingsList<T>(u: User, key: string): T[] {
+  const raw = (u.settings as Record<string, unknown>)[key];
+  return Array.isArray(raw) ? (raw as T[]) : [];
+}
+
+async function writeSetting(key: string, value: unknown): Promise<void> {
+  const u = await ensureLocalUser();
+  const settings = { ...(u.settings as Record<string, unknown>), [key]: value };
+  await db.users.update(LOCAL_USER_ID, { settings, updatedAt: now() });
+}
+
+export async function localLearningList(): Promise<LocalLearningDocMeta[]> {
+  const u = await ensureLocalUser();
+  return settingsList<LocalLearningDocMeta>(u, "learningDocs");
+}
+
+/** O texto da seção vive no servidor; offline não há como abrir o PDF. */
+export async function localLearningGet(_input?: unknown): Promise<never> {
+  throw new Error(
+    "O texto do PDF fica no SOE do computador. No celular você abre as aulas, analogias e micro-mundos já salvos.",
+  );
+}
+
+export async function localLearningRemove(input: {
+  docId: string;
+}): Promise<{ success: boolean }> {
+  const u = await ensureLocalUser();
+  const docs = settingsList<LocalLearningDocMeta>(u, "learningDocs").filter(
+    (doc) => doc.id !== input.docId,
+  );
+  await writeSetting("learningDocs", docs);
+  return { success: true };
+}
+
+export async function localLearningImportPdf(): Promise<never> {
+  throw new Error(
+    "Importar PDF precisa do SOE no computador: a extração do texto roda no servidor.",
+  );
+}
+
+export async function localLearningAnalogies(input?: {
+  topicName?: string;
+}): Promise<Array<Record<string, unknown>>> {
+  const u = await ensureLocalUser();
+  const key = String(input?.topicName ?? "")
+    .trim()
+    .toLowerCase();
+  return settingsList<Record<string, unknown>>(u, "topicAnalogies")
+    .filter(
+      (item) =>
+        !key ||
+        String(item.topicName ?? "")
+          .trim()
+          .toLowerCase() === key,
+    )
+    .reverse();
+}
+
+export async function localLearningSaveAnalogy(
+  input: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const u = await ensureLocalUser();
+  const list = settingsList<Record<string, unknown>>(u, "topicAnalogies");
+  const record = {
+    ...input,
+    id:
+      input.id || `ana-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    chosenAt: input.chosenAt || now(),
+  };
+  await writeSetting("topicAnalogies", [...list, record].slice(-200));
+  return record;
+}
+
+export async function localLearningMicroWorlds(input?: {
+  topicName?: string;
+}): Promise<Array<Record<string, unknown>>> {
+  const u = await ensureLocalUser();
+  const key = String(input?.topicName ?? "")
+    .trim()
+    .toLowerCase();
+  return settingsList<Record<string, unknown>>(u, "microWorlds")
+    .filter(
+      (item) =>
+        !key ||
+        String(item.topicName ?? "")
+          .trim()
+          .toLowerCase() === key,
+    )
+    .reverse();
+}
+
+export async function localLearningSaveMicroWorld(
+  input: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const u = await ensureLocalUser();
+  const key = String(input.topicName ?? "")
+    .trim()
+    .toLowerCase();
+  const list = settingsList<Record<string, unknown>>(u, "microWorlds").filter(
+    (item) =>
+      String(item.topicName ?? "")
+        .trim()
+        .toLowerCase() !== key,
+  );
+  const record = {
+    ...input,
+    id: `mw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now(),
+  };
+  await writeSetting("microWorlds", [...list, record].slice(-50));
+  return record;
+}
+
+export async function localLearningLessons(input?: {
+  topicName?: string;
+}): Promise<SavedLesson[]> {
+  const u = await ensureLocalUser();
+  return lessonsForTopic(
+    settingsList<SavedLesson>(u, "topicLessons"),
+    input?.topicName,
+  );
+}
+
+export async function localLearningSaveLesson(
+  input: Omit<SavedLesson, "id" | "createdAt">,
+): Promise<SavedLesson> {
+  const u = await ensureLocalUser();
+  const record: SavedLesson = {
+    ...input,
+    id: `aula-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now(),
+  };
+  const next = upsertLesson(
+    settingsList<SavedLesson>(u, "topicLessons"),
+    record,
+    { perTopic: MAX_TOPIC_LESSON_VERSIONS, total: MAX_LESSONS },
+  );
+  await writeSetting("topicLessons", next);
+  return record;
+}
+
+export async function localLearningDeleteLesson(input: {
+  lessonId: string;
+}): Promise<{ success: boolean }> {
+  const u = await ensureLocalUser();
+  const current = settingsList<SavedLesson>(u, "topicLessons");
+  const next = deleteLessonFrom(current, input.lessonId);
+  if (next.length === current.length) {
+    throw new Error("Aula não encontrada (ela já foi apagada?).");
+  }
+  await writeSetting("topicLessons", next);
+  return { success: true };
+}
+
+/** Mesmo id de evento do servidor: um por (tópico, dia). */
+function lessonEventId(topicName: string, day: string): string {
+  const slug = String(topicName || "topico")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return `lesson-${slug || "topico"}-${day}`;
+}
+
+export async function localLessonStudiedToday(input: {
+  topicName: string;
+}): Promise<{ date: string; studied: boolean }> {
+  const u = await ensureLocalUser();
+  const day = now().slice(0, 10);
+  const id = lessonEventId(input.topicName, day);
+  const events = settingsList<{ id?: string }>(u, "studyEvents");
+  return { date: day, studied: events.some((event) => event.id === id) };
+}
+
+export async function localMarkLessonStudied(input: {
+  topicName: string;
+  topicId?: number;
+}): Promise<{ date: string; recorded: boolean }> {
+  const u = await ensureLocalUser();
+  const occurredAt = now();
+  const day = occurredAt.slice(0, 10);
+  const id = lessonEventId(input.topicName, day);
+  const events = settingsList<Record<string, unknown>>(u, "studyEvents");
+  if (events.some((event) => event.id === id)) {
+    return { date: day, recorded: false };
+  }
+  const event = {
+    id,
+    type: "lesson",
+    occurredAt,
+    title: `Aula interativa estudada: ${input.topicName}`,
+    detail: "Animação concluída e pergunta de verificação respondida",
+    topicId: input.topicId,
+    topicName: input.topicName,
+    source: "lesson",
+  };
+  await writeSetting("studyEvents", [...events, event].slice(-5000));
+  return { date: day, recorded: true };
+}
+
+/** Gerar com IA depende do servidor: no APK a resposta diz isso, sem mentir. */
+export function localStartGeneration(): never {
+  throw new Error(
+    "Gerar com IA precisa do SOE no computador (ou do servidor na rede). As aulas e micro-mundos já salvos abrem no celular.",
+  );
+}
+
+export function localGenerationStatus(): never {
+  throw new Error(
+    "Geração em andamento só existe com o servidor ligado. Abra o SOE no computador para gerar.",
+  );
+}
+
+export function localCancelGeneration(): never {
+  throw new Error(
+    "Não há geração para cancelar no celular: a geração roda no servidor.",
+  );
 }

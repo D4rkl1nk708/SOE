@@ -11,6 +11,53 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.6",
+    date: "21/11/2026",
+    title:
+      "Caderno Vivo: ler com conforto, ver a geração andar e aprender com animação",
+    categories: [
+      {
+        title: "📖 Ambiente de leitura",
+        type: "improvement",
+        items: [
+          "O leitor virou três zonas: documentos e sumário à esquerda (com '4 de 55'), o texto no centro em medida de leitura (62–72ch, corpo 17,5px, 1.65) e 'Estudar esta seção' à direita.",
+          "A navegação ‹ anterior · próxima › fica fixa no rodapé do painel de leitura; no celular tudo vira uma coluna, o sumário vira seletor no topo e as ações descem para uma barra fixa.",
+          "Cada trecho mostra o número da página na margem quando o PDF trouxe esse metadado — PDF antigo não ganha número inventado.",
+          "As três ações deixaram de ser botões soltos: viraram uma lista com o que cada uma faz, e o resultado aparece no próprio painel.",
+          "O layout clássico continua disponível em Perfil → Interface → 'Clássico · completo'.",
+        ],
+      },
+      {
+        title: "📊 Geração com progresso",
+        type: "feature",
+        items: [
+          "Gerar com IA agora é um job: barra com %, estágio (preparando → enviando ao modelo → gerando → validando → pronto), tempo decorrido, Cancelar e Tentar de novo.",
+          "Se a aba perder o foco, o trabalho continua no servidor e o status é consultado quando você volta.",
+          "Erros viraram frases: cota esgotada, IA demorou demais, resposta ilegível, artefato fora do contrato. Nunca mais stack trace.",
+          "No máximo 2 gerações simultâneas por usuário; cancelar libera a vaga na hora.",
+        ],
+      },
+      {
+        title: "🎬 Aula interativa (novo)",
+        type: "feature",
+        items: [
+          "Nova saída do Caderno Vivo: uma animação HTML autocontida que ensina o conceito — canvas/SVG com play/pause/reiniciar e velocidade 0,5×/1×/2×, narração em 3–6 passos sincronizados, uma interação para explorar e uma pergunta de verificação com feedback.",
+          "Disponível na seção do PDF, no tema em Temas e no Caderno de Erros (para explicar o erro).",
+          "Fica salva por tópico: reabre sem gerar de novo, guarda até 5 versões e pode ser apagada.",
+          "O HTML é validado antes de salvar (tem documento, tem script, sem fetch/src=http) e roda em sandbox sem rede; `prefers-reduced-motion` desliga a animação automática.",
+          "'Marcar como estudado' grava um evento de estudo no tópico — uma vez por dia.",
+        ],
+      },
+      {
+        title: "📱 Offline",
+        type: "fix",
+        items: [
+          "No APK o Caderno Vivo deixou de responder 'procedimento local não implementado': aulas, analogias e micro-mundos salvos abrem e o que falta (PDF e IA) é explicado com clareza.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.5",
     date: "19/11/2026",
     title: "Captura do TEC que não perde questão e classificação sem achismo",

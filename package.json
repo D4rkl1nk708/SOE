@@ -1,6 +1,6 @@
 {
   "name": "estudo_25_50_dias",
-  "version": "6.9.5",
+  "version": "6.9.6",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -169,7 +169,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "assets/**/*"
     ],
     "asarUnpack": [
       "dist/index.cjs",

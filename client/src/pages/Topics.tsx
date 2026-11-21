@@ -42,7 +42,9 @@ import {
   Brain,
   BookOpen,
   Clock,
+  Sparkles,
 } from "lucide-react";
+import { LessonStudio } from "@/components/learning/LessonStudio";
 
 export function formatStudyTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -52,6 +54,13 @@ export function formatStudyTime(seconds: number): string {
 
 export default function Topics() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [lessonTopic, setLessonTopic] = useState<{
+    id: number;
+    name: string;
+    disciplineName: string;
+  } | null>(null);
+  // Chave/provedor salvos: a aula usa o que está em Ajustes.
+  const { data: stats } = trpc.dashboard.getStats.useQuery();
   const [editingTopic, setEditingTopic] = useState<{
     id: number;
     name: string;
@@ -322,6 +331,20 @@ export default function Topics() {
                       <div className="flex gap-2">
                         <button
                           onClick={() =>
+                            setLessonTopic({
+                              id: topic.id,
+                              name: topic.name,
+                              disciplineName: discipline?.name || "",
+                            })
+                          }
+                          title="Aula interativa deste tema"
+                          aria-label={`Aula interativa de ${topic.name}`}
+                          className="w-8 h-8 rounded-md bg-primary/5 border border-primary/15 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all"
+                        >
+                          <Sparkles size={14} />
+                        </button>
+                        <button
+                          onClick={() =>
                             setEditingTopic({
                               id: topic.id,
                               name: topic.name,
@@ -375,6 +398,39 @@ export default function Topics() {
           </div>
         )}
       </div>
+
+      {/* Aula interativa do tema */}
+      <Dialog
+        open={Boolean(lessonTopic)}
+        onOpenChange={(open) => !open && setLessonTopic(null)}
+      >
+        <DialogContent className="max-w-3xl overflow-hidden rounded-lg border-border bg-card p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              Aula interativa
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-muted-foreground">
+              Animação que ensina o conceito em passos, com interação e pergunta
+              de verificação. Fica salva neste tema.
+            </DialogDescription>
+          </DialogHeader>
+          {lessonTopic && (
+            <div className="max-h-[70vh] overflow-y-auto pr-1">
+              <LessonStudio
+                topicName={lessonTopic.name}
+                disciplineName={lessonTopic.disciplineName}
+                topicId={lessonTopic.id}
+                context={`${lessonTopic.disciplineName} · ${lessonTopic.name}`}
+                provider={
+                  (((stats as any)?.settings?.aiProvider as string) ||
+                    "gemini") as "gemini" | "openai" | "claude"
+                }
+                apiKey={((stats as any)?.settings?.aiApiKey as string) || ""}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modals */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

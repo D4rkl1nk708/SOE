@@ -15,6 +15,13 @@ vi.mock("@/lib/trpc", () => ({
         getStats: { invalidate: vi.fn() },
       },
     }),
+    dashboard: {
+      getStats: {
+        useQuery: () => ({
+          data: { settings: { aiApiKey: "", aiProvider: "gemini" } },
+        }),
+      },
+    },
     discipline: {
       list: { useQuery: vi.fn() },
     },
@@ -46,6 +53,7 @@ vi.mock("lucide-react", () => ({
   Clock: () => <span data-testid="icon-clock" />,
   BarChart2: () => <span data-testid="icon-chart" />,
   Brain: () => <span data-testid="icon-brain" />,
+  Sparkles: () => <span data-testid="icon-sparkles" />,
   X: () => <span data-testid="icon-x" />,
 }));
 

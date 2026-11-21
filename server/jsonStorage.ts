@@ -94,8 +94,8 @@ function pushStudyEvent(user: User | undefined, event: StudyEventRecord): void {
   } else {
     user.settings.studyEvents.push(event);
   }
-  if (user.settings.studyEvents.length > 5000) {
-    user.settings.studyEvents = user.settings.studyEvents.slice(-5000);
+  if (user.settings.studyEvents.length > 1000) {
+    user.settings.studyEvents = user.settings.studyEvents.slice(-1000);
   }
 }
 
@@ -464,6 +464,75 @@ export async function logTopicStudiedToday(
     source: "tec",
   });
   writeDatabase(db);
+}
+
+/** Id do evento "aula estudada": um por (tópico, dia) — a chave da idempotência. */
+export function lessonEventId(topicName: string, day: string): string {
+  const slug = String(topicName || "topico")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return `lesson-${slug || "topico"}-${day}`;
+}
+
+/** A aula deste tópico já foi marcada como estudada hoje? */
+export async function isLessonStudiedToday(
+  userId: number,
+  topicName: string,
+  whenIso?: string,
+): Promise<{ date: string; studied: boolean }> {
+  const day = (whenIso || now()).slice(0, 10);
+  const settings = await getUserSettings(userId);
+  const events = (settings as any)?.studyEvents;
+  const id = lessonEventId(topicName, day);
+  const studied = Array.isArray(events)
+    ? events.some((item: any) => item?.id === id)
+    : false;
+  return { date: day, studied };
+}
+
+/**
+ * "Aula interativa estudada": um evento por (tópico, dia), como o "estudou hoje"
+ * do TEC. Reabrir a aula no mesmo dia não duplica o evento — o id do evento é a
+ * própria chave de idempotência (upsert no ledger).
+ */
+export async function logLessonStudiedToday(
+  userId: number,
+  topicName: string,
+  topicId?: number,
+  whenIso?: string,
+): Promise<{ date: string; recorded: boolean }> {
+  const db = readDatabase();
+  const user = db.users.find((u) => u.id === userId);
+  const occurredAt = whenIso || now();
+  const day = occurredAt.slice(0, 10);
+  if (!user) return { date: day, recorded: false };
+
+  const id = lessonEventId(topicName, day);
+  const already = Array.isArray(user.settings.studyEvents)
+    ? user.settings.studyEvents.some((item) => item?.id === id)
+    : false;
+
+  if (already) return { date: day, recorded: false };
+
+  const context = eventContext(db, topicId);
+  pushStudyEvent(user, {
+    id,
+    type: "lesson",
+    occurredAt,
+    title: `Aula interativa estudada: ${context.topicName || topicName || "tópico"}`,
+    detail: "Animação concluída e pergunta de verificação respondida",
+    topicId,
+    disciplineId: context.disciplineId,
+    topicName: context.topicName || topicName,
+    disciplineName: context.disciplineName,
+    source: "lesson",
+  });
+  writeDatabase(db);
+  return { date: day, recorded: true };
 }
 
 /** Registro do que o SOE marcou sozinho no calendário (para desfazer). */
@@ -1746,6 +1815,11 @@ export async function getCalendarData(
   return { revisions, topics, disciplines };
 }
 
+/**
+ * @deprecated Cópia não usada: a rota `dashboard.getStats` chama
+ * `analyticsService.getDashboardStats`. Mantida só para não quebrar imports
+ * antigos; ao mexer no dashboard, altere analyticsService.
+ */
 export async function getDashboardStats(userId: number) {
   const db = readDatabase();
   const user = db.users.find((u) => u.id === userId);
@@ -1782,9 +1856,28 @@ export async function getDashboardStats(userId: number) {
       : Array.isArray(rawSettings.editalRows)
         ? rawSettings.editalRows
         : [];
+  // Payload do dashboard: sai em toda tela e chegou a 203 KB com a base real
+  // (studyEvents 82 KB + edital duplicado dentro de cada concurso). Aqui enviamos
+  // só o que a UI usa; listas longas têm endpoint próprio.
+  const trimmedEvents = Array.isArray(rawSettings.studyEvents)
+    ? rawSettings.studyEvents.slice(-30)
+    : [];
+  const trimmedObservations = Array.isArray(rawSettings.mentorObservations)
+    ? rawSettings.mentorObservations.slice(-10)
+    : [];
   const settingsView = {
     ...rawSettings,
-    exams: examList,
+    studyEvents: trimmedEvents,
+    mentorObservations: trimmedObservations,
+    // O edital do concurso ativo já vai em `editalRows` (view abaixo); os
+    // demais concursos vão só com a contagem, para não duplicar a lista.
+    exams: examList.map((exam: any) => {
+      const { editalRows: rows, ...rest } = exam || {};
+      return {
+        ...rest,
+        editalRowCount: Array.isArray(rows) ? rows.length : 0,
+      };
+    }),
     activeExamId: activeExam?.id ?? rawSettings.activeExamId,
     editalRows: activeRows,
   };
@@ -1932,9 +2025,10 @@ export async function setTopicPerformance(
     const history = [
       ...prevHistory,
       {
+        // Depois da atualização: o último registro do dia é o retrato final.
         date: today,
-        accuracy: prev?.accuracy ?? 0,
-        questionsResolved: prev?.questionsResolved ?? 0,
+        accuracy,
+        questionsResolved: totalResolved,
       },
     ].slice(-30);
 

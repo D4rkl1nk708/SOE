@@ -29,6 +29,14 @@ import {
   Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { LessonStudio } from "@/components/learning/LessonStudio";
 
 const ORIGIN_LABELS: Record<string, { label: string; color: string }> = {
   attention: { label: "Atenção", color: "#f59e0b" },
@@ -188,6 +196,11 @@ export default function QuestionErrors() {
   const [filterOrigin, setFilterOrigin] = useState<string>("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [lessonFor, setLessonFor] = useState<{
+    topicName: string;
+    disciplineName: string;
+    context: string;
+  } | null>(null);
 
   const [loadingAction, setLoadingAction] = useState<{
     id: number;
@@ -569,7 +582,7 @@ export default function QuestionErrors() {
                   </div>
 
                   <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-border pt-4 sm:flex-row">
-                    <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto lg:grid-cols-4">
+                    <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto lg:grid-cols-5">
                       <AIActionButton
                         label="Analisar"
                         doneLabel="Re-analisar"
@@ -597,6 +610,32 @@ export default function QuestionErrors() {
                         done={hasSimilar}
                         onClick={() => callAI(e.id, "similarQuestions")}
                       />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLessonFor({
+                            topicName:
+                              e.topicId > 0
+                                ? topicName(e.topicId)
+                                : discName(e.disciplineId),
+                            disciplineName: discName(e.disciplineId),
+                            context: [
+                              e.statement,
+                              e.userAnswer ? `Eu marquei ${e.userAnswer}.` : "",
+                              e.correctAnswer
+                                ? `O gabarito é ${e.correctAnswer}.`
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")
+                              .slice(0, 600),
+                          })
+                        }
+                        className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2 text-[9px] font-bold uppercase tracking-wider text-primary transition-all hover:bg-primary/10"
+                      >
+                        <Sparkles size={12} />
+                        Aula
+                      </button>
                       <AIActionButton
                         label="Criar Card"
                         doneLabel="Card ✓"
@@ -765,6 +804,34 @@ export default function QuestionErrors() {
           })}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(lessonFor)}
+        onOpenChange={(open) => !open && setLessonFor(null)}
+      >
+        <DialogContent className="max-w-3xl overflow-hidden rounded-lg border-border bg-card p-4 sm:p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              Aula interativa do erro
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-muted-foreground">
+              Uma animação que explica o conceito por trás desta questão — com o
+              enunciado e o gabarito como contexto.
+            </DialogDescription>
+          </DialogHeader>
+          {lessonFor && (
+            <div className="max-h-[70vh] overflow-y-auto pr-1">
+              <LessonStudio
+                topicName={lessonFor.topicName}
+                disciplineName={lessonFor.disciplineName}
+                context={lessonFor.context}
+                provider={dbProvider as "gemini" | "openai" | "claude"}
+                apiKey={dbApiKey}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,23 @@ function InfoBlock({ heading, items, ordered = false }: InfoBlockProps) {
  * roda em origem opaca, sem acesso a cookies, storage ou ao DOM do SOE.
  * Nada de `dangerouslySetInnerHTML`: o HTML só entra via `srcDoc`.
  */
-export function SandboxFrame({ world }: { world: MicroWorld }): JSX.Element {
+export function SandboxFrame({
+  world,
+  actions,
+  frameKey,
+  kicker,
+  height = FRAME_HEIGHT,
+}: {
+  world: MicroWorld;
+  /** Controles do app (reiniciar, marcar como estudado...) no cabeçalho. */
+  actions?: ReactNode;
+  /** Trocar a chave recarrega o iframe (reiniciar a animação). */
+  frameKey?: string | number;
+  /** Linha de apoio abaixo do título. */
+  kicker?: string;
+  /** Altura do iframe no modo normal (a aula pede mais que o micro-mundo). */
+  height?: number;
+}): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const hasDetails =
     world.controls.length > 0 ||
@@ -92,26 +108,31 @@ export function SandboxFrame({ world }: { world: MicroWorld }): JSX.Element {
             {world.title}
           </h2>
           <p className="text-[11px] text-muted-foreground">
-            Micro-mundo isolado · apenas scripts, sem acesso ao app
+            {kicker ||
+              "Micro-mundo isolado · apenas scripts, sem acesso ao app"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          aria-label={expanded ? "Fechar tela cheia" : "Abrir em tela cheia"}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          {expanded ? (
-            <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          <span>{expanded ? "Fechar" : "Abrir em tela cheia"}</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {actions}
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-label={expanded ? "Fechar tela cheia" : "Abrir em tela cheia"}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            {expanded ? (
+              <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            <span>{expanded ? "Fechar" : "Abrir em tela cheia"}</span>
+          </button>
+        </div>
       </header>
 
       <div className={cn("overflow-hidden", expanded && "min-h-0 flex-1")}>
         <iframe
+          key={frameKey ?? world.id}
           title={world.title}
           aria-label={`Micro-mundo interativo: ${world.title}`}
           srcDoc={world.html}
@@ -123,7 +144,7 @@ export function SandboxFrame({ world }: { world: MicroWorld }): JSX.Element {
               ? "h-full rounded-md border-0"
               : "rounded-md border border-border",
           )}
-          style={expanded ? undefined : { height: FRAME_HEIGHT }}
+          style={expanded ? undefined : { height }}
         />
       </div>
 

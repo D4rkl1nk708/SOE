@@ -5,7 +5,8 @@ export type StudyEventType =
   | "answer"
   | "error"
   | "session"
-  | "tec";
+  | "tec"
+  | "lesson";
 
 export interface StudyEvent {
   id: string;
@@ -34,6 +35,7 @@ const emptyCounts = (): Record<StudyEventType, number> => ({
   error: 0,
   session: 0,
   tec: 0,
+  lesson: 0,
 });
 
 function safeDate(value: unknown): string {

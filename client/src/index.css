@@ -412,4 +412,67 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* ── Leitor do Caderno Vivo (layout focado) ─────────────────────────────── */
+/*
+ * A medida de leitura manda: 62–72ch, corpo 17.5px, line-height 1.65 e espaço
+ * real entre parágrafos. A coluna da margem carrega o número da página quando
+ * o PDF trouxe o metadado — nunca um número inventado.
+ */
+.ui-focus .reading-prose {
+  max-width: 72ch;
+  margin-inline: auto;
+  font-size: 17.5px;
+  line-height: 1.65;
+  color: var(--foreground);
+  text-wrap: pretty;
+}
+
+.ui-focus .reading-block {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: 0.25rem;
+  align-items: start;
+}
+
+.ui-focus .reading-block + .reading-block {
+  margin-top: 0.9rem;
+}
+
+.ui-focus .reading-page {
+  position: sticky;
+  top: 0.5rem;
+  padding-top: 0.34rem;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  opacity: 0.75;
+}
+
+.ui-focus .reading-block p {
+  margin: 0;
+  color: var(--foreground);
+}
+
+.ui-focus .reading-block p + p {
+  margin-top: 0.9em;
+}
+
+@media (max-width: 639px) {
+  .ui-focus .reading-prose {
+    font-size: 17px;
+    line-height: 1.62;
+  }
+
+  .ui-focus .reading-block {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-focus .reading-surface * {
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Modo clássico não recebe nada disto: as classes só existem sob .ui-focus. */

@@ -14,11 +14,24 @@
 // existe (caso do ESM), então importamos o módulo real.
 import pdf from "pdf-parse/lib/pdf-parse.js";
 
+/** Trecho de `text` que veio de uma página do PDF (offset real no texto). */
+export type PdfPageSpan = {
+  page: number; // 1-based
+  start: number; // offset inclusive em `text`
+  end: number; // offset exclusivo em `text`
+};
+
 export type PdfSection = {
   title: string;
   startPage: number; // 1-based
   endPage: number; // 1-based, inclusive
   text: string;
+  /**
+   * De onde cada trecho do texto veio, por página. Só existe para documentos
+   * importados a partir da v6.9.6: PDFs antigos não têm esse metadado e o leitor
+   * NÃO inventa número de página para eles.
+   */
+  pageSpans?: PdfPageSpan[];
 };
 
 export type PdfDocument = {
@@ -144,6 +157,28 @@ function repeatedLines(pages: string[]): Set<string> {
  * Conteúdo anterior ao primeiro título (capa, sumário) não pertence a
  * nenhuma seção e é descartado.
  */
+/**
+ * Junta as linhas preservando o mapa de páginas. Cada linha continua sendo um
+ * parágrafo (o texto do PDF quebra assim), e o offset de cada página fica
+ * registrado para o leitor mostrar o número na margem.
+ */
+function joinWithPageSpans(lines: KeptLine[]): {
+  text: string;
+  pageSpans: PdfPageSpan[];
+} {
+  let text = "";
+  const pageSpans: PdfPageSpan[] = [];
+  lines.forEach((line, index) => {
+    if (index > 0) text += "\n";
+    const start = text.length;
+    text += line.text;
+    const last = pageSpans[pageSpans.length - 1];
+    if (last && last.page === line.page) last.end = text.length;
+    else pageSpans.push({ page: line.page, start, end: text.length });
+  });
+  return { text, pageSpans };
+}
+
 export function splitIntoSections(pages: string[]): PdfSection[] {
   const repeated = repeatedLines(pages);
 
@@ -165,10 +200,8 @@ export function splitIntoSections(pages: string[]): PdfSection[] {
   });
 
   if (titleIndexes.length === 0) {
-    const text = kept
-      .map((line) => line.text)
-      .join("\n")
-      .trim();
+    const joined = joinWithPageSpans(kept);
+    const text = joined.text.trim();
     if (!text) return [];
     return [
       {
@@ -176,6 +209,7 @@ export function splitIntoSections(pages: string[]): PdfSection[] {
         startPage: 1,
         endPage: Math.max(pages.length, 1),
         text,
+        pageSpans: joined.pageSpans,
       },
     ];
   }
@@ -187,10 +221,8 @@ export function splitIntoSections(pages: string[]): PdfSection[] {
         ? titleIndexes[position + 1]
         : kept.length;
     const chunk = kept.slice(startIndex, endIndex);
-    const text = chunk
-      .map((line) => line.text)
-      .join("\n")
-      .trim();
+    const joined = joinWithPageSpans(chunk);
+    const text = joined.text.trim();
     if (!text) return;
 
     const startPage = chunk[0].page;
@@ -200,6 +232,7 @@ export function splitIntoSections(pages: string[]): PdfSection[] {
       startPage,
       endPage: Math.max(startPage, lastPage),
       text,
+      pageSpans: joined.pageSpans,
     });
   });
 
