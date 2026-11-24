@@ -64,6 +64,8 @@ import {
   localRecordTecAnswer,
   localImportCaderno,
   localStudyOverview,
+  localStudyRecordSession,
+  localStudyMasterySnapshot,
   localStudyErrorPatterns,
   localStudyCalibration,
   localBuildLeiSeca,
@@ -252,6 +254,10 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
   "study.overview": (i) => localStudyOverview(i as any),
   "study.weeklyReview": () => localStudyWeeklyReview(),
+  "study.recordSession": (i) =>
+    localStudyRecordSession(i as Parameters<typeof localStudyRecordSession>[0]),
+  "study.masterySnapshot": () =>
+    localStudyMasterySnapshot().then((topics) => ({ topics })),
   "study.recordAttempt": (i) =>
     localRecordQuestionAttempt(
       i as Parameters<typeof localRecordQuestionAttempt>[0],
@@ -318,9 +324,26 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   // v6.9.6: Caderno Vivo no APK — lê/cria o que é dado do aluno; o que depende
   // do servidor (PDF e IA) responde com uma explicação clara.
   "learning.list": () => localLearningList(),
-  "learning.get": () => localLearningGet(),
+  "learning.get": (i) => localLearningGet(i as { docId?: string }),
   "learning.remove": (i) => localLearningRemove(i as { docId: string }),
-  "learning.importPdf": () => localLearningImportPdf(),
+  // Mensagem honesta em vez de "Procedimento local não implementado".
+  "learning.sectionQuestions": async () => {
+    throw new Error(
+      "Gerar perguntas de uma seção usa a sua chave de IA e precisa de internet.",
+    );
+  },
+  "learning.analogies": async () => {
+    throw new Error(
+      "Criar analogias usa a sua chave de IA e precisa de internet.",
+    );
+  },
+  "learning.microWorld": async () => {
+    throw new Error(
+      "Criar micro-mundo usa a sua chave de IA e precisa de internet.",
+    );
+  },
+  "learning.importPdf": (i) =>
+    localLearningImportPdf(i as { base64: string; fileName?: string }),
   "learning.analogiesFor": (i) =>
     localLearningAnalogies(i as { topicName?: string } | undefined),
   "learning.saveAnalogy": (i) =>

@@ -87,15 +87,17 @@ describe("Caderno Vivo offline (APK)", () => {
   });
 
   it("diz com clareza o que depende do servidor", async () => {
+    // v6.9.10: importar PDF e abrir o documento passaram a funcionar no
+    // aparelho; o que continua dependendo do computador é a geração com IA.
     expect(() => localDb.localStartGeneration()).toThrow(
       /precisa do SOE no computador/i,
     );
-    await expect(localDb.localLearningImportPdf()).rejects.toThrow(
-      /precisa do SOE no computador/i,
-    );
-    await expect(localDb.localLearningGet()).rejects.toThrow(
-      /fica no SOE do computador/i,
-    );
+    await expect(
+      localDb.localLearningGet({ docId: "nao-existe" }),
+    ).rejects.toThrow(/não encontrado/i);
+    await expect(
+      localDb.localLearningImportPdf({ base64: "" }),
+    ).rejects.toThrow(/vazio/i);
   });
 
   it("analogias e micro-mundos continuam disponíveis offline", async () => {

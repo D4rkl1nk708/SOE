@@ -287,6 +287,16 @@ class LocalDb extends Dexie {
   subjectiveAnswers!: Table<SubjectiveAnswer & { id: number }>;
   conceptConfusions!: Table<ConceptConfusion & { id: number }>;
   essays!: Table<Essay & { id: number }>;
+  learningDocs!: Table<{
+    id: string;
+    userId: number;
+    title: string;
+    pages: number;
+    sections: number;
+    createdAt: string;
+    lastOpenedAt?: string;
+    sectionsData: any[];
+  }>;
 
   constructor() {
     super("SOE_Local");
@@ -391,6 +401,23 @@ class LocalDb extends Dexie {
       subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
       conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
       essays: "++id, userId, disciplineId, topicId, status, createdAt",
+    });
+    this.version(9).stores({
+      users: "id, openId",
+      disciplines: "id, userId",
+      topics: "id, userId, disciplineId, [userId+disciplineId]",
+      revisions: "id, userId, topicId, scheduledDate",
+      mockExams: "id, userId",
+      notes: "id, userId, disciplineId, topicId",
+      questionErrors: "id, userId, topicId, disciplineId",
+      flashcards: "id, userId, disciplineId, topicId",
+      tecSnapshots: "id, userId, importedAt",
+      extraCollections: "key",
+      counters: "key",
+      subjectiveAnswers: "++id, userId, revisionId, topicId, banca, createdAt",
+      conceptConfusions: "id, userId, disciplineId, lastDetectedAt",
+      essays: "++id, userId, disciplineId, topicId, status, createdAt",
+      learningDocs: "id, userId",
     });
   }
 }
@@ -3728,14 +3755,51 @@ async function writeSetting(key: string, value: unknown): Promise<void> {
 
 export async function localLearningList(): Promise<LocalLearningDocMeta[]> {
   const u = await ensureLocalUser();
-  return settingsList<LocalLearningDocMeta>(u, "learningDocs");
+  const legacy = settingsList<LocalLearningDocMeta>(u, "learningDocs");
+  // v6.9.10: o PDF importado no celular fica na tabela `learningDocs` (com o
+  // texto das seções). Os metadados antigos, que apontavam para o servidor,
+  // continuam listados para não sumirem da tela.
+  const rows = await db.learningDocs
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const fromDevice: LocalLearningDocMeta[] = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    pages: row.pages,
+    sections: row.sections,
+    createdAt: row.createdAt,
+  }));
+  const seen = new Set(fromDevice.map((doc) => doc.id));
+  return [...fromDevice, ...legacy.filter((doc) => !seen.has(doc.id))];
 }
 
-/** O texto da seção vive no servidor; offline não há como abrir o PDF. */
-export async function localLearningGet(_input?: unknown): Promise<never> {
-  throw new Error(
-    "O texto do PDF fica no SOE do computador. No celular você abre as aulas, analogias e micro-mundos já salvos.",
-  );
+/**
+ * Abre o documento no aparelho (v6.9.10). Antes isto lançava erro: o texto do
+ * PDF só existia no servidor, então o modo leitura não funcionava no APK.
+ */
+export async function localLearningGet(input?: { docId?: string }): Promise<{
+  id: string;
+  title: string;
+  pages: number;
+  sections: number;
+  createdAt: string;
+  sectionsData: any[];
+}> {
+  const docId = String(input?.docId || "");
+  const row = docId ? await db.learningDocs.get(docId) : undefined;
+  if (!row) {
+    throw new Error("Documento não encontrado neste aparelho.");
+  }
+  await db.learningDocs.update(docId, { lastOpenedAt: now() });
+  return {
+    id: row.id,
+    title: row.title,
+    pages: row.pages,
+    sections: row.sections,
+    createdAt: row.createdAt,
+    sectionsData: row.sectionsData || [],
+  };
 }
 
 export async function localLearningRemove(input: {
@@ -3746,13 +3810,158 @@ export async function localLearningRemove(input: {
     (doc) => doc.id !== input.docId,
   );
   await writeSetting("learningDocs", docs);
+  await db.learningDocs.delete(input.docId);
   return { success: true };
 }
 
-export async function localLearningImportPdf(): Promise<never> {
-  throw new Error(
-    "Importar PDF precisa do SOE no computador: a extração do texto roda no servidor.",
-  );
+/**
+ * Importa o PDF no próprio aparelho (v6.9.10).
+ *
+ * Antes lançava erro e o botão de upload não fazia nada no APK. A extração roda
+ * no WebView com o pdf.js e a divisão em seções é a mesma do servidor
+ * (`shared/pdfSections`), então o texto fica no celular e o modo leitura abre
+ * sem internet.
+ */
+export async function localLearningImportPdf(input: {
+  base64: string;
+  fileName?: string;
+}): Promise<LocalLearningDocMeta> {
+  if (!input?.base64 || input.base64.length < 20) {
+    throw new Error("Arquivo vazio.");
+  }
+  const { extractPdfOnDevice } = await import("./pdfText");
+  const parsed = await extractPdfOnDevice(input.base64, input.fileName);
+  if (!parsed.sections.length) {
+    throw new Error("Não encontrei texto para dividir em seções neste PDF.");
+  }
+  const stamp = now();
+  const id = `doc-${stamp.replace(/[^0-9]/g, "").slice(0, 14)}-${Math.random()
+    .toString(36)
+    .slice(2, 7)}`;
+  const title =
+    parsed.title || (input.fileName || "Documento").replace(/\.pdf$/i, "");
+  const meta: LocalLearningDocMeta = {
+    id,
+    title,
+    pages: parsed.pages,
+    sections: parsed.sections.length,
+    createdAt: stamp,
+  };
+  await db.learningDocs.put({
+    ...meta,
+    userId: LOCAL_USER_ID,
+    sectionsData: parsed.sections,
+  });
+  return meta;
+}
+
+// ============ SESSÃO E DOMÍNIO (v6.9.10) ============
+/**
+ * Registra a sessão do SOE no aparelho.
+ *
+ * Faltava no APK: `study.recordSession` não tinha versão offline, então o
+ * fechamento da sessão dava erro e NENHUMA sessão entrava no histórico — o app
+ * "não contabilizava" as questões resolvidas no próprio SOE.
+ */
+export async function localStudyRecordSession(input: {
+  startedAt: string;
+  endedAt: string;
+  minutes: number;
+  accuracy: number;
+  questions: number;
+  correct: number;
+  topicId?: number;
+  topicName?: string;
+  disciplineId?: number;
+  blockId?: string;
+  revisionCompleted?: boolean;
+}): Promise<{ success: true }> {
+  const u = await ensureLocalUser();
+  const started = new Date(input.startedAt);
+  const validStart = !Number.isNaN(started.getTime());
+  const log = settingsList<Record<string, unknown>>(u, "studySessionLog");
+  const entry = {
+    date: validStart ? localDayISO(started) : localDayISO(),
+    hourStart: validStart ? started.getHours() : 0,
+    durationMin: Math.max(0, Math.round(Number(input.minutes) || 0)),
+    accuracy: Math.max(0, Math.min(1, (Number(input.accuracy) || 0) / 100)),
+    disciplineId: input.disciplineId,
+    startedAt: input.startedAt,
+    endedAt: input.endedAt,
+    topicId: input.topicId,
+    topicName: input.topicName,
+    blockId: input.blockId,
+    questions: Math.max(0, Math.round(Number(input.questions) || 0)),
+    correct: Math.max(0, Math.round(Number(input.correct) || 0)),
+    revisionCompleted: input.revisionCompleted,
+  };
+  await writeSetting("studySessionLog", [...log, entry].slice(-500));
+
+  const events = settingsList<Record<string, unknown>>(u, "studyEvents");
+  const id = `guided-${input.startedAt}-${input.topicId ?? "geral"}`;
+  if (!events.some((event) => event.id === id)) {
+    await writeSetting(
+      "studyEvents",
+      [
+        ...events,
+        {
+          id,
+          type: "session",
+          occurredAt: input.endedAt,
+          title: input.topicName
+            ? `Sessão: ${input.topicName}`
+            : "Sessão guiada",
+          detail: `${entry.durationMin} min · ${entry.correct}/${entry.questions} acertos`,
+          topicId: input.topicId,
+          disciplineId: input.disciplineId,
+          topicName: input.topicName,
+          minutes: entry.durationMin,
+          source: "guided",
+        },
+      ].slice(-5000),
+    );
+  }
+  return { success: true };
+}
+
+/**
+ * Retrato do domínio por tópico, igual ao do servidor (`getMasterySnapshot`).
+ * O relatório da sessão compara o antes e o depois; sem isto o APK mostrava
+ * "nenhuma questão nova" mesmo tendo respondido.
+ */
+export async function localStudyMasterySnapshot(): Promise<
+  Array<{
+    topicId: number;
+    topicName: string;
+    disciplineName: string;
+    resolved: number;
+    correct: number;
+    readiness: number;
+  }>
+> {
+  const [disciplines, topicsResult] = await Promise.all([
+    localDisciplineList(),
+    localTopicList(),
+  ]);
+  return topicsResult.topics.map((topic: any) => {
+    const discipline = disciplines.find(
+      (item) => item.id === topic.disciplineId,
+    );
+    const resolved = Number(topic.performance?.questionsResolved) || 0;
+    const correct = Number(topic.performance?.correctCount) || 0;
+    const accuracy = resolved > 0 ? Math.round((correct / resolved) * 100) : 0;
+    return {
+      topicId: topic.id,
+      topicName: topic.name,
+      disciplineName: discipline?.name || "Disciplina",
+      resolved,
+      correct,
+      readiness: Math.min(
+        100,
+        Math.round(accuracy * 0.7 + Math.min(100, (resolved / 20) * 100) * 0.3),
+      ),
+    };
+  });
 }
 
 export async function localLearningAnalogies(input?: {

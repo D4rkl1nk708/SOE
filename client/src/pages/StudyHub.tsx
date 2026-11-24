@@ -274,6 +274,9 @@ export default function StudyHub() {
             Importar caderno do TEC
           </button>
           {[
+            // v6.9.10: o modo leitura só existia na barra lateral do desktop;
+            // no celular não havia como chegar nele (nem no importar PDF).
+            { href: "/ler", label: "Ler PDF" },
             { href: "/history", label: "Histórico" },
             { href: "/statistics", label: "Estatísticas" },
             { href: "/simulado", label: "Simulado rápido" },

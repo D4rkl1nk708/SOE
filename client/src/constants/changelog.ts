@@ -11,6 +11,32 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.10",
+    date: "24/11/2026",
+    title: "No celular: importar PDF e contar as questões da sessão",
+    categories: [
+      {
+        title: "📄 Ler PDF no APK",
+        type: "feature",
+        items: [
+          "O botão de importar arquivo no modo leitura agora funciona no celular: o texto do PDF é extraído no próprio aparelho e dividido em seções, sem precisar do computador.",
+          "O documento importado abre depois sem internet, com o sumário, a página na margem e o texto na medida de leitura.",
+          "PDF digitalizado (sem texto) avisa com clareza em vez de falhar sem explicação.",
+          "Gerar perguntas, analogias e micro-mundo continua usando a sua chave de IA e internet — e agora diz isso em vez de erro genérico.",
+        ],
+      },
+      {
+        title: "🧮 Questões contadas",
+        type: "fix",
+        items: [
+          "A sessão fechada no celular passou a entrar no histórico com as questões, os acertos e a duração. Antes o fechamento falhava em silêncio e o relatório dizia que nenhuma questão tinha sido respondida.",
+          "O retrato de domínio por tópico (antes e depois da sessão) também passou a existir no aparelho, que é o que alimenta a contagem do relatório.",
+        ],
+      },
+    ],
+  },
+
+  {
     version: "6.9.9",
     date: "21/11/2026",
     title: "O aviso de novidades volta a mostrar a versão certa",
