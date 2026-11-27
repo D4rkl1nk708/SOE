@@ -439,8 +439,10 @@ body {
 }
 
 .ui-focus .reading-page {
-  position: sticky;
-  top: 0.5rem;
+  /*
+   * Página na margem, sem enfeite: só o número do PDF, alinhado à primeira
+   * linha. Nada de sticky — não existe rolagem dentro da página (v6.9.13).
+   */
   padding-top: 0.34rem;
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
@@ -456,6 +458,15 @@ body {
 
 .ui-focus .reading-block p + p {
   margin-top: 0.9em;
+}
+
+/* O quadro tem altura fixa e a página é medida contra ele: sem rolagem. */
+.ui-focus .reading-page-frame {
+  min-height: 300px;
+}
+
+.ui-focus .reading-page-body {
+  overflow: hidden;
 }
 
 @media (max-width: 639px) {

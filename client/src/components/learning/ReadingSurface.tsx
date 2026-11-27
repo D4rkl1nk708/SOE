@@ -18,6 +18,7 @@ import { DocumentRail } from "./DocumentRail";
 import { LessonPlayer } from "./LessonPlayer";
 import SandboxFrame, { type MicroWorld } from "./SandboxFrame";
 import { SectionStudyPanel } from "./SectionStudyPanel";
+import { PagedReading } from "./PagedReading";
 import { sectionPagesLabel, splitSectionIntoBlocks } from "./readingModel";
 import type { CadernoVivoState } from "./useCadernoVivo";
 import { SectionRecallGate } from "./SectionRecallGate";
@@ -90,6 +91,18 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
     () => (section ? splitSectionIntoBlocks(section) : []),
     [section],
   );
+
+  // v6.9.13: o texto da seção vira parágrafos e o paginador os distribui.
+  const paragraphs = useMemo(
+    () => blocks.flatMap((block) => block.paragraphs),
+    [blocks],
+  );
+  const paragraphPages = useMemo(
+    () => blocks.flatMap((block) => block.paragraphs.map(() => block.page)),
+    [blocks],
+  );
+  const readingKey = `${caderno.docId ?? ""}::${sectionIndex}`;
+  const readingPage = caderno.readingPosition[readingKey] ?? 0;
 
   const triggerAction = (action: MobileAction) => {
     tokenRef.current += 1;
@@ -258,7 +271,7 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
                   </p>
                 </header>
 
-                {blocks.length === 0 ? (
+                {paragraphs.length === 0 ? (
                   <div className="px-5 py-8">
                     <EmptyState
                       title="Esta seção veio sem texto"
@@ -280,26 +293,40 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
                     />
                   </div>
                 ) : (
-                  <div className="reading-prose px-4 py-5 sm:px-5 2xl:px-6">
-                    {blocks.map((block, blockIndex) => (
-                      <div
-                        key={`block-${blockIndex}`}
-                        className="reading-block"
-                        data-page={block.page ?? undefined}
-                      >
-                        <span
-                          className="reading-page"
-                          aria-hidden={block.page ? undefined : "true"}
-                        >
-                          {block.page ? `p. ${block.page}` : ""}
-                        </span>
-                        <div className="min-w-0">
-                          {block.paragraphs.map((paragraph, index) => (
-                            <p key={`p-${blockIndex}-${index}`}>{paragraph}</p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                  <PagedReading
+                    key={readingKey}
+                    blocks={paragraphs}
+                    blockPages={paragraphPages}
+                    initialPage={readingPage}
+                    onPageChange={(page) =>
+                      caderno.rememberReading(readingKey, page)
+                    }
+                    onAfterLast={() => {
+                      // Última página da seção: o avanço é para a próxima
+                      // seção, que passa pela recuperação da atual.
+                      if (caderno.hasNextSection) {
+                        caderno.goToSection(sectionIndex + 1);
+                      }
+                    }}
+                  />
+                )}
+
+                {caderno.recallSkipNotice && (
+                  <div
+                    role="note"
+                    className="flex items-start justify-between gap-3 border-t border-border bg-secondary/20 px-4 py-2"
+                  >
+                    <p className="text-[11.5px] leading-4 text-muted-foreground">
+                      Pular sem recuperar reduz a retenção. Uma frase de memória
+                      antes de seguir custa 20 segundos.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={caderno.dismissRecallSkipNotice}
+                      className="shrink-0 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Entendi
+                    </button>
                   </div>
                 )}
 

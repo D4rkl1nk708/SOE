@@ -63,6 +63,36 @@ export function useCadernoVivo() {
   const [world, setWorld] = useState<MicroWorld | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // v6.9.13: página atual do leitor por `docId::seção`. O estado local existe
+  // para a posição sobreviver a trocar de seção e voltar sem refazer o getStats;
+  // as settings são a verdade entre sessões (sobrevivem a fechar o app).
+  const [readingPages, setReadingPages] = useState<Record<
+    string,
+    number
+  > | null>(null);
+  const readingPosition =
+    readingPages ??
+    ((settings.readingPosition ?? {}) as Record<string, number>);
+  const saveReadingPosition = trpc.v10.updateV10Settings.useMutation({
+    onError: (error) => toast.error(error.message),
+  });
+  const rememberReading = (key: string, page: number) => {
+    const target = Math.max(0, Math.floor(Number(page) || 0));
+    if (!key || readingPosition[key] === target) return;
+    const next: Record<string, number> = { ...readingPosition, [key]: target };
+    const entries = Object.entries(next);
+    const trimmed =
+      entries.length > 200
+        ? Object.fromEntries(entries.slice(entries.length - 200))
+        : next;
+    setReadingPages(trimmed);
+    saveReadingPosition.mutate({ readingPosition: trimmed });
+  };
+
+  // "Pular sem recuperar reduz a retenção" aparece uma vez, nunca bloqueia.
+  const [recallSkipNotice, setRecallSkipNotice] = useState(false);
+  const dismissRecallSkipNotice = () => setRecallSkipNotice(false);
+
   // Primeiro documento da lista abre sozinho; documento apagado sai da seleção.
   useEffect(() => {
     if (docs.length === 0) {
@@ -114,6 +144,8 @@ export function useCadernoVivo() {
   const cancelRecallGate = () => {
     setRecallGate(false);
     const target = pendingSection;
+    // Pulou a recuperação de propósito: avisa uma vez, sem bloquear.
+    if (target != null) setRecallSkipNotice(true);
     setPendingSection(null);
     setRecallText("");
     if (target != null) {
@@ -339,6 +371,11 @@ export function useCadernoVivo() {
     cancelRecallGate,
     saveSectionRecall,
     sectionRecalls,
+    // v6.9.13: leitor paginado.
+    readingPosition,
+    rememberReading,
+    recallSkipNotice,
+    dismissRecallSkipNotice,
     // leitura ativa (mutações antigas — usadas pelo layout clássico)
     questions,
     answers,

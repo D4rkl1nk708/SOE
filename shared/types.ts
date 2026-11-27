@@ -556,6 +556,11 @@ export interface UserSettings {
     createdAt: string;
     lastOpenedAt?: string;
   }>;
+  /**
+   * Caderno Vivo (v6.9.13): página atual do leitor por `docId::índiceDaSeção`.
+   * Restaurar a posição é o que evita reler (ou pular) sem saber onde parou.
+   */
+  readingPosition?: Record<string, number>;
   /** Token secreto usado pelo userscript Tampermonkey para autenticar pushes em tempo real */
   pushToken?: string;
   /** Chaves de API de Inteligência Artificial cadastradas pelo usuário (para o Mentor SOE) */

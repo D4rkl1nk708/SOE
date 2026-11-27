@@ -11,6 +11,30 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.13",
+    date: "27/11/2026",
+    title: "Leitor paginado: uma página por vez, sem rolagem",
+    categories: [
+      {
+        title: "📖 Leitura em páginas",
+        type: "feature",
+        items: [
+          'O Caderno Vivo deixou de rolar: cada seção é lida em páginas ("3 de 12"), com setas, teclado (← →) e swipe no celular. Sem rolagem, papel e tela empatam na compreensão; com rolagem, o papel vence (Clinton-Lisell & Litzinger, 2026).',
+          "A página nunca corta: se o texto passar da altura da tela, o paginador reduz o orçamento de palavras e repagina sozinho, sempre cortando entre parágrafos ou entre frases.",
+          "A posição fica salva por documento e seção: fechar o app e voltar abre na mesma página.",
+          "Ao terminar a última página, o avanço para a próxima seção passa pela pergunta de recuperação da seção atual; pular é permitido, mas o app avisa uma vez que isso reduz a retenção.",
+        ],
+      },
+      {
+        title: "🧹 Corpo do texto limpo",
+        type: "improvement",
+        items: [
+          "Nada de enfeite no corpo do texto: só título e o número da página do PDF na margem. Detalhe sedutor custa compreensão (g = −0,16).",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.12",
     date: "27/11/2026",
     title: "Tutor com coleira: a resposta sai do prompt",

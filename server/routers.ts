@@ -1588,6 +1588,10 @@ ${input.text.substring(0, 8000)}`;
           tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),
           dailyReviewCap: z.number().min(0).max(500).optional(),
           activeExamId: z.string().optional(),
+          /** v6.9.13: posição do leitor paginado por documento + seção. */
+          readingPosition: z
+            .record(z.string(), z.number().int().min(0))
+            .optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
