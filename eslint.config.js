@@ -12,6 +12,10 @@ export default [
       "dist/**",
       "node_modules/**",
       "release/**",
+      // v6.9.11-b: bundles copiados para o Android (pdf.js worker, assets do
+      // build) têm 1200 falsos erros e não são código-fonte.
+      "android/app/build/**",
+      "android/app/src/main/assets/public/**",
       "**/*.js",
       "**/*.cjs",
       "electron/tec-content.js"

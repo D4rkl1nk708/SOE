@@ -619,6 +619,8 @@ export interface Flashcard {
   /** v6.9.11 (B4/4.7): cartão corretivo criado por certeza + erro. */
   hypercorrection?: boolean;
   hypercorrectionFromAttemptId?: string;
+  /** D+7: a correção do erro confiante decai ~86% -> 56% em uma semana; rechecar. */
+  hypercorrectionRecheckAt?: string;
   sourceTopicId?: number;
   createdAt: string;
   updatedAt: string;

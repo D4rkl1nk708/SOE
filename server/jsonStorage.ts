@@ -2873,6 +2873,15 @@ export async function reviewFlashcard(
 
   const card = { ...db.flashcards[idx] };
 
+  // v6.9.11-b: rechecagem da hipercorreção. A correção de erro confiante cai de
+  // ~86% para ~56% em uma semana; se falhar no D+7, o cartão volta ao início.
+  const todayIso = localDayISO();
+  const recheckFailed =
+    Boolean(card.hypercorrection) &&
+    Boolean(card.hypercorrectionRecheckAt) &&
+    todayIso >= String(card.hypercorrectionRecheckAt) &&
+    quality < 3;
+
   if (quality >= 3) {
     if (card.repetitions === 0) card.interval = 1;
     else if (card.repetitions === 1) card.interval = 6;
@@ -2881,6 +2890,13 @@ export async function reviewFlashcard(
   } else {
     card.repetitions = 0;
     card.interval = 1;
+  }
+
+  if (recheckFailed) {
+    // Erro na rechecagem: antes de "corrigido", de novo ativo.
+    card.repetitions = 0;
+    card.interval = 1;
+    card.hypercorrectionRecheckAt = addLocalDays(todayIso, 7);
   }
 
   card.easeFactor = Math.max(
@@ -4834,6 +4850,7 @@ function ensureHypercorrectionCardInDb(
     archived: false,
     hypercorrection: true,
     hypercorrectionFromAttemptId: attempt.id,
+    hypercorrectionRecheckAt: addLocalDays(localDayISO(), 7),
     sourceTopicId: topic?.id,
     createdAt: now(),
     updatedAt: now(),

@@ -99,7 +99,7 @@ describe("Jornada 7 — spacing guard, domínio e plano sem repetição", () => 
     expect(again.moved).toBe(0);
   });
 
-  it("domínio sobe só com acertos em 3 dias distintos", async () => {
+  it("domínio sobe a cada recuperação espaçada; selo exige questão nova", async () => {
     const topicId = 20;
     const topic = ctx.meta.topics.find((item) => item.id === topicId)!;
     const answer = async (dayIso: string, correct = true) => {
@@ -122,11 +122,12 @@ describe("Jornada 7 — spacing guard, domínio e plano sem repetição", () => 
     expect(await answer(TODAY)).toBe(1);
     expect(await answer(TODAY)).toBe(1);
 
-    // Dias distintos com gap ≥3 sobem o nível.
+    // Dias distintos com gap ≥3 sobem o nível (2 recuperações já valem).
     expect(await answer(addLocalDays(TODAY, 3))).toBe(2);
-    expect(await answer(addLocalDays(TODAY, 7))).toBe(3);
+    // Terceira recuperação com questão nova: transferência confirmada -> consolidado.
+    expect(await answer(addLocalDays(TODAY, 7))).toBe(4);
     // Um erro não zera.
-    expect(await answer(addLocalDays(TODAY, 10), false)).toBe(3);
+    expect(await answer(addLocalDays(TODAY, 10), false)).toBe(4);
   });
 
   it("plano do dia não repete tópico", async () => {

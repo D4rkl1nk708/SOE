@@ -28,7 +28,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         type: "feature",
         items: [
           "Tema novo abre com um diagnóstico de 5 questões (erro esperado). Ele entra como linha de base — nunca como acurácia, proficiência ou domínio.",
-          "Selo de domínio 0–4 por tópico: 3 recuperações espaçadas e, para chegar a dominado, acerto em questão nova depois delas.",
+          "Selo de domínio 0–4 por tópico: 2 recuperações espaçadas já valem, e o selo de dominado exige acerto em questão nova depois delas (estudante abandona o item cedo demais com 1 acerto).",
           "Aviso suave de consolidação quando o dia termina com tópicos em nível 0–1.",
         ],
       },
@@ -38,7 +38,7 @@ export const CHANGELOG_DATA: ChangelogItem[] = [
         items: [
           "Sessões com 5+ questões corrigem no final: durante o bloco, sem gabarito nem explicação.",
           "Ao errar, o app pede uma frase explicando por que a alternativa marcada está errada. Sem a frase, a questão fica pendente.",
-          "Erro marcado com certeza cria cartão corretivo na hora e agenda a recuperação para o dia seguinte.",
+          "Erro marcado com certeza cria cartão corretivo na hora, agenda recuperação para o dia seguinte e faz uma rechecagem em 7 dias: a correção de erro confiante cai de ~86% para ~56% em uma semana.",
         ],
       },
       {

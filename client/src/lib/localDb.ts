@@ -2969,12 +2969,26 @@ export async function localFlashcardReview(input: {
 
   // Simple SM-2 implementation
   let { interval, easeFactor, repetitions } = card;
+
+  // v6.9.11-b: rechecagem em D+7 da hipercorreção (mesma regra do servidor).
+  const todayIso = localDayISO();
+  const recheckFailed =
+    Boolean((card as any).hypercorrection) &&
+    Boolean((card as any).hypercorrectionRecheckAt) &&
+    todayIso >= String((card as any).hypercorrectionRecheckAt) &&
+    input.quality < 3;
+
   if (input.quality >= 3) {
     if (repetitions === 0) interval = 1;
     else if (repetitions === 1) interval = 6;
     else interval = Math.round(interval * easeFactor);
     repetitions++;
   } else {
+    repetitions = 0;
+    interval = 1;
+  }
+
+  if (recheckFailed) {
     repetitions = 0;
     interval = 1;
   }
@@ -2995,6 +3009,9 @@ export async function localFlashcardReview(input: {
     repetitions,
     nextReviewDate,
     updatedAt: now(),
+    ...(recheckFailed
+      ? { hypercorrectionRecheckAt: addLocalDays(todayIso, 7) }
+      : {}),
   };
   await db.flashcards.update(input.id, updated);
   return updated;
