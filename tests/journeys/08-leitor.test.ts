@@ -152,7 +152,8 @@ describe("Jornada 8 — leitor paginado", () => {
     const recalls = await ctx.caller.learning.sectionRecalls({ docId: DOC_ID });
     const saved = recalls.find((item: any) => item.sectionIndex === 0);
     expect(saved).toBeTruthy();
-    expect(saved.selfRated).toBe("acertei");
+    // `saved` é opcional para o TypeScript: o teste já falhou acima se faltar.
+    expect(saved?.selfRated).toBe("acertei");
 
     // Reabrir o documento não apaga nem a recuperação nem a página.
     const doc = await ctx.caller.learning.get({ docId: DOC_ID });
