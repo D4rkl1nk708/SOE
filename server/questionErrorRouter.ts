@@ -24,11 +24,40 @@ export const questionErrorRouter = router({
         errorOrigin: z
           .enum(["attention", "forgetting", "theory", "trap"])
           .optional(),
+        /** v6.9.11 (B3/4.6): frase do aluno com ≥15 caracteres. */
+        explanation: z.string().max(2000).optional(),
+        /** v6.9.11 (B6/4.10): causa em 1 toque. */
+        cause: z
+          .enum(["conceito", "literalidade", "leitura", "desatencao", "banca"])
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       return storage.saveQuestionError({ ...input, userId: ctx.user.id });
     }),
+
+  /** v6.9.11 (B6/4.10): classifica a causa do erro em 1 toque. */
+  setCause: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        cause: z.enum([
+          "conceito",
+          "literalidade",
+          "leitura",
+          "desatencao",
+          "banca",
+        ]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return storage.setQuestionErrorCause(ctx.user.id, input.id, input.cause);
+    }),
+
+  /** v6.9.11 (B6/4.10): distribuição de causas por disciplina. */
+  causes: protectedProcedure.query(async ({ ctx }) => {
+    return storage.getErrorCauseSummary(ctx.user.id);
+  }),
 
   list: protectedProcedure
     .input(

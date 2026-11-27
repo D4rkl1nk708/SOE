@@ -165,6 +165,17 @@ export const appRouter = router({
           minimizeToTray: z.boolean().optional(),
           layoutMode: z.enum(["v2", "classic"]).optional(),
           uiMode: z.enum(["focused", "complete"]).optional(),
+          /** v6.9.11 (B2/4.5): gabarito em bloco (padrão) ou imediato. */
+          feedbackMode: z.enum(["block", "immediate"]).optional(),
+          /** v6.9.11 (B5/4.8): régua da banca do simulado. */
+          examRules: z
+            .object({
+              banca: z.enum(["cebraspe", "fgv", "cesgranrio", "outra"]),
+              negativeMarking: z.boolean(),
+              timePerQuestionSec: z.number().min(20).max(600),
+              totalItems: z.number().min(1).max(500),
+            })
+            .optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -558,6 +569,22 @@ export const appRouter = router({
         await storage.rescheduleRevision(input.id, ctx.user.id, input.newDate);
         return { success: true };
       }),
+    /**
+     * v6.9.11 (A1/4.2): aplica o intervalo mínimo de 3 dias. Reagendar revisão
+     * SÓ por aqui — nunca em scheduling.ts. Backup + evento `spacing-guard`.
+     */
+    applySpacingGuard: protectedProcedure
+      .input(
+        z
+          .object({
+            today: z.string().optional(),
+            minGapDays: z.number().min(1).max(30).optional(),
+          })
+          .optional(),
+      )
+      .mutation(async ({ ctx, input }) => {
+        return storage.applySpacingGuard(ctx.user.id, input || {});
+      }),
     saveRecallRating: protectedProcedure
       .input(
         z.object({
@@ -820,6 +847,7 @@ export const appRouter = router({
           paceReport: z.any().nullable().optional(),
           blueprint: z.array(z.any()).optional(),
           status: z.enum(["in_progress", "completed"]).optional(),
+          wrapper: z.any().nullable().optional(),
           mode: z.enum(["cebraspe", "multiple"]).optional(),
           durationMinutes: z.number().optional(),
           completedAt: z.string().optional(),
@@ -856,6 +884,7 @@ export const appRouter = router({
           paceReport: z.any().nullable().optional(),
           blueprint: z.array(z.any()).optional(),
           status: z.enum(["in_progress", "completed"]).optional(),
+          wrapper: z.any().nullable().optional(),
           mode: z.enum(["cebraspe", "multiple"]).optional(),
           durationMinutes: z.number().optional(),
           completedAt: z.string().optional(),
@@ -1543,6 +1572,17 @@ ${input.text.substring(0, 8000)}`;
           minimizeToTray: z.boolean().optional(),
           layoutMode: z.enum(["v2", "classic"]).optional(),
           uiMode: z.enum(["focused", "complete"]).optional(),
+          /** v6.9.11 (B2/4.5): gabarito em bloco (padrão) ou imediato. */
+          feedbackMode: z.enum(["block", "immediate"]).optional(),
+          /** v6.9.11 (B5/4.8): régua da banca do simulado. */
+          examRules: z
+            .object({
+              banca: z.enum(["cebraspe", "fgv", "cesgranrio", "outra"]),
+              negativeMarking: z.boolean(),
+              timePerQuestionSec: z.number().min(20).max(600),
+              totalItems: z.number().min(1).max(500),
+            })
+            .optional(),
           baseDisciplineIds: z.array(z.number()).optional(),
           scheduler: z.enum(["classic", "fsrs"]).optional(),
           tecCaptureMode: z.enum(["manual", "assisted", "import"]).optional(),

@@ -21,6 +21,25 @@ export interface CalibrationCardProps {
   /** Relatório de sessão: sem tiles grandes, sem recorte por disciplina. */
   compact?: boolean;
   className?: string;
+  /** v6.9.11 (B4/4.7): previsão antes do bloco × resultado obtido. */
+  predictions?: {
+    available: boolean;
+    sample: number;
+    predictedAvg: number;
+    actualAvg: number;
+    gapPoints: number;
+    message: string;
+  };
+  /** Curva de calibração por faixa de previsão. */
+  predictionCurve?: Array<{
+    from: number;
+    to: number;
+    sample: number;
+    predicted: number;
+    actual: number;
+  }>;
+  /** Brier dos blocos previstos (menor = melhor). */
+  brier?: number | null;
 }
 
 /**
@@ -35,6 +54,9 @@ export function CalibrationCard({
   byDiscipline = [],
   compact = false,
   className,
+  predictions,
+  predictionCurve = [],
+  brier,
 }: CalibrationCardProps) {
   const total = summary?.total ?? 0;
   const invite =
@@ -129,6 +151,69 @@ export function CalibrationCard({
           </div>
         ))}
       </div>
+
+      {/* v6.9.11 (B4/4.7): previsto × obtido, erro em pontos e Brier. */}
+      {predictions && (
+        <div className="mt-3 rounded-[10px] border border-border bg-secondary/20 px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Previsão × resultado
+            </span>
+            {predictions.available && (
+              <span className="apple-num text-[11px] text-muted-foreground">
+                Brier {typeof brier === "number" ? brier.toFixed(3) : "—"}
+              </span>
+            )}
+          </div>
+          {predictions.available ? (
+            <>
+              <p className="mt-1 text-[12px] text-foreground">
+                Previu <strong>{predictions.predictedAvg}%</strong>, obteve{" "}
+                <strong>{predictions.actualAvg}%</strong> ·{" "}
+                <span
+                  style={{
+                    color:
+                      Math.abs(predictions.gapPoints) < 5
+                        ? "var(--accent-green)"
+                        : "var(--accent-amber)",
+                  }}
+                >
+                  {predictions.gapPoints > 0 ? "+" : ""}
+                  {predictions.gapPoints} p.p.
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {predictions.message}
+              </p>
+              {predictionCurve.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {predictionCurve.map((bucket) => (
+                    <div
+                      key={`${bucket.from}-${bucket.to}`}
+                      className="flex items-center gap-2 text-[10.5px] text-muted-foreground"
+                    >
+                      <span className="w-16 shrink-0 tabular-nums">
+                        {bucket.from}–{bucket.to}%
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        previsto {bucket.predicted}% · obtido {bucket.actual}%
+                      </span>
+                      <span className="shrink-0 tabular-nums">
+                        n={bucket.sample}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-[11.5px] text-muted-foreground">
+              {predictions.message} — faça uma previsão antes do bloco para ver
+              a curva.
+            </p>
+          )}
+        </div>
+      )}
 
       {advice.length > 0 && (
         <div className="mt-3 rounded-[10px] border border-[color-mix(in_srgb,var(--accent-amber)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent-amber)_10%,transparent)] px-3 py-2.5">

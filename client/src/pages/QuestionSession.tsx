@@ -66,6 +66,8 @@ import SubjectiveAnswersTab, {
   HighlightedText,
 } from "@/components/SubjectiveAnswersTab";
 import { StudyTimer } from "@/components/StudyTimer";
+import { PretestDiagnostic } from "@/components/question-session/PretestDiagnostic";
+import { isFeedbackVisible, resolveFeedbackMode } from "@shared/feedbackMode";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -80,6 +82,12 @@ interface QuestionResult {
   savedQuestion?: boolean;
   confidence?: "chute" | "acho" | "certeza" | null;
   sawResult?: boolean;
+  /** v6.9.11 (B2): dados da questão para a correção do bloco. */
+  correctAnswer?: string;
+  userAnswer?: string;
+  alternatives?: { letter: string; text: string }[];
+  /** v6.9.11 (B3): auto-explicação do erro. */
+  errorExplanation?: string;
 }
 
 interface ParsedQuestion {
@@ -244,6 +252,13 @@ export default function QuestionSession() {
   >(null);
   const [sawResult, setSawResult] = useState(false);
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
+  // v6.9.11 (B4/4.7): previsão antes do bloco e correção em bloco (B2/4.5).
+  const [predictedAccuracy, setPredictedAccuracy] = useState(60);
+  const [predictionId, setPredictionId] = useState<string | null>(null);
+  const [blockCorrected, setBlockCorrected] = useState(false);
+  const [explanation, setExplanation] = useState("");
+  const [explanationError, setExplanationError] = useState("");
+  const [pretestDone, setPretestDone] = useState(false);
 
   const [showPasteArea, setShowPasteArea] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -303,6 +318,16 @@ export default function QuestionSession() {
       return "Captura TEC pronta para receber eventos.";
     }
   })();
+
+  const appSettings = ((dashboardStats as any)?.settings ?? {}) as Record<
+    string,
+    any
+  >;
+  const feedbackMode = resolveFeedbackMode(totalQ, appSettings.feedbackMode);
+  const selectedTopicMastery = selectedTopic
+    ? appSettings.topicMastery?.[String(selectedTopic)]
+    : null;
+  const savePrediction = trpc.study.savePrediction.useMutation();
 
   const setPerformance = trpc.topic.setPerformance.useMutation({
     onSuccess: () => {
@@ -386,7 +411,11 @@ export default function QuestionSession() {
     else setCurrentIndex((i) => i + 1);
   };
 
-  const recordCurrentAttempt = (correct: boolean, answered = true) => {
+  const recordCurrentAttempt = (
+    correct: boolean,
+    answered = true,
+    errorExplanation?: string,
+  ) => {
     if (!selectedTopic) return;
     recordAttempt.mutate({
       topicId: selectedTopic,
@@ -401,12 +430,46 @@ export default function QuestionSession() {
         : null,
       seconds: Math.max(0, Math.round((Date.now() - questionStartedAt) / 1000)),
       source: "manual",
-    });
+      ...(errorExplanation ? { errorExplanation } : {}),
+    } as any);
+  };
+
+  /**
+   * Início do bloco (v6.9.11, B4/4.7): a previsão é registrada ANTES de
+   * responder. Sem previsão não há calibração honesta.
+   */
+  const beginSession = () => {
+    setStartTime(Date.now());
+    setQuestionStartedAt(Date.now());
+    setPhase("session");
+    setCurrentIndex(0);
+    setResults([]);
+    setAwaitingOrigin(false);
+    setBlockCorrected(false);
+    setExplanation("");
+    setExplanationError("");
+    setElapsed(0);
+    sessionStorage.removeItem("qs_prefill");
+    if (totalQ >= 5 && selectedTopic) {
+      savePrediction.mutate(
+        {
+          predictedPct: Math.max(
+            0,
+            Math.min(100, Math.round(predictedAccuracy)),
+          ),
+          questions: totalQ,
+          topicId: selectedTopic,
+          disciplineId: selectedDisc ?? null,
+          source: "question-session",
+        },
+        { onSuccess: (data: any) => setPredictionId(data?.id ?? null) },
+      );
+    }
   };
 
   const handleAnswer = (correct: boolean) => {
-    recordCurrentAttempt(correct, true);
     if (correct) {
+      recordCurrentAttempt(true, true);
       setResults((p) => [
         ...p,
         {
@@ -415,15 +478,28 @@ export default function QuestionSession() {
           errorOrigin: null,
           confidence,
           sawResult,
+          correctAnswer: parsed?.correctAnswer,
+          userAnswer: parsed?.userAnswer,
+          alternatives: parsed?.alternatives,
         },
       ]);
       advance();
     } else {
+      // v6.9.11 (B3/4.6): o erro só é registrado DEPOIS da auto-explicação.
+      // Sem a frase, a questão continua pendente.
       setAwaitingOrigin(true);
     }
   };
 
   const handleOrigin = (origin: ErrorOrigin) => {
+    const text = explanation.trim();
+    if (text.length < 15) {
+      setExplanationError(
+        "Escreva pelo menos 15 caracteres: por que a alternativa marcada está errada?",
+      );
+      return;
+    }
+    recordCurrentAttempt(false, true, text);
     setResults((p) => [
       ...p,
       {
@@ -432,14 +508,50 @@ export default function QuestionSession() {
         errorOrigin: origin,
         confidence,
         sawResult,
+        correctAnswer: parsed?.correctAnswer,
+        userAnswer: parsed?.userAnswer,
+        alternatives: parsed?.alternatives,
+        errorExplanation: text,
       },
     ]);
     setAwaitingOrigin(false);
     setShowPasteArea(true);
+    setExplanation("");
+    setExplanationError("");
+  };
+
+  /** O aluno pulou a explicação: a questão fica pendente (não concluída). */
+  const skipExplanation = () => {
+    setResults((p) => [
+      ...p,
+      {
+        index: currentIndex,
+        correct: false,
+        errorOrigin: null,
+        confidence,
+        sawResult,
+      },
+    ]);
+    setAwaitingOrigin(false);
+    setShowPasteArea(true);
+    setExplanation("");
+    setExplanationError("");
   };
 
   const handleSaveQuestion = () => {
     if (!parsed || !selectedTopic || !selectedDisc) return;
+    setResults((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const last = next[next.length - 1];
+      next[next.length - 1] = {
+        ...last,
+        correctAnswer: parsed.correctAnswer,
+        userAnswer: parsed.userAnswer,
+        alternatives: parsed.alternatives,
+      };
+      return next;
+    });
     const lastResult = results[results.length - 1];
     saveQuestionError.mutate({
       topicId: selectedTopic,
@@ -460,6 +572,20 @@ export default function QuestionSession() {
     if (!selectedTopic) {
       toast.error("Selecione um tema para salvar.");
       return;
+    }
+    // v6.9.11 (B4/4.7): fecha a previsão com o resultado real.
+    if (predictionId) {
+      const finalPct =
+        totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
+      savePrediction.mutate({
+        id: predictionId,
+        predictedPct: predictedAccuracy,
+        actualPct: finalPct,
+        questions: totalQ,
+        topicId: selectedTopic,
+        disciplineId: selectedDisc ?? null,
+        source: "question-session",
+      });
     }
     const correct = results.filter((r) => r.correct).length;
     const wrong = results.filter((r) => !r.correct).length;
@@ -776,18 +902,51 @@ export default function QuestionSession() {
                     </div>
                   </div>
 
+                  {selectedTopic && totalQ >= 5 && (
+                    <div className="space-y-2 rounded-2xl border border-border bg-secondary/20 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                          Quantas dessas você acha que acerta?
+                        </label>
+                        <span className="text-sm font-black tabular-nums text-[var(--primary)]">
+                          {predictedAccuracy}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={predictedAccuracy}
+                        onChange={(e) =>
+                          setPredictedAccuracy(Number(e.target.value))
+                        }
+                        className="w-full accent-[var(--primary)]"
+                      />
+                      <p className="text-[10px] opacity-50">
+                        A previsão entra na calibração (previsto × obtido).
+                        Errar a previsão também é informação.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedTopic &&
+                    !pretestDone &&
+                    Number(selectedTopicMastery?.level ?? 0) === 0 && (
+                      <PretestDiagnostic
+                        topicId={selectedTopic}
+                        topicName={
+                          topics.find((t: any) => t.id === selectedTopic)?.name
+                        }
+                        disciplineId={selectedDisc}
+                        onDone={() => setPretestDone(true)}
+                      />
+                    )}
+
                   <button
                     className="w-full h-14 rounded-2xl bg-[var(--primary)] text-[var(--primary-foreground)] font-black text-xs uppercase tracking-widest shadow-xl shadow-[var(--primary-shadow)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-20 disabled:grayscale"
                     disabled={!selectedDisc || !selectedTopic}
-                    onClick={() => {
-                      setStartTime(Date.now());
-                      setPhase("session");
-                      setCurrentIndex(0);
-                      setResults([]);
-                      setAwaitingOrigin(false);
-                      setElapsed(0);
-                      sessionStorage.removeItem("qs_prefill");
-                    }}
+                    onClick={beginSession}
                   >
                     <Play className="w-5 h-5 fill-[var(--primary-foreground)]" />{" "}
                     INICIAR
@@ -1238,11 +1397,41 @@ export default function QuestionSession() {
                 );
               })}
             </div>
+            <div className="space-y-2 rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <label className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                Por que a alternativa marcada está errada? (obrigatório)
+              </label>
+              <textarea
+                rows={2}
+                value={explanation}
+                onChange={(e) => {
+                  setExplanation(e.target.value);
+                  if (explanationError) setExplanationError("");
+                }}
+                placeholder="Explique com suas palavras — é a auto-explicação que faz o erro virar aprendizado."
+                className="w-full resize-none rounded-lg border border-border bg-transparent p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--primary-shadow)]"
+              />
+              <p className="text-[10px] opacity-50">
+                {explanation.trim().length}/15 caracteres mínimos
+              </p>
+              {explanationError && (
+                <p className="text-[11px] font-semibold text-rose-500">
+                  {explanationError}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => handleOrigin(null)}
-              className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest opacity-30 border border-border/60"
+              disabled={explanation.trim().length < 15}
+              className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-widest border border-border/60 disabled:opacity-30"
             >
-              Ignorar classificação
+              Registrar erro sem classificar
+            </button>
+            <button
+              onClick={skipExplanation}
+              className="w-full py-2 text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-80"
+            >
+              Pular (a questão fica pendente)
             </button>
           </div>
         )}
@@ -1382,30 +1571,106 @@ export default function QuestionSession() {
         </p>
       </div>
 
-      <div
-        className={`soe-card p-10 text-center space-y-4 border-2 ${accuracyBorderClass}`}
-      >
-        <p className={`text-8xl font-black ${accuracyColorClass}`}>
-          {finalAccuracy}%
-        </p>
-        <p className="text-sm font-bold opacity-60 uppercase tracking-widest">
-          {correctCount} acertos · {wrongCount} erros · {totalQ} totais
-        </p>
-        <div className="h-3 rounded-full bg-secondary/40 overflow-hidden max-w-xs mx-auto mt-6">
-          <div
-            className={`h-full transition-all duration-1000`}
-            style={{
-              width: `${finalAccuracy}%`,
-              backgroundColor:
-                finalAccuracy >= 70
-                  ? "#10b981"
-                  : finalAccuracy >= 50
-                    ? "var(--primary)"
-                    : "#f43f5e",
-            }}
-          />
+      {isFeedbackVisible({ mode: feedbackMode, corrected: blockCorrected }) ? (
+        <div
+          className={`soe-card p-10 text-center space-y-4 border-2 ${accuracyBorderClass}`}
+        >
+          <p className={`text-8xl font-black ${accuracyColorClass}`}>
+            {finalAccuracy}%
+          </p>
+          <p className="text-sm font-bold opacity-60 uppercase tracking-widest">
+            {correctCount} acertos · {wrongCount} erros · {totalQ} totais
+          </p>
+          <div className="h-3 rounded-full bg-secondary/40 overflow-hidden max-w-xs mx-auto mt-6">
+            <div
+              className={`h-full transition-all duration-1000`}
+              style={{
+                width: `${finalAccuracy}%`,
+                backgroundColor:
+                  finalAccuracy >= 70
+                    ? "#10b981"
+                    : finalAccuracy >= 50
+                      ? "var(--primary)"
+                      : "#f43f5e",
+              }}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="soe-card p-8 text-center space-y-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">
+            Bloco concluído
+          </p>
+          <p className="text-sm font-semibold opacity-70">
+            {totalQ} questões respondidas. No modo prova, o gabarito e a
+            explicação saem só na correção — é isso que treina a recuperação de
+            verdade.
+          </p>
+          <button
+            onClick={() => setBlockCorrected(true)}
+            className="mx-auto flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-6 py-4 text-xs font-black uppercase tracking-widest text-[var(--primary-foreground)]"
+          >
+            <ListChecks className="h-4 w-4" /> Corrigir bloco
+          </button>
+        </div>
+      )}
+
+      {isFeedbackVisible({ mode: feedbackMode, corrected: blockCorrected }) && (
+        <div className="soe-card p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+              Correção do bloco
+            </h3>
+            {predictionId && (
+              <span className="text-[10px] font-bold text-muted-foreground">
+                previsto {predictedAccuracy}% × obtido {finalAccuracy}%{" · "}
+                {finalAccuracy - predictedAccuracy > 0 ? "+" : ""}
+                {finalAccuracy - predictedAccuracy} p.p.
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {results.map((result) => (
+              <div
+                key={`corr-${result.index}`}
+                className="rounded-lg border border-border/60 bg-secondary/10 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold">
+                    Questão {result.index + 1}
+                  </span>
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      result.correct ? "text-emerald-500" : "text-rose-500"
+                    }`}
+                  >
+                    {result.correct ? "Acertou" : "Errou"}
+                  </span>
+                </div>
+                {result.errorExplanation && (
+                  <p className="mt-1 text-[11px] italic leading-5 opacity-70">
+                    “{result.errorExplanation}”
+                  </p>
+                )}
+                {!result.correct && (
+                  <p className="mt-1 text-[11px] leading-5 opacity-60">
+                    {result.correctAnswer
+                      ? `Gabarito: ${result.correctAnswer}.`
+                      : "Gabarito não informado nesta questão."}
+                    {result.alternatives && result.alternatives.length > 0
+                      ? ` Alternativas: ${result.alternatives
+                          .map((alt) => alt.letter)
+                          .join(
+                            ", ",
+                          )} — só a correta responde ao comando; confira o porquê de cada distrator no caderno de erros.`
+                      : " Salve a questão no caderno de erros para receber o porquê de cada alternativa."}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {originCounts.length > 0 && (

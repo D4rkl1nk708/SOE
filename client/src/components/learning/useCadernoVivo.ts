@@ -50,6 +50,10 @@ export function useCadernoVivo() {
   );
 
   const [sectionIndex, setSectionIndex] = useState(0);
+  // v6.9.11 (B7/4.11): micro-recuperação por seção.
+  const [recallGate, setRecallGate] = useState(false);
+  const [recallText, setRecallText] = useState("");
+  const [pendingSection, setPendingSection] = useState<number | null>(null);
   const [questions, setQuestions] = useState<SectionQuestion[] | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
@@ -73,6 +77,50 @@ export function useCadernoVivo() {
 
   const sections = doc?.sectionsData ?? [];
   const section = (sections[sectionIndex] ?? null) as ReadingSection | null;
+
+  const { data: sectionRecalls = [] } = trpc.learning.sectionRecalls.useQuery(
+    { docId: docId || "" },
+    { enabled: !!docId },
+  );
+  const saveSectionRecall = trpc.learning.saveSectionRecall.useMutation({
+    onSuccess: async () => {
+      await utils.learning.sectionRecalls.invalidate();
+      setRecallGate(false);
+      const target = pendingSection ?? sectionIndex + 1;
+      setPendingSection(null);
+      setRecallText("");
+      setSectionIndex(target);
+      resetSectionState();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const currentSectionHasRecall = (sectionRecalls as any[]).some(
+    (item) => item.sectionIndex === sectionIndex,
+  );
+  const recallQuestion = `O que esta seção afirma sobre ${
+    section?.title || "o tema"
+  }?`;
+  const submitSectionRecall = (selfRated: "acertei" | "nao_soube") => {
+    if (!doc || !section) return;
+    saveSectionRecall.mutate({
+      docId: doc.id,
+      sectionIndex,
+      sectionTitle: section.title,
+      question: recallQuestion,
+      answer: recallText.trim() || undefined,
+      selfRated,
+    });
+  };
+  const cancelRecallGate = () => {
+    setRecallGate(false);
+    const target = pendingSection;
+    setPendingSection(null);
+    setRecallText("");
+    if (target != null) {
+      setSectionIndex(target);
+      resetSectionState();
+    }
+  };
 
   const resetSectionState = () => {
     setQuestions(null);
@@ -186,6 +234,17 @@ export function useCadernoVivo() {
   };
 
   const selectSection = (index: number) => {
+    // v6.9.11 (B7): avançar sem recuperar a seção atual abre a pergunta.
+    if (
+      index > sectionIndex &&
+      sections.length > 0 &&
+      !currentSectionHasRecall
+    ) {
+      setPendingSection(index);
+      setRecallText("");
+      setRecallGate(true);
+      return;
+    }
     setSectionIndex(index);
     resetSectionState();
   };
@@ -271,6 +330,15 @@ export function useCadernoVivo() {
     goToSection,
     hasPrevSection: sectionIndex > 0,
     hasNextSection: sectionIndex + 1 < sections.length,
+    // v6.9.11 (B7/4.11): gate de micro-recuperação por seção.
+    recallGate,
+    recallText,
+    recallQuestion,
+    setRecallText,
+    submitSectionRecall,
+    cancelRecallGate,
+    saveSectionRecall,
+    sectionRecalls,
     // leitura ativa (mutações antigas — usadas pelo layout clássico)
     questions,
     answers,

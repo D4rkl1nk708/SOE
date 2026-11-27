@@ -395,7 +395,72 @@ export default function Statistics() {
         summary={calibration}
         advice={calibration?.advice}
         byDiscipline={calibration?.byDiscipline}
+        predictions={(calibration as any)?.predictions}
+        predictionCurve={(calibration as any)?.predictionCurve}
+        brier={(calibration as any)?.brier}
       />
+
+      {/* v6.9.11 (C5/4.1): distribuição do domínio por nível 0–4. */}
+      {(() => {
+        const mastery = ((stats as any)?.settings?.topicMastery ||
+          {}) as Record<string, { level?: number }>;
+        const counts = [0, 0, 0, 0, 0];
+        for (const item of Object.values(mastery)) {
+          const level = Math.max(0, Math.min(4, Number(item?.level) || 0));
+          counts[level] += 1;
+        }
+        const total = counts.reduce((sum, value) => sum + value, 0);
+        const labels = [
+          "Aprendido",
+          "Recuperado 1×",
+          "Recuperado 2×",
+          "Recuperado 3×",
+          "Dominado",
+        ];
+        return (
+          <div className="soe-card p-6">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground">
+                  Domínio por tópico
+                </h2>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Dominado exige 3 recuperações espaçadas + acerto em questão
+                  nova.
+                </p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {total} tópicos
+              </span>
+            </div>
+            {total === 0 ? (
+              <p className="text-[12px] text-muted-foreground">
+                Ainda sem selo: conclua revisões e responda questões para o
+                domínio começar a contar.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {counts.map((count, level) => (
+                  <div key={level} className="flex items-center gap-3">
+                    <span className="w-32 shrink-0 text-[11.5px] text-muted-foreground">
+                      {labels[level]}
+                    </span>
+                    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-[var(--primary)]"
+                        style={{ width: `${(count / total) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="soe-card p-6">
         <div className="flex items-center gap-3 mb-6">

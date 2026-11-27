@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { RetentionCard } from "@/components/apple/RetentionCard";
 import { formatDateForDb } from "@shared/scheduling";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -612,6 +613,9 @@ export function HomeV2() {
             </Card>
           </aside>
         </div>
+
+        {/* v6.9.11 (C4/6): retenção medida, não atividade (modo focado). */}
+        <RetentionCard />
       </div>
     );
   }
@@ -1130,6 +1134,9 @@ export function HomeV2() {
           </div>
         </section>
       </div>
+
+      {/* v6.9.11 (C4/6): retenção medida, não atividade. */}
+      <RetentionCard />
 
       <Dialog open={examsOpen} onOpenChange={setExamsOpen}>
         <DialogContent className="rounded-lg border-border bg-card sm:max-w-lg">

@@ -11,6 +11,58 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.11",
+    date: "27/11/2026",
+    title: "O SOE implacável: espaçamento, diagnóstico e retenção medida",
+    categories: [
+      {
+        title: "⏳ Intervalo mínimo de 3 dias",
+        type: "feature",
+        items: [
+          "Um tópico não volta em menos de 3 dias: o guard empurra as revisões futuras que violavam o intervalo, com backup e registro em StudyEvents. A lógica 25/50 continua intocada.",
+          "O guard roda sozinho uma vez por dia ao abrir o app e sempre que você entra na tela de Revisões; rodar de novo não move nada.",
+        ],
+      },
+      {
+        title: "🎯 Diagnóstico e domínio",
+        type: "feature",
+        items: [
+          "Tema novo abre com um diagnóstico de 5 questões (erro esperado). Ele entra como linha de base — nunca como acurácia, proficiência ou domínio.",
+          "Selo de domínio 0–4 por tópico: 3 recuperações espaçadas e, para chegar a dominado, acerto em questão nova depois delas.",
+          "Aviso suave de consolidação quando o dia termina com tópicos em nível 0–1.",
+        ],
+      },
+      {
+        title: "🧠 Gabarito em bloco e auto-explicação",
+        type: "feature",
+        items: [
+          "Sessões com 5+ questões corrigem no final: durante o bloco, sem gabarito nem explicação.",
+          "Ao errar, o app pede uma frase explicando por que a alternativa marcada está errada. Sem a frase, a questão fica pendente.",
+          "Erro marcado com certeza cria cartão corretivo na hora e agenda a recuperação para o dia seguinte.",
+        ],
+      },
+      {
+        title: "📊 Retenção, contraste e simulado",
+        type: "feature",
+        items: [
+          "Novo card de Retenção: acerto em questão nova a 7/25/50 dias, retenção por hora, cobertura × proficiência, Brier e nota esperada com intervalo. Amostra pequena aparece como amostra insuficiente, não como número inventado.",
+          "Blocos de contraste entre tópicos confundíveis da mesma disciplina, com ganho esperado por minuto como desempate.",
+          "Simulado com régua da banca (Cebraspe anula 1 acerto por erro) e pós-prova de 6 perguntas para fechar o relatório.",
+          "Conteúdo novo difícil não entra depois das 21h30; o plano oferece recall curto e a revisão de manhã.",
+        ],
+      },
+      {
+        title: "🧾 Caderno de erros",
+        type: "improvement",
+        items: [
+          "Cada erro pode receber uma causa em 1 toque (conceito, literalidade, leitura, desatenção, banca). O deck de erros ordena pela causa dominante e respeita o intervalo de 3 dias.",
+          "Micro-recuperação por seção no leitor: uma pergunta antes de liberar a próxima seção, com autoavaliação — sem IA obrigatória.",
+        ],
+      },
+    ],
+  },
+
+  {
     version: "6.9.10",
     date: "24/11/2026",
     title: "No celular: importar PDF e contar as questões da sessão",

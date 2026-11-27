@@ -55,6 +55,13 @@ const KIND_META: Record<
     color: "var(--accent-green)",
     route: "/question-session",
   },
+  // v6.9.11 (C1/4.3): sessão de contraste (tópicos confundíveis).
+  contraste: {
+    label: "Contraste",
+    icon: Layers,
+    color: "var(--accent-blue)",
+    route: "/question-session",
+  },
 };
 
 const LENS_META: Record<string, { label: string; color: string }> = {
@@ -306,6 +313,24 @@ export default function StudyPlan() {
               {plan?.blocks.length || 0} blocos
             </span>
           </div>
+
+          {(plan as any)?.notice && (
+            <div className="mb-4 rounded-lg border border-[color-mix(in_srgb,var(--accent-green)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent-green)_8%,transparent)] px-3 py-2.5 text-[11.5px] leading-5 text-foreground">
+              {(plan as any).notice}
+            </div>
+          )}
+          {((plan as any)?.advice || []).length > 0 && (
+            <div className="mb-4 space-y-1.5">
+              {((plan as any).advice as string[]).map((line, index) => (
+                <div
+                  key={`advice-${index}`}
+                  className="rounded-lg border border-[color-mix(in_srgb,var(--accent-amber)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent-amber)_8%,transparent)] px-3 py-2 text-[11.5px] leading-5 text-foreground"
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
 
           {!plan?.blocks.length ? (
             <div className="py-10 text-center space-y-2">

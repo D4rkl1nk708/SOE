@@ -127,6 +127,10 @@ vi.mock("@/lib/trpc", () => ({
           },
         }),
       },
+      // v6.9.11 (C4): card de retenção no painel.
+      retentionMetrics: {
+        useQuery: () => ({ data: undefined, isLoading: true }),
+      },
     },
     import: {
       getICalUrl: { useQuery: () => ({ data: { token: "test" } }) },

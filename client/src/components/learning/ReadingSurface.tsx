@@ -20,6 +20,7 @@ import SandboxFrame, { type MicroWorld } from "./SandboxFrame";
 import { SectionStudyPanel } from "./SectionStudyPanel";
 import { sectionPagesLabel, splitSectionIntoBlocks } from "./readingModel";
 import type { CadernoVivoState } from "./useCadernoVivo";
+import { SectionRecallGate } from "./SectionRecallGate";
 
 type MobileAction = "questions" | "analogies" | "lesson";
 
@@ -301,6 +302,8 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
                     ))}
                   </div>
                 )}
+
+                <SectionRecallGate caderno={caderno} />
 
                 <footer className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
                   <button

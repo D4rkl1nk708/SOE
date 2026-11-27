@@ -12,11 +12,31 @@ import { trpc } from "@/lib/trpc";
 // Mock trpc
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    useUtils: () => ({
+      dashboard: { getStats: { invalidate: vi.fn() } },
+      mockExam: { list: { invalidate: vi.fn() } },
+      study: { calibration: { invalidate: vi.fn() } },
+    }),
     dashboard: {
       getStats: { useQuery: vi.fn() },
     },
     discipline: {
       list: { useQuery: vi.fn() },
+    },
+    // v6.9.11 (B4/B5): previsão, régua e pós-prova.
+    study: {
+      savePrediction: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
+    },
+    auth: {
+      updateSettings: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
+    },
+    mockExam: {
+      create: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      list: { invalidate: vi.fn() },
     },
   },
 }));
@@ -95,8 +115,8 @@ describe("Simulado Component", () => {
     render(<Simulado />);
     fireEvent.click(screen.getByText("Direito Admin"));
 
-    // Set time to 1 minute
-    const tInput = screen.getByDisplayValue("60");
+    // Set time to 1 minute (o slider de previsão também vale 60)
+    const [tInput] = screen.getAllByDisplayValue("60");
     fireEvent.change(tInput, { target: { value: "1" } });
 
     fireEvent.click(screen.getByText("Iniciar Simulado"));

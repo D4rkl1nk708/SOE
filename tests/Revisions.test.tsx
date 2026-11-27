@@ -13,6 +13,10 @@ vi.mock("@/lib/trpc", () => ({
       list: { useQuery: vi.fn() },
       markCompleted: { useMutation: vi.fn() },
       markIgnored: { useMutation: vi.fn() },
+      // v6.9.11 (A1): guard de espaçamento ao entrar em /revisions.
+      applySpacingGuard: {
+        useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+      },
     },
     topic: {
       list: { useQuery: vi.fn() },

@@ -114,6 +114,14 @@ import {
   localStartGeneration,
   localGenerationStatus,
   localCancelGeneration,
+  localApplySpacingGuard,
+  localStartPretest,
+  localSavePrediction,
+  localStudyRetentionMetrics,
+  localSaveSectionRecall,
+  localGetSectionRecalls,
+  localSetQuestionErrorCause,
+  localGetErrorCauses,
 } from "./localDb";
 
 const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
@@ -160,6 +168,11 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
     localRevisionList(i as { completed?: boolean; ignored?: boolean }),
   "revision.markCompleted": (i) =>
     localRevisionMarkCompleted(i as { id: number; completed: boolean }),
+  // v6.9.11: espaçamento e pré-teste também no aparelho.
+  "revision.applySpacingGuard": (i) =>
+    localApplySpacingGuard(
+      i as { today?: string; minGapDays?: number } | undefined,
+    ),
   "revision.markIgnored": (i) =>
     localRevisionMarkIgnored(i as { id: number; ignored: boolean }),
   "revision.topicBacklog": (i) =>
@@ -246,6 +259,8 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
         | undefined,
     ),
   "questionError.delete": (i) => localDeleteQuestionError(i as { id: number }),
+  "questionError.setCause": (i) => localSetQuestionErrorCause(i as any),
+  "questionError.causes": () => localGetErrorCauses(),
   // Mentor / Flashcards (v10 Standalone)
   "mentor.chat": (i) => localMentorChat(i as any),
   "mentor.generateAdaptiveQuestion": (i) =>
@@ -253,6 +268,9 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.testKey": (i) => localTestAiKey(i as any),
   "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
   "study.overview": (i) => localStudyOverview(i as any),
+  "study.startPretest": (i) => localStartPretest(i as { topicId: number }),
+  "study.savePrediction": (i) => localSavePrediction(i as any),
+  "study.retentionMetrics": () => localStudyRetentionMetrics(),
   "study.weeklyReview": () => localStudyWeeklyReview(),
   "study.recordSession": (i) =>
     localStudyRecordSession(i as Parameters<typeof localStudyRecordSession>[0]),
@@ -364,6 +382,10 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "learning.startGeneration": () => localStartGeneration(),
   "learning.generationStatus": () => localGenerationStatus(),
   "learning.cancelGeneration": () => localCancelGeneration(),
+  // v6.9.11 (B7): micro-recuperação da seção também no aparelho.
+  "learning.saveSectionRecall": (i) => localSaveSectionRecall(i as any),
+  "learning.sectionRecalls": (i) =>
+    localGetSectionRecalls(i as { docId: string }),
 };
 
 export function createLocalLink(): TRPCLink<AppRouter> {

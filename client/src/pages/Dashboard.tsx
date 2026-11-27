@@ -40,6 +40,7 @@ import { differenceInDays, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { DailyGoalWidget, TodayRevisions } from "@/components/DashboardWidgets";
+import { RetentionCard } from "@/components/apple/RetentionCard";
 import { PreExamBanner } from "@/components/PreExamBanner";
 import { MassStudyAlert } from "@/components/MassStudyAlert";
 import { SleepWarning } from "@/components/SleepWarning";
@@ -568,6 +569,9 @@ function ClassicDashboard() {
           ))}
         </div>
       </div>
+
+      {/* v6.9.11 (C4/6): retenção medida, não atividade. */}
+      <RetentionCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-6">

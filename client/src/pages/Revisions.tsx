@@ -17,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useSpacingGuard } from "@/lib/useSpacingGuard";
 import {
   EyeOff,
   CheckCircle2,
@@ -69,6 +70,8 @@ function RecallStars({ rating }: { rating?: number }) {
 
 export default function Revisions() {
   const utils = trpc.useUtils();
+  // v6.9.11 (A1/4.2): entrar em /revisions reaplica o intervalo de 3 dias.
+  useSpacingGuard(true);
   const { data: revisions, isLoading } = trpc.revision.list.useQuery();
   const { data: topicsData } = trpc.topic.list.useQuery();
   const { data: stats } = trpc.dashboard.getStats.useQuery();

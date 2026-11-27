@@ -232,6 +232,15 @@ export default function QuestionErrors() {
   const dbApiKey = aiSettings.aiApiKey || "";
   const dbProvider = aiSettings.aiProvider || "gemini";
 
+  // v6.9.11 (B6/4.10): causa do erro em 1 toque (opcional, nunca bloqueia).
+  const setCause = trpc.questionError.setCause.useMutation({
+    onSuccess: () => {
+      utils.questionError.list.invalidate();
+      utils.questionError.causes.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
   const deleteError = trpc.questionError.delete.useMutation({
     onSuccess: () => {
       refetch();
@@ -561,6 +570,56 @@ export default function QuestionErrors() {
                         {e.statementPending && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600">
                             Enunciado pendente
+                          </span>
+                        )}
+                      </div>
+
+                      {/* v6.9.11 (B3/B6): explicação do aluno + causa em 1 toque. */}
+                      {(e as any).explanation && (
+                        <p className="rounded-md border border-border/60 bg-secondary/20 px-2.5 py-2 text-[11px] italic leading-5 opacity-70">
+                          “{(e as any).explanation}”
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-40">
+                          Causa:
+                        </span>
+                        {(
+                          [
+                            ["conceito", "Conceito"],
+                            ["literalidade", "Literalidade"],
+                            ["leitura", "Leitura"],
+                            ["desatencao", "Desatenção"],
+                            ["banca", "Banca"],
+                          ] as const
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            onClick={() =>
+                              setCause.mutate({ id: e.id, cause: value })
+                            }
+                            className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors"
+                            style={{
+                              borderColor:
+                                (e as any).cause === value
+                                  ? "var(--primary)"
+                                  : "var(--border)",
+                              color:
+                                (e as any).cause === value
+                                  ? "var(--primary)"
+                                  : "var(--muted-foreground)",
+                              background:
+                                (e as any).cause === value
+                                  ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                                  : "transparent",
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                        {(e as any).cause && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wider opacity-50">
+                            ordena o deck de erros
                           </span>
                         )}
                       </div>

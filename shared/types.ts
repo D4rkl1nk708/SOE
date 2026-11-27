@@ -181,6 +181,25 @@ export interface MockExam {
     conclusion: string;
   } | null;
   blueprint?: SimuladoBlueprintItem[];
+  /**
+   * v6.9.11 (B5/4.8): exam wrapper obrigatório ao fechar o relatório.
+   * Seis perguntas de reflexão; sem ele o simulado não é dado como encerrado.
+   */
+  wrapper?: {
+    predictedPct?: number;
+    errorType?:
+      | "conceito"
+      | "literalidade"
+      | "leitura"
+      | "desatencao"
+      | "banca"
+      | "tempo";
+    paceIssue?: boolean;
+    whatChanges?: string;
+    nextFocus?: string;
+    confidenceChange?: "mais" | "menos" | "igual";
+    completedAt?: string;
+  } | null;
   status?: "in_progress" | "completed";
   mode?: "cebraspe" | "multiple";
   durationMinutes?: number;
@@ -256,6 +275,17 @@ export interface QuestionAttempt {
   confidence: ConfidenceLevel | null;
   /** before_result = marcada antes de o SOE registrar o gabarito */
   confidencePhase: "before_result" | "after_result" | null;
+  /**
+   * v6.9.11: contexto da tentativa. `pretest` é diagnóstico — entra como
+   * linha de base, NUNCA em acurácia, proficiência ou domínio.
+   */
+  context?: "practice" | "pretest" | "simulado" | "tec" | null;
+  /** v6.9.11 (B3): frase do aluno explicando por que a marcada está errada. */
+  errorExplanation?: string;
+  /** v6.9.11 (A2/4.9): questão nunca vista pelo aluno antes desta tentativa. */
+  fresh?: boolean;
+  /** v6.9.11 (B4): tentativa corrigida por hipercorreção (certeza + erro). */
+  hypercorrected?: boolean;
   seconds?: number;
   source?: "manual" | "tec" | "simulado";
   /** Assinatura estável da questão no TEC (qid:/stmt:/dom:). */
@@ -274,7 +304,14 @@ export interface QuestionAttempt {
 
 export interface StudyEventRecord {
   id: string;
-  type: "revision" | "answer" | "error" | "session" | "tec" | "lesson";
+  type:
+    | "revision"
+    | "answer"
+    | "error"
+    | "session"
+    | "tec"
+    | "lesson"
+    | "spacing";
   occurredAt: string;
   title: string;
   detail: string;
@@ -359,6 +396,68 @@ export interface UserSettings {
     extraWidgets?: string[];
   };
   // ===== NEW FEATURES v10 =====
+  /** v6.9.11 (B2/4.5): gabarito em bloco (padrão) ou imediato. */
+  feedbackMode?: "block" | "immediate";
+  /** v6.9.11 (B5/4.8): régua da banca para o simulado. */
+  examRules?: {
+    banca: "cebraspe" | "fgv" | "cesgranrio" | "outra";
+    negativeMarking: boolean;
+    timePerQuestionSec: number;
+    totalItems: number;
+  };
+  /**
+   * v6.9.11 (A2/4.1/4.9): selo de domínio por tópico. Recalculado em
+   * recordAttempt e markCompleted; nível 4 exige acerto em questão nova
+   * depois da terceira recuperação espaçada.
+   */
+  topicMastery?: Record<
+    string,
+    {
+      recalls: Array<{ day: string; correct: boolean; fresh: boolean }>;
+      level: 0 | 1 | 2 | 3 | 4;
+      masteredAt?: string;
+      reason?: string;
+      updatedAt?: string;
+    }
+  >;
+  /** v6.9.11 (B1/4.4): linha de base do pré-teste por tópico. */
+  pretestBaseline?: Record<
+    string,
+    { sample: number; correct: number; accuracy: number; updatedAt: string }
+  >;
+  /** v6.9.11 (B4/4.7): previsão de acerto antes do bloco × resultado obtido. */
+  accuracyPredictions?: Array<{
+    id: string;
+    day: string;
+    predictedPct: number;
+    actualPct?: number;
+    questions: number;
+    topicId?: number | null;
+    disciplineId?: number | null;
+    source?: string;
+    createdAt: string;
+    finishedAt?: string;
+  }>;
+  /** v6.9.11 (B7/4.11): micro-recuperações por seção do leitor. */
+  sectionRecalls?: Array<{
+    docId: string;
+    sectionIndex: number;
+    sectionTitle?: string;
+    question: string;
+    answer?: string;
+    selfRated?: "acertei" | "nao_soube";
+    createdAt: string;
+  }>;
+  /** v6.9.11 (B6/4.10): causa dominante do erro por disciplina. */
+  errorCauseByDiscipline?: Record<
+    string,
+    Record<
+      "conceito" | "literalidade" | "leitura" | "desatencao" | "banca",
+      number
+    >
+  >;
+  /** v6.9.11 (A1/4.2): último dia em que o guard de espaçamento rodou. */
+  spacingGuardDay?: string;
   /** F09 - Registro de estado emocional antes de estudar */
   emotionLog?: Array<{
     date: string; // ISO datetime
@@ -517,6 +616,10 @@ export interface Flashcard {
   deck?: "lei-seca" | string;
   /** Origem textual do tópico (`topicNotes[i]`), quando não há nota do banco. */
   sourceNoteKey?: string;
+  /** v6.9.11 (B4/4.7): cartão corretivo criado por certeza + erro. */
+  hypercorrection?: boolean;
+  hypercorrectionFromAttemptId?: string;
+  sourceTopicId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -539,6 +642,10 @@ export interface QuestionError {
   correctAnswer?: string; // e.g. "C"
   // Classification
   errorOrigin?: "attention" | "forgetting" | "theory" | "trap";
+  /** v6.9.11 (B3/B6): explicação do aluno e causa em 1 toque. */
+  explanation?: string;
+  cause?: "conceito" | "literalidade" | "leitura" | "desatencao" | "banca";
+  causeUpdatedAt?: string;
   // AI analysis saved per question
   aiAnalysis?: string;
   aiAnalyzedAt?: string;

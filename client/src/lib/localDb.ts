@@ -11,7 +11,7 @@ import {
   formatDateForDb,
   getScheduleParams,
 } from "@shared/scheduling";
-import { isSameLocalDay, localDayISO } from "@shared/localDay";
+import { addLocalDays, isSameLocalDay, localDayISO } from "@shared/localDay";
 import {
   limitConsecutiveRevisions,
   normalizeLocalDay,
@@ -46,6 +46,12 @@ import {
   summarizeLeiSecaDeck,
 } from "@shared/leiSeca";
 import { summarizeDuplicates } from "@shared/disciplineDuplicates";
+import { masteryFromRecalls, type Recall } from "@shared/mastery";
+import { MIN_RECALL_GAP_DAYS, planSpacingFixes } from "@shared/spacingGuard";
+import { shouldHypercorrect } from "@shared/prediction";
+import { computeRetentionMetrics } from "@shared/retention";
+import { buildContrastPairs } from "@shared/confusable";
+import { expectedGainPerMinute } from "@shared/expectedGain";
 
 const now = () => new Date().toISOString();
 
@@ -217,6 +223,10 @@ interface QuestionError {
   userAnswer?: string;
   correctAnswer?: string;
   errorOrigin?: "attention" | "forgetting" | "theory" | "trap";
+  /** v6.9.11 (B3/B6): explicação do aluno e causa em 1 toque. */
+  explanation?: string;
+  cause?: "conceito" | "literalidade" | "leitura" | "desatencao" | "banca";
+  causeUpdatedAt?: string;
   createdAt: string;
 }
 
@@ -1050,13 +1060,27 @@ export async function localRecordQuestionAttempt(input: {
   confidencePhase?: "before_result" | "after_result" | null;
   seconds?: number;
   source?: "manual" | "tec" | "simulado";
+  /** v6.9.11: `pretest` é linha de base, nunca acurácia/domínio. */
+  context?: "practice" | "pretest" | "simulado" | "tec" | null;
+  /** v6.9.11 (B3): por que a alternativa marcada está errada (≥15 chars). */
+  errorExplanation?: string;
+  statementSnippet?: string;
+  correctAnswerLetter?: string;
 }): Promise<Record<string, unknown>> {
   const user = await db.users.get(LOCAL_USER_ID);
   if (!user) throw new Error("Usuário local não encontrado.");
   const settings = (user.settings || {}) as Record<string, any>;
-  const attempts = Array.isArray(settings.questionAttempts)
+  const attempts: any[] = Array.isArray(settings.questionAttempts)
     ? settings.questionAttempts
     : [];
+
+  const seenBefore = input.questionId
+    ? attempts.some(
+        (attempt) =>
+          attempt.questionId === input.questionId &&
+          attempt.topicId === input.topicId,
+      )
+    : false;
 
   const record = {
     ...input,
@@ -1064,17 +1088,103 @@ export async function localRecordQuestionAttempt(input: {
     confidencePhase: input.confidence
       ? (input.confidencePhase ?? "before_result")
       : null,
+    fresh: input.context === "pretest" ? false : !seenBefore,
     id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: now(),
   };
 
-  await db.users.update(LOCAL_USER_ID, {
-    settings: {
-      ...settings,
-      questionAttempts: [...attempts, record].slice(-3000),
-    },
-  } as any);
+  const nextSettings: Record<string, any> = {
+    ...settings,
+    questionAttempts: [...attempts, record].slice(-3000),
+  };
 
+  if (input.context === "pretest") {
+    const baseline = { ...(nextSettings.pretestBaseline || {}) };
+    const key = String(input.topicId);
+    const previous = baseline[key] || { sample: 0, correct: 0, accuracy: 0 };
+    const sample = previous.sample + (input.answered ? 1 : 0);
+    const correct = previous.correct + (input.correct ? 1 : 0);
+    baseline[key] = {
+      sample,
+      correct,
+      accuracy: sample > 0 ? Math.round((correct / sample) * 100) : 0,
+      updatedAt: now(),
+    };
+    nextSettings.pretestBaseline = baseline;
+  } else {
+    // v6.9.11 (A2/4.9): domínio offline pela mesma regra do servidor.
+    const recalls: Recall[] = [...attempts, record]
+      .filter(
+        (attempt) =>
+          attempt.topicId === input.topicId &&
+          attempt.context !== "pretest" &&
+          attempt.correct === true,
+      )
+      .map((attempt) => ({
+        day: String(attempt.createdAt || "").slice(0, 10),
+        correct: true as const,
+        fresh: Boolean(attempt.fresh),
+      }))
+      .filter((recall) => Boolean(recall.day));
+    const result = masteryFromRecalls(recalls);
+    nextSettings.topicMastery = {
+      ...(nextSettings.topicMastery || {}),
+      [String(input.topicId)]: {
+        recalls,
+        level: result.level,
+        reason: result.reason,
+        updatedAt: now(),
+      },
+    };
+
+    // v6.9.11 (B4/4.7): certeza + erro cria cartão corretivo no aparelho.
+    if (
+      shouldHypercorrect({
+        confidence: input.confidence ?? null,
+        correct: input.correct,
+      })
+    ) {
+      const existing = await db.flashcards
+        .where("userId")
+        .equals(LOCAL_USER_ID)
+        .filter((card: any) => card.hypercorrectionFromAttemptId === record.id)
+        .count();
+      if (existing === 0) {
+        const topic = await db.topics.get(input.topicId);
+        const id = await incCounter("flashcards");
+        await db.flashcards.add({
+          id,
+          userId: LOCAL_USER_ID,
+          disciplineId: input.disciplineId ?? topic?.disciplineId ?? 0,
+          topicId: input.topicId,
+          front: `Corrigir agora: ${input.statementSnippet || topic?.name || "questão"}`,
+          back: [
+            input.correctAnswerLetter
+              ? `Gabarito: ${input.correctAnswerLetter}`
+              : null,
+            input.errorExplanation
+              ? `Sua explicação: ${input.errorExplanation}`
+              : null,
+            "Você marcou com CERTEZA e errou: revise agora.",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          interval: 1,
+          easeFactor: 2.5,
+          repetitions: 0,
+          nextReviewDate: addLocalDays(localDayISO(), 1),
+          archived: false,
+          hypercorrection: true,
+          hypercorrectionFromAttemptId: record.id,
+          sourceTopicId: input.topicId,
+          createdAt: now(),
+          updatedAt: now(),
+        } as any);
+      }
+    }
+  }
+
+  await db.users.update(LOCAL_USER_ID, { settings: nextSettings } as any);
   return record;
 }
 
@@ -1216,8 +1326,43 @@ export async function localRevisionMarkCompleted(input: {
       completedAt: input.completed ? now() : null,
       updatedAt: now(),
     });
+    // v6.9.11 (A2/4.1): concluir revisão é uma recuperação (nunca "questão nova").
+    if (input.completed) {
+      await addLocalMasteryRecall(r.topicId, localDayISO(), false);
+    }
   }
   return { success: true };
+}
+
+/** Appenda uma recuperação ao selo de domínio local e recalcula o nível. */
+async function addLocalMasteryRecall(
+  topicId: number,
+  day: string,
+  fresh: boolean,
+): Promise<void> {
+  const user = await db.users.get(LOCAL_USER_ID);
+  if (!user) return;
+  const settings = (user.settings || {}) as Record<string, any>;
+  const key = String(topicId);
+  const mastery = { ...(settings.topicMastery || {}) };
+  const previous = mastery[key]?.recalls || [];
+  const recalls: Recall[] = [
+    ...previous.filter(
+      (recall: Recall) =>
+        !(recall.day === day && Boolean(recall.fresh) === fresh),
+    ),
+    { day, correct: true, fresh },
+  ];
+  const result = masteryFromRecalls(recalls);
+  mastery[key] = {
+    recalls,
+    level: result.level,
+    reason: result.reason,
+    updatedAt: now(),
+  };
+  await db.users.update(LOCAL_USER_ID, {
+    settings: { ...settings, topicMastery: mastery },
+  } as any);
 }
 
 /** Paridade offline do checkbox de lote (item 1.3). */
@@ -2128,6 +2273,132 @@ export async function localStudyOverview(input?: { minutes?: number }) {
     }
   }
 
+  // v6.9.11 (C1/4.3): contraste entre tópicos confundíveis já estudados.
+  const studiedTopics = masteryTopics
+    .filter((topic) => topic.resolved > 0)
+    .map((topic) => ({
+      id: topic.topicId,
+      name: topic.topicName,
+      disciplineId: topic.disciplineId,
+    }));
+  const usedContrast = new Set<number>();
+  for (const pair of buildContrastPairs(studiedTopics)) {
+    if (usedContrast.has(pair.a) || usedContrast.has(pair.b)) continue;
+    const first = masteryTopics.find((topic) => topic.topicId === pair.a);
+    const second = masteryTopics.find((topic) => topic.topicId === pair.b);
+    if (!first || !second) continue;
+    blocks.push({
+      id: `contrast-${pair.a}-${pair.b}`,
+      kind: "contraste",
+      lens: "edital",
+      title: `${first.topicName} × ${second.topicName}`,
+      subtitle: first.disciplineName,
+      reason: `Confundíveis (${Math.round(pair.score * 100)}% de sobreposição): treine a discriminação`,
+      minutes: 20,
+      topicId: first.topicId,
+      topicName: first.topicName,
+      disciplineId: first.disciplineId,
+      disciplineName: first.disciplineName,
+      color: first.color,
+      contrastTopicIds: [pair.a, pair.b],
+      score: 300 + Math.round(pair.score * 100),
+      route: "/question-session",
+      gainPerMinute: expectedGainPerMinute({
+        weight: Number(
+          disciplineRows.find((row) => row.disciplineId === first.disciplineId)
+            ?.weight ?? 1,
+        ),
+        proficiency: Math.round((first.readiness + second.readiness) / 2),
+        daysSinceStudy: Math.min(first.daysSinceStudy, second.daysSinceStudy),
+        accuracyTrend: 0,
+        bancaShare: 0.5,
+        minutes: 20,
+      }),
+    });
+    usedContrast.add(pair.a);
+    usedContrast.add(pair.b);
+  }
+
+  const advice: string[] = [];
+
+  // v6.9.11 (C2/4.13): conteúdo novo difícil não entra depois das 21h30.
+  const hourOfDay = new Date().getHours() + new Date().getMinutes() / 60;
+  if (hourOfDay >= 21.5) {
+    const weightByDiscipline = new Map<number, number>(
+      disciplineRows
+        .filter((row) => row.disciplineId != null)
+        .map((row) => [row.disciplineId as number, row.weight]),
+    );
+    const removed: Array<Record<string, unknown>> = [];
+    for (let index = blocks.length - 1; index >= 0; index -= 1) {
+      const block = blocks[index];
+      if (block.kind !== "study" || block.topicId == null) continue;
+      const weight = weightByDiscipline.get(Number(block.disciplineId)) ?? 0;
+      const level = Number(
+        settings.topicMastery?.[String(block.topicId)]?.level ?? 0,
+      );
+      if (level === 0 && weight >= 4) {
+        blocks.splice(index, 1);
+        removed.push(block);
+      }
+    }
+    if (removed.length > 0) {
+      advice.push(
+        `Conteúdo novo difícil (${removed
+          .map((block) => String(block.topicName))
+          .slice(0, 2)
+          .join(", ")}) não entra depois das 21h30: consolidação pede sono.`,
+      );
+      blocks.unshift({
+        id: "sleep-recall",
+        kind: "revisao_rapida",
+        lens: "revisao",
+        title: "Recall antes de dormir",
+        subtitle: "10 minutos",
+        reason:
+          "Recuperação curta do que já foi estudado — sem conteúdo novo difícil à noite.",
+        minutes: 10,
+        topicId: null,
+        topicName: "Recall antes de dormir",
+        disciplineId: null,
+        disciplineName: "Plano",
+        color: "#0066CC",
+        score: 990,
+        route: "/revisions",
+      });
+      for (const block of removed) {
+        blocks.push({
+          ...block,
+          id: `sleep-morning-${block.topicId}`,
+          kind: "revisao_rapida",
+          title: `Manhã: ${block.topicName}`,
+          reason: "Revisão da manhã depois da noite de consolidação",
+          minutes: 10,
+          score: 985,
+          morning: true,
+          route: "/revisions",
+        });
+      }
+    }
+  }
+
+  // v6.9.11 (C3/4.1): gate SUAVE de domínio (aviso, nunca bloqueio).
+  const lowMasteryToday = masteryTopics.filter(
+    (topic) =>
+      Number(settings.topicMastery?.[String(topic.topicId)]?.level ?? 0) <= 1 &&
+      isSameLocalDay(topic.lastStudyAt, today),
+  );
+  if (lowMasteryToday.length > 0) {
+    advice.push(
+      `Nível 0–1 hoje em ${lowMasteryToday
+        .map((topic) => topic.topicName)
+        .slice(0, 2)
+        .join(
+          ", ",
+        )}: consolide antes de abrir tópico novo da mesma disciplina.`,
+    );
+  }
+
   const orderedBlocks = limitConsecutiveRevisions(
     blocks,
     (block) => block.kind === "revision",
@@ -2192,6 +2463,7 @@ export async function localStudyOverview(input?: { minutes?: number }) {
       notice: dueDoneToday
         ? "Revisões do dia em dia: você já concluiu o que estava vencido hoje. O próximo passo é conteúdo novo ou ponto fraco."
         : null,
+      advice,
       blocks: orderedBlocks,
     },
     base: {
@@ -4313,4 +4585,303 @@ export function localConsolidateDisciplines(): never {
   throw new Error(
     "Consolidar duplicadas move tópicos, revisões, erros e flashcards com backup automático: faça no SOE do computador. A prévia e o alerta de duplicadas aparecem aqui no celular.",
   );
+}
+
+// ============================================================================
+// v6.9.11 — paridade offline (A1, A2, B1, B4, B6, B7, C4)
+// ============================================================================
+
+/** Paridade offline do guard de espaçamento (backup = export local do usuário). */
+export async function localApplySpacingGuard(input?: {
+  today?: string;
+  minGapDays?: number;
+}): Promise<{
+  moved: number;
+  minGapDays: number;
+  backup: string | null;
+  fixes: Array<{
+    id: number;
+    topicId: number;
+    from: string;
+    to: string;
+    reason: string;
+  }>;
+}> {
+  const today = normalizeLocalDay(input?.today) || localDayISO();
+  const minGapDays = Math.max(
+    1,
+    Math.trunc(Number(input?.minGapDays) || MIN_RECALL_GAP_DAYS),
+  );
+  const revisions = await db.revisions
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const fixes = planSpacingFixes({
+    revisions: revisions as any,
+    today,
+    minGapDays,
+  });
+  if (fixes.length === 0) {
+    return { moved: 0, minGapDays, backup: null, fixes: [] };
+  }
+  const stamp = now();
+  for (const fix of fixes) {
+    await db.revisions.update(fix.id, {
+      scheduledDate: fix.to,
+      updatedAt: stamp,
+    });
+  }
+  const events = settingsList<Record<string, unknown>>(
+    (await ensureLocalUser()) as User,
+    "studyEvents",
+  );
+  await writeSetting(
+    "studyEvents",
+    [
+      ...events,
+      {
+        id: `spacing-guard-${LOCAL_USER_ID}-${today}`,
+        type: "spacing",
+        occurredAt: stamp,
+        title: `Espaçamento corrigido: ${fixes.length} revisão(ões)`,
+        detail: `${fixes.length} movida(s) para respeitar ${minGapDays} dia(s).`,
+        source: "spacing-guard",
+      },
+    ].slice(-5000),
+  );
+  return { moved: fixes.length, minGapDays, backup: null, fixes };
+}
+
+/** Paridade offline do pré-teste: banco de erros do tópico (sem IA). */
+export async function localStartPretest(input: { topicId: number }): Promise<{
+  available: number;
+  questions: Array<{
+    id: string;
+    questionId?: string;
+    statement: string;
+    alternatives: Array<{ letter: string; text: string }>;
+    correctAnswer?: string;
+    banca?: string;
+    topicId: number;
+    disciplineId: number;
+    source: "bank" | "ai";
+  }>;
+  source: "bank" | "ai" | "none";
+  topicName: string | null;
+}> {
+  const topic = await db.topics.get(input.topicId);
+  const errors = await db.questionErrors
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .filter(
+      (error) =>
+        error.topicId === input.topicId &&
+        String(error.statement || "").trim().length > 0 &&
+        Array.isArray(error.alternatives) &&
+        error.alternatives.length >= 2,
+    )
+    .toArray();
+  const questions = errors.slice(-5).map((error) => ({
+    id: `pretest-${error.id}`,
+    questionId: error.questionId,
+    statement: error.statement,
+    alternatives: error.alternatives,
+    correctAnswer: error.correctAnswer,
+    banca: error.banca,
+    topicId: input.topicId,
+    disciplineId: error.disciplineId || topic?.disciplineId || 0,
+    source: "bank" as const,
+  }));
+  return {
+    available: questions.length,
+    questions,
+    source: questions.length > 0 ? "bank" : "none",
+    topicName: topic?.name ?? null,
+  };
+}
+
+/** Paridade offline da previsão antes do bloco (B4/4.7). */
+export async function localSavePrediction(input: {
+  id?: string;
+  predictedPct: number;
+  actualPct?: number;
+  questions?: number;
+  topicId?: number | null;
+  disciplineId?: number | null;
+  source?: string;
+}): Promise<Record<string, unknown>> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const list: any[] = Array.isArray(settings.accuracyPredictions)
+    ? [...settings.accuracyPredictions]
+    : [];
+  const predictedPct = Math.max(
+    0,
+    Math.min(100, Math.round(Number(input.predictedPct) || 0)),
+  );
+  const actualPct =
+    input.actualPct === undefined
+      ? undefined
+      : Math.max(0, Math.min(100, Math.round(Number(input.actualPct))));
+  const index = input.id ? list.findIndex((item) => item.id === input.id) : -1;
+  if (index >= 0) {
+    list[index] = {
+      ...list[index],
+      predictedPct,
+      actualPct: actualPct ?? list[index].actualPct,
+      finishedAt: actualPct !== undefined ? now() : list[index].finishedAt,
+    };
+    await writeSetting("accuracyPredictions", list);
+    return list[index];
+  }
+  const record = {
+    id:
+      input.id ||
+      `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    day: localDayISO(),
+    predictedPct,
+    actualPct,
+    questions: Math.max(0, Math.trunc(Number(input.questions) || 0)),
+    topicId: input.topicId ?? null,
+    disciplineId: input.disciplineId ?? null,
+    source: input.source || "manual",
+    createdAt: now(),
+    finishedAt: actualPct !== undefined ? now() : undefined,
+  };
+  await writeSetting("accuracyPredictions", [...list, record].slice(-300));
+  return record;
+}
+
+/** Paridade offline das métricas de retenção (C4). */
+export async function localStudyRetentionMetrics(): Promise<
+  Record<string, unknown>
+> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const attempts: any[] = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+  const sessions: any[] = Array.isArray(settings.studySessionLog)
+    ? settings.studySessionLog
+    : [];
+  const studySeconds = sessions.reduce(
+    (sum, session) => sum + Math.max(0, Number(session.durationMin) || 0) * 60,
+    0,
+  );
+  return computeRetentionMetrics({
+    attempts: attempts.filter((attempt) => attempt.context !== "pretest"),
+    studySeconds,
+    predictions: (Array.isArray(settings.accuracyPredictions)
+      ? settings.accuracyPredictions
+      : []
+    )
+      .filter((item: any) => typeof item.actualPct === "number")
+      .map((item: any) => ({
+        predictedPct: item.predictedPct,
+        actualPct: item.actualPct,
+      })),
+  }) as unknown as Record<string, unknown>;
+}
+
+/** Paridade offline da micro-recuperação do leitor (B7/4.11). */
+export async function localSaveSectionRecall(input: {
+  docId: string;
+  sectionIndex: number;
+  sectionTitle?: string;
+  question: string;
+  answer?: string;
+  selfRated?: "acertei" | "nao_soube";
+}): Promise<Record<string, unknown>> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const list: any[] = Array.isArray(settings.sectionRecalls)
+    ? [...settings.sectionRecalls]
+    : [];
+  const record = {
+    docId: String(input.docId),
+    sectionIndex: Math.max(0, Math.trunc(input.sectionIndex)),
+    sectionTitle: input.sectionTitle,
+    question: String(input.question).slice(0, 500),
+    answer: input.answer,
+    selfRated: input.selfRated,
+    createdAt: now(),
+  };
+  const index = list.findIndex(
+    (item) =>
+      item.docId === record.docId && item.sectionIndex === record.sectionIndex,
+  );
+  if (index >= 0) list[index] = record;
+  else list.push(record);
+  await writeSetting("sectionRecalls", list.slice(-500));
+  return record;
+}
+
+export async function localGetSectionRecalls(input: {
+  docId: string;
+}): Promise<any[]> {
+  const user = await ensureLocalUser();
+  return settingsList<any>(user as User, "sectionRecalls").filter(
+    (item) => item.docId === String(input.docId),
+  );
+}
+
+/** Paridade offline da causa do erro (B6/4.10). */
+export async function localSetQuestionErrorCause(input: {
+  id: number;
+  cause: "conceito" | "literalidade" | "leitura" | "desatencao" | "banca";
+}): Promise<{ success: boolean; changed: boolean }> {
+  const error = await db.questionErrors.get(input.id);
+  if (!error || error.userId !== LOCAL_USER_ID) {
+    return { success: false, changed: false };
+  }
+  if (error.cause === input.cause) {
+    return { success: true, changed: false };
+  }
+  await db.questionErrors.update(input.id, {
+    cause: input.cause,
+    causeUpdatedAt: now(),
+  } as any);
+  return { success: true, changed: true };
+}
+
+export async function localGetErrorCauses(): Promise<{ rows: any[] }> {
+  const errors = await db.questionErrors
+    .where("userId")
+    .equals(LOCAL_USER_ID)
+    .toArray();
+  const disciplines = await localDisciplineList();
+  const byDiscipline = new Map<number, any>();
+  for (const error of errors) {
+    const id = Number(error.disciplineId) || 0;
+    const row = byDiscipline.get(id) || {
+      disciplineId: id,
+      disciplineName:
+        disciplines.find((item) => item.id === id)?.name || "Sem disciplina",
+      total: 0,
+      classified: 0,
+      dominant: null,
+      counts: {
+        conceito: 0,
+        literalidade: 0,
+        leitura: 0,
+        desatencao: 0,
+        banca: 0,
+      },
+    };
+    row.total += 1;
+    if (error.cause) {
+      row.classified += 1;
+      row.counts[error.cause] += 1;
+    }
+    byDiscipline.set(id, row);
+  }
+  const rows = [...byDiscipline.values()];
+  for (const row of rows) {
+    const top = (Object.entries(row.counts) as Array<[string, number]>).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
+    row.dominant = top && top[1] > 0 ? top[0] : null;
+  }
+  rows.sort((a, b) => b.total - a.total);
+  return { rows };
 }

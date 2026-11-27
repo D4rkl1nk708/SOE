@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatDateForDb } from "@shared/scheduling";
 import { trpc } from "@/lib/trpc";
+import { MasteryBadge } from "@/components/apple/MasteryBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -281,8 +282,23 @@ export default function Topics() {
                             #{topic.id}
                           </span>
                         </div>
-                        <h4 className="text-base font-bold tracking-tight text-foreground">
+                        <h4 className="flex flex-wrap items-center gap-2 text-base font-bold tracking-tight text-foreground">
                           {topic.name}
+                          {/* v6.9.11 (C5/4.1): selo 0–4 com o porquê no tooltip. */}
+                          <MasteryBadge
+                            level={
+                              Number(
+                                (stats as any)?.settings?.topicMastery?.[
+                                  String(topic.id)
+                                ]?.level,
+                              ) || 0
+                            }
+                            reason={
+                              (stats as any)?.settings?.topicMastery?.[
+                                String(topic.id)
+                              ]?.reason
+                            }
+                          />
                         </h4>
 
                         <div className="flex items-center gap-4 mt-1">

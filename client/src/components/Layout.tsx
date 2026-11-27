@@ -1,4 +1,5 @@
 import { type CSSProperties, ReactNode, useEffect, useState } from "react";
+import { useSpacingGuard } from "@/lib/useSpacingGuard";
 import { Link, useLocation } from "wouter";
 import {
   Menu,
@@ -643,6 +644,8 @@ export function Layout({ children }: { children: ReactNode }) {
     });
   };
   useFontScale();
+  // v6.9.11 (A1/4.2): uma vez por dia, ao abrir o app.
+  useSpacingGuard();
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
 

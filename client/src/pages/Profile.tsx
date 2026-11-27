@@ -185,6 +185,10 @@ function SettingsTab() {
   const [fsrsPreviewOpen, setFsrsPreviewOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<"v2" | "classic">("v2");
   const [uiMode, setUiMode] = useState<"focused" | "complete">("focused");
+  // v6.9.11 (B2/4.5): gabarito em bloco é o padrão; reversível aqui.
+  const [feedbackMode, setFeedbackMode] = useState<"block" | "immediate">(
+    "block",
+  );
   const { data: disciplines } = trpc.discipline.list.useQuery();
   const fsrsPreview = trpc.study.fsrsPreview.useQuery(
     { days: 30 },
@@ -213,6 +217,7 @@ function SettingsTab() {
       );
       setLayoutMode(s.layoutMode === "classic" ? "classic" : "v2");
       setUiMode(s.uiMode === "complete" ? "complete" : "focused");
+      setFeedbackMode(s.feedbackMode === "immediate" ? "immediate" : "block");
       setScheduler(s.scheduler === "fsrs" ? "fsrs" : "classic");
       const captureMode =
         s.tecCaptureMode === "manual" || s.tecCaptureMode === "import"
@@ -400,6 +405,60 @@ function SettingsTab() {
                       <span
                         className={`h-2 w-2 rounded-full ${
                           layoutMode === option.id ? "bg-primary" : "bg-border"
+                        }`}
+                      />
+                      <span className="text-xs font-semibold">
+                        {option.title}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {option.desc}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider">
+                Gabarito nas sessões
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                No modo prova, sem gabarito durante o bloco: ao final, correção
+                completa com explicação. Sessões de menos de 5 questões
+                continuam imediatas.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  {
+                    id: "block" as const,
+                    title: "Em bloco (padrão)",
+                    desc: "Corrige no fim. Treina recuperação de verdade.",
+                  },
+                  {
+                    id: "immediate" as const,
+                    title: "Imediato",
+                    desc: "Vê o gabarito a cada questão.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setFeedbackMode(option.id);
+                      updateSettings.mutate({ feedbackMode: option.id });
+                    }}
+                    className={`rounded-md border p-3 text-left transition-colors ${
+                      feedbackMode === option.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          feedbackMode === option.id
+                            ? "bg-primary"
+                            : "bg-border"
                         }`}
                       />
                       <span className="text-xs font-semibold">

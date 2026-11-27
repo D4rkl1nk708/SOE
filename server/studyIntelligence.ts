@@ -26,6 +26,11 @@ import {
   topicsCompletedOnLocalDay,
 } from "../shared/planRules";
 import type { TopicSnapshot } from "../shared/sessionReport";
+import { buildContrastPairs } from "../shared/confusable";
+import {
+  expectedGainPerMinute,
+  shouldUseGainTiebreak,
+} from "../shared/expectedGain";
 import * as storage from "./jsonStorage";
 
 const DAY_MS = 86_400_000;
@@ -46,7 +51,9 @@ export type PlanKind =
   | "questoes"
   | "estudo"
   | "mapear"
-  | "revisao_rapida";
+  | "revisao_rapida"
+  /** v6.9.11 (C1/4.3): sessão de contraste entre tópicos confundíveis. */
+  | "contraste";
 
 export interface TopicMastery {
   topicId: number;
@@ -142,6 +149,14 @@ export interface PlanBlock {
   revisionId?: number | null;
   /** Bloco já cumprido hoje (tópico estudado na data de hoje). */
   completed?: boolean;
+  /** v6.9.11 (C1/4.3): tópicos do par confundível (bloco de contraste). */
+  contrastTopicIds?: number[];
+  /** v6.9.11 (A4/4.12): ganho esperado por minuto (só desempata). */
+  gainPerMinute?: number;
+  /** v6.9.11 (A4/4.12): atraso em dias (para o desempate de 7 dias). */
+  overdueDays?: number;
+  /** v6.9.11 (C2/4.13): bloco de recuperação da manhã pós-estudo noturno. */
+  morning?: boolean;
 }
 
 export interface StudyOverview {
@@ -169,6 +184,8 @@ export interface StudyOverview {
     dueDoneToday?: boolean;
     /** Aviso amigável quando o dia de revisão está em dia (item 1.1). */
     notice?: string | null;
+    /** v6.9.11 (C2/C3): avisos suaves de sono e de domínio (nunca bloqueio). */
+    advice?: string[];
     blocks: PlanBlock[];
   };
   base: BaseLensSummary;
@@ -610,7 +627,17 @@ function computePlan(
   revisions: Revision[],
   dailyMinutes: number,
   baseDisciplineIds: Set<number>,
+  subjectMastery?: UserSettings["topicMastery"],
 ): StudyOverview["plan"] {
+  const advice: string[] = [];
+  const weightByDiscipline = new Map<number, number>();
+  for (const row of coverage.disciplines) {
+    if (row.disciplineId != null) {
+      weightByDiscipline.set(row.disciplineId, row.weight);
+    }
+  }
+  const masteryLevelOf = (topicId: number): number =>
+    Number(subjectMastery?.[String(topicId)]?.level ?? 0);
   const today = localDayISO();
   // v6.9.8 (item 1.1): tópico com revisão concluída no dia local de HOJE não
   // volta para o plano do dia. Antes o aluno concluía o mesmo tópico 9 vezes e
@@ -667,6 +694,15 @@ function computePlan(
       route: "/revisions",
       revisionId: revision.id,
       completed: false,
+      overdueDays,
+      gainPerMinute: expectedGainPerMinute({
+        weight: coverageByTopic.get(topicId)?.weight ?? 1,
+        proficiency: m?.readiness ?? 50,
+        daysSinceStudy: m?.daysSinceStudy ?? 7,
+        accuracyTrend: 0,
+        bancaShare: coverageByTopic.get(topicId)?.weight ?? 0.5,
+        minutes: 15,
+      }),
     });
     usedTopics.add(topicId);
   }
@@ -708,6 +744,14 @@ function computePlan(
       score: (100 - m.readiness) * (0.5 + (coverageRow?.weight ?? 1)),
       route: "/question-session",
       completed: m.lastStudyAt?.slice(0, 10) === today,
+      gainPerMinute: expectedGainPerMinute({
+        weight: coverageRow?.weight ?? 1,
+        proficiency: m.readiness,
+        daysSinceStudy: m.daysSinceStudy,
+        accuracyTrend: 0,
+        bancaShare: coverageRow?.weight ?? 0.5,
+        minutes: isQuestionDrill ? 25 : 30,
+      }),
     });
     usedTopics.add(m.topicId);
   }
@@ -785,7 +829,68 @@ function computePlan(
     }
   }
 
-  blocks.sort((a, b) => b.score - a.score);
+  // v6.9.11 (C1/4.3): pares confundíveis da MESMA disciplina, com os dois
+  // tópicos já estudados. Intercalar material dissimilar não ajuda (meta de
+  // Brunmair & Richter, 2019) — só contraste.
+  const studiedTopics = mastery
+    .filter((item) => item.resolved > 0)
+    .map((item) => ({
+      id: item.topicId,
+      name: item.topicName,
+      disciplineId: item.disciplineId,
+    }));
+  const contrastPairs = buildContrastPairs(studiedTopics);
+  for (const pair of contrastPairs) {
+    const first = masteryByTopic.get(pair.a);
+    const second = masteryByTopic.get(pair.b);
+    if (!first || !second) continue;
+    if (usedTopics.has(pair.a) || usedTopics.has(pair.b)) continue;
+    if (completedToday.has(pair.a) && completedToday.has(pair.b)) continue;
+    blocks.push({
+      id: `contrast-${pair.a}-${pair.b}`,
+      kind: "contraste",
+      lens: baseDisciplineIds.has(first.disciplineId) ? "base" : "edital",
+      title: `${first.topicName} × ${second.topicName}`,
+      subtitle: first.disciplineName,
+      reason: `Confundíveis (${Math.round(pair.score * 100)}% de sobreposição): treine a discriminação`,
+      minutes: 20,
+      topicId: first.topicId,
+      topicName: first.topicName,
+      disciplineId: first.disciplineId,
+      disciplineName: first.disciplineName,
+      color: first.color,
+      contrastTopicIds: [pair.a, pair.b],
+      score: 300 + Math.round(pair.score * 100),
+      route: "/question-session",
+      completed: false,
+      gainPerMinute: expectedGainPerMinute({
+        weight: coverageByTopic.get(pair.a)?.weight ?? 1,
+        proficiency: Math.round((first.readiness + second.readiness) / 2),
+        daysSinceStudy: Math.min(first.daysSinceStudy, second.daysSinceStudy),
+        accuracyTrend: 0,
+        bancaShare: coverageByTopic.get(pair.a)?.weight ?? 0.5,
+        minutes: 20,
+      }),
+    });
+    usedTopics.add(pair.a);
+    usedTopics.add(pair.b);
+  }
+
+  // v6.9.11 (A4/4.12): o ganho esperado só DESEMPATA quando a diferença de
+  // atraso é menor que 7 dias — vencidas primeiro continua mandando.
+  blocks.sort((a, b) => {
+    const overdueA = a.overdueDays ?? 0;
+    const overdueB = b.overdueDays ?? 0;
+    if (
+      shouldUseGainTiebreak(overdueA, overdueB) &&
+      typeof a.gainPerMinute === "number" &&
+      typeof b.gainPerMinute === "number" &&
+      a.gainPerMinute !== b.gainPerMinute
+    ) {
+      return b.gainPerMinute - a.gainPerMinute;
+    }
+    return b.score - a.score;
+  });
 
   // v6.9.8 (item 1.1): se não sobrou nenhuma vencida e alguma vencida foi
   // concluída hoje, o dia de revisão está cumprido — o plano avisa em vez de
@@ -848,6 +953,85 @@ function computePlan(
     (block) => block.kind === "revisao",
   );
 
+  // v6.9.11 (C2/4.13): conteúdo novo difícil (nível 0, disciplina peso ≥4)
+  // não entra depois das 21h30 — a consolidação depende do sono. Em vez de
+  // empurrar teoria ruim, o plano oferece recall curto agora e a recuperação
+  // de manhã.
+  const now = new Date();
+  const hourOfDay = now.getHours() + now.getMinutes() / 60;
+  if (hourOfDay >= 21.5) {
+    const removed: PlanBlock[] = [];
+    for (let index = blocks.length - 1; index >= 0; index -= 1) {
+      const block = blocks[index];
+      if (block.kind !== "estudo" || block.topicId == null) continue;
+      const weight = block.disciplineId
+        ? (weightByDiscipline.get(block.disciplineId) ?? 0)
+        : 0;
+      if (masteryLevelOf(block.topicId) === 0 && weight >= 4) {
+        blocks.splice(index, 1);
+        removed.push(block);
+      }
+    }
+    if (removed.length > 0) {
+      advice.push(
+        `Conteúdo novo difícil (${removed
+          .map((block) => block.topicName)
+          .slice(0, 2)
+          .join(", ")}) não entra depois das 21h30: consolidação pede sono.`,
+      );
+      blocks.unshift({
+        id: "sleep-recall",
+        kind: "revisao_rapida",
+        lens: "revisao",
+        title: "Recall antes de dormir",
+        subtitle: "10 minutos",
+        reason:
+          "Recuperação curta do que já foi estudado — sem conteúdo novo difícil à noite.",
+        minutes: 10,
+        topicId: null,
+        topicName: "Recall antes de dormir",
+        disciplineId: null,
+        disciplineName: "Plano",
+        color: "var(--primary)",
+        score: 990,
+        route: "/revisions",
+        completed: false,
+      });
+      for (const block of removed) {
+        blocks.push({
+          ...block,
+          id: `sleep-morning-${block.topicId}`,
+          kind: "revisao_rapida",
+          title: `Manhã: ${block.topicName}`,
+          reason: "Revisão da manhã depois da noite de consolidação",
+          minutes: 10,
+          score: 985,
+          morning: true,
+          route: "/revisions",
+        });
+      }
+    }
+  }
+
+  // v6.9.11 (C3/4.1): gate SUAVE. Tópico em nível 0–1 estudado hoje pede
+  // consolidação antes de abrir outro tema da mesma disciplina. Aviso, nunca
+  // bloqueio.
+  const lowMasteryToday = mastery.filter(
+    (item) =>
+      masteryLevelOf(item.topicId) <= 1 &&
+      isSameLocalDay(item.lastStudyAt, today),
+  );
+  if (lowMasteryToday.length > 0) {
+    advice.push(
+      `Nível 0–1 hoje em ${lowMasteryToday
+        .map((item) => item.topicName)
+        .slice(0, 2)
+        .join(
+          ", ",
+        )}: consolide antes de abrir tópico novo da mesma disciplina.`,
+    );
+  }
+
   let remainingMinutes = dailyMinutes;
   const selected: PlanBlock[] = [];
   for (const block of interleaved) {
@@ -866,6 +1050,7 @@ function computePlan(
     notice: dueDoneToday
       ? "Revisões do dia em dia: você já concluiu o que estava vencido hoje. O próximo passo é conteúdo novo ou ponto fraco."
       : null,
+    advice,
     blocks: selected,
   };
 }
@@ -1424,6 +1609,7 @@ export async function getStudyOverview(
     revisions,
     dailyMinutes,
     baseDisciplineIds,
+    settings?.topicMastery,
   );
   const distribution: Record<MasteryStatus, number> = {
     novo: 0,

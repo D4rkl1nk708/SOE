@@ -39,7 +39,10 @@ export type {
   Database,
   StudyEventRecord,
 };
-import { addLocalDays, localDayISO } from "../shared/localDay";
+import { addLocalDays, localDayFrom, localDayISO } from "../shared/localDay";
+import { MIN_RECALL_GAP_DAYS, planSpacingFixes } from "../shared/spacingGuard";
+import { masteryFromRecalls, type Recall } from "../shared/mastery";
+import { shouldHypercorrect } from "../shared/prediction";
 import { normalizeLocalDay } from "../shared/planRules";
 import { persistBase64Media } from "./mediaStorage";
 import { backupJsonPayload } from "./storage/backup";
@@ -326,6 +329,18 @@ export async function recordQuestionAttempt(
 
   if (!Array.isArray(db.questionAttempts)) db.questionAttempts = [];
 
+  // v6.9.11 (A2/4.9): questão nova = nunca vista por este aluno antes desta
+  // tentativa. É o único acerto que vale para o selo "dominado".
+  const seenBefore = record.questionId
+    ? db.questionAttempts.some(
+        (existing) =>
+          existing.questionId === record.questionId &&
+          existing.topicId === record.topicId &&
+          Boolean(existing.userId === undefined || existing.userId === userId),
+      )
+    : false;
+  record.fresh = record.context === "pretest" ? false : !seenBefore;
+
   // Deduplicação (mesma regra da assinatura da 6.9.3): o mesmo questionId no
   // mesmo tópico, com a mesma resposta, dentro de 10 minutos é eco do mesmo
   // clique — devolve a tentativa existente em vez de contar duas vezes.
@@ -416,6 +431,23 @@ export async function recordQuestionAttempt(
     answered: record.answered,
     source: record.source,
   });
+
+  // v6.9.11 (B1/4.4): pré-teste é linha de base — não entra em acurácia,
+  // proficiência nem domínio.
+  if (record.context === "pretest") {
+    recordPretestBaselineInDb(user, record);
+  } else {
+    // v6.9.11 (A2/4.9): recalcula o selo a cada tentativa.
+    writeTopicMastery(
+      user,
+      record.topicId as number,
+      recallsForTopic(db, userId, record.topicId as number),
+    );
+    // v6.9.11 (B4/4.7): certeza + erro → cartão corretivo imediato.
+    const hyper = ensureHypercorrectionCardInDb(db, userId, record);
+    if (hyper) record.hypercorrected = true;
+  }
+
   writeDatabase(db);
   return record;
 }
@@ -1566,6 +1598,14 @@ export async function markRevisionCompleted(
         disciplineName: context.disciplineName,
       },
     );
+    // v6.9.11 (A2/4.1): concluir a revisão conta como uma recuperação espaçada
+    // (nunca como questão nova). Reabrir não desconta: erro/desfazer não zera.
+    if (completed) {
+      const user = db.users.find((item) => item.id === userId);
+      if (user) {
+        addMasteryRecallInDb(db, user, revision.topicId, localDayISO(), false);
+      }
+    }
     writeDatabase(db);
   }
 }
@@ -4290,19 +4330,54 @@ export async function generateFlashcardsFromErrors(
   let skipped = 0;
   const today = localDayISO();
 
-  for (const error of errors) {
+  // v6.9.11 (B6/4.10): a causa dominante da disciplina vem primeiro no deck.
+  const causeCounts = new Map<string, Record<string, number>>();
+  for (const error of db.questionErrors) {
+    if (error.userId !== userId || !error.cause) continue;
+    const key = String(error.disciplineId || 0);
+    const counts = causeCounts.get(key) || {};
+    counts[error.cause] = (counts[error.cause] || 0) + 1;
+    causeCounts.set(key, counts);
+  }
+  const dominantCause = (disciplineId: number): string | null => {
+    const counts = causeCounts.get(String(disciplineId || 0));
+    if (!counts) return null;
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] > 0 ? top[0] : null;
+  };
+  const CAUSE_LABELS: Record<string, string> = {
+    conceito: "conceito",
+    literalidade: "literalidade",
+    leitura: "leitura do enunciado",
+    desatencao: "desatenção",
+    banca: "estilo da banca",
+  };
+  const ordered = [...errors].sort((a, b) => {
+    const dominantA = dominantCause(a.disciplineId);
+    const dominantB = dominantCause(b.disciplineId);
+    const priorityA = a.cause && a.cause === dominantA ? 0 : 1;
+    const priorityB = b.cause && b.cause === dominantB ? 0 : 1;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+  });
+
+  for (const error of ordered) {
     if (already.has(error.id)) {
       skipped += 1;
       continue;
     }
     const front = shortText(error.statement, 400) || `Erro #${error.id}`;
     const answerParts: string[] = [];
+    if (error.cause)
+      answerParts.push(`Causa: ${CAUSE_LABELS[error.cause] || error.cause}`);
     if (error.correctAnswer)
       answerParts.push(`Resposta correta: ${error.correctAnswer}`);
     if (error.userAnswer) answerParts.push(`Você marcou: ${error.userAnswer}`);
     const explanation =
       error.resolution || error.supportText || error.aiAnalysis;
     if (explanation) answerParts.push(shortText(explanation, 900));
+    if (error.explanation)
+      answerParts.push(`Sua explicação: ${shortText(error.explanation, 400)}`);
     const back =
       answerParts.join(String.fromCharCode(10, 10)) ||
       "Reveja o enunciado e a resolução.";
@@ -4318,7 +4393,8 @@ export async function generateFlashcardsFromErrors(
       interval: 1,
       easeFactor: 2.5,
       repetitions: 0,
-      nextReviewDate: today,
+      // v6.9.11 (B6/4.10): o deck de erros respeita o gap mínimo de 3 dias.
+      nextReviewDate: addLocalDays(today, MIN_RECALL_GAP_DAYS),
       sourceErrorId: error.id,
       createdAt: now(),
       updatedAt: now(),
@@ -4603,4 +4679,552 @@ export async function consolidateDuplicateDisciplines(userId: number): Promise<{
     questionsAfter,
     details,
   };
+}
+
+// ============================================================================
+// v6.9.11 — SOE implacável (A1, A2, B1, B4)
+// ============================================================================
+
+type TopicMasteryRecord = NonNullable<UserSettings["topicMastery"]>[string];
+
+function ensureUserSettings(user: User): UserSettings {
+  if (!user.settings) user.settings = {} as UserSettings;
+  return user.settings;
+}
+
+/**
+ * Recalls do tópico a partir do histórico canônico de tentativas.
+ * Pré-teste NUNCA conta como recuperação (é linha de base, não medida).
+ */
+function recallsForTopic(
+  db: Database,
+  userId: number,
+  topicId: number,
+): Recall[] {
+  return (db.questionAttempts || [])
+    .filter(
+      (attempt) =>
+        attempt.topicId === topicId &&
+        (!attempt.userId || attempt.userId === userId) &&
+        attempt.context !== "pretest" &&
+        attempt.correct === true,
+    )
+    .map((attempt) => ({
+      day: localDayFrom(attempt.createdAt) || "",
+      correct: true as const,
+      fresh: Boolean(attempt.fresh),
+    }))
+    .filter((recall) => Boolean(recall.day));
+}
+
+function writeTopicMastery(
+  user: User,
+  topicId: number,
+  recalls: Recall[],
+): TopicMasteryRecord {
+  const settings = ensureUserSettings(user);
+  const mastery = settings.topicMastery || {};
+  const previous = mastery[String(topicId)];
+  const result = masteryFromRecalls(recalls);
+  const record: TopicMasteryRecord = {
+    recalls,
+    level: result.level,
+    reason: result.reason,
+    updatedAt: now(),
+    masteredAt:
+      result.level === 4
+        ? previous?.masteredAt || now()
+        : previous?.masteredAt && result.level >= 3
+          ? previous.masteredAt
+          : undefined,
+  };
+  settings.topicMastery = { ...mastery, [String(topicId)]: record };
+  return record;
+}
+
+/** Recalcula o selo de domínio do tópico a partir das tentativas. */
+export function refreshTopicMastery(
+  userId: number,
+  topicId: number,
+): TopicMasteryRecord | null {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  if (!user || !topicId) return null;
+  const record = writeTopicMastery(
+    user,
+    topicId,
+    recallsForTopic(db, userId, topicId),
+  );
+  writeDatabase(db);
+  return record;
+}
+
+/** Adiciona uma recuperação (ex.: revisão concluída) e recalcula o selo. */
+function addMasteryRecallInDb(
+  db: Database,
+  user: User,
+  topicId: number,
+  day: string,
+  fresh: boolean,
+): void {
+  const recalls = recallsForTopic(db, user.id, topicId);
+  const alreadyCounted = recalls.some(
+    (recall) => recall.day === day && recall.fresh === fresh,
+  );
+  if (!alreadyCounted) recalls.push({ day, correct: true, fresh });
+  writeTopicMastery(user, topicId, recalls);
+}
+
+/**
+ * Cartão corretivo de hipercorreção: erro declarado com CERTEZA vira flashcard
+ * imediato e recall no dia seguinte (Butterfield & Metcalfe, 2006).
+ */
+function ensureHypercorrectionCardInDb(
+  db: Database,
+  userId: number,
+  attempt: QuestionAttempt,
+): Flashcard | null {
+  if (attempt.context === "pretest") return null;
+  if (
+    !shouldHypercorrect({
+      confidence: attempt.confidence ?? null,
+      correct: attempt.correct,
+    })
+  ) {
+    return null;
+  }
+  if (!Array.isArray(db.flashcards)) db.flashcards = [];
+  const existing = db.flashcards.find(
+    (card) => card.hypercorrectionFromAttemptId === attempt.id,
+  );
+  if (existing) return existing;
+
+  const topic = attempt.topicId
+    ? db.topics.find((item) => item.id === attempt.topicId)
+    : undefined;
+  const disciplineId = attempt.disciplineId ?? topic?.disciplineId ?? 0;
+  const snippet = String((attempt as any).statementSnippet || "").trim();
+  const correctLetter = String(
+    (attempt as any).correctAnswerLetter || "",
+  ).trim();
+  db.counters.flashcards = (db.counters.flashcards || 0) + 1;
+  const card: Flashcard = {
+    id: db.counters.flashcards,
+    userId,
+    disciplineId,
+    topicId: topic?.id,
+    front:
+      `Corrigir agora: ${snippet || topic?.name || "questão marcada com certeza"}`.slice(
+        0,
+        280,
+      ),
+    back: [
+      correctLetter ? `Gabarito: ${correctLetter}` : null,
+      attempt.errorExplanation
+        ? `Sua explicação: ${attempt.errorExplanation}`
+        : null,
+      "Você marcou com CERTEZA e errou: o erro mais corrigível quando há feedback imediato.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    interval: 1,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: addLocalDays(localDayISO(), 1),
+    archived: false,
+    hypercorrection: true,
+    hypercorrectionFromAttemptId: attempt.id,
+    sourceTopicId: topic?.id,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  db.flashcards.push(card);
+  return card;
+}
+
+/** Cria (idempotente) o cartão corretivo de uma tentativa. */
+export async function ensureHypercorrectionCard(
+  userId: number,
+  attempt: QuestionAttempt,
+): Promise<Flashcard | null> {
+  const db = readDatabase();
+  const card = ensureHypercorrectionCardInDb(db, userId, attempt);
+  if (card) writeDatabase(db);
+  return card;
+}
+
+function recordPretestBaselineInDb(user: User, attempt: QuestionAttempt): void {
+  if (!attempt.topicId) return;
+  const settings = ensureUserSettings(user);
+  const baseline = settings.pretestBaseline || {};
+  const key = String(attempt.topicId);
+  const previous = baseline[key] || {
+    sample: 0,
+    correct: 0,
+    accuracy: 0,
+    updatedAt: now(),
+  };
+  const sample = previous.sample + (attempt.answered ? 1 : 0);
+  const correct = previous.correct + (attempt.correct ? 1 : 0);
+  baseline[key] = {
+    sample,
+    correct,
+    accuracy: sample > 0 ? Math.round((correct / sample) * 100) : 0,
+    updatedAt: now(),
+  };
+  settings.pretestBaseline = baseline;
+}
+
+/**
+ * Pré-teste (v6.9.11, B1/4.4): 5 questões do banco de erros do tópico.
+ * Sem banco local o router tenta a IA; sem banco e sem IA devolve 0 — nunca
+ * um erro na cara do aluno.
+ */
+export interface PretestQuestion {
+  id: string;
+  questionId?: string;
+  statement: string;
+  alternatives: Array<{ letter: string; text: string }>;
+  correctAnswer?: string;
+  banca?: string;
+  topicId: number;
+  disciplineId: number;
+  source: "bank" | "ai";
+}
+
+export async function startPretest(
+  userId: number,
+  topicId: number,
+): Promise<{
+  available: number;
+  questions: PretestQuestion[];
+  source: "bank" | "ai" | "none";
+  topicName: string | null;
+}> {
+  const db = readDatabase();
+  const topic = db.topics.find(
+    (item) => item.id === topicId && item.userId === userId,
+  );
+  if (!topic) throw new Error("Tópico não encontrado.");
+  const errors = db.questionErrors
+    .filter(
+      (error) =>
+        error.userId === userId &&
+        error.topicId === topicId &&
+        String(error.statement || "").trim().length > 0 &&
+        Array.isArray(error.alternatives) &&
+        error.alternatives.length >= 2,
+    )
+    .slice(-5);
+
+  const questions: PretestQuestion[] = errors.map((error) => ({
+    id: `pretest-${error.id}`,
+    questionId: error.questionId,
+    statement: error.statement,
+    alternatives: error.alternatives,
+    correctAnswer: error.correctAnswer,
+    banca: error.banca,
+    topicId,
+    disciplineId: error.disciplineId || topic.disciplineId,
+    source: "bank",
+  }));
+
+  return {
+    available: questions.length,
+    questions,
+    source: questions.length > 0 ? "bank" : "none",
+    topicName: topic.name,
+  };
+}
+
+/** Registra a previsão antes do bloco e fecha com o obtido (B4/4.7). */
+export async function savePrediction(
+  userId: number,
+  input: {
+    id?: string;
+    predictedPct: number;
+    actualPct?: number;
+    questions?: number;
+    topicId?: number | null;
+    disciplineId?: number | null;
+    source?: string;
+  },
+): Promise<NonNullable<UserSettings["accuracyPredictions"]>[number]> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const settings = ensureUserSettings(user);
+  const list = Array.isArray(settings.accuracyPredictions)
+    ? [...settings.accuracyPredictions]
+    : [];
+  const predictedPct = Math.max(
+    0,
+    Math.min(100, Math.round(Number(input.predictedPct) || 0)),
+  );
+  const actualPct =
+    input.actualPct === undefined || input.actualPct === null
+      ? undefined
+      : Math.max(0, Math.min(100, Math.round(Number(input.actualPct))));
+
+  const existingIndex = input.id
+    ? list.findIndex((item) => item.id === input.id)
+    : -1;
+  if (existingIndex >= 0) {
+    list[existingIndex] = {
+      ...list[existingIndex],
+      predictedPct,
+      actualPct: actualPct ?? list[existingIndex].actualPct,
+      questions: input.questions ?? list[existingIndex].questions,
+      finishedAt:
+        actualPct !== undefined ? now() : list[existingIndex].finishedAt,
+    };
+    settings.accuracyPredictions = list;
+    writeDatabase(db);
+    return list[existingIndex];
+  }
+
+  const record = {
+    id:
+      input.id ||
+      `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    day: localDayISO(),
+    predictedPct,
+    actualPct,
+    questions: Math.max(0, Math.trunc(Number(input.questions) || 0)),
+    topicId: input.topicId ?? null,
+    disciplineId: input.disciplineId ?? null,
+    source: input.source || "manual",
+    createdAt: now(),
+    finishedAt: actualPct !== undefined ? now() : undefined,
+  };
+  settings.accuracyPredictions = [...list, record].slice(-300);
+  writeDatabase(db);
+  return record;
+}
+
+/**
+ * Guard de espaçamento (v6.9.11, A1/4.2).
+ *
+ * ÚNICA forma de reagendar revisão por espaçamento: backup antes, evento no
+ * ledger, idempotente. Nunca cria/apaga revisão, nunca altera o 25/50.
+ */
+export async function applySpacingGuard(
+  userId: number,
+  opts?: { today?: string; minGapDays?: number },
+): Promise<{
+  moved: number;
+  minGapDays: number;
+  backup: string | null;
+  fixes: Array<{
+    id: number;
+    topicId: number;
+    from: string;
+    to: string;
+    reason: string;
+  }>;
+}> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const today = normalizeLocalDay(opts?.today) || localDayISO();
+  const minGapDays = Math.max(
+    1,
+    Math.trunc(Number(opts?.minGapDays) || MIN_RECALL_GAP_DAYS),
+  );
+  const revisions = db.revisions
+    .filter((revision) => revision.userId === userId)
+    .map((revision) => ({
+      id: revision.id,
+      topicId: revision.topicId,
+      scheduledDate: revision.scheduledDate,
+      completed: revision.completed,
+      completedAt: revision.completedAt,
+      ignored: revision.ignored,
+    }));
+  const fixes = planSpacingFixes({ revisions, today, minGapDays });
+  if (fixes.length === 0) {
+    return { moved: 0, minGapDays, backup: null, fixes: [] };
+  }
+
+  const backup = backupJsonPayload(getDataDir(), "spacing-guard", db);
+  const stamp = now();
+  for (const fix of fixes) {
+    const revision = db.revisions.find(
+      (item) => item.id === fix.id && item.userId === userId,
+    );
+    if (!revision) continue;
+    revision.scheduledDate = fix.to;
+    revision.updatedAt = stamp;
+  }
+  pushStudyEvent(user, {
+    id: `spacing-guard-${userId}-${today}`,
+    type: "spacing",
+    occurredAt: stamp,
+    title: `Espaçamento corrigido: ${fixes.length} revisão(ões)`,
+    detail: `${fixes.length} movida(s) para respeitar ${minGapDays} dia(s) entre recuperações.`,
+    source: "spacing-guard",
+  });
+  writeDatabase(db);
+  return { moved: fixes.length, minGapDays, backup, fixes };
+}
+
+// ============================================================================
+// v6.9.11 — causas do erro (B6) e micro-recuperações do leitor (B7)
+// ============================================================================
+
+export type ErrorCause =
+  | "conceito"
+  | "literalidade"
+  | "leitura"
+  | "desatencao"
+  | "banca";
+
+export const ERROR_CAUSES: ErrorCause[] = [
+  "conceito",
+  "literalidade",
+  "leitura",
+  "desatencao",
+  "banca",
+];
+
+/** Classificação da causa em 1 toque — com backup e recálculo do resumo. */
+export async function setQuestionErrorCause(
+  userId: number,
+  errorId: number,
+  cause: ErrorCause,
+): Promise<{ success: boolean; changed: boolean; backup: string | null }> {
+  const db = readDatabase();
+  const error = db.questionErrors.find(
+    (item) => item.id === errorId && item.userId === userId,
+  );
+  if (!error) return { success: false, changed: false, backup: null };
+  if (error.cause === cause) {
+    return { success: true, changed: false, backup: null };
+  }
+  const backup = backupJsonPayload(getDataDir(), "causa-erro", db);
+  error.cause = cause;
+  error.causeUpdatedAt = now();
+  const user = db.users.find((item) => item.id === userId);
+  if (user) {
+    const settings = ensureUserSettings(user);
+    const summary = settings.errorCauseByDiscipline || {};
+    const key = String(error.disciplineId || 0);
+    // Conta a distribuição a partir do estado atual (idempotente).
+    const counts = {
+      conceito: 0,
+      literalidade: 0,
+      leitura: 0,
+      desatencao: 0,
+      banca: 0,
+    };
+    for (const item of db.questionErrors) {
+      if (item.userId !== userId) continue;
+      if ((item.disciplineId || 0) !== (error.disciplineId || 0)) continue;
+      if (item.cause) counts[item.cause] += 1;
+    }
+    settings.errorCauseByDiscipline = { ...summary, [key]: counts };
+  }
+  writeDatabase(db);
+  return { success: true, changed: true, backup };
+}
+
+export interface ErrorCauseSummaryRow {
+  disciplineId: number;
+  disciplineName: string;
+  total: number;
+  classified: number;
+  dominant: ErrorCause | null;
+  counts: Record<ErrorCause, number>;
+}
+
+/** Distribuição de causas por disciplina (a UI ordena o deck por ela). */
+export async function getErrorCauseSummary(
+  userId: number,
+): Promise<{ rows: ErrorCauseSummaryRow[] }> {
+  const db = readDatabase();
+  const byDiscipline = new Map<number, ErrorCauseSummaryRow>();
+  for (const error of db.questionErrors) {
+    if (error.userId !== userId) continue;
+    const id = error.disciplineId || 0;
+    const discipline = db.disciplines.find((item) => item.id === id);
+    const row =
+      byDiscipline.get(id) ||
+      ({
+        disciplineId: id,
+        disciplineName: discipline?.name || "Sem disciplina",
+        total: 0,
+        classified: 0,
+        dominant: null,
+        counts: {
+          conceito: 0,
+          literalidade: 0,
+          leitura: 0,
+          desatencao: 0,
+          banca: 0,
+        },
+      } as ErrorCauseSummaryRow);
+    row.total += 1;
+    if (error.cause) {
+      row.classified += 1;
+      row.counts[error.cause] += 1;
+    }
+    byDiscipline.set(id, row);
+  }
+  const rows = [...byDiscipline.values()];
+  for (const row of rows) {
+    const entries = Object.entries(row.counts) as Array<[ErrorCause, number]>;
+    const top = entries.sort((a, b) => b[1] - a[1])[0];
+    row.dominant = top && top[1] > 0 ? top[0] : null;
+  }
+  rows.sort((a, b) => b.total - a.total);
+  return { rows };
+}
+
+/** v6.9.11 (B7/4.11): salva a micro-recuperação de uma seção do leitor. */
+export async function saveSectionRecall(
+  userId: number,
+  input: {
+    docId: string;
+    sectionIndex: number;
+    sectionTitle?: string;
+    question: string;
+    answer?: string;
+    selfRated?: "acertei" | "nao_soube";
+  },
+): Promise<NonNullable<UserSettings["sectionRecalls"]>[number]> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  if (!user) throw new Error("Usuário não encontrado.");
+  const settings = ensureUserSettings(user);
+  const list = Array.isArray(settings.sectionRecalls)
+    ? [...settings.sectionRecalls]
+    : [];
+  const record = {
+    docId: String(input.docId),
+    sectionIndex: Math.max(0, Math.trunc(input.sectionIndex)),
+    sectionTitle: input.sectionTitle,
+    question: String(input.question).slice(0, 500),
+    answer: input.answer ? String(input.answer).slice(0, 1000) : undefined,
+    selfRated: input.selfRated,
+    createdAt: now(),
+  };
+  const index = list.findIndex(
+    (item) =>
+      item.docId === record.docId && item.sectionIndex === record.sectionIndex,
+  );
+  if (index >= 0) list[index] = record;
+  else list.push(record);
+  settings.sectionRecalls = list.slice(-500);
+  writeDatabase(db);
+  return record;
+}
+
+export async function getSectionRecalls(
+  userId: number,
+  docId: string,
+): Promise<NonNullable<UserSettings["sectionRecalls"]>> {
+  const settings = await getUserSettings(userId);
+  return (settings?.sectionRecalls || []).filter(
+    (item) => item.docId === String(docId),
+  );
 }

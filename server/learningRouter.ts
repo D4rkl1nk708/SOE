@@ -697,6 +697,31 @@ export const learningRouter = router({
     }),
 
   /**
+   * v6.9.11 (B7/4.11): grava a micro-recuperação de uma seção. Serve ao modo
+   * heurístico (sem IA) e ao modo com IA; nunca bloqueia a leitura para sempre.
+   */
+  saveSectionRecall: protectedProcedure
+    .input(
+      z.object({
+        docId: z.string(),
+        sectionIndex: z.number().min(0),
+        sectionTitle: z.string().optional(),
+        question: z.string().min(1).max(500),
+        answer: z.string().max(1000).optional(),
+        selfRated: z.enum(["acertei", "nao_soube"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return storage.saveSectionRecall(ctx.user.id, input);
+    }),
+
+  sectionRecalls: protectedProcedure
+    .input(z.object({ docId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return storage.getSectionRecalls(ctx.user.id, input.docId);
+    }),
+
+  /**
    * Analogias: três candidatas, com o mapeamento e o ponto onde cada uma quebra.
    * Comparar duas ou mais analogias é o que fixa o princípio (analogical encoding).
    */

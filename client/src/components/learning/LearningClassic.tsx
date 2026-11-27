@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { LessonStudio } from "./LessonStudio";
 import type { CadernoVivoState } from "./useCadernoVivo";
+import { SectionRecallGate } from "./SectionRecallGate";
 
 /**
  * Layout clássico do Caderno Vivo — preservado como opção (Perfil → Interface →
@@ -164,6 +165,8 @@ export function LearningClassic({ caderno }: { caderno: CadernoVivoState }) {
                       <div className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">
                         {section.text.slice(0, 12000)}
                       </div>
+                      <SectionRecallGate caderno={caderno} />
+
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button
                           size="sm"
