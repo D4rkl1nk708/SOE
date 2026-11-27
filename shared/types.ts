@@ -299,6 +299,15 @@ export interface QuestionAttempt {
   pendingClassification?: PendingClassification | null;
   /** Marcado quando a tentativa foi reatribuída por um alias do usuário. */
   reclassifiedAt?: string;
+  /**
+   * v6.9.15 (B): experimento interno que decidiu o padrão desta tentativa.
+   * `override` = o aluno trocou a política que a variante propôs.
+   */
+  experiment?: {
+    key: string;
+    variant: "A" | "B";
+    override: boolean;
+  } | null;
   createdAt: string;
 }
 
@@ -429,6 +438,11 @@ export interface UserSettings {
   accuracyPredictions?: Array<{
     id: string;
     day: string;
+    /**
+     * v6.9.15 (A): `forecast` = antes do bloco (padrão, e o que os registros
+     * antigos são); `jol` = julgamento atrasado, depois de corrigir.
+     */
+    kind?: "forecast" | "jol";
     predictedPct: number;
     actualPct?: number;
     questions: number;

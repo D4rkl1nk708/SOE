@@ -2,6 +2,7 @@ import { AlertTriangle, BarChart3, Dices, ShieldCheck } from "lucide-react";
 import { Card, ProgressBar, SectionLabel, StatTile } from "@/components/apple";
 import { cn } from "@/lib/utils";
 import type { CalibrationSummary } from "@shared/calibration";
+import type { ThreeWayCalibration } from "@shared/prediction";
 
 type Bucket = CalibrationSummary["buckets"][number];
 
@@ -40,6 +41,77 @@ export interface CalibrationCardProps {
   }>;
   /** Brier dos blocos previstos (menor = melhor). */
   brier?: number | null;
+  /** v6.9.15 (A): previsto antes × estimado depois × real. */
+  threeWay?: ThreeWayCalibration | null;
+}
+
+/**
+ * v6.9.15 (A): os três números lado a lado.
+ *
+ * O "depois" não é enfeite: julgamento atrasado é bem mais preciso (g = 0,93),
+ * e ver os dois erros em p.p. ao lado do real ensina a calibrar — quem vê o
+ * previsto (85%) contra o estimado (68%) entende de onde vinha o excesso de
+ * confiança.
+ */
+function ThreeWayBlock({ threeWay }: { threeWay: ThreeWayCalibration }) {
+  const legs = [
+    {
+      id: "forecast",
+      label: "Previsto antes",
+      leg: threeWay.forecast,
+    },
+    {
+      id: "jol",
+      label: "Estimado depois",
+      leg: threeWay.jol,
+    },
+  ] as const;
+
+  return (
+    <div className="mt-3 rounded-[10px] border border-border bg-secondary/20 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Antes × depois × real
+        </span>
+        {threeWay.improved === true && (
+          <span className="text-[10.5px] font-medium text-[var(--accent-green)]">
+            o depois errou menos
+          </span>
+        )}
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {legs.map(({ id, label, leg }) => (
+          <div key={id} data-testid={`three-way-${id}`}>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              {label}
+            </p>
+            <p className="apple-num text-[15px] font-semibold text-foreground">
+              {leg.available ? `${leg.predictedAvg}%` : "—"}
+            </p>
+            <p className="apple-num text-[10.5px] text-muted-foreground">
+              {leg.available && leg.errorPoints !== null
+                ? `${leg.errorPoints > 0 ? "+" : ""}${leg.errorPoints} p.p.`
+                : "sem previsão"}
+            </p>
+          </div>
+        ))}
+        <div data-testid="three-way-actual">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Real
+          </p>
+          <p className="apple-num text-[15px] font-semibold text-foreground">
+            {threeWay.actual.avg === null ? "—" : `${threeWay.actual.avg}%`}
+          </p>
+          <p className="apple-num text-[10.5px] text-muted-foreground">
+            n={threeWay.actual.sample}
+          </p>
+        </div>
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+        {threeWay.note}
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -57,6 +129,7 @@ export function CalibrationCard({
   predictions,
   predictionCurve = [],
   brier,
+  threeWay = null,
 }: CalibrationCardProps) {
   const total = summary?.total ?? 0;
   const invite =
@@ -89,6 +162,7 @@ export function CalibrationCard({
             )}
           </div>
         </div>
+        {threeWay && <ThreeWayBlock threeWay={threeWay} />}
       </Card>
     );
   }
@@ -214,6 +288,8 @@ export function CalibrationCard({
           )}
         </div>
       )}
+
+      {threeWay && <ThreeWayBlock threeWay={threeWay} />}
 
       {advice.length > 0 && (
         <div className="mt-3 rounded-[10px] border border-[color-mix(in_srgb,var(--accent-amber)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent-amber)_10%,transparent)] px-3 py-2.5">

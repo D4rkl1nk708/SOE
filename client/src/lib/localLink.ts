@@ -117,6 +117,8 @@ import {
   localApplySpacingGuard,
   localStartPretest,
   localSavePrediction,
+  localStudyExperimentReport,
+  localTutorTurn,
   localStudyRetentionMetrics,
   localSaveSectionRecall,
   localGetSectionRecalls,
@@ -265,11 +267,15 @@ const PROCEDURES: Record<string, (input: unknown) => Promise<unknown>> = {
   "mentor.chat": (i) => localMentorChat(i as any),
   "mentor.generateAdaptiveQuestion": (i) =>
     localGenerateAdaptiveQuestion(i as any),
+  // v6.9.15 (C1): ajuda do tutor tambem no APK (mesma politica, sem IA).
+  "mentor.tutorTurn": (i) => localTutorTurn(i as any),
   "mentor.testKey": (i) => localTestAiKey(i as any),
   "mentor.reviewSimulado": (i) => localReviewSimulado(i as any),
   "study.overview": (i) => localStudyOverview(i as any),
   "study.startPretest": (i) => localStartPretest(i as { topicId: number }),
   "study.savePrediction": (i) => localSavePrediction(i as any),
+  "study.experimentReport": (i) =>
+    localStudyExperimentReport(i as { key?: string } | undefined),
   "study.retentionMetrics": () => localStudyRetentionMetrics(),
   "study.weeklyReview": () => localStudyWeeklyReview(),
   "study.recordSession": (i) =>

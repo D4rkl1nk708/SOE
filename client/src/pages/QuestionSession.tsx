@@ -67,7 +67,17 @@ import SubjectiveAnswersTab, {
 } from "@/components/SubjectiveAnswersTab";
 import { StudyTimer } from "@/components/StudyTimer";
 import { PretestDiagnostic } from "@/components/question-session/PretestDiagnostic";
-import { isFeedbackVisible, resolveFeedbackMode } from "@shared/feedbackMode";
+import {
+  feedbackModeLabel,
+  isFeedbackVisible,
+  resolveFeedbackMode,
+  type FeedbackMode,
+} from "@shared/feedbackMode";
+import {
+  EXPERIMENT_KEY,
+  assignVariant,
+  variantDefaultFeedbackMode,
+} from "@shared/experiment";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos
@@ -100,6 +110,15 @@ interface ParsedQuestion {
   userAnswer?: string;
   correctAnswer?: string;
 }
+
+/** v6.9.15 (C1): o movimento do tutor em uma palavra (dica → princípio → explicação). */
+const TUTOR_MOVE_LABELS: Record<string, string> = {
+  refuse_and_hint: "Dica",
+  hint: "Dica",
+  socratic_question: "Pergunta",
+  principle: "Princípio",
+  full_explanation: "Explicação",
+};
 
 const ERROR_ORIGINS = [
   {
@@ -256,6 +275,19 @@ export default function QuestionSession() {
   const [predictedAccuracy, setPredictedAccuracy] = useState(60);
   const [predictionId, setPredictionId] = useState<string | null>(null);
   const [blockCorrected, setBlockCorrected] = useState(false);
+  // v6.9.15 (A): julgamento atrasado — depois de corrigir, antes de ver.
+  const [jolPending, setJolPending] = useState(false);
+  const [jolValue, setJolValue] = useState(60);
+  const [jolRecorded, setJolRecorded] = useState<number | null>(null);
+  // v6.9.15 (B): a variante decide o padrão; a troca vira `override`.
+  const [feedbackChoice, setFeedbackChoice] = useState<FeedbackMode | null>(
+    null,
+  );
+  // v6.9.15 (C1): resposta do tutor na tela de questão.
+  const [tutorReply, setTutorReply] = useState<{
+    kind: string;
+    reply: string;
+  } | null>(null);
   const [explanation, setExplanation] = useState("");
   const [explanationError, setExplanationError] = useState("");
   const [pretestDone, setPretestDone] = useState(false);
@@ -323,11 +355,27 @@ export default function QuestionSession() {
     string,
     any
   >;
-  const feedbackMode = resolveFeedbackMode(totalQ, appSettings.feedbackMode);
+  // v6.9.15 (B): o app mede a própria política. A variante decide só o PADRÃO;
+  // escolher o outro modo no setup é uma troca legítima, registrada como
+  // `override` em cada tentativa (não é erro do aluno).
+  const { data: me } = trpc.auth.me.useQuery();
+  const experimentVariant = assignVariant(
+    (me as any)?.id ?? "anon",
+    EXPERIMENT_KEY,
+  );
+  const participantDefaultMode = variantDefaultFeedbackMode(experimentVariant);
+  const feedbackMode = resolveFeedbackMode(
+    totalQ,
+    feedbackChoice ?? participantDefaultMode,
+  );
+  const experimentOverride =
+    feedbackChoice !== null && feedbackChoice !== participantDefaultMode;
   const selectedTopicMastery = selectedTopic
     ? appSettings.topicMastery?.[String(selectedTopic)]
     : null;
   const savePrediction = trpc.study.savePrediction.useMutation();
+  // v6.9.15 (C1): ajuda do tutor (coleira no servidor: sem gabarito no prompt).
+  const tutorTurn = trpc.mentor.tutorTurn.useMutation();
 
   const setPerformance = trpc.topic.setPerformance.useMutation({
     onSuccess: () => {
@@ -406,6 +454,7 @@ export default function QuestionSession() {
     setQSaved(false);
     setConfidence(null);
     setSawResult(false);
+    setTutorReply(null);
     setQuestionStartedAt(Date.now());
     if (currentIndex + 1 >= totalQ) setPhase("summary");
     else setCurrentIndex((i) => i + 1);
@@ -431,7 +480,57 @@ export default function QuestionSession() {
       seconds: Math.max(0, Math.round((Date.now() - questionStartedAt) / 1000)),
       source: "manual",
       ...(errorExplanation ? { errorExplanation } : {}),
+      // v6.9.15 (B): cada tentativa leva o experimento que decidiu o padrão.
+      experiment: {
+        key: EXPERIMENT_KEY,
+        variant: experimentVariant,
+        override: experimentOverride,
+      },
     } as any);
+  };
+
+  /**
+   * v6.9.15 (C1): o aluno pede ajuda DURANTE a questão.
+   *
+   * O servidor decide o movimento (dica → princípio → explicação) e tira o
+   * gabarito do prompt enquanto não houver 3 tentativas. Sem chave de IA ele
+   * devolve a pergunta socrática padrão — que é o que aparece aqui.
+   */
+  const askTutor = () => {
+    const provider = ["claude", "gemini", "openai"].includes(
+      String(appSettings.aiProvider),
+    )
+      ? (String(appSettings.aiProvider) as "claude" | "gemini" | "openai")
+      : "gemini";
+    tutorTurn.mutate(
+      {
+        text: "me dá uma dica",
+        studentAttempts: results.filter((result) => !result.correct).length,
+        question: parsed
+          ? {
+              id: parsed.questionId,
+              statement: parsed.statement,
+              alternatives: parsed.alternatives,
+              topicName: topics.find((t: any) => t.id === selectedTopic)?.name,
+            }
+          : undefined,
+        apiKey: String(appSettings.aiApiKey || ""),
+        provider,
+      } as any,
+      {
+        onSuccess: (data: any) =>
+          setTutorReply({
+            kind: String(data?.move?.kind ?? "hint"),
+            reply: String(data?.reply ?? ""),
+          }),
+        onError: (error: any) =>
+          toast.error(
+            String(error?.message || "").includes("não implementado")
+              ? "A ajuda do tutor precisa de conexão nesta versão."
+              : error?.message || "Não consegui falar com o tutor agora.",
+          ),
+      },
+    );
   };
 
   /**
@@ -449,6 +548,11 @@ export default function QuestionSession() {
     setExplanation("");
     setExplanationError("");
     setElapsed(0);
+    setJolPending(false);
+    setJolRecorded(null);
+    setJolValue(60);
+    setTutorReply(null);
+    setForecastClosed(false);
     sessionStorage.removeItem("qs_prefill");
     if (totalQ >= 5 && selectedTopic) {
       savePrediction.mutate(
@@ -566,6 +670,63 @@ export default function QuestionSession() {
       correctAnswer: parsed.correctAnswer,
       errorOrigin: lastResult?.errorOrigin ?? undefined,
     });
+  };
+
+  /**
+   * v6.9.15 (A): JOL — a estimativa vem DEPOIS do bloco corrigido e ANTES de
+   * revelar o resultado. Ela não altera a nota: é julgamento, não resposta.
+   */
+  const [forecastClosed, setForecastClosed] = useState(false);
+
+  /** Fecha a previsão feita ANTES do bloco com o resultado real (uma vez só). */
+  const closeForecastPrediction = (finalPct: number) => {
+    if (!predictionId || !selectedTopic) return;
+    savePrediction.mutate({
+      id: predictionId,
+      kind: "forecast",
+      predictedPct: Math.max(0, Math.min(100, Math.round(predictedAccuracy))),
+      actualPct: finalPct,
+      questions: totalQ,
+      topicId: selectedTopic,
+      disciplineId: selectedDisc ?? null,
+      source: "question-session",
+    });
+  };
+
+  // O bloco terminou: o resultado real já existe, então a previsão feita antes
+  // fecha aqui, em qualquer modo de correção. Sem isso o card de calibração
+  // ficava com "previsto antes —" enquanto o "depois" aparecia preenchido.
+  useEffect(() => {
+    if (phase !== "summary" || forecastClosed || !predictionId) return;
+    const finalPct = totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
+    setForecastClosed(true);
+    closeForecastPrediction(finalPct);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, forecastClosed, predictionId]);
+
+  const submitJolEstimate = (value: number) => {
+    const estimate = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    const finalPct = totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
+    setJolRecorded(estimate);
+    setJolPending(false);
+    setBlockCorrected(true);
+    if (selectedTopic) {
+      savePrediction.mutate({
+        kind: "jol",
+        predictedPct: estimate,
+        actualPct: finalPct,
+        questions: totalQ,
+        topicId: selectedTopic,
+        disciplineId: selectedDisc ?? null,
+        source: "question-session-jol",
+      });
+    }
+  };
+
+  const skipJolEstimate = () => {
+    setJolRecorded(null);
+    setJolPending(false);
+    setBlockCorrected(true);
   };
 
   const handleSaveSession = async () => {
@@ -926,6 +1087,43 @@ export default function QuestionSession() {
                       <p className="text-[10px] opacity-50">
                         A previsão entra na calibração (previsto × obtido).
                         Errar a previsão também é informação.
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedTopic && totalQ >= 5 && (
+                    <div className="space-y-2 rounded-2xl border border-border bg-secondary/20 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                          Correção do bloco
+                        </label>
+                        <span className="text-[10px] font-bold opacity-40">
+                          {experimentOverride
+                            ? "troca registrada"
+                            : "padrão do experimento"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["block", "immediate"] as FeedbackMode[]).map(
+                          (mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setFeedbackChoice(mode)}
+                              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                                feedbackMode === mode
+                                  ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                                  : "bg-secondary/40 opacity-50 hover:opacity-100"
+                              }`}
+                            >
+                              {feedbackModeLabel(mode)}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                      <p className="text-[10px] opacity-50">
+                        O SOE mede as duas políticas nas suas próprias
+                        tentativas. Trocar é permitido — e fica registrado.
                       </p>
                     </div>
                   )}
@@ -1320,6 +1518,37 @@ export default function QuestionSession() {
               </p>
             </div>
 
+            <div className="w-full space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Travou na questão?
+                </p>
+                <button
+                  type="button"
+                  onClick={askTutor}
+                  disabled={tutorTurn.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[10px] font-bold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  {tutorTurn.isPending ? "Pensando…" : "Me dá uma dica"}
+                </button>
+              </div>
+              {tutorReply && (
+                <div
+                  role="note"
+                  data-testid="tutor-reply"
+                  className="rounded-lg border border-border bg-secondary/20 p-3"
+                >
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--primary)]">
+                    {TUTOR_MOVE_LABELS[tutorReply.kind] ?? "Dica"} do tutor
+                  </p>
+                  <p className="mt-1 text-[11.5px] leading-5 opacity-80">
+                    {tutorReply.reply}
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4 w-full">
               <button
                 onClick={() => handleAnswer(true)}
@@ -1557,6 +1786,68 @@ export default function QuestionSession() {
         ? "border-[var(--primary)]/30"
         : "border-rose-500/30";
 
+  // v6.9.15 (A): com o placar à vista não é julgamento, é postdiction. Então o
+  // JOL vem primeiro; o resultado só aparece depois da estimativa.
+  if (jolPending) {
+    return (
+      <div className="max-w-xl mx-auto space-y-6 pb-20 animate-in fade-in duration-300">
+        <div className="space-y-2 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--primary)]">
+            Julgamento atrasado
+          </p>
+          <h1 className="text-3xl font-black tracking-tight">
+            De 0 a 100, quantas dessas você acha que acertou?
+          </h1>
+          <p className="text-sm opacity-60">
+            O bloco já está corrigido, mas o resultado continua escondido.
+            Julgar depois, sem a questão à vista, costuma ser bem mais preciso.
+          </p>
+        </div>
+        <div className="soe-card space-y-5 p-8">
+          <div className="flex items-end justify-between gap-3">
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
+              Sua estimativa
+            </span>
+            <span
+              data-testid="jol-value"
+              className="text-3xl font-black tabular-nums text-[var(--primary)]"
+            >
+              {jolValue}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={jolValue}
+            aria-label="Estimativa de acerto do bloco"
+            onChange={(event) => setJolValue(Number(event.target.value))}
+            className="w-full accent-[var(--primary)]"
+          />
+          <button
+            type="button"
+            onClick={() => submitJolEstimate(jolValue)}
+            className="w-full rounded-2xl bg-[var(--primary)] px-6 py-4 text-xs font-black uppercase tracking-widest text-[var(--primary-foreground)]"
+          >
+            Confirmar estimativa
+          </button>
+          <button
+            type="button"
+            onClick={skipJolEstimate}
+            className="w-full text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-80"
+          >
+            Ver o resultado sem estimar
+          </button>
+          <p className="text-center text-[10px] opacity-50">
+            A estimativa não altera a nota: ela entra na calibração como
+            julgamento.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col items-center text-center space-y-2">
@@ -1607,7 +1898,11 @@ export default function QuestionSession() {
             verdade.
           </p>
           <button
-            onClick={() => setBlockCorrected(true)}
+            onClick={() => {
+              // v6.9.15 (A): em bloco de 5+ questões, o JOL vem antes do placar.
+              if (totalQ >= 5) setJolPending(true);
+              else setBlockCorrected(true);
+            }}
             className="mx-auto flex items-center gap-2 rounded-2xl bg-[var(--primary)] px-6 py-4 text-xs font-black uppercase tracking-widest text-[var(--primary-foreground)]"
           >
             <ListChecks className="h-4 w-4" /> Corrigir bloco
@@ -1626,6 +1921,7 @@ export default function QuestionSession() {
                 previsto {predictedAccuracy}% × obtido {finalAccuracy}%{" · "}
                 {finalAccuracy - predictedAccuracy > 0 ? "+" : ""}
                 {finalAccuracy - predictedAccuracy} p.p.
+                {jolRecorded !== null && ` · estimou depois ${jolRecorded}%`}
               </span>
             )}
           </div>

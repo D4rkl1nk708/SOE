@@ -1047,7 +1047,9 @@ export async function configureApp(): Promise<{
                 userId: user.id,
                 disciplineId: discId,
                 name: assuntoName,
-                studyDate: new Date().toISOString(),
+                // v6.9.15 (C4): `studyDate` é DIA do aluno. ISO completo aqui
+                // fazia o tópico criado às 22h nascer no dia seguinte.
+                studyDate: localDayISO(),
                 notes: null,
               });
               topId = created.id;

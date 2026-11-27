@@ -19,7 +19,11 @@ import { LessonPlayer } from "./LessonPlayer";
 import SandboxFrame, { type MicroWorld } from "./SandboxFrame";
 import { SectionStudyPanel } from "./SectionStudyPanel";
 import { PagedReading } from "./PagedReading";
-import { sectionPagesLabel, splitSectionIntoBlocks } from "./readingModel";
+import {
+  sectionLabel,
+  sectionPagesLabel,
+  splitSectionIntoBlocks,
+} from "./readingModel";
 import type { CadernoVivoState } from "./useCadernoVivo";
 import { SectionRecallGate } from "./SectionRecallGate";
 
@@ -198,7 +202,7 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
               >
                 {caderno.docs.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.title}
+                    Doc · {item.title}
                   </option>
                 ))}
               </select>
@@ -212,7 +216,7 @@ export function ReadingSurface({ caderno }: { caderno: CadernoVivoState }) {
               >
                 {sections.map((item, index) => (
                   <option key={`${item.title}-${index}`} value={index}>
-                    {index + 1}. {item.title}
+                    Seção {index + 1} · {sectionLabel(item.title)}
                   </option>
                 ))}
               </select>

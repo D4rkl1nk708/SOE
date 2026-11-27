@@ -151,3 +151,162 @@ export function calibrationCurve(
     })
     .filter((bucket) => bucket.sample > 0);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * v6.9.15 (item A): julgamento atrasado (JOL).
+ *
+ * A previsão ANTES do bloco ("forecast") mede expectativa; a estimativa DEPOIS
+ * de corrigir, sem o material à vista ("jol"), mede julgamento com a tarefa já
+ * resolvida — e é bem mais precisa (g = 0,93). O card de calibração passa a
+ * mostrar os três números lado a lado: previsto antes, estimado depois e real.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+export type PredictionKind = "forecast" | "jol";
+
+export interface JudgedPredictionLike {
+  /** Ausente = registro antigo (6.9.11), que só fazia previsão antes. */
+  kind?: string | null;
+  predictedPct: number;
+  actualPct?: number;
+}
+
+export interface PredictionLeg {
+  kind: PredictionKind;
+  sample: number;
+  predictedAvg: number | null;
+  actualAvg: number | null;
+  /** Real − previsto, em pontos percentuais. */
+  errorPoints: number | null;
+  brier: number | null;
+  available: boolean;
+}
+
+export interface ThreeWayCalibration {
+  forecast: PredictionLeg;
+  jol: PredictionLeg;
+  actual: { sample: number; avg: number | null };
+  /** true quando o "depois" errou menos p.p. que o "antes". */
+  improved: boolean | null;
+  note: string;
+}
+
+export function normalizePredictionKind(
+  kind: string | null | undefined,
+): PredictionKind {
+  return kind === "jol" ? "jol" : "forecast";
+}
+
+/** Só entram registros com os dois lados (previsto e obtido). */
+function judgedItems(records: JudgedPredictionLike[]): JudgedPredictionLike[] {
+  return (Array.isArray(records) ? records : []).filter(
+    (record) =>
+      Number.isFinite(Number(record?.predictedPct)) &&
+      Number.isFinite(Number(record?.actualPct)),
+  );
+}
+
+/** Brier separado por tipo: misturar os dois esconde justamente o efeito. */
+export function brierScoreByKind(records: JudgedPredictionLike[]): {
+  forecast: number | null;
+  jol: number | null;
+} {
+  const items = judgedItems(records);
+  const forKind = (kind: PredictionKind) =>
+    brierScore(
+      items
+        .filter((record) => normalizePredictionKind(record.kind) === kind)
+        .map((record) => ({
+          predicted: Number(record.predictedPct) / 100,
+          observed: Number(record.actualPct) / 100,
+        })),
+    );
+  return { forecast: forKind("forecast"), jol: forKind("jol") };
+}
+
+function leg(
+  kind: PredictionKind,
+  records: JudgedPredictionLike[],
+): PredictionLeg {
+  const items = judgedItems(records).filter(
+    (record) => normalizePredictionKind(record.kind) === kind,
+  );
+  const sample = items.length;
+  if (sample === 0) {
+    return {
+      kind,
+      sample: 0,
+      predictedAvg: null,
+      actualAvg: null,
+      errorPoints: null,
+      brier: null,
+      available: false,
+    };
+  }
+  const predictedAvg =
+    items.reduce((sum, record) => sum + Number(record.predictedPct), 0) /
+    sample;
+  const actualAvg =
+    items.reduce((sum, record) => sum + Number(record.actualPct), 0) / sample;
+  const brier = brierScore(
+    items.map((record) => ({
+      predicted: Number(record.predictedPct) / 100,
+      observed: Number(record.actualPct) / 100,
+    })),
+  );
+  return {
+    kind,
+    sample,
+    predictedAvg: round2(predictedAvg),
+    actualAvg: round2(actualAvg),
+    errorPoints: Math.round(actualAvg - predictedAvg),
+    brier,
+    available: true,
+  };
+}
+
+export function summarizeThreeWayCalibration(
+  records: JudgedPredictionLike[],
+): ThreeWayCalibration {
+  const items = judgedItems(records);
+  const forecast = leg("forecast", items);
+  const jol = leg("jol", items);
+  const actualAvg =
+    items.length > 0
+      ? round2(
+          items.reduce((sum, record) => sum + Number(record.actualPct), 0) /
+            items.length,
+        )
+      : null;
+
+  const improved =
+    forecast.available &&
+    jol.available &&
+    Number.isFinite(forecast.errorPoints) &&
+    Number.isFinite(jol.errorPoints)
+      ? Math.abs(Number(jol.errorPoints)) <
+        Math.abs(Number(forecast.errorPoints))
+      : null;
+
+  let note: string;
+  if (forecast.available && jol.available) {
+    note =
+      "O julgamento depois costuma ser mais preciso: com o bloco já corrigido, você estima a partir do desempenho que teve — não da expectativa que carregava antes de responder.";
+  } else if (jol.available) {
+    note =
+      "Só há estimativa depois do bloco. Faça a previsão antes para comparar os dois julgamentos.";
+  } else if (forecast.available) {
+    note =
+      "Só há previsão antes do bloco. Estime depois de corrigir: o julgamento atrasado costuma ser bem mais preciso.";
+  } else {
+    note =
+      "Sem previsão registrada ainda. Preveja antes do bloco e estime depois de corrigir para ver os três números.";
+  }
+
+  return {
+    forecast,
+    jol,
+    actual: { sample: items.length, avg: actualAvg },
+    improved,
+    note,
+  };
+}

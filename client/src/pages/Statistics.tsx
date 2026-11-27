@@ -34,6 +34,7 @@ import { StudyHeatmap } from "@/components/StudyHeatmap";
 import { PeakHoursChart } from "@/components/PeakHoursChart";
 import { DisciplineTrendCard } from "@/components/DisciplineTrendCard";
 import { CalibrationCard } from "@/components/apple/CalibrationCard";
+import { ExperimentCard } from "@/components/apple/ExperimentCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/layout/PageShell";
@@ -47,6 +48,8 @@ export default function Statistics() {
   });
   // v6.9.7 (item 1): certeza × acerto do usuário.
   const { data: calibration } = trpc.study.calibration.useQuery();
+  // v6.9.15 (B): o app mede a própria política de feedback.
+  const { data: experimentReport } = trpc.study.experimentReport.useQuery();
 
   const [showShare, setShowShare] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -398,7 +401,11 @@ export default function Statistics() {
         predictions={(calibration as any)?.predictions}
         predictionCurve={(calibration as any)?.predictionCurve}
         brier={(calibration as any)?.brier}
+        threeWay={(calibration as any)?.threeWay}
       />
+
+      {/* v6.9.15 (B): A/B interno — o SOE mede a própria política. */}
+      <ExperimentCard summary={(experimentReport as any) ?? null} />
 
       {/* v6.9.11 (C5/4.1): distribuição do domínio por nível 0–4. */}
       {(() => {

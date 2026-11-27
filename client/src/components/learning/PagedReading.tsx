@@ -229,10 +229,12 @@ export function PagedReading({
     const body = bodyRef.current;
     if (!frame || !body) return;
     const style = getComputedStyle(body);
+    // v6.9.15 (C3): a capacidade vem do quadro reservado (`frameHeight`), não do
+    // corpo da página atual — senão a página curta reduziria o orçamento e a
+    // repaginação mudaria a contagem no meio da leitura.
+    const boxHeight = frameHeight || body.clientHeight;
     const capacity =
-      body.clientHeight -
-      pixels(style.paddingTop) -
-      pixels(style.paddingBottom);
+      boxHeight - pixels(style.paddingTop) - pixels(style.paddingBottom);
     const width =
       body.clientWidth - pixels(style.paddingLeft) - pixels(style.paddingRight);
     const next = calibrateBudget(blocks, {
@@ -333,16 +335,33 @@ export function PagedReading({
 
   if (total === 0) return null;
 
+  // v6.9.15 (C3): página com menos de 60% do orçamento. O texto fica boiando
+  // num quadro alto; aqui só a ALTURA VISUAL encolhe — o paginador, o orçamento
+  // e a contagem de páginas continuam exatamente os mesmos.
+  const pageWords = (page?.blocks ?? []).reduce(
+    (sum, block) =>
+      sum +
+      String(block)
+        .split(/\s+/)
+        .filter((word) => word.length > 0).length,
+    0,
+  );
+  const shortPage = budget > 0 && pageWords < budget * 0.6;
+
   return (
     <section className={className}>
       <div
         ref={frameRef}
         data-testid="reading-page-frame"
+        data-short-page={shortPage ? "true" : undefined}
         className="reading-page-frame relative overflow-hidden px-1 pt-3"
         style={{
-          height: frameHeight
-            ? frameHeight + "px"
-            : "clamp(300px, 56vh, 640px)",
+          height: shortPage
+            ? "auto"
+            : frameHeight
+              ? frameHeight + "px"
+              : "clamp(300px, 56vh, 640px)",
+          minHeight: shortPage ? "176px" : undefined,
         }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}

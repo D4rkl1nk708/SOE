@@ -53,7 +53,12 @@ import {
 import { summarizeDuplicates } from "@shared/disciplineDuplicates";
 import { masteryFromRecalls, type Recall } from "@shared/mastery";
 import { MIN_RECALL_GAP_DAYS, planSpacingFixes } from "@shared/spacingGuard";
-import { shouldHypercorrect } from "@shared/prediction";
+import {
+  shouldHypercorrect,
+  summarizeThreeWayCalibration,
+} from "@shared/prediction";
+import { summarizeExperiment } from "@shared/experiment";
+import { classifyTutorIntent, decideTutorMove } from "@shared/tutorPolicy";
 import { computeRetentionMetrics } from "@shared/retention";
 import { buildContrastPairs } from "@shared/confusable";
 import { expectedGainPerMinute } from "@shared/expectedGain";
@@ -1071,6 +1076,8 @@ export async function localRecordQuestionAttempt(input: {
   errorExplanation?: string;
   statementSnippet?: string;
   correctAnswerLetter?: string;
+  /** v6.9.15 (B): experimento interno que decidiu o padrão desta tentativa. */
+  experiment?: { key: string; variant: "A" | "B"; override: boolean } | null;
 }): Promise<Record<string, unknown>> {
   const user = await db.users.get(LOCAL_USER_ID);
   if (!user) throw new Error("Usuário local não encontrado.");
@@ -4724,9 +4731,11 @@ export async function localStartPretest(input: { topicId: number }): Promise<{
   };
 }
 
-/** Paridade offline da previsão antes do bloco (B4/4.7). */
+/** Paridade offline da previsão antes do bloco (B4/4.7) e do JOL (6.9.15). */
 export async function localSavePrediction(input: {
   id?: string;
+  /** v6.9.15 (A): forecast (antes) | jol (depois de corrigir). */
+  kind?: "forecast" | "jol";
   predictedPct: number;
   actualPct?: number;
   questions?: number;
@@ -4751,6 +4760,7 @@ export async function localSavePrediction(input: {
   if (index >= 0) {
     list[index] = {
       ...list[index],
+      kind: list[index].kind ?? input.kind,
       predictedPct,
       actualPct: actualPct ?? list[index].actualPct,
       finishedAt: actualPct !== undefined ? now() : list[index].finishedAt,
@@ -4763,6 +4773,7 @@ export async function localSavePrediction(input: {
       input.id ||
       `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     day: localDayISO(),
+    kind: input.kind,
     predictedPct,
     actualPct,
     questions: Math.max(0, Math.trunc(Number(input.questions) || 0)),
@@ -4774,6 +4785,120 @@ export async function localSavePrediction(input: {
   };
   await writeSetting("accuracyPredictions", [...list, record].slice(-300));
   return record;
+}
+
+/**
+ * v6.9.15 (B): relatório offline do A/B interno (paridade com
+ * `study.experimentReport`). Sem amostra devolve "amostra insuficiente".
+ */
+export async function localStudyExperimentReport(
+  input?: { key?: string } | null,
+): Promise<Record<string, unknown>> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const attempts: any[] = Array.isArray(settings.questionAttempts)
+    ? settings.questionAttempts
+    : [];
+  return summarizeExperiment(
+    attempts
+      .filter((attempt) => attempt?.experiment?.key)
+      .map((attempt) => ({
+        key: attempt.experiment.key,
+        variant: attempt.experiment.variant,
+        override: attempt.experiment.override === true,
+        correct: attempt.correct === true,
+        fresh: attempt.fresh === true,
+        at: attempt.createdAt,
+      })),
+    input?.key ? { key: input.key } : undefined,
+  ) as unknown as Record<string, unknown>;
+}
+
+/** Paridade offline das três pernas da calibração (v6.9.15, item A). */
+export async function localThreeWayCalibration(): Promise<
+  Record<string, unknown>
+> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const judged = (
+    Array.isArray(settings.accuracyPredictions)
+      ? settings.accuracyPredictions
+      : []
+  ).filter((item: any) => typeof item?.actualPct === "number");
+  return summarizeThreeWayCalibration(
+    judged.map((item: any) => ({
+      kind: item.kind,
+      predictedPct: item.predictedPct,
+      actualPct: item.actualPct,
+    })),
+  ) as unknown as Record<string, unknown>;
+}
+
+/** Mesma pergunta padrão de `server/tutorGuard.ts` (offline não tem IA). */
+export function localTutorFallbackReply(kind: string): string {
+  switch (kind) {
+    case "refuse_and_hint":
+      return "Não vou entregar a resposta antes de você tentar: qual é o primeiro passo que o enunciado pede? Escreva sua tentativa (mesmo errada) e eu devolvo uma dica do próximo passo.";
+    case "hint":
+      return "Antes da dica: com suas palavras, o que o enunciado está pedindo? Escreva o que você já sabe que não fecha e eu aponto o próximo passo.";
+    case "socratic_question":
+      return "Explique com as próprias palavras, sem jargão: como você definiria esse conceito para um colega que nunca estudou o tema?";
+    case "principle":
+      return "Você já tentou duas vezes; vamos pelo princípio. Qual regra da matéria rege esse caso? Aplique-a na opção que você marcou e me diga onde ela quebra.";
+    case "full_explanation":
+    default:
+      return "Você já tentou três vezes, então a explicação completa está liberada. Antes de eu detalhar: qual foi o raciocínio que te travou na última tentativa?";
+  }
+}
+
+/**
+ * v6.9.15 (C1): `mentor.tutorTurn` no APK.
+ *
+ * Offline não existe chamada de IA: o movimento vem da MESMA política
+ * (`shared/tutorPolicy`) e a resposta é a pergunta padrão — igual ao servidor
+ * sem chave. O turno é registrado em `settings.tutorTurns` como no servidor,
+ * então a métrica de retenção continua honesta.
+ */
+export async function localTutorTurn(input: {
+  text: string;
+  studentAttempts?: number;
+  alreadyExplained?: boolean;
+  questionId?: string | number;
+  question?: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  const user = await ensureLocalUser();
+  const settings = (user.settings || {}) as Record<string, any>;
+  const intent = classifyTutorIntent(String(input?.text || ""));
+  const move = decideTutorMove({
+    intent,
+    studentAttempts: Math.max(
+      0,
+      Math.trunc(Number(input?.studentAttempts) || 0),
+    ),
+    alreadyExplained: Boolean(input?.alreadyExplained),
+  });
+  const questionId =
+    input?.questionId != null ? String(input.questionId) : null;
+  const turns = Array.isArray(settings.tutorTurns) ? settings.tutorTurns : [];
+  await writeSetting(
+    "tutorTurns",
+    [
+      ...turns,
+      {
+        intent,
+        kind: move.kind,
+        hintLevel: move.hintLevel,
+        mayRevealAnswer: move.mayRevealAnswer,
+        questionId,
+        createdAt: now(),
+      },
+    ].slice(-200),
+  );
+  return {
+    move,
+    reply: localTutorFallbackReply(move.kind),
+    questionId,
+  };
 }
 
 /** Paridade offline das métricas de retenção (C4). */

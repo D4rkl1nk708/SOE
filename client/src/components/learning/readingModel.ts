@@ -189,3 +189,19 @@ export function contextSnippet(text: string, limit = 600): string {
   if (clean.length <= limit) return clean;
   return `${clean.slice(0, limit - 1).trimEnd()}…`;
 }
+
+/**
+ * Rótulo da seção sem a numeração que veio do PDF (v6.9.15, C2).
+ *
+ * O título da 1ª seção costuma repetir o título do documento ("1 Introducao"),
+ * e os dois seletores do leitor ficavam com o mesmo texto. Aqui a numeração do
+ * PDF sai e a tela põe o papel de cada seletor: "Doc · …" e "Seção 1 · …".
+ */
+export function sectionLabel(title: string | undefined): string {
+  const raw = String(title ?? "").trim();
+  const clean = raw
+    // Uma ou mais marcas de numeração ("1. ", "3.2.1 ", "2) ") na frente.
+    .replace(/^(?:\s*\d+(?:\.\d+)*\s*[.):\-–—]?\s*)+/, "")
+    .trim();
+  return clean || raw;
+}

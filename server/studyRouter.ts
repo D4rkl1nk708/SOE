@@ -2,7 +2,12 @@ import { protectedProcedure, router } from "./_core/trpc";
 import { callAiProvider } from "./aiProviders";
 import { extractJSON } from "./mentorRouter";
 import { computeRetentionMetrics } from "../shared/retention";
-import { calibrationCurve, summarizePredictions } from "../shared/prediction";
+import {
+  calibrationCurve,
+  summarizePredictions,
+  summarizeThreeWayCalibration,
+} from "../shared/prediction";
+import { summarizeExperiment } from "../shared/experiment";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
 import { getStudyLedger } from "./studyLedger";
@@ -189,6 +194,14 @@ export const studyRouter = router({
           .optional(),
         seconds: z.number().min(0).max(86400).optional(),
         source: z.enum(["manual", "tec", "simulado"]).optional(),
+        /** v6.9.15 (B): experimento que decidiu o padrão desta tentativa. */
+        experiment: z
+          .object({
+            key: z.string().min(1),
+            variant: z.enum(["A", "B"]),
+            override: z.boolean(),
+          })
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -446,20 +459,31 @@ export const studyRouter = router({
       (attempt) => attempt.context !== "pretest",
     );
     const summary = summarizeCalibration(graded as any);
-    const predictions = summarizePredictions(
-      (settings?.accuracyPredictions || [])
-        .filter((item) => typeof item.actualPct === "number")
-        .map((item) => ({
-          predictedPct: item.predictedPct,
-          actualPct: item.actualPct as number,
-        })),
+    const judged = (settings?.accuracyPredictions || []).filter(
+      (item) => typeof item.actualPct === "number",
     );
-    const predictionRecords = (settings?.accuracyPredictions || [])
-      .filter((item) => typeof item.actualPct === "number")
-      .map((item) => ({
+    // v6.9.15 (A): o "antes" e o "depois" são julgamentos diferentes; a curva
+    // e o resumo antigos continuam só com a previsão feita antes do bloco.
+    const forecastRecords = judged.filter(
+      (item) => (item.kind ?? "forecast") === "forecast",
+    );
+    const predictions = summarizePredictions(
+      forecastRecords.map((item) => ({
         predictedPct: item.predictedPct,
         actualPct: item.actualPct as number,
-      }));
+      })),
+    );
+    const threeWay = summarizeThreeWayCalibration(
+      judged.map((item) => ({
+        kind: item.kind,
+        predictedPct: item.predictedPct,
+        actualPct: item.actualPct as number,
+      })),
+    );
+    const predictionRecords = forecastRecords.map((item) => ({
+      predictedPct: item.predictedPct,
+      actualPct: item.actualPct as number,
+    }));
     const brierValue =
       predictionRecords.length > 0
         ? Number(
@@ -487,10 +511,37 @@ export const studyRouter = router({
       ),
       /** v6.9.11 (B4/4.7): previsão × obtido + erro em pontos percentuais. */
       predictions,
+      /** v6.9.15 (A): previsto antes × estimado depois × real. */
+      threeWay,
       /** Brier/overconfidence da versão anterior (StudyPlan ainda usa). */
       legacy: legacyOverview.calibration,
       generatedAt: new Date().toISOString(),
     };
+  }),
+
+  /**
+   * v6.9.15 (B): relatório do A/B interno da política de feedback.
+   *
+   * Lê as tentativas que carregam `experiment` e devolve o resumo por variante
+   * (n, acerto, retenção em questão nova 7+ dias, overrides). Sem amostra, o
+   * texto é "amostra insuficiente (n=X)" — nunca um vencedor inventado.
+   */
+  experimentReport: protectedProcedure.query(async ({ ctx }) => {
+    const attempts = (await storage.getAllQuestionAttempts(
+      ctx.user.id,
+    )) as any[];
+    return summarizeExperiment(
+      attempts
+        .filter((attempt) => attempt?.experiment?.key)
+        .map((attempt) => ({
+          key: attempt.experiment.key,
+          variant: attempt.experiment.variant,
+          override: attempt.experiment.override === true,
+          correct: attempt.correct === true,
+          fresh: attempt.fresh === true,
+          at: attempt.createdAt,
+        })),
+    );
   }),
 
   errorPatterns: protectedProcedure.query(async ({ ctx }) => {
@@ -606,6 +657,8 @@ Responda SOMENTE JSON: {"questions":[{"statement":"...","alternatives":[{"letter
     .input(
       z.object({
         id: z.string().optional(),
+        /** v6.9.15 (A): previsto antes (forecast) × estimado depois (jol). */
+        kind: z.enum(["forecast", "jol"]).optional(),
         predictedPct: z.number().min(0).max(100),
         actualPct: z.number().min(0).max(100).optional(),
         questions: z.number().min(0).optional(),

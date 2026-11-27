@@ -11,6 +11,42 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.15",
+    date: "27/11/2026",
+    title: "Julgamento atrasado, A/B interno e pendências",
+    categories: [
+      {
+        title: "🧠 Julgar depois de corrigir",
+        type: "feature",
+        items: [
+          'Em bloco de 5+ questões, a correção agora pergunta primeiro: "de 0 a 100, quantas dessas você acha que acertou?" — e só depois mostra o placar. Julgar com a tarefa já resolvida e sem a questão à vista é bem mais preciso que prever antes (g = 0,93).',
+          "O card de calibração mostra três números lado a lado: previsto antes, estimado depois e real, cada um com o erro em p.p. O Brier é calculado separado por tipo — misturar os dois esconderia justamente o efeito.",
+          "A estimativa é julgamento, não nota: ela não altera a acurácia do bloco.",
+        ],
+      },
+      {
+        title: "🧪 O app mede a própria política",
+        type: "feature",
+        items: [
+          "Não existe estudo de gabarito em bloco × imediato em concurso público brasileiro. Então o SOE sorteia a variante por aluno (determinística), aplica como padrão e mede o resultado.",
+          "Você pode trocar a correção no setup; a troca é registrada como override, nunca como erro.",
+          'O card "Experimento interno" em Estatísticas mostra n por variante, acerto no bloco e acerto em questão nova 7+ dias depois. Com menos de 20 tentativas em cada variante ele não elege vencedor: diz "amostra insuficiente (n=X)".',
+        ],
+      },
+      {
+        title: "🧹 Pendências",
+        type: "fix",
+        items: [
+          'A tela de questão ganhou "Me dá uma dica": o tutor responde com o movimento da coleira (dica → princípio → explicação) e, sem chave de IA, devolve a pergunta socrática padrão — inclusive no APK.',
+          'No leitor, os dois seletores do topo mostravam o mesmo texto. Agora o da esquerda é o documento ("Doc · …") e o da direita é a seção ("Seção 1 · …"), sem mudar o layout.',
+          "Página curta (menos de 60% do orçamento de palavras) não fica mais boiando num quadro alto: a altura mínima encolhe, e o paginador continua igual.",
+          "Sobraram duas datas UTC: o tópico criado pelo TEC e o criado pelo classificador gravavam `studyDate` com ISO completo e podiam nascer no dia seguinte depois das 21h. Agora é dia local.",
+        ],
+      },
+    ],
+  },
+
+  {
     version: "6.9.14",
     date: "27/11/2026",
     title: "Leitor paginado (e a republicação da entrega anterior)",

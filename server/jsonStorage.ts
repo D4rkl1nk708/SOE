@@ -5003,6 +5003,8 @@ export async function savePrediction(
   userId: number,
   input: {
     id?: string;
+    /** v6.9.15 (A): forecast (antes) | jol (depois de corrigir). */
+    kind?: "forecast" | "jol";
     predictedPct: number;
     actualPct?: number;
     questions?: number;
@@ -5033,6 +5035,9 @@ export async function savePrediction(
   if (existingIndex >= 0) {
     list[existingIndex] = {
       ...list[existingIndex],
+      // O tipo do julgamento não muda ao fechar o bloco: uma previsão antes
+      // nunca vira julgamento depois (e vice-versa).
+      kind: list[existingIndex].kind ?? input.kind,
       predictedPct,
       actualPct: actualPct ?? list[existingIndex].actualPct,
       questions: input.questions ?? list[existingIndex].questions,
@@ -5049,6 +5054,7 @@ export async function savePrediction(
       input.id ||
       `pred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     day: localDayISO(),
+    kind: input.kind,
     predictedPct,
     actualPct,
     questions: Math.max(0, Math.trunc(Number(input.questions) || 0)),

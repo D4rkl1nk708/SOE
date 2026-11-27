@@ -720,7 +720,8 @@ export async function resolvePendingClassification(
       userId,
       disciplineId,
       name,
-      studyDate: new Date().toISOString(),
+      // v6.9.15 (C4): dia local do aluno (era ISO completo, dia UTC).
+      studyDate: localDayISO(),
       notes: null,
     });
     topicId = created.id;

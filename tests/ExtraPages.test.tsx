@@ -113,6 +113,10 @@ vi.mock("@/lib/trpc", () => ({
       attemptTrends: {
         useQuery: () => ({ data: { trends: [] }, isLoading: false }),
       },
+      // v6.9.15 (B): o card do experimento interno consulta este endpoint.
+      experimentReport: {
+        useQuery: () => ({ data: null, isLoading: false }),
+      },
       // v6.9.7 (item 1): o card de calibração consulta study.calibration.
       calibration: {
         useQuery: () => ({
