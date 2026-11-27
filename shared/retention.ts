@@ -33,6 +33,16 @@ export interface RetentionHorizon {
   available: boolean;
 }
 
+/**
+ * Turno do tutor (v6.9.12, A3). `mayRevealAnswer` só é true quando o aluno já
+ * tinha 3 tentativas — é o que a métrica chama de "resposta direta".
+ */
+export interface RetentionTutorTurnLike {
+  mayRevealAnswer?: boolean;
+  kind?: string;
+  createdAt?: string;
+}
+
 export interface RetentionMetrics {
   minSample: number;
   available: boolean;
@@ -58,6 +68,12 @@ export interface RetentionMetrics {
     available: boolean;
   };
   brier: { score: number | null; sample: number; available: boolean };
+  /** Coleira do tutor: meta é `directAnswerRate` perto de 0. */
+  tutor: {
+    turns: number;
+    directAnswers: number;
+    directAnswerRate: number;
+  };
   expectedScore: {
     score: number;
     low: number;
@@ -98,6 +114,8 @@ export interface RetentionInput {
   weightedCoveragePct?: number;
   /** Proficiência estimada 0–100. */
   proficiency?: number;
+  /** Turnos do tutor registrados em `settings.tutorTurns`. */
+  tutorTurns?: RetentionTutorTurnLike[];
 }
 
 /**
@@ -218,6 +236,13 @@ export function computeRetentionMetrics(
       ) / 1000
     : null;
 
+  const tutorTurns = Array.isArray(input.tutorTurns)
+    ? input.tutorTurns.filter(Boolean)
+    : [];
+  const tutorDirect = tutorTurns.filter(
+    (turn) => turn?.mayRevealAnswer === true,
+  ).length;
+
   const anyHorizon = horizons.some((horizon) => horizon.available);
 
   return {
@@ -252,6 +277,11 @@ export function computeRetentionMetrics(
       score: brier,
       sample: predictionItems.length,
       available: brierAvailable,
+    },
+    tutor: {
+      turns: tutorTurns.length,
+      directAnswers: tutorDirect,
+      directAnswerRate: pct(tutorDirect, tutorTurns.length),
     },
     expectedScore: {
       score: expectedBase,

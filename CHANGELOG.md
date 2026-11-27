@@ -3,6 +3,26 @@
 Notas por versão. Releases anteriores (binários e descrição) estão no GitHub:
 https://github.com/D4rkl1nk708/SOE/releases
 
+## 6.9.12 — tutor com coleira
+
+O tutor do SOE não entrega mais a resposta: a guarda é código, não instrução.
+
+- `shared/tutorPolicy.ts` classifica o turno (pedido de resposta, explicação,
+  dica, conceito, motivação) e decide o movimento: `refuse_and_hint` no pedido
+  de gabarito, `hint` com 0–1 tentativas, `principle` com 2 e
+  `full_explanation` só a partir da 3ª. `mayRevealAnswer` nasce false.
+- `server/tutorGuard.ts` monta o contexto da questão **sem** gabarito,
+  alternativa correta e explicação oficial enquanto `mayRevealAnswer` é false —
+  o modelo não recebe o que não pode entregar.
+- `mentor.tutorTurn` (novo) devolve `{ move, reply }`; sem chave de IA devolve a
+  pergunta socrática padrão. O chat do Mentor aplica a mesma política.
+- `study.retentionMetrics.tutor` mede a coleira: `directAnswerRate` deve ficar
+  perto de 0. O card de Retenção mostra "Tutor entregou a resposta direto: X%
+  (meta: 0%)".
+- Datas UTC que sobraram: "estudou hoje" e "aula estudada" passaram a usar o
+  dia local (bug das 21h), e `tests/localDaySweep` falha se o padrão voltar sem
+  decisão explícita.
+
 ## 6.9.8 — o fim das "monstruosidades" do aluno
 
 Origem: o dono concluiu a revisão de "Conceitos e Princípios das Metodologias

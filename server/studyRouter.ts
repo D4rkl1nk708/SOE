@@ -650,6 +650,8 @@ Responda SOMENTE JSON: {"questions":[{"statement":"...","alternatives":[{"letter
         })),
       weightedCoveragePct: overview.coverage.weightedCoveragePct,
       proficiency: overview.coverage.readiness,
+      // v6.9.12 (A3): a coleira do tutor entra na métrica de retenção.
+      tutorTurns: (settings?.tutorTurns || []) as any,
     });
   }),
 });

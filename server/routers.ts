@@ -21,7 +21,7 @@ import {
   formatDateForDb,
   getScheduleParams,
 } from "../shared/scheduling";
-import { localDayISO } from "../shared/localDay";
+import { localDayFrom, localDayISO } from "../shared/localDay";
 import {
   getDashboardStats,
   getWeeklyStats,
@@ -1449,7 +1449,7 @@ ${input.text.substring(0, 8000)}`;
       for (let mood = 1; mood <= 5; mood++) {
         const moodDays = log
           .filter((e: any) => e.mood === mood)
-          .map((e: any) => e.date.split("T")[0]);
+          .map((e: any) => localDayFrom(e.date));
         const accs = sessions
           .filter((s: any) => moodDays.includes(s.date) && s.accuracy > 0)
           .map((s: any) => s.accuracy);

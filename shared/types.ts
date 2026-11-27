@@ -438,6 +438,19 @@ export interface UserSettings {
     createdAt: string;
     finishedAt?: string;
   }>;
+  /**
+   * v6.9.12 (A2): turnos do tutor com a coleira. Alimenta a métrica
+   * `study.retentionMetrics.tutor` — `directAnswers` são os turnos em que a
+   * explicação completa foi liberada (3ª tentativa em diante).
+   */
+  tutorTurns?: Array<{
+    intent: string;
+    kind: string;
+    hintLevel: number;
+    mayRevealAnswer: boolean;
+    questionId?: string | null;
+    createdAt: string;
+  }>;
   /** v6.9.11 (B7/4.11): micro-recuperações por seção do leitor. */
   sectionRecalls?: Array<{
     docId: string;

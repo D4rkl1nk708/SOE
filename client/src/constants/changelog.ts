@@ -11,6 +11,39 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.12",
+    date: "27/11/2026",
+    title: "Tutor com coleira: a resposta sai do prompt",
+    categories: [
+      {
+        title: "🛡️ Coleira do tutor",
+        type: "feature",
+        items: [
+          "O tutor só entrega a resposta a partir da 3ª tentativa. A política vive em código (shared/tutorPolicy): pedido de gabarito é recusado com pergunta de volta, a 2ª tentativa libera o princípio e só a 3ª libera a explicação completa.",
+          "Enquanto a resposta é proibida, gabarito, alternativa correta e explicação oficial não vão para o modelo: o contexto é montado por buildTutorContext e o modelo não recebe o que não pode entregar (Bastani et al., 2025: tutoria sem salvaguarda piora o desempenho depois que o acesso é removido).",
+          "Novo endpoint mentor.tutorTurn: devolve o movimento (dica, princípio ou explicação) e a resposta. Sem chave de IA, devolve a pergunta socrática padrão em vez de erro.",
+          "O chat do Mentor também segue a política: o turno é classificado e a instrução de tutoria entra acima do estilo.",
+        ],
+      },
+      {
+        title: "📊 Métrica de coleira",
+        type: "feature",
+        items: [
+          'O card de Retenção mostra "Tutor entregou a resposta direto: X% (meta: 0%)" — uso normal deve ficar em 0%. Cada turno é registrado com intenção, movimento, nível de dica e se liberou a resposta.',
+        ],
+      },
+      {
+        title: "🌙 Datas UTC que sobraram",
+        type: "fix",
+        items: [
+          '"Estudou hoje" e "aula estudada" gravavam o dia UTC: depois das 21h em Brasília o tópico caía no dia seguinte. Agora usam o dia local, no servidor e no modo offline.',
+          "Aula concluída, mapa de consistência e correlação humor × sessão também passaram a agrupar pelo dia do aluno.",
+          "Varredura nova (tests/localDaySweep): fatiar um timestamp ISO para tirar o dia, em código de produção, agora exige decisão explícita — ou o teste falha.",
+        ],
+      },
+    ],
+  },
+  {
     version: "6.9.11",
     date: "27/11/2026",
     title: "O SOE implacável: espaçamento, diagnóstico e retenção medida",

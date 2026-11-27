@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { localDayFrom } from "@shared/localDay";
 import { invalidateStudyState } from "@/lib/studyState";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -218,7 +219,7 @@ export default function Revisions() {
     const topicsDoneToday = new Set<number>();
     for (const revision of enrichedRevisions as any[]) {
       if (!revision?.completed) continue;
-      const when = String(revision.completedAt || "").slice(0, 10);
+      const when = localDayFrom(revision.completedAt) || "";
       if (when === todayKey) topicsDoneToday.add(revision.topicId);
     }
 

@@ -7,6 +7,8 @@
  * - Safe ID remapping and counter normalization
  */
 
+import { localDayFrom } from "./localDay";
+
 export const normalizeString = (s: string | null | undefined): string => {
   if (!s) return "";
   return s
@@ -514,6 +516,7 @@ export function smartMergeDatabases(
         topMap.get(r.topicId) || topMap.get(Number(r.topicId));
       if (!canonicalTopId) continue;
 
+      // sweep-ok: scheduledDate já é uma data gravada (YYYY-MM-DD).
       const schedDate = (r.scheduledDate || "").slice(0, 10);
       const revNumber = Number.isFinite(Number(r.revisionNumber))
         ? Number(r.revisionNumber)
@@ -526,7 +529,7 @@ export function smartMergeDatabases(
           id: nextRevId++,
           userId: effectiveUserId,
           topicId: canonicalTopId,
-          scheduledDate: r.scheduledDate || nowIso().slice(0, 10),
+          scheduledDate: r.scheduledDate || localDayFrom(nowIso()) || "",
           type: r.type || "revision",
           revisionNumber: revNumber,
           completed: Boolean(r.completed),

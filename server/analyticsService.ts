@@ -7,7 +7,7 @@
 
 import * as storage from "./jsonStorage";
 import type { Discipline, Topic, Revision } from "./jsonStorage";
-import { localDayISO } from "../shared/localDay";
+import { localDayFrom, localDayISO } from "../shared/localDay";
 
 // ─── Utilitários internos ──────────────────────────────────────────────────
 
@@ -377,16 +377,13 @@ export async function getStudyHeatmap(userId: number, months: number) {
 
   // 1. Tópicos com data de estudo (fluxo antigo, baseado no próprio tópico)
   for (const t of topics) {
-    bump(
-      t.studyDate ?? (t.createdAt ? t.createdAt.split("T")[0] : null),
-      t.studyTimeSeconds ?? 0,
-    );
+    bump(t.studyDate ?? localDayFrom(t.createdAt), t.studyTimeSeconds ?? 0);
   }
 
   // 2. Revisões concluídas: a fonte real de quem veio do TEC/importação e
   //    nunca teve studySessionLog — sem isso o mapa de consistência ficava vazio.
   for (const r of revisions) {
-    bump(r.completedAt ? r.completedAt.split("T")[0] : null);
+    bump(localDayFrom(r.completedAt));
   }
 
   // 3. Questões respondidas (o tempo vem dos segundos gastos na questão)
@@ -394,7 +391,7 @@ export async function getStudyHeatmap(userId: number, months: number) {
   if (Array.isArray(attempts)) {
     for (const a of attempts) {
       bump(
-        a?.createdAt ? String(a.createdAt).split("T")[0] : null,
+        localDayFrom(a?.createdAt ? String(a.createdAt) : null),
         Number(a?.seconds) || 0, // segundos; o total é convertido em minutos no fim
       );
     }

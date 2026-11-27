@@ -568,7 +568,8 @@ export async function logTopicStudiedToday(
   const user = db.users.find((u) => u.id === userId);
   if (!user) return;
   const occurredAt = whenIso || now();
-  const day = occurredAt.slice(0, 10);
+  // v6.9.12 (B): dia local do aluno — o id do evento é por dia.
+  const day = localDayFrom(occurredAt) || localDayISO();
   const context = eventContext(db, topicId);
   pushStudyEvent(user, {
     id: `tec-day-${topicId}-${day}`,
@@ -603,7 +604,7 @@ export async function isLessonStudiedToday(
   topicName: string,
   whenIso?: string,
 ): Promise<{ date: string; studied: boolean }> {
-  const day = (whenIso || now()).slice(0, 10);
+  const day = localDayFrom(whenIso || now()) || localDayISO();
   const settings = await getUserSettings(userId);
   const events = (settings as any)?.studyEvents;
   const id = lessonEventId(topicName, day);
@@ -627,7 +628,8 @@ export async function logLessonStudiedToday(
   const db = readDatabase();
   const user = db.users.find((u) => u.id === userId);
   const occurredAt = whenIso || now();
-  const day = occurredAt.slice(0, 10);
+  // v6.9.12 (B): dia local do aluno — o id do evento é por dia.
+  const day = localDayFrom(occurredAt) || localDayISO();
   if (!user) return { date: day, recorded: false };
 
   const id = lessonEventId(topicName, day);
@@ -1744,6 +1746,7 @@ export async function applyDataHealthFix(
     const cutoff = addLocalDays(today, -90);
     for (const card of db.flashcards || []) {
       if (card.userId !== userId || card.archived) continue;
+      // sweep-ok: nextReviewDate já é uma data gravada (YYYY-MM-DD).
       const day = String(card.nextReviewDate || "").slice(0, 10);
       if (!day || day >= cutoff) continue;
       card.nextReviewDate = today;
@@ -2771,7 +2774,7 @@ export async function getStudyHeatmap(
   const map: Record<string, { count: number; seconds: number }> = {};
 
   for (const t of topics) {
-    const d = t.studyDate || (t.createdAt ? t.createdAt.split("T")[0] : null);
+    const d = t.studyDate || localDayFrom(t.createdAt);
     if (!d || d < cutoffStr) continue;
     if (!map[d]) map[d] = { count: 0, seconds: 0 };
     map[d].count++;
@@ -3423,7 +3426,7 @@ export async function getLastRevisionDate(
         r.completedAt,
     )
     .sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || ""));
-  return completed[0]?.completedAt?.split("T")[0] || null;
+  return localDayFrom(completed[0]?.completedAt || null);
 }
 
 /** F09 - Log emotion before study session */
@@ -3891,6 +3894,47 @@ export async function addMentorObservation(
 
     writeDatabase(db);
   }
+}
+
+/** v6.9.12 (A2): guarda só os últimos turnos; a métrica não precisa do histórico inteiro. */
+export const MAX_TUTOR_TURNS = 500;
+
+/**
+ * Registra um turno do tutor (intent, kind, hintLevel, mayRevealAnswer,
+ * questionId, createdAt). É a fonte de `study.retentionMetrics.tutor`.
+ */
+export async function recordTutorTurn(
+  userId: number,
+  turn: {
+    intent: string;
+    kind: string;
+    hintLevel: number;
+    mayRevealAnswer: boolean;
+    questionId?: string | null;
+    createdAt: string;
+  },
+): Promise<void> {
+  const db = readDatabase();
+  const user = db.users.find((item) => item.id === userId);
+  if (!user) return;
+  if (!user.settings) user.settings = {} as any;
+  const settings = user.settings as any;
+  const list: any[] = Array.isArray(settings.tutorTurns)
+    ? settings.tutorTurns
+    : [];
+  list.push({
+    intent: String(turn.intent || "other"),
+    kind: String(turn.kind || "hint"),
+    hintLevel: Math.max(
+      0,
+      Math.min(3, Math.trunc(Number(turn.hintLevel) || 0)),
+    ),
+    mayRevealAnswer: turn.mayRevealAnswer === true,
+    questionId: turn.questionId ?? null,
+    createdAt: turn.createdAt || new Date().toISOString(),
+  });
+  settings.tutorTurns = list.slice(-MAX_TUTOR_TURNS);
+  writeDatabase(db);
 }
 
 // ============ FLASHCARD ARCHIVING ============

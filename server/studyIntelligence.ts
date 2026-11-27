@@ -17,7 +17,12 @@ import type {
 } from "../shared/types";
 import { normalizeString, isFuzzyMatch } from "../shared/utils";
 import { formatDateForDb } from "../shared/scheduling";
-import { addLocalDays, isSameLocalDay, localDayISO } from "../shared/localDay";
+import {
+  addLocalDays,
+  isSameLocalDay,
+  localDayFrom,
+  localDayISO,
+} from "../shared/localDay";
 import {
   limitConsecutiveRevisions,
   overdueDaysFor,
@@ -743,7 +748,7 @@ function computePlan(
       color: m.color,
       score: (100 - m.readiness) * (0.5 + (coverageRow?.weight ?? 1)),
       route: "/question-session",
-      completed: m.lastStudyAt?.slice(0, 10) === today,
+      completed: localDayFrom(m.lastStudyAt) === today,
       gainPerMinute: expectedGainPerMinute({
         weight: coverageRow?.weight ?? 1,
         proficiency: m.readiness,
@@ -776,7 +781,7 @@ function computePlan(
       color: m?.color || "var(--primary)",
       score: row.weight * (100 - row.readiness),
       route: "/question-session",
-      completed: m?.lastStudyAt?.slice(0, 10) === today,
+      completed: localDayFrom(m?.lastStudyAt) === today,
     });
     usedTopics.add(row.topicId);
   }
@@ -823,7 +828,7 @@ function computePlan(
         color: m.color,
         score: 10,
         route: "/question-session",
-        completed: m.lastStudyAt?.slice(0, 10) === today,
+        completed: localDayFrom(m.lastStudyAt) === today,
       });
       usedTopics.add(m.topicId);
     }
@@ -1271,6 +1276,7 @@ export async function getDataHealth(userId: number): Promise<DataHealth> {
   // Flashcard vencido há mais de 90 dias (o aluno nunca vai revisar).
   const staleFlashcards = flashcards.filter((card) => {
     if (card.archived) return false;
+    // sweep-ok: nextReviewDate já é uma data gravada (YYYY-MM-DD).
     const day = String(card.nextReviewDate || "").slice(0, 10);
     return Boolean(day) && day < staleCutoff;
   });
@@ -1639,7 +1645,7 @@ export async function getStudyOverview(
       topWeak: [...mastery]
         .filter((item) => item.resolved > 0)
         .sort((a, b) => a.readiness - b.readiness)
-        .slice(0, 10),
+        .slice(0, 10), // sweep-ok: lista, não é data.
     },
   };
 }

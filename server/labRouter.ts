@@ -246,7 +246,7 @@ ${chunkText}`;
           }
         }
 
-        return results.slice(0, 10);
+        return results.slice(0, 10); // sweep-ok: lista, não é data.
       } catch (err: any) {
         throw new Error(`Busca falhou: ${err.message}`);
       }

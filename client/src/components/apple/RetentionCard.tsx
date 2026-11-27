@@ -77,6 +77,14 @@ export function RetentionCard({ className }: { className?: string }) {
           </span>
         </div>
         <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">
+            Tutor entregou a resposta direto
+          </span>
+          <span className="font-medium text-foreground">
+            {data.tutor?.directAnswerRate ?? 0}% (meta: 0%)
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-muted-foreground">
             <Gauge size={12} /> Brier
           </span>

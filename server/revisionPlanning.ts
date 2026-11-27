@@ -73,7 +73,7 @@ function normalizeIsoDate(iso: string): string | null {
   // `ts` é meia-noite UTC de propósito: aqui normalizamos uma data já
   // informada, não "hoje" — trocar por dia local deslocaria o dia.
   // eslint-disable-next-line no-restricted-syntax
-  return new Date(ts).toISOString().slice(0, 10);
+  return new Date(ts).toISOString().slice(0, 10); // sweep-ok: data já gravada (meia-noite UTC de propósito).
 }
 
 function isPending(rev: Rev): boolean {

@@ -104,7 +104,7 @@ export default function StudyPlan() {
   const hasEdital = (coverage?.totalRows || 0) > 0;
 
   const topPriorities = useMemo(
-    () => (coverage?.priorities || []).slice(0, 10),
+    () => (coverage?.priorities || []).slice(0, 10), // sweep-ok: lista, não é data.
     [coverage?.priorities],
   );
 

@@ -21,6 +21,7 @@ import {
   pickTheoryRevisionSuggestion,
 } from "./tecStudyCalendar";
 import { normalizeTecLabel } from "../shared/tecLabels";
+import { localDayFrom, localDayISO } from "../shared/localDay";
 import { formatDateForDb } from "../shared/scheduling";
 import type { QuestionAttempt, UserSettings } from "../shared/types";
 
@@ -218,10 +219,12 @@ export async function handleTecAnswer(
   });
 
   const nowIso = new Date().toISOString();
+  // v6.9.12 (B): "estudou hoje" é o dia do ALUNO. `slice(0, 10)` de um ISO é
+  // UTC — depois das 21h em Brasília gravava o tópico no dia seguinte.
   await storage.logTopicStudiedToday(
     userId,
     resolvedTopic.id,
-    nowIso.slice(0, 10),
+    localDayFrom(nowIso) || localDayISO(),
   );
 
   if (seconds) {

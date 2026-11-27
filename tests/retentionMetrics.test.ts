@@ -113,3 +113,36 @@ describe("retentionMetrics — retenção medida, não atividade (seção 6)", (
     expect(metrics.brier.score).toBeCloseTo(0.1933, 3);
   });
 });
+
+describe("coleira do tutor na métrica de retenção (v6.9.12, A3)", () => {
+  const turn = (mayRevealAnswer: boolean) => ({ mayRevealAnswer });
+
+  it("sem turnos devolve 0 e não inventa taxa", () => {
+    const metrics = computeRetentionMetrics({ attempts: [] });
+    expect(metrics.tutor).toEqual({
+      turns: 0,
+      directAnswers: 0,
+      directAnswerRate: 0,
+    });
+  });
+
+  it("uso normal (nenhuma revelação) fica em 0% — a meta", () => {
+    const metrics = computeRetentionMetrics({
+      attempts: [],
+      tutorTurns: Array.from({ length: 10 }, () => turn(false)),
+    });
+    expect(metrics.tutor.turns).toBe(10);
+    expect(metrics.tutor.directAnswers).toBe(0);
+    expect(metrics.tutor.directAnswerRate).toBe(0);
+  });
+
+  it("conta como resposta direta só o turno que liberou a solução completa", () => {
+    const metrics = computeRetentionMetrics({
+      attempts: [],
+      tutorTurns: [...Array.from({ length: 9 }, () => turn(false)), turn(true)],
+    });
+    expect(metrics.tutor.turns).toBe(10);
+    expect(metrics.tutor.directAnswers).toBe(1);
+    expect(metrics.tutor.directAnswerRate).toBe(10);
+  });
+});

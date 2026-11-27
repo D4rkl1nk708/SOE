@@ -11,7 +11,12 @@ import {
   formatDateForDb,
   getScheduleParams,
 } from "@shared/scheduling";
-import { addLocalDays, isSameLocalDay, localDayISO } from "@shared/localDay";
+import {
+  addLocalDays,
+  isSameLocalDay,
+  localDayFrom,
+  localDayISO,
+} from "@shared/localDay";
 import {
   limitConsecutiveRevisions,
   normalizeLocalDay,
@@ -1121,6 +1126,7 @@ export async function localRecordQuestionAttempt(input: {
           attempt.correct === true,
       )
       .map((attempt) => ({
+        // sweep-ok: bucket de domínio/memória (mastery é intocável nesta versão).
         day: String(attempt.createdAt || "").slice(0, 10),
         correct: true as const,
         fresh: Boolean(attempt.fresh),
@@ -2435,7 +2441,7 @@ export async function localStudyOverview(input?: { minutes?: number }) {
       disciplines: disciplineRows,
       priorities: [...disciplineRows]
         .sort((a, b) => b.priority - a.priority)
-        .slice(0, 10)
+        .slice(0, 10) // sweep-ok: lista (top 10 disciplinas), não é data.
         .map((row) => ({
           id: `disc-${row.disciplineId}`,
           discipline: row.name,
@@ -2555,7 +2561,7 @@ export async function localStudyErrorPatterns() {
       };
     })
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+    .slice(0, 10); // sweep-ok: lista (top 10 tópicos), não é data.
   return { total: errors.length, topTopics };
 }
 
@@ -3136,7 +3142,7 @@ export async function localMentorChat(input: {
           .join(", ")
       : "Nenhum tópico crítico.";
   const errorsStr = errors.items
-    .slice(0, 10)
+    .slice(0, 10) // sweep-ok: lista, não é data.
     .map((e) => {
       const d = disciplines.find((d) => d.id === e.disciplineId);
       return `[${d?.name ?? "Desconhecida"}] Questão: "${e.statement.slice(0, 100)}..." | Erro: ${e.errorOrigin ?? "desconhecido"}`;
@@ -3145,7 +3151,7 @@ export async function localMentorChat(input: {
 
   const revisionsStr = revisions
     .filter((r) => !r.completed && !r.ignored)
-    .slice(0, 10)
+    .slice(0, 10) // sweep-ok: lista, não é data.
     .map((r) => {
       const t = topics.find((t) => t.id === r.topicId);
       return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
@@ -3160,7 +3166,7 @@ export async function localMentorChat(input: {
     )
     .join("\n");
   const topicsStr = topics
-    .slice(0, 10)
+    .slice(0, 10) // sweep-ok: lista, não é data.
     .map((t) => `ID: ${t.id} | ${t.name}`)
     .join("\n");
 
@@ -4383,7 +4389,8 @@ export async function localLessonStudiedToday(input: {
   topicName: string;
 }): Promise<{ date: string; studied: boolean }> {
   const u = await ensureLocalUser();
-  const day = now().slice(0, 10);
+  // v6.9.12 (B): "hoje" é o dia local, não o UTC do timestamp.
+  const day = localDayFrom(now()) || localDayISO();
   const id = lessonEventId(input.topicName, day);
   const events = settingsList<{ id?: string }>(u, "studyEvents");
   return { date: day, studied: events.some((event) => event.id === id) };
@@ -4395,7 +4402,7 @@ export async function localMarkLessonStudied(input: {
 }): Promise<{ date: string; recorded: boolean }> {
   const u = await ensureLocalUser();
   const occurredAt = now();
-  const day = occurredAt.slice(0, 10);
+  const day = localDayFrom(occurredAt) || localDayISO();
   const id = lessonEventId(input.topicName, day);
   const events = settingsList<Record<string, unknown>>(u, "studyEvents");
   if (events.some((event) => event.id === id)) {
@@ -4797,6 +4804,8 @@ export async function localStudyRetentionMetrics(): Promise<
         predictedPct: item.predictedPct,
         actualPct: item.actualPct,
       })),
+    // v6.9.12 (A3): mesma métrica no modo offline.
+    tutorTurns: Array.isArray(settings.tutorTurns) ? settings.tutorTurns : [],
   }) as unknown as Record<string, unknown>;
 }
 

@@ -6,7 +6,9 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as storage from "./jsonStorage";
-import { localDayISO } from "../shared/localDay";
+import { localDayFrom, localDayISO } from "../shared/localDay";
+import { classifyTutorIntent, decideTutorMove } from "../shared/tutorPolicy";
+import { buildTutorContext, fallbackTutorReply } from "./tutorGuard";
 import fs from "fs";
 import path from "path";
 
@@ -467,10 +469,10 @@ Responda APENAS o JSON válido.`;
       const previousSnap = snapshots[1];
 
       const tecContext = latestSnap
-        ? `\n\nDESEMPENHO TEC (última importação: ${latestSnap.importedAt.split("T")[0]}):\n` +
+        ? `\n\nDESEMPENHO TEC (última importação: ${localDayFrom(latestSnap.importedAt)}):\n` +
           `- Total geral: ${latestSnap.totalQuestions} questões | ${latestSnap.overallAccuracy}% de acerto\n` +
           (previousSnap
-            ? `- Variação vs importação anterior (${previousSnap.importedAt.split("T")[0]}): ` +
+            ? `- Variação vs importação anterior (${localDayFrom(previousSnap.importedAt)}): ` +
               `${latestSnap.totalQuestions - previousSnap.totalQuestions > 0 ? "+" : ""}${latestSnap.totalQuestions - previousSnap.totalQuestions} questões, ` +
               `${latestSnap.overallAccuracy - previousSnap.overallAccuracy > 0 ? "+" : ""}${latestSnap.overallAccuracy - previousSnap.overallAccuracy}pp de acerto\n`
             : "") +
@@ -590,7 +592,7 @@ Máximo 200 palavras. Linguagem de treinador que quer te ver passar.`;
           : 0;
 
       const weakList = weak
-        .slice(0, 10)
+        .slice(0, 10) // sweep-ok: lista, não é data.
         .map((t) => `- ${t.disciplineName} > ${t.topicName}: ${t.accuracy}%`)
         .join("\n");
       const errorPatterns = errors
@@ -1134,7 +1136,7 @@ Responda APENAS o JSON.`;
       const disc = disciplines.find((d) => d.id === topic.disciplineId);
 
       const errorTexts = errors
-        .slice(0, 10)
+        .slice(0, 10) // sweep-ok: lista, não é data.
         .map((e) => `${e.statement} (Gabarito: ${e.correctAnswer})`)
         .join("\n");
 
@@ -1308,7 +1310,7 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
 
       const revisionsStr = revisions
         .filter((r) => !r.completed && !r.ignored)
-        .slice(0, 10)
+        .slice(0, 10) // sweep-ok: lista, não é data.
         .map((r) => {
           const t = topics.find((t) => t.id === r.topicId);
           return `Data: ${r.scheduledDate} | Tema: ${t?.name ?? "Desconhecido"}`;
@@ -1330,7 +1332,7 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
             a.studyDate || a.createdAt || "",
           ),
         )
-        .slice(0, 10)
+        .slice(0, 10) // sweep-ok: lista, não é data.
         .map((t) => `ID: ${t.id} | DiscID: ${t.disciplineId} | Nome: ${t.name}`)
         .join("\n");
 
@@ -1349,6 +1351,26 @@ Sua tarefa é transcrever INTEGRALMENTE e FIELMENTE o texto contido na imagem.
       const transcript = input.history
         .map((m) => `${m.role === "user" ? "Aluno" : "Mentor"}: ${m.content}`)
         .join("\n\n");
+
+      // v6.9.12 (A2): a política de tutoria vale também no chat livre. As
+      // mensagens do aluno no histórico são as tentativas dele nesta conversa;
+      // sem 3 tentativas o contexto não carrega resposta (aqui não há gabarito
+      // de questão, mas a instrução proíbe entregar a solução pronta).
+      const tutorAttempts = Math.min(
+        9,
+        input.history.filter((message) => message.role === "user").length,
+      );
+      const tutorIntent = classifyTutorIntent(input.message);
+      const tutorMove = decideTutorMove({
+        intent: tutorIntent,
+        studentAttempts: tutorAttempts,
+        alreadyExplained: false,
+      });
+      const tutorContext = buildTutorContext({
+        question: null,
+        move: tutorMove,
+        studentText: input.message,
+      });
 
       const sources: Array<{
         id: string;
@@ -1447,11 +1469,23 @@ Sempre que você notar que o aluno está trocando um conceito por outro (ex: con
 [CONFUSION]{"conceptA": "Anulação", "conceptB": "Revogação", "explanation": "O aluno acha que o Judiciário pode revogar atos por mérito."}[/CONFUSION]
 Isso ajudará a montar o mapa de pontos cegos dele.
 
+POLÍTICA DE TUTORIA DESTE TURNO (obrigatória, acima do estilo):
+${tutorContext}
+
 HISTÓRICO DA CONVERSA:
 ${transcript}
 
 Aluno: ${input.message}
 Mentor:`;
+
+      await storage.recordTutorTurn(ctx.user.id, {
+        intent: tutorIntent,
+        kind: tutorMove.kind,
+        hintLevel: tutorMove.hintLevel,
+        mayRevealAnswer: tutorMove.mayRevealAnswer,
+        questionId: null,
+        createdAt: new Date().toISOString(),
+      });
 
       try {
         let reply = await callAI(input.provider, input.apiKey, prompt, 1500);
@@ -1515,6 +1549,116 @@ Mentor:`;
         throw new Error(
           `Falha no chat: ${err instanceof Error ? err.message : String(err)}`,
         );
+      }
+    }),
+
+  /**
+   * v6.9.12 (A2): turno de tutoria com coleira.
+   *
+   * `classifyTutorIntent` + `decideTutorMove` decidem o movimento;
+   * `buildTutorContext` monta o prompt SEM o gabarito enquanto o aluno não
+   * tem 3 tentativas. A chamada de IA é opcional: sem chave (ou com falha da
+   * IA) devolve o move + a pergunta padrão, e o turno é registrado do mesmo
+   * jeito em `settings.tutorTurns`.
+   */
+  tutorTurn: protectedProcedure
+    .input(
+      z.object({
+        questionId: z.union([z.string(), z.number()]).optional(),
+        text: z.string().min(1),
+        studentAttempts: z.number().int().min(0).max(99).default(0),
+        alreadyExplained: z.boolean().optional().default(false),
+        question: z
+          .object({
+            id: z.union([z.string(), z.number()]).optional(),
+            statement: z.string().optional(),
+            alternatives: z
+              .array(
+                z.object({
+                  letter: z.string().optional(),
+                  text: z.string().optional(),
+                }),
+              )
+              .optional(),
+            correctAnswer: z.string().optional(),
+            explanation: z.string().optional(),
+            topicName: z.string().optional(),
+            disciplineName: z.string().optional(),
+          })
+          .optional(),
+        apiKey: z.string().optional().default(""),
+        provider: z.enum(["claude", "gemini", "openai"]).default("gemini"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const intent = classifyTutorIntent(input.text);
+      const move = decideTutorMove({
+        intent,
+        studentAttempts: input.studentAttempts,
+        alreadyExplained: input.alreadyExplained,
+      });
+
+      let question = (input.question ?? null) as any;
+      if (!question && input.questionId != null) {
+        let errors: any = { items: [] };
+        try {
+          errors = await storage.getQuestionErrorsByUser(ctx.user.id, {
+            limit: 200,
+          });
+        } catch {
+          errors = { items: [] };
+        }
+        const found = (errors?.items || []).find(
+          (item: any) => String(item?.id) === String(input.questionId),
+        );
+        if (found) {
+          question = {
+            id: found.id,
+            statement: found.statement,
+            alternatives: found.alternatives,
+            correctAnswer: found.correctAnswer,
+            explanation: found.explanation,
+            topicName: found.topicName,
+            disciplineName: found.disciplineName,
+          };
+        }
+      }
+
+      const questionId =
+        question?.id != null
+          ? String(question.id)
+          : input.questionId != null
+            ? String(input.questionId)
+            : null;
+
+      await storage.recordTutorTurn(ctx.user.id, {
+        intent,
+        kind: move.kind,
+        hintLevel: move.hintLevel,
+        mayRevealAnswer: move.mayRevealAnswer,
+        questionId,
+        createdAt: new Date().toISOString(),
+      });
+
+      const tutorContext = buildTutorContext({
+        question,
+        move,
+        studentText: input.text,
+      });
+      const fallback = fallbackTutorReply(move);
+
+      if (!input.apiKey) {
+        return { move, reply: fallback, questionId };
+      }
+
+      const prompt = `${tutorContext}
+
+TUTOR: responda ao aluno agora, em português, seguindo a política acima. Se a política proibir a solução completa, NÃO confirme qual opção está certa: dê uma dica e devolva uma pergunta.`;
+      try {
+        const reply = await callAI(input.provider, input.apiKey, prompt, 800);
+        return { move, reply: (reply || "").trim() || fallback, questionId };
+      } catch {
+        return { move, reply: fallback, questionId };
       }
     }),
 
