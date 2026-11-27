@@ -11,6 +11,24 @@ export interface ChangelogItem {
 
 export const CHANGELOG_DATA: ChangelogItem[] = [
   {
+    version: "6.9.14",
+    date: "27/11/2026",
+    title: "Leitor paginado (e a republicação da entrega anterior)",
+    categories: [
+      {
+        title: "📖 Leitura em páginas",
+        type: "feature",
+        items: [
+          "O leitor deixou de rolar: cada página cabe inteira na tela, com 'X de Y', setas, teclado e swipe. A rolagem é o que mais prejudica a compreensão na tela (papel vence por g=0,35–0,48 quando há rolagem; sem rolagem, empatam).",
+          "A posição fica guardada por documento e seção: você volta exatamente onde parou.",
+          "Página sem enfeite: nada de ícone, gradiente ou divisória decorativa no corpo do texto.",
+          "Esta versão republica o conteúdo da 6.9.13, que teve o release bloqueado por um erro de tipo no próprio teste.",
+        ],
+      },
+    ],
+  },
+
+  {
     version: "6.9.13",
     date: "27/11/2026",
     title: "Leitor paginado: uma página por vez, sem rolagem",
